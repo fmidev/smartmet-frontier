@@ -33,6 +33,7 @@ env = Environment( )
 
 env.Append(LIBS=["smartmet_woml",
 		 "smartmet_macgyver-mt",
+		 "boost_filesystem",
 		 "boost_system"
 	  ]);
 
@@ -43,6 +44,8 @@ env.Append( CPPDEFINES= "_REENTRANT" )
 env.Append( CPPPATH= [ "./include" ] )
 
 env.ParseConfig( "(pkg-config --exists libxml++-2.6 && pkg-config libxml++-2.6 --cflags --libs)" )
+
+env.ParseConfig( "(pkg-config --exists cairomm-1.0 && pkg-config cairomm-1.0 --cflags --libs)" )
 
 env.Append( CXXFLAGS= [
         # MAINFLAGS from orig. Makefile
