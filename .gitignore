@@ -2,6 +2,7 @@ obj
 *.o
 *~
 *.xml
+*.png
 .sconsign.dblite
 frontier
 libsmartmet_frontier.a
