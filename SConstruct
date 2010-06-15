@@ -31,7 +31,10 @@ OBJDIR=     ARGUMENTS.get("objdir","obj")
 
 env = Environment( )
 
-env.Append(LIBS=["smartmet_woml", "smartmet_macgyver-mt"]);
+env.Append(LIBS=["smartmet_woml",
+		 "smartmet_macgyver-mt",
+		 "boost_system"
+	  ]);
 
 env.Append( CPPDEFINES= ["UNIX"] )
 env.Append( CPPDEFINES="FMI_MULTITHREAD" )
