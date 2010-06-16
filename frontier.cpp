@@ -27,7 +27,7 @@ int run()
   // Create image to write
 
   Cairo::RefPtr<Cairo::ImageSurface> surface =
-	Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, 2*360, 2*180);
+	Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, 500*9/6, 500);
 
   Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
   cr->set_source_rgb(1,1,1);

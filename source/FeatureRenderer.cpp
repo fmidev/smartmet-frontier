@@ -24,10 +24,8 @@ namespace frontier
 
 woml::Point FeatureRenderer::project(const woml::Point & thePoint)
 {
-  // 2*(360x180)
-
-  double x = (thePoint.lon())*4;
-  double y = (90-thePoint.lat())*4;
+  double x = (thePoint.lon()+70)*5;
+  double y = 500-(thePoint.lat()-20)*9;
   return woml::Point(x,y);
 }
 
@@ -128,7 +126,24 @@ FeatureRenderer::visit(const woml::Jet & theFeature)
 void
 FeatureRenderer::visit(const woml::OccludedFront & theFeature)
 {
-  // TODO
+  itsCR->save();
+  itsCR->set_source_rgb(1,0,1);
+  itsCR->set_line_width(10);
+
+  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+
+  BOOST_FOREACH(const woml::SimpleCubicSpline & spline, splines)
+	{
+	  if(!spline.empty())
+		{
+		  move_to(spline[0]);
+		  for(woml::SimpleCubicSpline::size_type i=1; i<spline.size(); ++i)
+			line_to(spline[i]);
+		}
+	}
+
+  itsCR->stroke();
+  itsCR->restore();
 }
 
 // ----------------------------------------------------------------------
