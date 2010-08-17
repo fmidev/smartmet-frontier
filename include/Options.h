@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace Frontier
+namespace frontier
 {
   class Options
   {
@@ -34,10 +34,14 @@ namespace Frontier
 
 	std::string womlfile;
 
+	// -o outfile
+
+	std::string outfile;
+
   }; // class Options
 
   bool parse_options(int argc, char * argv[], Options & theOptions);
 
-} // namespace Frontier
+} // namespace frontier
 
 #endif // FRONTIER_OPTIONS_H

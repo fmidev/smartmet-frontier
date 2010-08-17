@@ -9,7 +9,6 @@
 
 #include <smartmet/woml/FeatureVisitor.h>
 #include <smartmet/woml/Point.h>
-#include <cairomm/context.h>
 
 namespace frontier
 {
@@ -18,7 +17,6 @@ namespace frontier
   public:
 
 	virtual ~FeatureRenderer() {}
-	FeatureRenderer(Cairo::RefPtr<Cairo::Context> theCR);
 
 	virtual void visit(const woml::CloudAreaBorder & theFeature);
     virtual void visit(const woml::ColdFront & theFeature);
@@ -34,17 +32,11 @@ namespace frontier
 
   private:
 
-	FeatureRenderer();
 	woml::Point project(const woml::Point & thePoint);
-	void move_to(const woml::Point & thePoint);
-	void line_to(const woml::Point & thePoint);
-
-	Cairo::RefPtr<Cairo::Context> itsCR;
-
 
   }; // class FeatureRenderer
 
 
-} // nameaspace frontier
+} // namespace frontier
 
 #endif // FRONTIER_FEATURERENDERER_H

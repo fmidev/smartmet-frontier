@@ -10,7 +10,7 @@
 #include <boost/filesystem/operations.hpp>
 #include <iostream>
 
-namespace Frontier {
+namespace frontier {
 
 // ----------------------------------------------------------------------
 /*!
@@ -25,6 +25,7 @@ namespace Frontier {
 	, projection()
 	, defsfile()
 	, womlfile()
+	, outfile("-")
   {
   }
 
@@ -43,25 +44,25 @@ namespace Frontier {
       
 	po::options_description desc("Allowed options");
 
-	std::string msgdefs = ("set the SVG defs file");
-	std::string msgproj = ("set the projection description or file");
-	std::string msgwoml = ("set the WOML file");
+	std::string msgdefs = ("SVG defs file");
+	std::string msgproj = ("projection description or file");
+	std::string msgwoml = ("WOML file");
+	std::string msgoutfile = ("output file, default=- (stdout)");
 	
 	desc.add_options()
 	  ("help,h","print out help message")
-	  ("debug,d",po::bool_switch(&theOptions.debug),"set debug mode on")
-	  ("verbose,v",po::bool_switch(&theOptions.verbose),"set verbose mode on")
-	  ("quiet,q",po::bool_switch(&theOptions.quiet),"set quiet mode on")
+	  ("debug,d",po::bool_switch(&theOptions.debug),"debug mode")
+	  ("verbose,v",po::bool_switch(&theOptions.verbose),"verbose mode")
+	  ("quiet,q",po::bool_switch(&theOptions.quiet),"quiet mode")
 	  ("version,V","display version number")
 	  ("woml,w",po::value(&theOptions.womlfile),msgwoml.c_str())
-	  ("defs,d",po::value(&theOptions.defsfile),msgdefs.c_str())
+	  ("svg,s",po::value(&theOptions.defsfile),msgdefs.c_str())
 	  ("proj,p",po::value(&theOptions.projection),msgproj.c_str())
+	  ("outfile,o",po::value(&theOptions.outfile),msgoutfile.c_str())
         ;
 	
 	po::positional_options_description p;
-	p.add("projfile",1);
-	p.add("defsfile",2);
-	p.add("womlfile",3);
+	p.add("woml",1);
 
 	po::variables_map opt;
 	po::store(po::command_line_parser(argc,argv)
@@ -96,16 +97,19 @@ namespace Frontier {
 		return false;
 	  }
 
-	if(theOptions.projection.empty())
-	  throw std::runtime_error("Projection not specified");
+	if(theOptions.womlfile.empty())
+	  throw std::runtime_error("WOML file not specified");
 
 	if(theOptions.defsfile.empty())
 	  throw std::runtime_error("SVG defs file not specified");
 
-	if(theOptions.womlfile.empty())
-	  throw std::runtime_error("WOML file not specified");
+	if(theOptions.projection.empty())
+	  throw std::runtime_error("Projection not specified");
+
+	if(theOptions.quiet)   theOptions.verbose = false;
+	if(theOptions.verbose) theOptions.quiet = false;
 
 	return true;
   }
 	
-} // namespace Frontier
+} // namespace frontier

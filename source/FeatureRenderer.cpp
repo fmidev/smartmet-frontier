@@ -31,41 +31,6 @@ woml::Point FeatureRenderer::project(const woml::Point & thePoint)
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Move to given lat/lon
- */
-// ----------------------------------------------------------------------
-
-void FeatureRenderer::move_to(const woml::Point & thePoint)
-{
-  woml::Point xy = project(thePoint);
-  itsCR->move_to(xy.lon(), xy.lat());
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Draw line to given lat/lon
- */
-// ----------------------------------------------------------------------
-
-void FeatureRenderer::line_to(const woml::Point & thePoint)
-{
-  woml::Point xy = project(thePoint);
-  itsCR->line_to(xy.lon(), xy.lat());
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Constructor
- */
-// ----------------------------------------------------------------------
-
-FeatureRenderer::FeatureRenderer(Cairo::RefPtr<Cairo::Context> theCR)
-  : itsCR(theCR)
-{
-}
-
-// ----------------------------------------------------------------------
-/*!
  * \brief Render a CloudAreaBorder
  */
 // ----------------------------------------------------------------------
@@ -85,24 +50,7 @@ FeatureRenderer::visit(const woml::CloudAreaBorder & theFeature)
 void
 FeatureRenderer::visit(const woml::ColdFront & theFeature)
 {
-  itsCR->save();
-  itsCR->set_source_rgb(0,0,1);
-  itsCR->set_line_width(10);
-
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
-
-  BOOST_FOREACH(const woml::SimpleCubicSpline & spline, splines)
-	{
-	  if(!spline.empty())
-		{
-		  move_to(spline[0]);
-		  for(woml::SimpleCubicSpline::size_type i=1; i<spline.size(); ++i)
-			line_to(spline[i]);
-		}
-	}
-
-  itsCR->stroke();
-  itsCR->restore();
+  // TODO
 }
 
 // ----------------------------------------------------------------------
@@ -126,24 +74,7 @@ FeatureRenderer::visit(const woml::Jet & theFeature)
 void
 FeatureRenderer::visit(const woml::OccludedFront & theFeature)
 {
-  itsCR->save();
-  itsCR->set_source_rgb(1,0,1);
-  itsCR->set_line_width(10);
-
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
-
-  BOOST_FOREACH(const woml::SimpleCubicSpline & spline, splines)
-	{
-	  if(!spline.empty())
-		{
-		  move_to(spline[0]);
-		  for(woml::SimpleCubicSpline::size_type i=1; i<spline.size(); ++i)
-			line_to(spline[i]);
-		}
-	}
-
-  itsCR->stroke();
-  itsCR->restore();
+  // TODO
 }
 
 // ----------------------------------------------------------------------
@@ -227,25 +158,19 @@ FeatureRenderer::visit(const woml::UpperTrough & theFeature)
 void
 FeatureRenderer::visit(const woml::WarmFront & theFeature)
 {
-  itsCR->save();
-  itsCR->set_source_rgb(1,0,0);
-  itsCR->set_line_width(10);
-
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
   BOOST_FOREACH(const woml::SimpleCubicSpline & spline, splines)
 	{
 	  if(!spline.empty())
 		{
+#if 0
 		  move_to(spline[0]);
 		  for(woml::SimpleCubicSpline::size_type i=1; i<spline.size(); ++i)
 			line_to(spline[i]);
+#endif
 		}
 	}
-
-  itsCR->stroke();
-  itsCR->restore();
-  // TODO
 }
 
 } // namespace frontier
