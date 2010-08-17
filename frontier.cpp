@@ -4,6 +4,7 @@
  */
 // ======================================================================
 
+#include "Options.h"
 #include "FeatureRenderer.h"
 
 #include <smartmet/woml/Parser.h>
@@ -18,8 +19,13 @@
 #include <iostream>
 #include <stdexcept>
 
-int run()
+int run(int argc, char * argv[])
 {
+  Frontier::Options options;
+
+  if(!parse_options(argc,argv,options))
+    return 0;
+
   // Parse the WOML
 
   woml::Weather weather = woml::parse("test.xml");
@@ -50,10 +56,10 @@ int run()
   return 0;
 }
 
-int main()
+int main(int argc, char * argv[])
 try
   {
-	return run();
+	return run(argc,argv);
   }
 catch(std::exception & e)
   {

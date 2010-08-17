@@ -33,6 +33,7 @@ env = Environment( )
 
 env.Append(LIBS=["smartmet_woml",
 		 "smartmet_macgyver-mt",
+		 "boost_program_options",
 		 "boost_filesystem",
 		 "boost_system"
 	  ]);
