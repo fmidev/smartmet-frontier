@@ -89,7 +89,7 @@ namespace frontier
 		fronts << " <text><textPath xlink:href=\"#"
 			   << id
 			   << "\" startOffset=\""
-			   << offset
+			   << std::fixed << std::setprecision(1) << offset
 			   << "\">"
 			   << (j%2 == 0 ? glyphs1 : glyphs2)
 			   << "</textPath></text>\n";
