@@ -28,7 +28,7 @@
    fill: none;
    stroke-width: 4px;
  }
- .occlusionfront
+ .occludedfront
  {
    stroke: #f0f;
    fill: none;
@@ -50,7 +50,7 @@
    fill: blue;
    fmi-letter-spacing: 60px;
  }
- .occlusionfrontglyph
+ .occludedfrontglyph
  {
    font-family: weatherfont;
    font-size: 20px;

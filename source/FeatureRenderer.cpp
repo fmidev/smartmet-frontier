@@ -49,6 +49,53 @@ namespace frontier
 	PathProjector();
 
   };
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Utility function for front rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void render_front(const Path & path,
+					std::ostringstream & paths,
+					std::ostringstream & fronts,
+					const std::string & id,
+					const std::string & lineclass,
+					const std::string & glyphclass,
+					const std::string & glyphs1,
+					const std::string & glyphs2,
+					double fontsize,
+					double spacing)
+  {
+	paths << "<path id=\"" << id << "\" d=\"" << path.svg() << "\"/>\n";
+	
+	fronts << "<use class=\""
+		   << lineclass
+		   << "\" xlink:href=\"#"
+		   << id
+		   << "\"/>\n";
+	
+	double len = path.length();
+	double textlength = 0.5*(glyphs1.size() + glyphs2.size());
+	int intervals = static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
+	double interval = len/intervals;
+	double startpoint = interval/2;
+	
+	fronts << "<g class=\"" << glyphclass << "\">\n";
+	
+	for(int j=0; j<intervals; ++j)
+	  {
+		double offset = startpoint + j * interval;
+		fronts << " <text><textPath xlink:href=\"#"
+			   << id
+			   << "\" startOffset=\""
+			   << offset
+			   << "\">"
+			   << (j%2 == 0 ? glyphs1 : glyphs2)
+			   << "</textPath></text>\n";
+	  }
+	fronts << "</g>\n";
+  }
   
 // ----------------------------------------------------------------------
 /*!
@@ -135,7 +182,23 @@ FeatureRenderer::visit(const woml::CloudAreaBorder & theFeature)
 void
 FeatureRenderer::visit(const woml::ColdFront & theFeature)
 {
-  // TODO
+  ++ncoldfronts;
+  std::string id = "coldfront" + boost::lexical_cast<std::string>(ncoldfronts);
+
+  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+
+  Path path = PathFactory::create(splines);
+
+  PathProjector proj(area);
+  path.transform(proj);
+
+  double fontsize = 20;
+  double spacing = 30;
+
+  render_front(path,paths,coldfronts,id,
+			   "coldfront","coldfrontglyph",
+			   "C","C",
+			   fontsize,spacing);
 }
 
 // ----------------------------------------------------------------------
@@ -159,7 +222,23 @@ FeatureRenderer::visit(const woml::Jet & theFeature)
 void
 FeatureRenderer::visit(const woml::OccludedFront & theFeature)
 {
-  // TODO
+  ++noccludedfronts;
+  std::string id = "occludedfront" + boost::lexical_cast<std::string>(noccludedfronts);
+
+  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+
+  Path path = PathFactory::create(splines);
+
+  PathProjector proj(area);
+  path.transform(proj);
+
+  double fontsize = 20;
+  double spacing = 30;
+
+  render_front(path,paths,occludedfronts,id,
+			   "occludedfront","occludedfrontglyph",
+			   "WC","WC",
+			   fontsize,spacing);
 }
 
 // ----------------------------------------------------------------------
@@ -231,7 +310,6 @@ FeatureRenderer::visit(const woml::Trough & theFeature)
 void
 FeatureRenderer::visit(const woml::UpperTrough & theFeature)
 {
-  // TODO
 }
 
 // ----------------------------------------------------------------------
@@ -244,47 +322,22 @@ void
 FeatureRenderer::visit(const woml::WarmFront & theFeature)
 {
   ++nwarmfronts;
-
-  std::string frontname = "warmfront" + boost::lexical_cast<std::string>(nwarmfronts);
+  std::string id = "warmfront" + boost::lexical_cast<std::string>(nwarmfronts);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
+
   Path path = PathFactory::create(splines);
 
   PathProjector proj(area);
   path.transform(proj);
 
-  paths << "<path id=\"" << frontname << "\" d=\"" << path.svg() << "\"/>\n";
+  double fontsize = 20;
+  double spacing = 30;
 
-  warmfronts << "<use class=\"warmfront\" xlink:href=\"#"
-			 << frontname
-			 << "\"/>\n";
-
-  BOOST_FOREACH(const woml::SimpleCubicSpline & spline, splines)
-	{
-	  if(!spline.empty())
-		{
-		  warmfronts << "<g class=\"warmfrontglyph\">\n"
-					 << " <text><textPath xlink:href=\"#"
-					 << frontname
-					 << "\" startOffset=\"30\">W</textPath></text>\n"
-					 << " <text><textPath xlink:href=\"#"
-					 << frontname
-					 << "\" startOffset=\"90\">W</textPath></text>\n"
-					 << " <text><textPath xlink:href=\"#"
-					 << frontname
-					 << "\" startOffset=\"150\">W</textPath></text>\n"
-					 << " <text><textPath xlink:href=\"#"
-					 << frontname
-					 << "\" startOffset=\"210\">W</textPath></text>\n"
-					 << " <text><textPath xlink:href=\"#"
-					 << frontname
-					 << "\" startOffset=\"270\">W</textPath></text>\n"
-					 << " <text><textPath xlink:href=\"#"
-					 << frontname
-					 << "\" startOffset=\"330\">W</textPath></text>\n"
-					 << "</g>\n";
-		}
-	}
+  render_front(path,paths,warmfronts,id,
+			   "warmfront","warmfrontglyph",
+			   "W","W",
+			   fontsize,spacing);
 }
 
 } // namespace frontier
