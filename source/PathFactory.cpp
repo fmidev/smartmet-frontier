@@ -12,8 +12,6 @@
 #include <smartmet/woml/CubicSplineSurface.h>
 #include <boost/foreach.hpp>
 
-#include <iostream> // TODO
-
 namespace frontier { namespace PathFactory {
 
   // ----------------------------------------------------------------------
