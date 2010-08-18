@@ -21,7 +21,7 @@ namespace frontier
 	double length(double eps = 0.001) const;
 	std::pair<CubicBezier,CubicBezier> split() const;
 
-  public:
+  private:
 
 	Point P1;
 	Point P2;

@@ -20,6 +20,8 @@ namespace frontier
 
 	Point & operator+=(const Point & thePoint);
 	Point & operator-=(const Point & thePoint);
+	Point & operator*=(const Point & thePoint);
+	Point & operator/=(const Point & thePoint);
 
 	Point & operator+=(double theValue);
 	Point & operator-=(double theValue);
@@ -42,6 +44,20 @@ namespace frontier
   {
 	x -= thePoint.x;
 	y -= thePoint.y;
+	return *this;
+  }
+  
+  inline Point & Point::operator*=(const Point & thePoint)
+  {
+	x *= thePoint.x;
+	y *= thePoint.y;
+	return *this;
+  }
+
+  inline Point & Point::operator/=(const Point & thePoint)
+  {
+	x /= thePoint.x;
+	y /= thePoint.y;
 	return *this;
   }
   
@@ -73,47 +89,57 @@ namespace frontier
 	return *this;
   }
 
-  inline Point operator-(const Point & p)
-  { return Point(-p.x,-p.y); }
-
-  inline Point operator+(const Point & p1, const Point & p2)
-  { return Point(p1.x+p2.x, p1.y+p2.y); }
-
-  inline Point operator+(const Point & p1, double v2)
-  { return Point(p1.x+v2, p1.y+v2); }
-
-  inline Point operator+(double v1, const Point & p2)
-  { return Point(v1+p2.x,v1+p2.y); }
-
-  inline Point operator-(const Point & p1, const Point & p2)
-  { return Point(p1.x-p2.x, p1.y-p2.y); }
-
-  inline Point operator-(const Point & p1, double v2)
-  { return Point(p1.x-v2, p1.y-v2); }
-
-  inline Point operator-(double v1, const Point & p2)
-  { return Point(v1-p2.x,v1-p2.y); }
-
-  inline Point operator*(const Point & p1, double v2)
-  { return Point(p1.x*v2, p1.y*v2); }
-
-  inline Point operator*(double v1, const Point & p2)
-  { return Point(v1*p2.x,v1*p2.y); }
-
-  inline Point operator/(const Point & p1, double v2)
-  { return Point(p1.x/v2, p1.y/v2); }
-
-  // Dot product
-  inline double operator*(const Point & p1, const Point & p2)
-  {
-	return p1.x*p2.x + p1.y+p2.y;
-  }
-
-  inline double distance(const Point & p1, const Point & p2)
-  {
-	return std::sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
-  }
-
 } // namespace frontier
+
+inline frontier::Point operator-(const frontier::Point & p)
+{ return frontier::Point(-p.x,-p.y); }
+
+inline frontier::Point operator+(const frontier::Point & p1, const frontier::Point & p2)
+{ return frontier::Point(p1.x+p2.x, p1.y+p2.y); }
+
+inline frontier::Point operator+(const frontier::Point & p1, double v2)
+{ return frontier::Point(p1.x+v2, p1.y+v2); }
+
+inline frontier::Point operator+(double v1, const frontier::Point & p2)
+{ return frontier::Point(v1+p2.x,v1+p2.y); }
+
+inline frontier::Point operator-(const frontier::Point & p1, const frontier::Point & p2)
+{ return frontier::Point(p1.x-p2.x, p1.y-p2.y); }
+
+inline frontier::Point operator-(const frontier::Point & p1, double v2)
+{ return frontier::Point(p1.x-v2, p1.y-v2); }
+
+inline frontier::Point operator-(double v1, const frontier::Point & p2)
+{ return frontier::Point(v1-p2.x,v1-p2.y); }
+
+inline frontier::Point operator*(const frontier::Point & p1, const frontier::Point & p2)
+{ return frontier::Point(p1.x*p2.x, p1.y*p2.y); }
+
+inline frontier::Point operator*(const frontier::Point & p1, double v2)
+{ return frontier::Point(p1.x*v2, p1.y*v2); }
+
+inline frontier::Point operator*(double v1, const frontier::Point & p2)
+{ return frontier::Point(v1*p2.x,v1*p2.y); }
+
+inline frontier::Point operator/(const frontier::Point & p1, const frontier::Point & p2)
+{ return frontier::Point(p1.x/p2.x, p1.y/p2.y); }
+
+inline frontier::Point operator/(const frontier::Point & p1, double v2)
+{ return frontier::Point(p1.x/v2, p1.y/v2); }
+
+inline frontier::Point operator/(double v1, const frontier::Point & p2)
+{ return frontier::Point(v1/p2.x,v1/p2.y); }
+
+// Dot product
+inline double dot(const frontier::Point & p1, const frontier::Point & p2)
+{
+  return p1.x*p2.x + p1.y+p2.y;
+}
+
+inline double distance(const frontier::Point & p1, const frontier::Point & p2)
+{
+  return std::sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
+}
+
 
 #endif // FRONTIER_POINT_H
