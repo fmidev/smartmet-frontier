@@ -87,6 +87,20 @@ namespace frontier
 	pathdata.push_back(x);
 	pathdata.push_back(y);
   }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Append another path
+   */
+  // ----------------------------------------------------------------------
+
+  Path & Path::operator+=(const Path & path)
+  {
+	std::copy(path.pathdata.begin(),
+			  path.pathdata.end(),
+			  std::back_inserter(pathdata));
+	return *this;
+  }
   
   // ----------------------------------------------------------------------
   /*!

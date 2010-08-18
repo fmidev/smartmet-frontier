@@ -29,6 +29,9 @@ namespace frontier
 	void moveto(double x, double y);
 	void lineto(double x, double y);
 	void curveto(double x1, double y1, double x2, double y2, double x, double y);
+
+	Path & operator+=(const Path & path);
+
 	double length() const;
 	std::string svg() const;
 
