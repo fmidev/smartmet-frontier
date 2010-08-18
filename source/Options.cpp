@@ -23,7 +23,7 @@ namespace frontier {
 	, quiet(false)
 	, debug(false)
 	, projection()
-	, defsfile()
+	, svgfile()
 	, womlfile()
 	, outfile("-")
   {
@@ -44,7 +44,7 @@ namespace frontier {
       
 	po::options_description desc("Allowed options");
 
-	std::string msgdefs = ("SVG defs file");
+	std::string msgsvg = ("SVG template file");
 	std::string msgproj = ("projection description or file");
 	std::string msgwoml = ("WOML file");
 	std::string msgoutfile = ("output file, default=- (stdout)");
@@ -56,7 +56,7 @@ namespace frontier {
 	  ("quiet,q",po::bool_switch(&theOptions.quiet),"quiet mode")
 	  ("version,V","display version number")
 	  ("woml,w",po::value(&theOptions.womlfile),msgwoml.c_str())
-	  ("svg,s",po::value(&theOptions.defsfile),msgdefs.c_str())
+	  ("svg,s",po::value(&theOptions.svgfile),msgsvg.c_str())
 	  ("proj,p",po::value(&theOptions.projection),msgproj.c_str())
 	  ("outfile,o",po::value(&theOptions.outfile),msgoutfile.c_str())
         ;
@@ -100,8 +100,8 @@ namespace frontier {
 	if(theOptions.womlfile.empty())
 	  throw std::runtime_error("WOML file not specified");
 
-	if(theOptions.defsfile.empty())
-	  throw std::runtime_error("SVG defs file not specified");
+	if(theOptions.svgfile.empty())
+	  throw std::runtime_error("SVG file not specified");
 
 	if(theOptions.projection.empty())
 	  throw std::runtime_error("Projection not specified");

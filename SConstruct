@@ -33,9 +33,13 @@ env = Environment( )
 
 env.Append(LIBS=["smartmet_woml",
 		 "smartmet_macgyver-mt",
+		 "smartmet_newbase-mt",
 		 "boost_program_options",
+		 "boost_regex",
+		 "boost_iostreams",
 		 "boost_filesystem",
-		 "boost_system"
+		 "boost_system",
+	 	 "bz2"
 	  ]);
 
 env.Append( CPPDEFINES= ["UNIX"] )

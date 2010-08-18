@@ -26,9 +26,9 @@ namespace frontier
 
 	std::string projection;				// the command line description
 
-	// -d defsfile
+	// -s svgfile
 
-	std::string defsfile;
+	std::string svgfile;
 
 	// -w womlfile
 
