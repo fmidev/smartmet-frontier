@@ -215,7 +215,4 @@ namespace frontier
 	return len;
   }
 
-
-
-
 } // namespace frontier

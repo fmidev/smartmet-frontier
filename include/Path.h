@@ -43,4 +43,12 @@ namespace frontier
 
 } // namespace frontier
 
+inline frontier::Path operator+(const frontier::Path & path1,
+								const frontier::Path & path2)
+{
+  frontier::Path path(path1);
+  return (path += path2);
+}
+
+
 #endif // FRONTIER_PATH_H
