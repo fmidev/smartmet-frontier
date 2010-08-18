@@ -96,23 +96,29 @@
    stroke: green;
    stroke-width: 3px;
  }
- .rainhatch
+ .precipitation
  {
-   fill: url(#waterhatchpattern);
-   stroke: green;
+   fill: url(#precipitationpattern);
+   stroke: #ccc;
+   stroke-width: 2px;
+ }
+ .heavyprecipitation
+ {
+   fill: url(#heavyprecipitationpattern);
+   stroke: #ccc;
    stroke-width: 3px;
  }
- .heavyrainhatch
- {
-   fill: url(#heavyrainpattern);
-   stroke: green;
-   stroke-width: 3px;
- }
- .rainmask
+ .precipitationmask
  {
    fill: none;
    stroke: white;
-   stroke-width: 40px;
+   stroke-width: 15px;
+ }
+ .heavyprecipitationmask
+ {
+   fill: none;
+   stroke: white;
+   stroke-width: 20px;
  }
  .jet
  {
@@ -164,12 +170,12 @@
 
  <!-- gradients -->
 
- <linearGradient id="watergradient">
+ <linearGradient id="precipitationgradient">
   <stop offset="5%" stop-color="white"/>
   <stop offset="95%" stop-color="blue"/>
  </linearGradient>
 
- <linearGradient id="heavyraingradient">
+ <linearGradient id="heavyprecipitationgradient">
   <stop offset="5%" stop-color="white"/>
   <stop offset="75%" stop-color="blue"/>
  </linearGradient>
@@ -199,16 +205,16 @@
  </pattern>
 
  <pattern id="waterdotpattern" width="10" height="10" patternUnits="userSpaceOnUse">
-  <circle cx="5" cy="5" r="2" fill="url(#watergradient)" fill-opacity="0.5"/>
+  <circle cx="5" cy="5" r="2" fill="url(#precipitationgradient)" fill-opacity="0.5"/>
  </pattern> 
 
- <pattern id="waterhatchpattern" width="10" height="10" patternUnits="userSpaceOnUse">
-  <line x1="0" y1="0" x2="10" y2="10" stroke="#0e0"/>
+ <pattern id="precipitationpattern" width="6" height="10" patternUnits="userSpaceOnUse">
+  <line x1="0" y1="0" x2="6" y2="10" stroke="#ccc"/>
  </pattern> 
 
- <pattern id="heavyrainpattern" width="10" height="10" patternUnits="userSpaceOnUse">
-   <line x1="0" y1="0" x2="10" y2="10" stroke="#0e0"/>
-   <circle cx="5" cy="5" r="2" fill="url(#heavyraingradient)" fill-opacity="0.5"/>
+ <pattern id="heavyprecipitationpattern" width="10" height="10" patternUnits="userSpaceOnUse">
+   <line x1="0" y1="0" x2="10" y2="10" stroke="#ddd"/>
+   <circle cx="5" cy="5" r="2" fill="url(#heavyprecipitationgradient)" fill-opacity="0.5"/>
  </pattern> 
 
  <pattern id="cloudpattern" width="6" height="6" patternUnits="userSpaceOnUse">

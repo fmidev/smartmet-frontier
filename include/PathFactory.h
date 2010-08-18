@@ -10,6 +10,7 @@
 namespace woml
 {
   class SimpleCubicSpline;
+  class CubicSplineRing;
   class CubicSplineCurve;
   class CubicSplineSurface;
 }
@@ -21,6 +22,7 @@ namespace frontier
   namespace PathFactory
   {
 	Path create(const woml::SimpleCubicSpline & spline);
+	Path create(const woml::CubicSplineRing & spline);
 	Path create(const woml::CubicSplineCurve & spline);
 	Path create(const woml::CubicSplineSurface & spline);
 

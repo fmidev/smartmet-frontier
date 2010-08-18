@@ -9,8 +9,10 @@
 #include "PathFactory.h"
 #include "PathTransformation.h"
 #include <smartmet/woml/ColdFront.h>
+#include <smartmet/woml/CubicSplineSurface.h>
 #include <smartmet/woml/Jet.h>
 #include <smartmet/woml/OccludedFront.h>
+#include <smartmet/woml/SurfacePrecipitationArea.h>
 #include <smartmet/woml/Trough.h>
 #include <smartmet/woml/UpperTrough.h>
 #include <smartmet/woml/WarmFront.h>
@@ -95,6 +97,73 @@ namespace frontier
 			   << "</textPath></text>\n";
 	  }
 	fronts << "</g>\n";
+  }
+  
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Utility function for surface rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void render_surface(const Path & path,
+					  std::ostringstream & paths,
+					  std::ostringstream & masks,
+					  std::ostringstream & surfaces,
+					  const std::string & id,
+					  const std::string & lineclass,
+					  const std::string & glyphclass,
+					  const std::string & glyphs1,
+					  const std::string & glyphs2,
+					  double fontsize,
+					  double spacing)
+  {
+	paths << "<path id=\"" << id << "\" d=\"" << path.svg() << "\"/>\n";
+	
+	// If you give width=100% and height=100% Batik may screw up
+	// the image. Not giving the dimensions seems to work.
+	
+	masks << "<mask id=\""
+		  << id
+		  << "mask\" maskUnits=\"userSpaceOnUse\">\n"
+		  << " <use xlink:href=\"#"
+		  << id
+		  << "\" class=\"precipitationmask\"/>\n"
+		  << "</mask>\n";
+
+	surfaces << "<use class=\""
+			 << lineclass
+			 << "\" xlink:href=\"#"
+			 << id
+			 << "\" mask=\"url(#"
+			 << id
+			 << "mask)\"/>\n";
+
+	// TODO: THE REST IS UNTESTED - FITTING CHARS TO PATH LENGTH NEEDS FIXING
+
+	double textlength = 0.5*(glyphs1.size() + glyphs2.size());
+
+	if(textlength > 0)
+	  {
+		double len = path.length();
+		int intervals = static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
+		double interval = len/intervals;
+		double startpoint = interval/2;
+	
+		surfaces << "<g class=\"" << glyphclass << "\">\n";
+	
+		for(int j=0; j<intervals; ++j)
+		  {
+			double offset = startpoint + j * interval;
+			surfaces << " <text><textPath xlink:href=\"#"
+					 << id
+					 << "\" startOffset=\""
+					 << std::fixed << std::setprecision(1) << offset
+					 << "\">"
+					 << (j%2 == 0 ? glyphs1 : glyphs2)
+					 << "</textPath></text>\n";
+		  }
+		surfaces << "</g>\n";
+	  }
   }
   
 // ----------------------------------------------------------------------
@@ -286,7 +355,22 @@ FeatureRenderer::visit(const woml::PointNote & theFeature)
 void
 FeatureRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
 {
-  // TODO
+  ++nprecipitationareas;
+  std::string id = "precipitation" + boost::lexical_cast<std::string>(nprecipitationareas);
+
+  const woml::CubicSplineSurface surface = theFeature.controlSurface();
+
+  Path path = PathFactory::create(surface);
+
+  PathProjector proj(area);
+  path.transform(proj);
+
+  double fontsize = 20;
+  double spacing = 30;
+
+  render_surface(path,paths,masks,precipitationareas,id,
+				 "precipitation",
+				 "","","",fontsize,spacing);
 }
 
 // ----------------------------------------------------------------------
