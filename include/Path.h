@@ -22,6 +22,8 @@
 
 namespace frontier
 {
+  class PathTransformation;
+
   class Path
   {
   public:
@@ -32,6 +34,7 @@ namespace frontier
 
 	Path & operator+=(const Path & path);
 
+	void transform(const PathTransformation & transformation);
 	double length() const;
 	std::string svg() const;
 

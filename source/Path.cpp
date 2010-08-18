@@ -5,6 +5,7 @@
 // ======================================================================
 
 #include "Path.h"
+#include "PathTransformation.h"
 #include "CubicBezier.h"
 #include <cmath>
 #include <iomanip>
@@ -147,8 +148,8 @@ namespace frontier
 			element = 'C';
 			if(element != lastelement) out << element;
 			lastelement = element;
-			out << pathdata[i] << ',' << pathdata[i+1]
-				<< pathdata[i+2] << ',' << pathdata[i+3]
+			out << pathdata[i] << ',' << pathdata[i+1] << ' '
+				<< pathdata[i+2] << ',' << pathdata[i+3] << ' '
 				<< pathdata[i+4] << ',' << pathdata[i+5];
 			i += 6;
 			break;
@@ -213,6 +214,37 @@ namespace frontier
 		  }
 	  }
 	return len;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Path transformation
+   */
+  // ----------------------------------------------------------------------
+
+  void Path::transform(const PathTransformation & transformation)
+  {
+	for(PathData::size_type i=0; i<pathdata.size(); )
+	  {
+		PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+
+		switch(cmd)
+		  {
+		  case ClosePath:
+			break;
+		  case MoveTo:
+		  case LineTo:
+			transformation(pathdata[i],pathdata[i+1]);
+			i += 2;
+			break;
+		  case CurveTo:
+			transformation(pathdata[i],pathdata[i+1]);
+			transformation(pathdata[i+2],pathdata[i+3]);
+			transformation(pathdata[i+4],pathdata[i+5]);
+			i += 6;
+			break;
+		  }
+	  }
   }
 
 } // namespace frontier

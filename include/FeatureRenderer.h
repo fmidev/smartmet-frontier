@@ -41,10 +41,6 @@ namespace frontier
   private:
 
 	FeatureRenderer();
-	woml::Point project(const woml::Point & latlon) const;
-	std::string tostring(const woml::Point & xy) const;
-	void moveto(std::ostringstream & out, const woml::Point & latlon);
-	void lineto(std::ostringstream & out, const woml::Point & latlon);
 
 	std::string svgbase;
 	boost::shared_ptr<NFmiArea> area;

@@ -5,6 +5,9 @@
 // ======================================================================
 
 #include "FeatureRenderer.h"
+#include "Path.h"
+#include "PathFactory.h"
+#include "PathTransformation.h"
 #include <smartmet/woml/ColdFront.h>
 #include <smartmet/woml/Jet.h>
 #include <smartmet/woml/OccludedFront.h>
@@ -19,6 +22,34 @@
 namespace frontier
 {
 
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Functor for projecting a path
+   */
+  // ----------------------------------------------------------------------
+
+  class PathProjector : public PathTransformation
+  {
+  public:
+	PathProjector(const boost::shared_ptr<NFmiArea> & theArea)
+	  : area(theArea)
+	{
+	}
+
+	void operator()(double & x, double & y) const
+	{
+	  NFmiPoint ll(x,y);
+	  NFmiPoint xy = area->ToXY(ll);
+	  x = xy.X();
+	  y = xy.Y();
+	}
+
+  private:
+	boost::shared_ptr<NFmiArea> area;
+	PathProjector();
+
+  };
+  
 // ----------------------------------------------------------------------
 /*!
  * \brief Constructor
@@ -29,6 +60,17 @@ FeatureRenderer::FeatureRenderer(const std::string & theTemplate,
 								 const boost::shared_ptr<NFmiArea> & theArea)
   : svgbase(theTemplate)
   , area(theArea)
+  , ncloudborders(0)
+  , ncoldfronts(0)
+  , njets(0)
+  , noccludedfronts(0)
+  , npointnotes(0)
+  , npointsymbols(0)
+  , npointvalues(0)
+  , nprecipitationareas(0)
+  , ntroughs(0)
+  , nuppertroughs(0)
+  , nwarmfronts(0)
 {
 }
 
@@ -70,64 +112,6 @@ std::string FeatureRenderer::svg() const
 
   return ret;
 
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Convert coordinate pair to SVG string
- */
-// ----------------------------------------------------------------------
-
-std::string FeatureRenderer::tostring(const woml::Point & xy) const
-{
-  std::ostringstream out;
-  out << std::fixed
-	  << std::setprecision(1)
-	  << xy.lon()
-	  << ','
-	  << xy.lat()
-	  << ' ';
-  return out.str();
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Project a coordinate onto the SVG canvas
- */
-// ----------------------------------------------------------------------
-
-woml::Point FeatureRenderer::project(const woml::Point & latlon) const
-{
-  NFmiPoint ll(latlon.lon(),latlon.lat());
-  NFmiPoint xy = area->ToXY(ll);
-  return woml::Point(xy.X(),xy.Y());
-}
-
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Move to a new point
- */
-// ----------------------------------------------------------------------
-
-void FeatureRenderer::moveto(std::ostringstream & out,
-							 const woml::Point & latlon)
-{
-  woml::Point p = project(latlon);
-  out << "M" << tostring(p);
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Line to a new point
- */
-// ----------------------------------------------------------------------
-
-void FeatureRenderer::lineto(std::ostringstream & out,
-							 const woml::Point & latlon)
-{
-  woml::Point p = project(latlon);
-  out << "L" << tostring(p);
 }
 
 // ----------------------------------------------------------------------
@@ -264,20 +248,12 @@ FeatureRenderer::visit(const woml::WarmFront & theFeature)
   std::string frontname = "warmfront" + boost::lexical_cast<std::string>(nwarmfronts);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  Path path = PathFactory::create(splines);
 
+  PathProjector proj(area);
+  path.transform(proj);
 
-  paths << "<path id=\"" << frontname << "\" d=\"";
-
-  BOOST_FOREACH(const woml::SimpleCubicSpline & spline, splines)
-	{
-	  if(!spline.empty())
-		{
-		  moveto(paths,spline[0]);
-		  for(woml::SimpleCubicSpline::size_type i=1; i<spline.size(); ++i)
-			lineto(paths,spline[i]);
-		}
-	}
-  paths << "\"/>\n";
+  paths << "<path id=\"" << frontname << "\" d=\"" << path.svg() << "\"/>\n";
 
   warmfronts << "<use class=\"warmfront\" xlink:href=\"#"
 			 << frontname

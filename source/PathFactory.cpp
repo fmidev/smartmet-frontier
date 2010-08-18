@@ -12,6 +12,8 @@
 #include <smartmet/woml/CubicSplineSurface.h>
 #include <boost/foreach.hpp>
 
+#include <iostream> // TODO
+
 namespace frontier { namespace PathFactory {
 
   // ----------------------------------------------------------------------
@@ -52,26 +54,27 @@ namespace frontier { namespace PathFactory {
 
 	size_t n = knots.size() - 1;
 	std::vector<Point> rhs(n, Point(0,0));
-	for(size_t i=0; i<n; ++i)
-	  rhs[i] = 4 * knots[i] + 2 * knots[i+1];
+	for(size_t i=1; i<n-1; ++i)
+	  rhs[i] = 4*knots[i] + 2*knots[i+1];
+	rhs[0]   = knots[0] + 2*knots[1];
 	rhs[n-1] = (8*knots[n-1]+knots[n])/2;
 
 	// Solve tridiagonal system of equations
 
-	std::vector<Point> ctrl(n+1,Point(0,0));
-	std::vector<Point> tmp(n+1,Point(0,0));
+	std::vector<Point> ctrl(n,Point(0,0));
+	std::vector<Point> tmp(n,Point(0,0));
 
 	Point b(2,2);
 	ctrl[0] = rhs[0]/b;
-	for(size_t i=1; i<n; ++i)
+	for(size_t i=1; i<ctrl.size(); ++i)
 	  {
 		tmp[i] = 1/b;
-		b = (i < n ? 4.0 : 3.5) - tmp[i];
+		b = (i<ctrl.size()-1 ? 4.0 : 3.5) - tmp[i];
 		ctrl[i] = (rhs[i] - ctrl[i - 1]) / b;
 	  }
 
-	for(size_t i=1; i<n-1; i++)
-	  ctrl[n - i - 1] -= tmp[n - i] * ctrl[n - i]; // Backsubstitution.
+	for(size_t i=1; i<ctrl.size(); i++)
+	  ctrl[ctrl.size()-i-1] -= tmp[ctrl.size()-i] * ctrl[ctrl.size()-i]; // Backsubstitution.
 
 	double x, y, x1, y1, x2, y2;
 	for(size_t i=0; i<n; ++i)
