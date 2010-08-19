@@ -20,6 +20,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/lexical_cast.hpp>
 #include <iomanip>
+#include <iostream>
 
 namespace frontier
 {
@@ -172,9 +173,11 @@ namespace frontier
  */
 // ----------------------------------------------------------------------
 
-SvgRenderer::SvgRenderer(const std::string & theTemplate,
+SvgRenderer::SvgRenderer(const Options & theOptions,
+						 const std::string & theTemplate,
 						 const boost::shared_ptr<NFmiArea> & theArea)
-  : svgbase(theTemplate)
+  : options(theOptions)
+  , svgbase(theTemplate)
   , area(theArea)
   , ncloudborders(0)
   , ncoldfronts(0)
@@ -240,6 +243,9 @@ void
 SvgRenderer::visit(const woml::CloudAreaBorder & theFeature)
 {
   // TODO
+  ++ncloudborders;
+  if(options.verbose)
+	std::cerr << "Skipping CloudAreaBorder " << ncloudborders << std::endl;
 }
 
 // ----------------------------------------------------------------------
@@ -279,7 +285,9 @@ SvgRenderer::visit(const woml::ColdFront & theFeature)
 void
 SvgRenderer::visit(const woml::Jet & theFeature)
 {
-  // TODO
+  ++njets;
+  if(options.verbose)
+	std::cerr << "Skipping Jet " << njets << std::endl;
 }
 
 // ----------------------------------------------------------------------
@@ -319,7 +327,9 @@ SvgRenderer::visit(const woml::OccludedFront & theFeature)
 void
 SvgRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
 {
-  // TODO
+  ++npointvalues;
+  if(options.verbose)
+	std::cerr << "Skipping PointGeophysicalParameterValueSet " << npointvalues << std::endl;
 }
 
 // ----------------------------------------------------------------------
@@ -331,7 +341,9 @@ SvgRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
 void
 SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 {
-  // TODO
+  ++npointsymbols;
+  if(options.verbose)
+	std::cerr << "Skipping PointMeteorologicalSymbol " << npointsymbols << std::endl;
 }
 
 // ----------------------------------------------------------------------
@@ -343,7 +355,9 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 void
 SvgRenderer::visit(const woml::PointNote & theFeature)
 {
-  // TODO
+  ++npointnotes;
+  if(options.verbose)
+	std::cerr << "Skipping PointNote " << npointnotes << std::endl;
 }
 
 // ----------------------------------------------------------------------
@@ -382,7 +396,9 @@ SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
 void
 SvgRenderer::visit(const woml::Trough & theFeature)
 {
-  // TODO
+  ++ntroughs;
+  if(options.verbose)
+	std::cerr << "Skipping Trough " << ntroughs << std::endl;
 }
 
 // ----------------------------------------------------------------------
@@ -394,6 +410,9 @@ SvgRenderer::visit(const woml::Trough & theFeature)
 void
 SvgRenderer::visit(const woml::UpperTrough & theFeature)
 {
+  ++nuppertroughs;
+  if(options.verbose)
+	std::cerr << "Skipping UpperTrough " << nuppertroughs << std::endl;
 }
 
 // ----------------------------------------------------------------------

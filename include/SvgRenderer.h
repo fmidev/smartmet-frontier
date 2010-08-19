@@ -7,6 +7,7 @@
 #ifndef FRONTIER_SVGRENDERER_H
 #define FRONTIER_SVGRENDERER_H
 
+#include "Options.h"
 #include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/woml/FeatureVisitor.h>
 #include <smartmet/woml/Point.h>
@@ -21,7 +22,8 @@ namespace frontier
   public:
 
 	virtual ~SvgRenderer() {}
-	SvgRenderer(const std::string & theTemplate,
+	SvgRenderer(const Options & theOptions,
+				const std::string & theTemplate,
 				const boost::shared_ptr<NFmiArea> & theArea);
 
 	virtual void visit(const woml::CloudAreaBorder & theFeature);
@@ -42,6 +44,7 @@ namespace frontier
 
 	SvgRenderer();
 
+	const Options & options;
 	std::string svgbase;
 	boost::shared_ptr<NFmiArea> area;
 

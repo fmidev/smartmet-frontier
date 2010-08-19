@@ -114,7 +114,7 @@ int run(int argc, char * argv[])
   // TODO PART: HANDLE ANALYSIS/FORECAST
 
   const woml::MeteorologicalAnalysis & analysis = weather.analysis();
-  frontier::SvgRenderer renderer(svg,area);
+  frontier::SvgRenderer renderer(options,svg,area);
 
   BOOST_FOREACH(const woml::Feature & feature, analysis)
 	{
