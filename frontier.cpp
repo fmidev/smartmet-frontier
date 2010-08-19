@@ -4,7 +4,7 @@
  */
 // ======================================================================
 
-#include "FeatureRenderer.h"
+#include "SvgRenderer.h"
 #include "Options.h"
 
 #include <smartmet/newbase/NFmiAreaFactory.h>
@@ -114,7 +114,7 @@ int run(int argc, char * argv[])
   // TODO PART: HANDLE ANALYSIS/FORECAST
 
   const woml::MeteorologicalAnalysis & analysis = weather.analysis();
-  frontier::FeatureRenderer renderer(svg,area);
+  frontier::SvgRenderer renderer(svg,area);
 
   BOOST_FOREACH(const woml::Feature & feature, analysis)
 	{

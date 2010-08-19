@@ -1,10 +1,10 @@
 // ======================================================================
 /*!
- * \brief frontier::FeatureRenderer
+ * \brief frontier::SvgRenderer
  */
 // ======================================================================
 
-#include "FeatureRenderer.h"
+#include "SvgRenderer.h"
 #include "Path.h"
 #include "PathFactory.h"
 #include "PathTransformation.h"
@@ -172,8 +172,8 @@ namespace frontier
  */
 // ----------------------------------------------------------------------
 
-FeatureRenderer::FeatureRenderer(const std::string & theTemplate,
-								 const boost::shared_ptr<NFmiArea> & theArea)
+SvgRenderer::SvgRenderer(const std::string & theTemplate,
+						 const boost::shared_ptr<NFmiArea> & theArea)
   : svgbase(theTemplate)
   , area(theArea)
   , ncloudborders(0)
@@ -196,7 +196,7 @@ FeatureRenderer::FeatureRenderer(const std::string & theTemplate,
  */
 // ----------------------------------------------------------------------
 
-std::string FeatureRenderer::svg() const
+std::string SvgRenderer::svg() const
 {
   std::string ret = svgbase;
 
@@ -237,7 +237,7 @@ std::string FeatureRenderer::svg() const
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::CloudAreaBorder & theFeature)
+SvgRenderer::visit(const woml::CloudAreaBorder & theFeature)
 {
   // TODO
 }
@@ -249,7 +249,7 @@ FeatureRenderer::visit(const woml::CloudAreaBorder & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::ColdFront & theFeature)
+SvgRenderer::visit(const woml::ColdFront & theFeature)
 {
   ++ncoldfronts;
   std::string id = "coldfront" + boost::lexical_cast<std::string>(ncoldfronts);
@@ -277,7 +277,7 @@ FeatureRenderer::visit(const woml::ColdFront & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::Jet & theFeature)
+SvgRenderer::visit(const woml::Jet & theFeature)
 {
   // TODO
 }
@@ -289,7 +289,7 @@ FeatureRenderer::visit(const woml::Jet & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::OccludedFront & theFeature)
+SvgRenderer::visit(const woml::OccludedFront & theFeature)
 {
   ++noccludedfronts;
   std::string id = "occludedfront" + boost::lexical_cast<std::string>(noccludedfronts);
@@ -317,7 +317,7 @@ FeatureRenderer::visit(const woml::OccludedFront & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
+SvgRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
 {
   // TODO
 }
@@ -329,7 +329,7 @@ FeatureRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeatur
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
+SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 {
   // TODO
 }
@@ -341,7 +341,7 @@ FeatureRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::PointNote & theFeature)
+SvgRenderer::visit(const woml::PointNote & theFeature)
 {
   // TODO
 }
@@ -353,7 +353,7 @@ FeatureRenderer::visit(const woml::PointNote & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
+SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
 {
   ++nprecipitationareas;
   std::string id = "precipitation" + boost::lexical_cast<std::string>(nprecipitationareas);
@@ -380,7 +380,7 @@ FeatureRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::Trough & theFeature)
+SvgRenderer::visit(const woml::Trough & theFeature)
 {
   // TODO
 }
@@ -392,7 +392,7 @@ FeatureRenderer::visit(const woml::Trough & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::UpperTrough & theFeature)
+SvgRenderer::visit(const woml::UpperTrough & theFeature)
 {
 }
 
@@ -403,7 +403,7 @@ FeatureRenderer::visit(const woml::UpperTrough & theFeature)
 // ----------------------------------------------------------------------
 
 void
-FeatureRenderer::visit(const woml::WarmFront & theFeature)
+SvgRenderer::visit(const woml::WarmFront & theFeature)
 {
   ++nwarmfronts;
   std::string id = "warmfront" + boost::lexical_cast<std::string>(nwarmfronts);

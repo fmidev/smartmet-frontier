@@ -1,11 +1,11 @@
 // ======================================================================
 /*!
- * \brief frontier::FeatureRenderer
+ * \brief frontier::SvgRenderer
  */
 // ======================================================================
 
-#ifndef FRONTIER_FEATURERENDERER_H
-#define FRONTIER_FEATURERENDERER_H
+#ifndef FRONTIER_SVGRENDERER_H
+#define FRONTIER_SVGRENDERER_H
 
 #include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/woml/FeatureVisitor.h>
@@ -16,13 +16,13 @@
 
 namespace frontier
 {
-  class FeatureRenderer : public woml::FeatureVisitor
+  class SvgRenderer : public woml::FeatureVisitor
   {
   public:
 
-	virtual ~FeatureRenderer() {}
-	FeatureRenderer(const std::string & theTemplate,
-					const boost::shared_ptr<NFmiArea> & theArea);
+	virtual ~SvgRenderer() {}
+	SvgRenderer(const std::string & theTemplate,
+				const boost::shared_ptr<NFmiArea> & theArea);
 
 	virtual void visit(const woml::CloudAreaBorder & theFeature);
     virtual void visit(const woml::ColdFront & theFeature);
@@ -40,7 +40,7 @@ namespace frontier
 
   private:
 
-	FeatureRenderer();
+	SvgRenderer();
 
 	std::string svgbase;
 	boost::shared_ptr<NFmiArea> area;
@@ -74,9 +74,9 @@ namespace frontier
 	int nuppertroughs;
 	int nwarmfronts;
 
-  }; // class FeatureRenderer
+  }; // class SvgRenderer
 
 
 } // namespace frontier
 
-#endif // FRONTIER_FEATURERENDERER_H
+#endif // FRONTIER_SVGRENDERER_H
