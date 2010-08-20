@@ -8,6 +8,20 @@
  <!-- style sheet -->
 
  <style type="text/css"><![CDATA[
+ @font-face
+ {
+   font-family: Mirri;
+   src: url('http://share.weatherproof.fi/fonts/ttf/Mirri.ttf');
+ }
+ .Mirrisymbol
+ {
+   font-family: Mirri;
+   font-size: 50px;
+   text-anchor: middle;
+   fill: red;
+   stroke: black;
+   stroke-width: 1px;
+ }
  .weather
  {
    filter: url(#shadow);
@@ -269,5 +283,7 @@
 --POINTVALUES--
 </g>
 <use class="postweather" xlink:href="#weather"/>
+
+<text x="100" y="100" style="font-family: Mirri; font-weight: normal; font-style: normal">y</text>
 
 </svg>
