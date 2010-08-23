@@ -213,11 +213,6 @@
 
  <!-- patterns -->
 
- <pattern id="background" width="--WIDTH--" height="--HEIGHT--">
-  <rect x="0" y="0" width="--WIDTH--" height="--HEIGHT--" fill="#f0f0f0"/>
-  <image id="background" xlink:href="background.png" width="--WIDTH--" height="--HEIGHT--"/>
- </pattern>
-
  <pattern id="waterdotpattern" width="10" height="10" patternUnits="userSpaceOnUse">
   <circle cx="5" cy="5" r="2" fill="url(#precipitationgradient)" fill-opacity="0.5"/>
  </pattern> 
@@ -265,7 +260,7 @@
 
 <!-- *** ACTUAL GRAPH OBJECTS START -->
 
-<rect x="0" y="0" width="100%" height="100%" fill="url(#background)"/>
+<image id="background" xlink:href="background.png" width="600px" height="571px"/>
 
 <!-- weather begins -->
 

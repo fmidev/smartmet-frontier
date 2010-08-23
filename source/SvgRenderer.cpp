@@ -10,8 +10,11 @@
 #include "PathTransformation.h"
 #include <smartmet/woml/ColdFront.h>
 #include <smartmet/woml/CubicSplineSurface.h>
+#include <smartmet/woml/FontSymbol.h>
+#include <smartmet/woml/GraphicSymbol.h>
 #include <smartmet/woml/Jet.h>
 #include <smartmet/woml/OccludedFront.h>
+#include <smartmet/woml/PointMeteorologicalSymbol.h>
 #include <smartmet/woml/SurfacePrecipitationArea.h>
 #include <smartmet/woml/Trough.h>
 #include <smartmet/woml/UpperTrough.h>
@@ -342,8 +345,51 @@ void
 SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 {
   ++npointsymbols;
-  if(options.verbose)
-	std::cerr << "Skipping PointMeteorologicalSymbol " << npointsymbols << std::endl;
+
+  // Find the pixel coordinate
+  PathProjector proj(area);
+  double lon = theFeature.point().lon();
+  double lat = theFeature.point().lat();
+  proj(lon,lat);
+
+  // Draw the symbol
+
+  boost::shared_ptr<woml::MeteorologicalSymbol> symb = theFeature.symbol();
+
+  // dynamic_cast to pointer reuturns NULL on failure
+
+  woml::FontSymbol * fs = dynamic_cast<woml::FontSymbol *>(symb.get());
+  if(fs != NULL)
+	{
+	  std::string class1 = fs->fontName() + "symbol";
+	  std::string class2 = class1 + boost::lexical_cast<std::string>(fs->symbolIndex());
+
+	  std::string id = "symbol" + boost::lexical_cast<std::string>(npointsymbols);
+
+	  pointsymbols << "<text class=\""
+				   << class1
+				   << ' '
+				   << class2
+				   << "\" id=\""
+				   << id
+				   << "\" x=\""
+				   << std::fixed << std::setprecision(1) << lon
+				   << "\" y=\""
+				   << std::fixed << std::setprecision(1) << lat
+				   << "\">&#"
+				   << fs->symbolIndex()
+				   << ";</text>\n";
+	  return;
+	}
+
+  woml::GraphicSymbol * gs = dynamic_cast<woml::GraphicSymbol *>(symb.get());
+  if(gs != NULL)
+	{
+	  return;
+	}
+
+  throw std::runtime_error("Unknown MeteorologicalSymbol encountered, only FontSymbol and GraphicSymbol are currently known");
+
 }
 
 // ----------------------------------------------------------------------

@@ -8,6 +8,30 @@
  <!-- style sheet -->
 
  <style type="text/css"><![CDATA[
+ @font-face
+ {
+   font-family: Mirri;
+   src: url('http://share.weatherproof.fi/fonts/ttf/Mirri.ttf');
+ }
+ .Mirrisymbol
+ {
+   font-family: Mirri;
+   font-size: 70px;
+   text-anchor: middle;
+   fill: yellow;
+   stroke: black;
+   stroke-width: 1px;
+ }
+ .Mirrisymbol49 /* K : high pressure */
+ {
+   fill: blue;
+   font-size: 150px;
+ }
+ .Mirrisymbol53 /* M : low pressure */
+ {
+   fill: red;
+   font-size: 150px;
+ }
  .weather
  {
    filter: url(#shadow);
@@ -199,11 +223,6 @@
 
  <!-- patterns -->
 
- <pattern id="background" width="--WIDTH--" height="--HEIGHT--">
-  <rect x="0" y="0" width="--WIDTH--" height="--HEIGHT--" fill="#f0f0f0"/>
-  <image id="background" xlink:href="Svt_pohja.png" width="--WIDTH--" height="--HEIGHT--"/>
- </pattern>
-
  <pattern id="waterdotpattern" width="10" height="10" patternUnits="userSpaceOnUse">
   <circle cx="5" cy="5" r="2" fill="url(#precipitationgradient)" fill-opacity="0.5"/>
  </pattern> 
@@ -251,7 +270,7 @@
 
 <!-- *** ACTUAL GRAPH OBJECTS START -->
 
-<rect x="0" y="0" width="100%" height="100%" fill="url(#background)"/>
+<image id="background" xlink:href="Svt_pohja.png" width="1920px" height="1080px"/>
 
 <!-- weather begins -->
 
