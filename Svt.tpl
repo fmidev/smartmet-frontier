@@ -22,12 +22,14 @@
    stroke: black;
    stroke-width: 1px;
  }
- .Mirrisymbol49 /* K : high pressure */
+ /* K : high pressure */
+ .Mirrisymbol49, Mirrisymbol50, Mirrisymbol51, Mirrisymbol52
  {
    fill: blue;
    font-size: 150px;
  }
- .Mirrisymbol53 /* M : low pressure */
+ /* M : low pressure */
+ .Mirrisymbol53, Mirrisymbol54, Mirrisymbol55, Mirrisymbol56
  {
    fill: red;
    font-size: 150px;
