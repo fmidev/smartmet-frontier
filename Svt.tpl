@@ -280,19 +280,25 @@
 
 <!-- weather begins -->
 
-<g id="weather" class="weather">
+<g id="weather1" class="weather">
 --CLOUDBORDERS--
 --PRECIPITATIONAREAS--
+</g>
+<use class="postweather" xlink:href="#weather1"/>
+<g id="weather2" class="weather">
 --COLDFRONTS--
 --OCCLUDEDFRONTS--
 --WARMFRONTS--
 --TROUGHS--
 --UPPERTROUGHS--
 --JETS--
+</g>
+<use class="postweather" xlink:href="#weather2"/>
+<g id="weather3" class="weather">
 --POINTNOTES--
 --POINTSYMBOLS--
 --POINTVALUES--
 </g>
-<use class="postweather" xlink:href="#weather"/>
+<use class="postweather" xlink:href="#weather3"/>
 
 </svg>
