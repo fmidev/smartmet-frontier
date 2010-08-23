@@ -385,6 +385,8 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
   woml::GraphicSymbol * gs = dynamic_cast<woml::GraphicSymbol *>(symb.get());
   if(gs != NULL)
 	{
+	  if(options.verbose)
+		std::cerr << "GraphicSymbol not supported yet\n";
 	  return;
 	}
 
