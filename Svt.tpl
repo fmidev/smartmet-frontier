@@ -16,9 +16,9 @@
  .Mirrisymbol
  {
    font-family: Mirri;
-   font-size: 70px;
+   font-size: 110px;
    text-anchor: middle;
-   fill: yellow;
+   fill: #8b0;
    stroke: black;
    stroke-width: 1px;
  }
@@ -44,44 +44,44 @@
  }
  .coldfront
  {
-   stroke: blue;
+   stroke: #00f;
    fill: none;
-   stroke-width: 4px;
- }
- .warmfront
- {
-   stroke: red;
-   fill: none;
-   stroke-width: 4px;
- }
- .occludedfront
- {
-   stroke: #f0f;
-   fill: none;
-   stroke-width: 4px;
- }
- .warmfrontglyph
- {
-   font-family: weatherfont;
-   font-size: 20px;
-   text-anchor: middle;
-   fill: red;
-   fmi-letter-spacing: 60px;
+   stroke-width: 8px;
  }
  .coldfrontglyph
  {
    font-family: weatherfont;
-   font-size: 20px;
+   font-size: 30px;
    text-anchor: middle;
-   fill: blue;
+   fill: #00f;
    fmi-letter-spacing: 60px;
+ }
+ .warmfront
+ {
+   stroke: #e00;
+   fill: none;
+   stroke-width: 8px;
+ }
+ .warmfrontglyph
+ {
+   font-family: weatherfont;
+   font-size: 30px;
+   text-anchor: middle;
+   fill: #e00;
+   fmi-letter-spacing: 60px;
+ }
+ .occludedfront
+ {
+   stroke: #e0e;
+   fill: none;
+   stroke-width: 8px;
  }
  .occludedfrontglyph
  {
    font-family: weatherfont;
-   font-size: 20px;
+   font-size: 30px;
    text-anchor: middle;
-   fill: #f0f;
+   fill: #e0e;
    fmi-letter-spacing: 60px;
  }
  .trough
@@ -125,26 +125,26 @@
  .precipitation
  {
    fill: url(#precipitationpattern);
-   stroke: #ccc;
-   stroke-width: 2px;
+   stroke: none;
  }
  .heavyprecipitation
  {
    fill: url(#heavyprecipitationpattern);
-   stroke: #ccc;
-   stroke-width: 3px;
+   stroke: none;
  }
  .precipitationmask
  {
    fill: none;
    stroke: white;
-   stroke-width: 15px;
+   stroke-width: 30px;
+   filter: url(#precipitationfilter);
  }
  .heavyprecipitationmask
  {
    fill: none;
    stroke: white;
-   stroke-width: 20px;
+   stroke-width: 30px;
+   filter: url(#precipitationfilter);
  }
  .jet
  {
@@ -230,7 +230,7 @@
  </pattern> 
 
  <pattern id="precipitationpattern" width="6" height="10" patternUnits="userSpaceOnUse">
-  <line x1="0" y1="0" x2="6" y2="10" stroke="#ccc"/>
+  <line x1="0" y1="0" x2="6" y2="10" stroke="#eee"/>
  </pattern> 
 
  <pattern id="heavyprecipitationpattern" width="10" height="10" patternUnits="userSpaceOnUse">
@@ -243,6 +243,10 @@
  </pattern> 
 
  <!-- filters -->
+
+ <filter id="precipitationfilter" width="150%" height="150%">
+  <feGaussianBlur in="SourceGraphic" stdDeviation="10"/>
+ </filter>
 
  <filter id="shadow" width="150%" height="150%">
   <feOffset in="SourceAlpha" result="offsetted" dx="3" dy="5"/>
