@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 --WIDTH-- --HEIGHT--">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"  width="--WIDTH--px" height="--HEIGHT--px" viewBox="0 0 --WIDTH-- --HEIGHT--">
 <title>Weather Fronts</title>
 
 <defs>
@@ -256,8 +256,8 @@
 <!-- weather begins -->
 
 <g id="weather" class="weather">
---PRECIPITATIONAREAS--
 --CLOUDBORDERS--
+--PRECIPITATIONAREAS--
 --COLDFRONTS--
 --OCCLUDEDFRONTS--
 --WARMFRONTS--
