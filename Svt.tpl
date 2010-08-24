@@ -26,13 +26,17 @@
  .Mirrisymbol49, Mirrisymbol50, Mirrisymbol51, Mirrisymbol52
  {
    fill: blue;
-   font-size: 150px;
+   font-size: 170px;
+   stroke: #eee;
+   stroke-width: 2px;
  }
  /* M : low pressure */
  .Mirrisymbol53, Mirrisymbol54, Mirrisymbol55, Mirrisymbol56
  {
    fill: red;
-   font-size: 150px;
+   font-size: 170px;
+   stroke: #eee;
+   stroke-width: 2px;
  }
  .weather
  {
@@ -44,44 +48,44 @@
  }
  .coldfront
  {
-   stroke: #00f;
+   stroke: #425de8;
    fill: none;
-   stroke-width: 8px;
+   stroke-width: 5px;
  }
  .coldfrontglyph
  {
    font-family: weatherfont;
    font-size: 30px;
    text-anchor: middle;
-   fill: #00f;
+   fill: #425de8;
    fmi-letter-spacing: 60px;
  }
  .warmfront
  {
-   stroke: #e00;
+   stroke: #e42727;
    fill: none;
-   stroke-width: 8px;
+   stroke-width: 5px;
  }
  .warmfrontglyph
  {
    font-family: weatherfont;
    font-size: 30px;
    text-anchor: middle;
-   fill: #e00;
+   fill: #e42727;
    fmi-letter-spacing: 60px;
  }
  .occludedfront
  {
-   stroke: #e0e;
+   stroke: #da25d8;
    fill: none;
-   stroke-width: 8px;
+   stroke-width: 5px;
  }
  .occludedfrontglyph
  {
    font-family: weatherfont;
    font-size: 30px;
    text-anchor: middle;
-   fill: #e0e;
+   fill: #da25d8;
    fmi-letter-spacing: 60px;
  }
  .trough
@@ -124,7 +128,8 @@
  }
  .precipitation
  {
-   fill: url(#precipitationpattern);
+   fill: #cff;
+   /* fill: url(#precipitationpattern); */
    stroke: none;
  }
  .heavyprecipitation
@@ -136,14 +141,14 @@
  {
    fill: none;
    stroke: white;
-   stroke-width: 30px;
+   stroke-width: 40px;
    filter: url(#precipitationfilter);
  }
  .heavyprecipitationmask
  {
    fill: none;
    stroke: white;
-   stroke-width: 30px;
+   stroke-width: 40px;
    filter: url(#precipitationfilter);
  }
  .jet
@@ -245,7 +250,7 @@
  <!-- filters -->
 
  <filter id="precipitationfilter" width="150%" height="150%">
-  <feGaussianBlur in="SourceGraphic" stdDeviation="10"/>
+  <feGaussianBlur in="SourceGraphic" stdDeviation="20"/>
  </filter>
 
  <filter id="shadow" width="150%" height="150%">
@@ -284,7 +289,6 @@
 --CLOUDBORDERS--
 --PRECIPITATIONAREAS--
 </g>
-<use class="postweather" xlink:href="#weather1"/>
 <g id="weather2" class="weather">
 --COLDFRONTS--
 --OCCLUDEDFRONTS--
@@ -299,6 +303,5 @@
 --POINTSYMBOLS--
 --POINTVALUES--
 </g>
-<use class="postweather" xlink:href="#weather3"/>
 
 </svg>
