@@ -385,8 +385,24 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
   woml::GraphicSymbol * gs = dynamic_cast<woml::GraphicSymbol *>(symb.get());
   if(gs != NULL)
 	{
-	  if(options.verbose)
-		std::cerr << "GraphicSymbol not supported yet\n";
+	  const woml::URIList & uris = gs->URIs();
+
+	  double sz = 59.529 * gs->scaleFactor();
+
+	  BOOST_FOREACH(const std::string & uri, uris)
+		{
+		  pointsymbols << "<image xlink:href=\""
+					   << uri
+					   << "\" x=\""
+					   << std::fixed << std::setprecision(1) << lon
+					   << "\" y=\""
+					   << std::fixed << std::setprecision(1) << lat
+					   << "\" width=\""
+					   << std::fixed << std::setprecision(1) << sz
+					   << "px\" height=\""
+					   << std::fixed << std::setprecision(1) << sz
+					   << "\"/>\n";
+		}
 	  return;
 	}
 

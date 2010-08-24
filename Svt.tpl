@@ -13,6 +13,10 @@
    font-family: Mirri;
    src: url('http://share.weatherproof.fi/fonts/ttf/Mirri.ttf');
  }
+ .GraphicSymbol
+ {
+   fmi-size: 59.529px;
+ }
  .Mirrisymbol
  {
    font-family: Mirri;
