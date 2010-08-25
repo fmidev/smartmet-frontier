@@ -105,7 +105,7 @@
    stroke: none;
    text-anchor: middle;
    font-size: 40px;
-   fmi-letter-spacing: 60px;
+   fmi-letter-spacing: 20px;
  }
  .uppertrough
  {
@@ -122,7 +122,7 @@
    stroke: none;
    text-anchor: middle;
    font-size: 40px;
-   fmi-letter-spacing: 60px;
+   fmi-letter-spacing: 20px;
  }
  .raindots
  {
@@ -299,10 +299,13 @@
 --WARMFRONTS--
 --TROUGHS--
 --UPPERTROUGHS--
---JETS--
 </g>
 <use class="postweather" xlink:href="#weather2"/>
 <g id="weather3" class="weather">
+--JETS--
+</g>
+<use class="postweather" xlink:href="#weather3"/>
+<g id="weather4" class="weather">
 --POINTNOTES--
 --POINTSYMBOLS--
 --POINTVALUES--
