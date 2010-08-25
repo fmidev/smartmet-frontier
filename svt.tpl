@@ -15,7 +15,7 @@
  }
  .GraphicSymbol
  {
-   fmi-size: 59.529px;
+   fmi-size: 59px;
  }
  .Mirrisymbol
  {

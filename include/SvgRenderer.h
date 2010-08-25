@@ -44,6 +44,12 @@ namespace frontier
 
 	SvgRenderer();
 
+	bool hasCssClass(const std::string & theCssClass) const;
+
+	double getCssSize(const std::string & theCssClass,
+					  const std::string & theAttribute);
+
+
 	const Options & options;
 	std::string svgbase;
 	boost::shared_ptr<NFmiArea> area;

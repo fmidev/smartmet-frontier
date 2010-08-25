@@ -19,8 +19,10 @@
 #include <smartmet/woml/Trough.h>
 #include <smartmet/woml/UpperTrough.h>
 #include <smartmet/woml/WarmFront.h>
+#include <smartmet/macgyver/Cast.h>
 #include <boost/foreach.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string/trim.hpp>
 #include <boost/lexical_cast.hpp>
 #include <iomanip>
 #include <iostream>
@@ -274,8 +276,8 @@ SvgRenderer::visit(const woml::ColdFront & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = 20;
-  double spacing = 30;
+  double fontsize = getCssSize("coldfrontglyph","font-size");
+  double spacing  = getCssSize("coldfrontglyph","fmi-letter-spacing");
 
   render_front(path,paths,coldfronts,id,
 			   "coldfront","coldfrontglyph",
@@ -303,8 +305,8 @@ SvgRenderer::visit(const woml::Jet & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = 20;
-  double spacing = 30;
+  double fontsize = 0;
+  double spacing = 0;
 
   render_front(path,paths,jets,id,
 			   "jet","",
@@ -331,8 +333,8 @@ SvgRenderer::visit(const woml::OccludedFront & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = 20;
-  double spacing = 30;
+  double fontsize = getCssSize("occludedfrontglyph","font-size");
+  double spacing  = getCssSize("occludedfrontglyph","fmi-letter-spacing");
 
   render_front(path,paths,occludedfronts,id,
 			   "occludedfront","occludedfrontglyph",
@@ -406,7 +408,7 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 	{
 	  const woml::URIList & uris = gs->URIs();
 
-	  double sz = 59.529 * gs->scaleFactor();
+	  double sz = getCssSize("GraphicSymbol","fmi-size") * gs->scaleFactor();
 
 	  BOOST_FOREACH(const std::string & uri, uris)
 		{
@@ -463,8 +465,8 @@ SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = 20;
-  double spacing = 30;
+  double fontsize = 0;
+  double spacing = 0;
 
   switch(phase)
 	{
@@ -527,8 +529,8 @@ SvgRenderer::visit(const woml::Trough & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = 20;
-  double spacing = 30;
+  double fontsize = getCssSize("troughglyph","font-size");
+  double spacing  = getCssSize("troughglyph","fmi-letter-spacing");
 
   render_front(path,paths,troughs,id,
 			   "trough","troughglyph",
@@ -557,8 +559,8 @@ SvgRenderer::visit(const woml::UpperTrough & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = 20;
-  double spacing = 30;
+  double fontsize = getCssSize("uppertroughglyph","font-size");
+  double spacing  = getCssSize("uppertroughglyph","fmi-letter-spacing");
 
   render_front(path,paths,uppertroughs,id,
 			   "uppertrough","uppertroughglyph",
@@ -586,13 +588,66 @@ SvgRenderer::visit(const woml::WarmFront & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = 20;
-  double spacing = 30;
+  double fontsize = getCssSize("warmfrontglyph","font-size");
+  double spacing  = getCssSize("warmfrontglyph","fmi-letter-spacing");
 
   render_front(path,paths,warmfronts,id,
 			   "warmfront","warmfrontglyph",
 			   "W","W",
 			   fontsize,spacing);
 }
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test if the given CSS class exists
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::hasCssClass(const std::string & theCssClass) const
+{
+  return (svgbase.find("."+theCssClass) != std::string::npos);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Find the given CSS size setting
+ */
+// ----------------------------------------------------------------------
+
+double SvgRenderer::getCssSize(const std::string & theCssClass,
+							   const std::string & theAttribute)
+{
+  std::string msg = "CSS setting ." + theCssClass + " { " + theAttribute + " } is missing";
+
+  std::string::size_type pos = svgbase.find("." + theCssClass);
+  if(pos == std::string::npos)
+	throw std::runtime_error(msg);
+
+  // Require attribute to come before next "}"
+
+  std::string::size_type pos2 = svgbase.find("}", pos);
+  if(pos2 == std::string::npos)
+	throw std::runtime_error(msg);
+
+  std::string::size_type pos1 = svgbase.find(theAttribute+":", pos);
+  if(pos1 == std::string::npos || pos1 > pos2)
+	throw std::runtime_error(msg);
+
+  // Extract the next word after "attribute:"
+  
+  pos1 += theAttribute.size()+1;
+  pos2 = svgbase.find(";",pos1);
+
+  std::string word = svgbase.substr(pos1,pos2-pos1);
+  boost::algorithm::trim(word);
+
+  if(word.substr(word.size()-2,2) != "px")
+	throw std::runtime_error("CSS value for "+theCssClass+"."+theAttribute+" must be in pixels");
+
+  std::string num = word.substr(0,word.size()-2);
+
+  return Fmi::number_cast<double>(num);
+}
+
 
 } // namespace frontier
