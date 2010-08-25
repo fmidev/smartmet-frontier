@@ -167,6 +167,38 @@
    stroke-width: 40px;
    filter: url(#snowfilter);
  }
+ .fog
+ {
+   display: none;
+ }
+ .sleet
+ {
+   fill: #eee;
+   stroke: none;
+ }
+ .sleetmask
+ {
+   fill: none;
+   stroke: white;
+   stroke-width: 40px;
+   filter: url(#sleetfilter);
+ }
+ .hail
+ {
+   display: none;
+ }
+ .freezing_precipitation
+ {
+   display: none;
+ }
+ .drizzle
+ {
+   display: none;
+ }
+ .mixed
+ {
+   display: none;
+ }
  .jet
  {
    fill: none;
@@ -250,6 +282,10 @@
  </filter>
 
  <filter id="snowfilter" width="150%" height="150%">
+  <feGaussianBlur in="SourceGraphic" stdDeviation="20"/>
+ </filter>
+
+ <filter id="sleetfilter" width="150%" height="150%">
   <feGaussianBlur in="SourceGraphic" stdDeviation="20"/>
  </filter>
 
