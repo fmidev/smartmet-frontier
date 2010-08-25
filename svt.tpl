@@ -105,7 +105,7 @@
    stroke: none;
    text-anchor: middle;
    font-size: 40px;
-   fmi-letter-spacing: 20px;
+   fmi-letter-spacing: 15px;
  }
  .uppertrough
  {
@@ -122,7 +122,7 @@
    stroke: none;
    text-anchor: middle;
    font-size: 40px;
-   fmi-letter-spacing: 20px;
+   fmi-letter-spacing: 15px;
  }
  .raindots
  {
