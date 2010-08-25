@@ -33,6 +33,33 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Make URI valid for SVG
+   */
+  // ----------------------------------------------------------------------
+
+  std::string svgescape(const std::string & theURI)
+  {
+	using boost::algorithm::replace_all;
+	using boost::algorithm::replace_all_copy;
+
+	std::string ret = replace_all_copy(theURI,"&","&amp;");
+
+	replace_all(ret,
+				"http://kopla.fmi.fi/serve-meteogram.php?set=2&amp;symbol=",
+				"file:///home/mheiskan/mirwa/2/");
+
+	replace_all(ret,
+				"http://kopla.fmi.fi/serve-meteogram.php?set=1&amp;symbol=",
+				"file:///home/mheiskan/mirwa/1/");
+								  
+	replace_all(ret,"&amp;width=xxx&amp;height=xxx",".svg");
+
+	return ret;
+
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Functor for projecting a path
    */
   // ----------------------------------------------------------------------
@@ -440,7 +467,7 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 	  BOOST_FOREACH(const std::string & uri, uris)
 		{
 		  pointsymbols << "<image xlink:href=\""
-					   << uri
+					   << svgescape(uri)
 					   << "\" x=\""
 					   << std::fixed << std::setprecision(1) << lon
 					   << "\" y=\""

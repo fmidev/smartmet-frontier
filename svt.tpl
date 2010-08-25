@@ -105,14 +105,14 @@
    stroke: none;
    text-anchor: middle;
    font-size: 40px;
-   fmi-letter-spacing: 15px;
+   fmi-letter-spacing: 0px;
  }
  .uppertrough
  {
    fill: none;
    stroke: darkviolet;
    stroke-width: 5px;
-   stroke-dasharray: 11.1,11.1;
+   stroke-dasharray: 20,10;
    stroke-dashoffset: 0;
  }
  .uppertroughglyph
@@ -122,7 +122,7 @@
    stroke: none;
    text-anchor: middle;
    font-size: 40px;
-   fmi-letter-spacing: 15px;
+   fmi-letter-spacing: 0px;
  }
  .raindots
  {
