@@ -504,9 +504,9 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 		  pointsymbols << "<image xlink:href=\""
 					   << svgescape(uri)
 					   << "\" x=\""
-					   << std::fixed << std::setprecision(1) << lon
+					   << std::fixed << std::setprecision(1) << (lon-sz/2)
 					   << "\" y=\""
-					   << std::fixed << std::setprecision(1) << lat
+					   << std::fixed << std::setprecision(1) << (lat-sz/2)
 					   << "\" width=\""
 					   << std::fixed << std::setprecision(1) << sz
 					   << "px\" height=\""

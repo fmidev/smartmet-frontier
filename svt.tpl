@@ -48,6 +48,7 @@
    font-weight: bolder;
    font-size: 70px;
    text-anchor: middle;
+   alignment-baseline: middle;
    fill: white;
    stroke: black;
    stroke-width: 1px;
