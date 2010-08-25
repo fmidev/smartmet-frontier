@@ -95,16 +95,16 @@
  .trough
  {
    fill: none;
-   stroke: #066;
+   stroke: darkviolet;
    stroke-width: 5px
  }
  .troughglyph
  {
    font-family: weatherfont;
-   fill: #066;
+   fill: darkviolet;
    stroke: none;
    text-anchor: middle;
-   font-size: 50px;
+   font-size: 40px;
    fmi-letter-spacing: 60px;
  }
  .uppertrough

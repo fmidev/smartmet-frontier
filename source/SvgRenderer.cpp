@@ -480,8 +480,24 @@ void
 SvgRenderer::visit(const woml::Trough & theFeature)
 {
   ++ntroughs;
-  if(options.verbose)
-	std::cerr << "Skipping Trough " << ntroughs << std::endl;
+
+  std::string id = "trough" + boost::lexical_cast<std::string>(ntroughs);
+
+  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+
+  Path path = PathFactory::create(splines);
+
+  PathProjector proj(area);
+  path.transform(proj);
+
+  double fontsize = 20;
+  double spacing = 30;
+
+  render_front(path,paths,troughs,id,
+			   "trough","troughglyph",
+			   "t","T",
+			   fontsize,spacing);
+
 }
 
 // ----------------------------------------------------------------------
