@@ -136,11 +136,6 @@
    /* fill: url(#precipitationpattern); */
    stroke: none;
  }
- .heavyprecipitation
- {
-   fill: url(#heavyprecipitationpattern);
-   stroke: none;
- }
  .precipitationmask
  {
    fill: none;
@@ -148,12 +143,29 @@
    stroke-width: 40px;
    filter: url(#precipitationfilter);
  }
- .heavyprecipitationmask
+ .rain
+ {
+   fill: #cff;
+   stroke: none;
+ }
+ .rainmask
  {
    fill: none;
    stroke: white;
    stroke-width: 40px;
-   filter: url(#precipitationfilter);
+   filter: url(#rainfilter);
+ }
+ .snow
+ {
+   fill: #fff;
+   stroke: none;
+ }
+ .snowmask
+ {
+   fill: none;
+   stroke: white;
+   stroke-width: 40px;
+   filter: url(#snowfilter);
  }
  .jet
  {
@@ -210,11 +222,6 @@
   <stop offset="95%" stop-color="blue"/>
  </linearGradient>
 
- <linearGradient id="heavyprecipitationgradient">
-  <stop offset="5%" stop-color="white"/>
-  <stop offset="75%" stop-color="blue"/>
- </linearGradient>
-
  <linearGradient id="jetgradient">
   <stop offset="0%" stop-color="crimson" stop-opacity="0"/>
   <stop offset="40%" stop-color="crimson" stop-opacity="0.8"/>
@@ -228,17 +235,8 @@
 
  <!-- patterns -->
 
- <pattern id="waterdotpattern" width="10" height="10" patternUnits="userSpaceOnUse">
-  <circle cx="5" cy="5" r="2" fill="url(#precipitationgradient)" fill-opacity="0.5"/>
- </pattern> 
-
  <pattern id="precipitationpattern" width="6" height="10" patternUnits="userSpaceOnUse">
   <line x1="0" y1="0" x2="6" y2="10" stroke="#eee"/>
- </pattern> 
-
- <pattern id="heavyprecipitationpattern" width="10" height="10" patternUnits="userSpaceOnUse">
-   <line x1="0" y1="0" x2="10" y2="10" stroke="#ddd"/>
-   <circle cx="5" cy="5" r="2" fill="url(#heavyprecipitationgradient)" fill-opacity="0.5"/>
  </pattern> 
 
  <pattern id="cloudpattern" width="6" height="6" patternUnits="userSpaceOnUse">
@@ -248,6 +246,14 @@
  <!-- filters -->
 
  <filter id="precipitationfilter" width="150%" height="150%">
+  <feGaussianBlur in="SourceGraphic" stdDeviation="20"/>
+ </filter>
+
+ <filter id="rainfilter" width="150%" height="150%">
+  <feGaussianBlur in="SourceGraphic" stdDeviation="20"/>
+ </filter>
+
+ <filter id="snowfilter" width="150%" height="150%">
   <feGaussianBlur in="SourceGraphic" stdDeviation="20"/>
  </filter>
 

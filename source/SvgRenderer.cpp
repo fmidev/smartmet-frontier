@@ -454,6 +454,7 @@ SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
 {
   ++nprecipitationareas;
   std::string id = "precipitation" + boost::lexical_cast<std::string>(nprecipitationareas);
+  woml::RainPhase phase = theFeature.rainPhase();
 
   const woml::CubicSplineSurface surface = theFeature.controlSurface();
 
@@ -465,9 +466,45 @@ SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
   double fontsize = 20;
   double spacing = 30;
 
-  render_surface(path,paths,masks,precipitationareas,id,
-				 "precipitation",
-				 "","","",fontsize,spacing);
+  switch(phase)
+	{
+	case woml::unknown:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "precipitation","","","",fontsize,spacing);
+	  break;
+	case woml::rain:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "rain","","","",fontsize,spacing);
+	  break;
+	case woml::snow:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "snow","","","",fontsize,spacing);
+	  break;
+	case woml::fog:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "fog","","","",fontsize,spacing);
+	  break;
+	case woml::sleet:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "sleet","","","",fontsize,spacing);
+	  break;
+	case woml::hail:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "hail","","","",fontsize,spacing);
+	  break;
+	case woml::freezing_precipitation:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "freezing_precipitation","","","",fontsize,spacing);
+	  break;
+	case woml::drizzle:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "drizzle","","","",fontsize,spacing);
+	  break;
+	case woml::mixed:
+	  render_surface(path,paths,masks,precipitationareas,id,
+				 "mixed","","","",fontsize,spacing);
+	  break;
+	}
 }
 
 // ----------------------------------------------------------------------
