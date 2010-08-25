@@ -159,7 +159,7 @@
  {
    fill: none;
    stroke: url(#jetgradient);
-   stroke-width: 8px;
+   stroke-width: 18px;
    marker-end: url(#jetmarker);
  }
  .cloud
@@ -200,7 +200,7 @@
  <!-- markers -->
 
  <marker orient="auto" id="jetmarker" style="overflow:visible;">
-  <path id="jetmarkerpath" fill="teal" transform="rotate(180) scale(0.6)" d="M 8.7,4.0 L -2.2,0.01 L 8.7,-4.0 C 6.9,-1.6 6.9,1.6 8.7,4.0 z"/>
+  <path id="jetmarkerpath" fill="crimson" d="M -2.3,-2.0 C -1.2,-0.8 -1.2 0.8 -2.3 2.0 L 1.1,0 z"/>
  </marker> 
 
  <!-- gradients -->
@@ -216,9 +216,9 @@
  </linearGradient>
 
  <linearGradient id="jetgradient">
-  <stop offset="0%" stop-color="black"/>
-  <stop offset="50%" stop-color="teal"/>
-  <stop offset="100%" stop-color="white"/>
+  <stop offset="0%" stop-color="crimson" stop-opacity="0"/>
+  <stop offset="40%" stop-color="crimson" stop-opacity="0.8"/>
+  <stop offset="100%" stop-color="crimson" stop-opacity="0.8"/>
  </linearGradient>
 
  <linearGradient id="troughgradient">

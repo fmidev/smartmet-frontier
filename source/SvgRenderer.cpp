@@ -83,24 +83,28 @@ namespace frontier
 	
 	double len = path.length();
 	double textlength = 0.5*(glyphs1.size() + glyphs2.size());
-	int intervals = static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
-	double interval = len/intervals;
-	double startpoint = interval/2;
-	
-	fronts << "<g class=\"" << glyphclass << "\">\n";
-	
-	for(int j=0; j<intervals; ++j)
+
+	if(textlength > 0)
 	  {
-		double offset = startpoint + j * interval;
-		fronts << " <text><textPath xlink:href=\"#"
-			   << id
-			   << "\" startOffset=\""
-			   << std::fixed << std::setprecision(1) << offset
-			   << "\">"
-			   << (j%2 == 0 ? glyphs1 : glyphs2)
-			   << "</textPath></text>\n";
+		int intervals = static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
+		double interval = len/intervals;
+		double startpoint = interval/2;
+		
+		fronts << "<g class=\"" << glyphclass << "\">\n";
+		
+		for(int j=0; j<intervals; ++j)
+		  {
+			double offset = startpoint + j * interval;
+			fronts << " <text><textPath xlink:href=\"#"
+				   << id
+				   << "\" startOffset=\""
+				   << std::fixed << std::setprecision(1) << offset
+				   << "\">"
+				   << (j%2 == 0 ? glyphs1 : glyphs2)
+				   << "</textPath></text>\n";
+		  }
+		fronts << "</g>\n";
 	  }
-	fronts << "</g>\n";
   }
   
   // ----------------------------------------------------------------------
@@ -289,8 +293,23 @@ void
 SvgRenderer::visit(const woml::Jet & theFeature)
 {
   ++njets;
-  if(options.verbose)
-	std::cerr << "Skipping Jet " << njets << std::endl;
+
+  std::string id = "jet" + boost::lexical_cast<std::string>(njets);
+
+  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+
+  Path path = PathFactory::create(splines);
+
+  PathProjector proj(area);
+  path.transform(proj);
+
+  double fontsize = 20;
+  double spacing = 30;
+
+  render_front(path,paths,jets,id,
+			   "jet","",
+			   "","",
+			   fontsize,spacing);
 }
 
 // ----------------------------------------------------------------------
