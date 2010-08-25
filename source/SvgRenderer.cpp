@@ -12,9 +12,11 @@
 #include <smartmet/woml/ColdFront.h>
 #include <smartmet/woml/CubicSplineSurface.h>
 #include <smartmet/woml/FontSymbol.h>
+#include <smartmet/woml/GeophysicalParameterValueSet.h>
 #include <smartmet/woml/GraphicSymbol.h>
 #include <smartmet/woml/Jet.h>
 #include <smartmet/woml/OccludedFront.h>
+#include <smartmet/woml/PointGeophysicalParameterValueSet.h>
 #include <smartmet/woml/PointMeteorologicalSymbol.h>
 #include <smartmet/woml/SurfacePrecipitationArea.h>
 #include <smartmet/woml/Trough.h>
@@ -406,8 +408,41 @@ void
 SvgRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
 {
   ++npointvalues;
-  if(options.verbose)
-	std::cerr << "Skipping PointGeophysicalParameterValueSet " << npointvalues << std::endl;
+
+  // Find the pixel coordinate
+  PathProjector proj(area);
+  double lon = theFeature.point().lon();
+  double lat = theFeature.point().lat();
+  proj(lon,lat);
+
+  boost::shared_ptr<woml::GeophysicalParameterValueSet> params = theFeature.parameters();
+
+  BOOST_FOREACH(const woml::GeophysicalParameterValue & value, params->values())
+	{
+	  pointvalues << "<text class=\""
+				  << value.parameter().name()
+				  << "\" x=\""
+				  << std::fixed << std::setprecision(1) << lon
+				  << "\" y=\""
+				  << std::fixed << std::setprecision(1) << lat
+				  << "\">"
+				  << std::fixed << std::setprecision(0) << value.value()
+				  << "</text>\n";
+	}
+  BOOST_FOREACH(const woml::GeophysicalParameterValueRange & range, params->ranges())
+	{
+	  pointvalues << "<text class=\""
+				  << range.parameter().name()
+				  << "\" x=\""
+				  << std::fixed << std::setprecision(1) << lon
+				  << "\" y=\""
+				  << std::fixed << std::setprecision(1) << lat
+				  << "\">"
+				  << std::fixed << std::setprecision(0) << range.lowerLimit()
+				  << "..."
+				  << std::fixed << std::setprecision(0) << range.upperLimit()
+				  << "</text>\n";
+	}
 }
 
 // ----------------------------------------------------------------------

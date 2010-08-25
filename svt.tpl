@@ -42,6 +42,16 @@
    stroke: #eee;
    stroke-width: 2px;
  }
+ .Temperature
+ {
+   font-family: sans-serif;
+   font-weight: bolder;
+   font-size: 70px;
+   text-anchor: middle;
+   fill: white;
+   stroke: black;
+   stroke-width: 1px;
+ }
  .weather
  {
    filter: url(#shadow);
