@@ -8,6 +8,7 @@
 #include "Path.h"
 #include "PathFactory.h"
 #include "PathTransformation.h"
+#include <smartmet/woml/CloudAreaBorder.h>
 #include <smartmet/woml/ColdFront.h>
 #include <smartmet/woml/CubicSplineSurface.h>
 #include <smartmet/woml/FontSymbol.h>
@@ -251,10 +252,36 @@ std::string SvgRenderer::svg() const
 void
 SvgRenderer::visit(const woml::CloudAreaBorder & theFeature)
 {
-  // TODO
   ++ncloudborders;
-  if(options.verbose)
-	std::cerr << "Skipping CloudAreaBorder " << ncloudborders << std::endl;
+  std::string id = "cloudborder" + boost::lexical_cast<std::string>(ncloudborders);
+
+  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+
+  Path path = PathFactory::create(splines);
+
+  PathProjector proj(area);
+  path.transform(proj);
+
+  double fontsize = getCssSize("cloudborderglyph","font-size");
+
+  paths << "<path id=\"" << id << "\" d=\"" << path.svg() << "\"/>\n";
+	
+  cloudborders << "<use class=\"cloudborder\" xlink:href=\"#"
+			   << id
+			   << "\"/>\n";
+	
+  double factor = 2; // the required math here is unclear
+  double len = path.length();
+  int chars = static_cast<int>(std::ceil(factor*len/fontsize));
+
+  cloudborders << "<text><textPath class=\"cloudborderglyph\" xlink:href=\"#"
+			   << id
+			   << "\">\n";
+
+  for(int i=0; i<chars; ++i)
+	cloudborders << "U";
+
+  cloudborders << "</textPath>\n</text>\n";
 }
 
 // ----------------------------------------------------------------------

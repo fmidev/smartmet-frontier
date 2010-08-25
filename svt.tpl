@@ -174,14 +174,19 @@
    stroke-width: 18px;
    marker-end: url(#jetmarker);
  }
- .cloud
+ .cloudborder
+ {
+   display: none;
+ }
+
+ .cloudborderglyph
  {
    font-family: weatherfont;
    stroke-width: 4px;
-   stroke: #999;
-   fill: url(#cloudpattern);
+   stroke: #eee;
+   fill: none;
    text-anchor: middle;
-   font-size: 30px;
+   font-size: 35px;
  }
 
  ]]></style>
@@ -228,19 +233,10 @@
   <stop offset="100%" stop-color="crimson" stop-opacity="0.8"/>
  </linearGradient>
 
- <linearGradient id="cloudgradient">
-  <stop offset="5%" stop-color="white"/>
-  <stop offset="95%" stop-color="blue"/>
- </linearGradient>
-
  <!-- patterns -->
 
  <pattern id="precipitationpattern" width="6" height="10" patternUnits="userSpaceOnUse">
   <line x1="0" y1="0" x2="6" y2="10" stroke="#eee"/>
- </pattern> 
-
- <pattern id="cloudpattern" width="6" height="6" patternUnits="userSpaceOnUse">
-  <circle cx="5" cy="5" r="3" fill="url(#cloudgradient)" fill-opacity="0.5"/>
  </pattern> 
 
  <!-- filters -->
