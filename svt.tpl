@@ -110,18 +110,18 @@
  .uppertrough
  {
    fill: none;
-   stroke: url(#troughgradient);
-   stroke-width: 3px;
+   stroke: darkviolet;
+   stroke-width: 5px;
    stroke-dasharray: 11.1,11.1;
    stroke-dashoffset: 0;
  }
  .uppertroughglyph
  {
    font-family: weatherfont;
-   fill: url(#troughgradient);
+   fill: darkviolet;
    stroke: none;
    text-anchor: middle;
-   font-size: 50px;
+   font-size: 40px;
    fmi-letter-spacing: 60px;
  }
  .raindots
@@ -219,12 +219,6 @@
   <stop offset="0%" stop-color="crimson" stop-opacity="0"/>
   <stop offset="40%" stop-color="crimson" stop-opacity="0.8"/>
   <stop offset="100%" stop-color="crimson" stop-opacity="0.8"/>
- </linearGradient>
-
- <linearGradient id="troughgradient">
-  <stop offset="0%" stop-color="black"/>
-  <stop offset="50%" stop-color="teal"/>
-  <stop offset="100%" stop-color="white"/>
  </linearGradient>
 
  <linearGradient id="cloudgradient">

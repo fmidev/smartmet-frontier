@@ -510,8 +510,24 @@ void
 SvgRenderer::visit(const woml::UpperTrough & theFeature)
 {
   ++nuppertroughs;
-  if(options.verbose)
-	std::cerr << "Skipping UpperTrough " << nuppertroughs << std::endl;
+
+  std::string id = "uppertrough" + boost::lexical_cast<std::string>(nuppertroughs);
+
+  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+
+  Path path = PathFactory::create(splines);
+
+  PathProjector proj(area);
+  path.transform(proj);
+
+  double fontsize = 20;
+  double spacing = 30;
+
+  render_front(path,paths,uppertroughs,id,
+			   "uppertrough","uppertroughglyph",
+			   "t","T",
+			   fontsize,spacing);
+
 }
 
 // ----------------------------------------------------------------------
