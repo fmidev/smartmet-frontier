@@ -225,8 +225,8 @@
  .cloudborderglyph
  {
    font-family: weatherfont;
-   stroke-width: 4px;
-   stroke: #eee;
+   stroke-width: 1.75px;
+   stroke: #bbb;
    fill: none;
    text-anchor: middle;
    font-size: 35px;
