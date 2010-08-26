@@ -497,7 +497,7 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 	{
 	  const woml::URIList & uris = gs->URIs();
 
-	  double sz = getCssSize("GraphicSymbol","fmi-size") * gs->scaleFactor();
+	  double sz = getCssSize("graphicsymbol","fmi-size") * gs->scaleFactor();
 
 	  BOOST_FOREACH(const std::string & uri, uris)
 		{
