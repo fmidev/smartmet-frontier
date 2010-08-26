@@ -13,7 +13,12 @@
    font-family: Mirri;
    src: url('http://share.weatherproof.fi/fonts/ttf/Mirri.ttf');
  }
- .GraphicSymbol
+ @font-face
+ {
+   font-family: Temperaturefont;
+   src: url('http://share.weatherproof.fi/fonts/ttf/Frutiger-Black.ttf');
+ }
+ .graphicsymbol
  {
    fmi-size: 59px;
  }
@@ -44,8 +49,7 @@
  }
  .Temperature
  {
-   font-family: sans-serif;
-   font-weight: bolder;
+   font-family: Temperaturefont;
    font-size: 70px;
    text-anchor: middle;
    alignment-baseline: middle;
@@ -106,13 +110,13 @@
  .trough
  {
    fill: none;
-   stroke: darkviolet;
+   stroke: #b817e1;
    stroke-width: 5px
  }
  .troughglyph
  {
    font-family: weatherfont;
-   fill: darkviolet;
+   fill: #b817e1;
    stroke: none;
    text-anchor: middle;
    font-size: 40px;
@@ -121,15 +125,15 @@
  .uppertrough
  {
    fill: none;
-   stroke: darkviolet;
+   stroke: #b817e1;
    stroke-width: 5px;
-   stroke-dasharray: 20,10;
+   stroke-dasharray: 30,10;
    stroke-dashoffset: 0;
  }
  .uppertroughglyph
  {
    font-family: weatherfont;
-   fill: darkviolet;
+   fill: #b817e1;
    stroke: none;
    text-anchor: middle;
    font-size: 40px;
