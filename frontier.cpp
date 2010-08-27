@@ -4,8 +4,9 @@
  */
 // ======================================================================
 
-#include "SvgRenderer.h"
+#include "Config.h"
 #include "Options.h"
+#include "SvgRenderer.h"
 
 #include <smartmet/newbase/NFmiAreaFactory.h>
 #include <smartmet/newbase/NFmiPreProcessor.h>
@@ -169,7 +170,9 @@ int run(int argc, char * argv[])
   svg = remove_sections(svg,"<!--","-->");
   svg = remove_sections(svg,"/*","*/");
 
-  std::cerr << "Template:\n" << svg << std::endl;
+  // Configure
+
+  frontier::Config config(configstring);
 
   // TODO PART: HANDLE ANALYSIS/FORECAST
 

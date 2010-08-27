@@ -48,7 +48,8 @@ env.Append( CPPDEFINES= "_REENTRANT" )
 
 env.Append( CPPPATH= [ "./include" ] )
 
-env.ParseConfig( "(pkg-config --exists libxml++-2.6 && pkg-config libxml++-2.6 --cflags --libs)" )
+env.ParseConfig("(pkg-config --exists libxml++-2.6 && pkg-config libxml++-2.6 --cflags --libs)")
+env.ParseConfig("(pkg-config --exists libconfig++ && pkg-config libconfig++ --cflags --libs)")
 
 env.Append( CXXFLAGS= [
         # MAINFLAGS from orig. Makefile
