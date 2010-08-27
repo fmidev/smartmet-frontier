@@ -82,6 +82,55 @@ boost::shared_ptr<NFmiArea> readprojection(const std::string & filename)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Extract section between given delimiters
+ */
+// ----------------------------------------------------------------------
+
+std::string extract_section(const std::string & str,
+							const std::string & startdelim,
+							const std::string & enddelim)
+{
+  std::string::size_type pos1 = str.find(startdelim);
+  if(pos1 == std::string::npos)
+	return "";
+
+  std::string::size_type pos2 = str.find(enddelim,pos1);
+  if(pos2 == std::string::npos)
+	return "";
+
+  return str.substr(pos1+startdelim.size(),
+					pos2-pos1-startdelim.size());
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Remove sections between given delimiters
+ */
+// ----------------------------------------------------------------------
+
+std::string remove_sections(const std::string & str,
+							const std::string & startdelim,
+							const std::string & enddelim)
+{
+  std::string ret = str;
+  while(true)
+	{
+	  std::string::size_type pos1 = ret.find(startdelim);
+	  if(pos1 == std::string::npos)
+		return ret;
+
+	  std::string::size_type pos2 = ret.find(enddelim,pos1);
+	  if(pos2 == std::string::npos)
+		return ret;
+	  
+	  std::string part1 = ret.substr(0,pos1);
+	  std::string part2 = ret.substr(pos2+enddelim.size(),ret.size());
+	  ret = part1+part2;
+	}
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Main program without exception handling
  */
 // ----------------------------------------------------------------------
@@ -93,7 +142,7 @@ int run(int argc, char * argv[])
   if(!parse_options(argc,argv,options))
     return 0;
 
-  // Read the SVG template and the projection
+  // Read the SVG template
 
   std::string svg = readfile(options.svgfile);
 
@@ -110,6 +159,17 @@ int run(int argc, char * argv[])
   woml::Weather weather = woml::parse(options.womlfile);
   if(weather.empty())
 	throw std::runtime_error("No MeteorologicalAnalysis to draw");
+
+  // Extract libconfig section
+
+  std::string configstring = extract_section(svg,"<frontier>","</frontier>");
+
+  // Remove comments
+
+  svg = remove_sections(svg,"<!--","-->");
+  svg = remove_sections(svg,"/*","*/");
+
+  std::cerr << "Template:\n" << svg << std::endl;
 
   // TODO PART: HANDLE ANALYSIS/FORECAST
 
