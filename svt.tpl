@@ -47,7 +47,17 @@
    stroke: #eee;
    stroke-width: 2px;
  }
- .Temperature
+ .Temperaturevalue
+ {
+   font-family: Temperaturefont;
+   font-size: 70px;
+   text-anchor: middle;
+   alignment-baseline: middle;
+   fill: white;
+   stroke: black;
+   stroke-width: 1px;
+ }
+ .Temperaturerange
  {
    font-family: Temperaturefont;
    font-size: 70px;

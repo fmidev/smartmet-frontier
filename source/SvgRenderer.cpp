@@ -420,7 +420,7 @@ SvgRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
   BOOST_FOREACH(const woml::GeophysicalParameterValue & value, params->values())
 	{
 	  pointvalues << "<text class=\""
-				  << value.parameter().name()
+				  << value.parameter().name() << "value"
 				  << "\" x=\""
 				  << std::fixed << std::setprecision(1) << lon
 				  << "\" y=\""
@@ -432,7 +432,7 @@ SvgRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
   BOOST_FOREACH(const woml::GeophysicalParameterValueRange & range, params->ranges())
 	{
 	  pointvalues << "<text class=\""
-				  << range.parameter().name()
+				  << range.parameter().name() << "range"
 				  << "\" x=\""
 				  << std::fixed << std::setprecision(1) << lon
 				  << "\" y=\""
