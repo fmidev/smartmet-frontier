@@ -5,6 +5,61 @@
 
  <!-- *** CUSTOMER SPECIFIC FIXED PART STARTS *** -->
 
+ <!--
+
+ frontier C++ configuration
+
+ <frontier>
+
+ contourlines:
+ (
+   {
+     parameter = "Pressure";
+     start     = 900;
+     stop      = 1100;
+     step      = 5;
+     class     = "Pressurecontourmajor";
+     output    = "--PRESSURELINES--";
+   },
+   {
+     parameter = "Pressure";
+     start     = 902.5;
+     stop      = 1097.5;
+     step      = 5;
+     class     = "Pressurecontourminor";
+     output    = "--PRESSURELINES--";
+   }
+ );
+
+ graphicsymbol:
+ {
+     size = 59;
+ };
+
+ coldfront:
+ {
+     letter-spacing = 60;
+ };
+ warmfront:
+ {
+     letter-spacing = 60;
+ };
+ occludedfront:
+ {
+     letter-spacing = 60;
+ };
+ trough:
+ {
+     letter-spacing = 0;
+ };
+ uppertrough:
+ {
+     letter-spacing = 0;
+ };
+ </frontier>
+
+ -->
+
  <!-- style sheet -->
 
  <style type="text/css"><![CDATA[
@@ -67,6 +122,19 @@
    stroke: black;
    stroke-width: 1px;
  }
+ .Pressurecontourmajor
+ {
+   fill: none;
+   stroke: white;
+   stroke-width: 2px;
+ }
+ .Pressurecontourminor
+ {
+   fill: none;
+   stroke: white;
+   stroke-width: 1px;
+ }
+
  .weather
  {
    filter: url(#shadow);
@@ -87,7 +155,6 @@
    font-size: 30px;
    text-anchor: middle;
    fill: #425de8;
-   fmi-letter-spacing: 60px;
  }
  .warmfront
  {
@@ -101,7 +168,6 @@
    font-size: 30px;
    text-anchor: middle;
    fill: #e42727;
-   fmi-letter-spacing: 60px;
  }
  .occludedfront
  {
@@ -115,7 +181,6 @@
    font-size: 30px;
    text-anchor: middle;
    fill: #da25d8;
-   fmi-letter-spacing: 60px;
  }
  .trough
  {
@@ -345,6 +410,10 @@
 <image id="background" xlink:href="Svt_pohja.png" width="1920px" height="1080px"/>
 
 <!-- weather begins -->
+
+<g id="contourlines">
+ --PRESSURELINES--
+</g>
 
 <g id="weather1" class="weather">
 --CLOUDBORDERS--
