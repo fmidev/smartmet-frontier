@@ -42,6 +42,21 @@ std::string readfile(const std::string & filename)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Write a string into a file
+ */
+// ----------------------------------------------------------------------
+
+void writefile(const std::string & filename, const std::string & contents)
+{
+  std::ofstream out(filename.c_str());
+  if(!out)
+	throw std::runtime_error("Failed to open '"+filename+"' for writing");
+  out << contents;
+  out.close();
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Generate projection from a file
  */
 // ----------------------------------------------------------------------
@@ -188,10 +203,7 @@ int run(int argc, char * argv[])
 	{
 	  if(options.verbose)
 		std::cout << "Writing " << options.outfile << std::endl;
-	  std::ofstream out(options.outfile.c_str());
-	  if(!out)
-		throw std::runtime_error("Failed to open '"+options.outfile+"' for writing");
-	  out << renderer.svg();
+	  writefile(options.outfile,renderer.svg());
 	}
   else
 	{
