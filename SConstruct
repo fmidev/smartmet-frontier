@@ -34,6 +34,7 @@ env = Environment( )
 env.Append(LIBS=["smartmet_woml",
 		 "smartmet_macgyver-mt",
 		 "smartmet_newbase-mt",
+		 "boost_date_time",
 		 "boost_program_options",
 		 "boost_regex",
 		 "boost_iostreams",
