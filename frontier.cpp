@@ -188,6 +188,25 @@ std::string remove_sections(const std::string & str,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Extract available validtimes
+ */
+// ----------------------------------------------------------------------
+
+typedef std::set<boost::posix_time::ptime> ValidTimes;
+
+template <typename T>
+ValidTimes extract_valid_times(const T & collection)
+{
+  ValidTimes times;
+
+  BOOST_FOREACH(const woml::Feature & f, collection)
+	times.insert(f.validTime());
+
+  return times;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Main program without exception handling
  */
 // ----------------------------------------------------------------------
@@ -237,19 +256,17 @@ int run(int argc, char * argv[])
 
   // Collect valid times
 
-  typedef boost::posix_time::time_period ValidTime;
-  typedef std::set<ValidTime> ValidTimes;
-  ValidTimes validtimes;
-
-  BOOST_FOREACH(const woml::Feature & feature, analysis)
-	validtimes.insert(feature.validTime());
+  ValidTimes validtimes = extract_valid_times(analysis);
 
   if(options.verbose)
 	{
 	  std::cerr << "Available valid times:" << std::endl;
-	  BOOST_FOREACH(const ValidTime & validtime, validtimes)
+	  BOOST_FOREACH(const boost::posix_time::ptime & validtime, validtimes)
 		std::cerr << validtime << std::endl;
 	}
+
+  if(validtimes.size() != 1)
+	throw std::runtime_error("Currently only one valid time can be rendered");
 
   // Render
 
