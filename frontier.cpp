@@ -250,13 +250,19 @@ int run(int argc, char * argv[])
   libconfig::Config config;
   readconfig(config,configstring);
 
-  // TODO PART: HANDLE ANALYSIS/FORECAST
+  // Check what data is available
 
-  const woml::MeteorologicalAnalysis & analysis = weather.analysis();
+  if(weather.hasAnalysis() && weather.hasForecast())
+	throw std::runtime_error("WOML data contains both analysis and forecast");
 
-  // Collect valid times
+  // Extract available times
 
-  ValidTimes validtimes = extract_valid_times(analysis);
+  ValidTimes validtimes;
+
+  if(weather.hasAnalysis())
+	validtimes = extract_valid_times(weather.analysis());
+  else
+	validtimes = extract_valid_times(weather.forecast());
 
   if(options.verbose)
 	{
@@ -272,8 +278,16 @@ int run(int argc, char * argv[])
 
   frontier::SvgRenderer renderer(options, config, svg, area);
 
-  BOOST_FOREACH(const woml::Feature & feature, analysis)
-	feature.visit(renderer);
+  if(weather.hasAnalysis())
+	{
+	  BOOST_FOREACH(const woml::Feature & feature, weather.analysis())
+		feature.visit(renderer);
+	}
+  else
+	{
+	  BOOST_FOREACH(const woml::Feature & feature, weather.forecast())
+		feature.visit(renderer);
+	}
 
   // Output
 
