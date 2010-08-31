@@ -8,7 +8,7 @@
 #define FRONTIER_SVGRENDERER_H
 
 #include "Options.h"
-#include <smartmet/newbase/NFmiArea.h>
+
 #include <smartmet/woml/FeatureVisitor.h>
 #include <smartmet/woml/Point.h>
 
@@ -18,6 +18,9 @@
 
 #include <sstream>
 #include <string>
+
+class NFmiArea;
+class NFmiQueryData;
 
 namespace frontier
 {
@@ -42,6 +45,8 @@ namespace frontier
     virtual void visit(const woml::Trough & theFeature);
     virtual void visit(const woml::UpperTrough & theFeature);
     virtual void visit(const woml::WarmFront & theFeature);
+
+	void contour(const boost::shared_ptr<NFmiQueryData> & theQD);
 
 	std::string svg() const;
 

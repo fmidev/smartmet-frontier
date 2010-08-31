@@ -7,6 +7,7 @@
 #include "Options.h"
 #include "SvgRenderer.h"
 
+#include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/newbase/NFmiAreaFactory.h>
 #include <smartmet/newbase/NFmiPreProcessor.h>
 #include <smartmet/newbase/NFmiQueryData.h>
@@ -430,10 +431,14 @@ int run(int argc, char * argv[])
   else
 	qd = resolve_model(options,weather.analysis().dataSource());
 
-  // Render
+  // Render contours
+
+  frontier::SvgRenderer renderer(options, config, svg, area);
+  renderer.contour(qd);
+
+  // Render woml
 
   boost::posix_time::ptime validtime = *validtimes.begin();
-  frontier::SvgRenderer renderer(options, config, svg, area);
 
   if(weather.hasAnalysis())
 	{
@@ -453,13 +458,13 @@ int run(int argc, char * argv[])
   if(options.outfile != "-")
 	{
 	  if(options.verbose)
-		std::cout << "Writing " << options.outfile << std::endl;
+		std::cerr << "Writing " << options.outfile << std::endl;
 	  writefile(options.outfile,renderer.svg());
 	}
   else
 	{
 	  if(options.verbose)
-		std::cerr << "Writing " << options.outfile << std::endl;
+		std::cerr << "Writing to stdout" << std::endl;
 	  std::cout << renderer.svg();
 	}
   return 0;

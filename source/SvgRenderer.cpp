@@ -8,6 +8,7 @@
 #include "Path.h"
 #include "PathFactory.h"
 #include "PathTransformation.h"
+
 #include <smartmet/woml/CloudAreaBorder.h>
 #include <smartmet/woml/ColdFront.h>
 #include <smartmet/woml/CubicSplineSurface.h>
@@ -22,11 +23,18 @@
 #include <smartmet/woml/Trough.h>
 #include <smartmet/woml/UpperTrough.h>
 #include <smartmet/woml/WarmFront.h>
+
+#include <smartmet/newbase/NFmiArea.h>
+#include <smartmet/newbase/NFmiQueryData.h>
+#include <smartmet/newbase/NFmiFastQueryInfo.h>
+
 #include <smartmet/macgyver/Cast.h>
-#include <boost/foreach.hpp>
+
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
+#include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
+
 #include <iomanip>
 #include <iostream>
 
@@ -788,5 +796,16 @@ double SvgRenderer::getCssSize(const std::string & theCssClass,
   return Fmi::number_cast<double>(num);
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render the contours
+ */
+// ----------------------------------------------------------------------
+
+void
+SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD)
+{
+  boost::shared_ptr<NFmiFastQueryInfo> qi(new NFmiFastQueryInfo(theQD.get()));
+}
 
 } // namespace frontier
