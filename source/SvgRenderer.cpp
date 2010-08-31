@@ -858,7 +858,7 @@ public:
 	: itsMatrix(theMatrix)
   { }
 
-  const value_type & operator()(size_type i, size_type j)
+  const value_type & operator()(size_type i, size_type j) const
   { return itsMatrix[i][j]; }
 
   size_type width()  const { return itsMatrix.NX(); }
@@ -873,10 +873,13 @@ private:
 
 
 typedef Tron::Traits<float,float,Tron::FmiMissing> MyTraits;
+
 typedef Tron::Contourer<DataMatrixAdapter,
                         Path,
                         MyTraits,
                         Tron::LinearInterpolation> MyContourer;
+
+typedef Tron::Hints<DataMatrixAdapter,MyTraits> MyHints;
 
 
 // ----------------------------------------------------------------------
@@ -894,16 +897,9 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 
   boost::shared_ptr<NFmiFastQueryInfo> qi(new NFmiFastQueryInfo(theQD.get()));
 
-  NFmiMetTime t = to_mettime(theTime);
+  // newbase time
 
-  if(!qi->Time(t))
-	{
-	  std::string msg = ("Valid time "
-						 + to_simple_string(theTime)
-						 + " is not available in the numerical model");
-
-	  throw std::runtime_error(msg);
-	}
+  NFmiMetTime validtime = to_mettime(theTime);
 
   // Parameter identification
 
@@ -962,11 +958,25 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 									 + paramname
 									 + "' requested for contouring");
 		  
+		  if(!qi->Param(param))
+			throw std::runtime_error("Parameter '"
+									 + paramname
+									 + "' is not available in the referenced numerical model");
+
+
+		  NFmiDataMatrix<float> matrix;
+		  qi->Values(matrix,validtime);
+
 		  for(double value=start; value<=stop; value+=step)
 			{
 			  if(options.debug)
 				std::cerr << "\t contourline " << value << std::endl;
 
+			  Path path;
+			  MyContourer::line(path,matrix,value);
+
+			  if(options.debug)
+				std::cerr << "Path: " << path.svg() << std::endl;
 			}
 
 		}
