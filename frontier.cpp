@@ -9,12 +9,16 @@
 
 #include <smartmet/newbase/NFmiAreaFactory.h>
 #include <smartmet/newbase/NFmiPreProcessor.h>
-#include <smartmet/woml/Parser.h>
+#include <smartmet/newbase/NFmiQueryData.h>
+
+#include <smartmet/woml/DataSource.h>
 #include <smartmet/woml/MeteorologicalAnalysis.h>
+#include <smartmet/woml/Parser.h>
 #include <smartmet/woml/WeatherForecast.h>
 
 #include <libconfig.h++>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/foreach.hpp>
 #include <boost/shared_ptr.hpp>
@@ -207,6 +211,152 @@ ValidTimes extract_valid_times(const T & collection)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Return the default path for the given model
+ */
+// ----------------------------------------------------------------------
+
+std::string model_path(const std::string & name)
+{
+  if(name == "ECMWF")
+	return "/smartmet/data/ecmwf/eurooppa/pinta_xh/querydata";
+  else if(name == "HIRLAM")
+	return "/smartmet/data/hirlam/eurooppa/pinta/querydata";
+  else if(name == "MBEHIRLAM")
+	return "/smartmet/data/mbehirlam/eurooppa/pinta/querydata";
+
+  // No other models supported yet
+
+  return "";
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Convert NFmiMetTime to ptime
+ */
+// ----------------------------------------------------------------------
+
+boost::posix_time::ptime to_ptime(const NFmiMetTime & theTime)
+{
+  boost::gregorian::date date(theTime.GetYear(),
+                              theTime.GetMonth(),
+                              theTime.GetDay());
+  
+  boost::posix_time::ptime utc(date,
+                               boost::posix_time::hours(theTime.GetHour())+
+                               boost::posix_time::minutes(theTime.GetMin())+
+                               boost::posix_time::seconds(theTime.GetSec()));
+  return utc;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Search the model with the given origin time
+ *
+ * Returns an empty pointer if the correct model is not found.
+ */
+// ----------------------------------------------------------------------
+
+boost::shared_ptr<NFmiQueryData>
+search_model_origintime(const frontier::Options & options,
+						const std::string & path,
+						const boost::posix_time::ptime & origintime)
+{
+  namespace fs = boost::filesystem;
+
+  if(!fs::exists(path))
+	throw std::runtime_error("Path '"+path+"' does not exist");
+
+  if(!fs::is_directory(path))
+	throw std::runtime_error("Path '"+path+"' is not a directory");
+
+  fs::directory_iterator end_dir;
+  for(fs::directory_iterator dir_iter(path); dir_iter!=end_dir; ++dir_iter)
+	{
+	  if(!fs::is_regular_file(dir_iter->status()))
+		continue;
+
+	  try
+		{
+		  if(options.verbose)
+			std::cerr << "Trying " << dir_iter->path().filename() << std::endl;
+
+		  NFmiQueryInfo qi(dir_iter->path().filename());
+
+		  if(to_ptime(qi.OriginTime()) == origintime)
+			{
+			  if(options.verbose)
+				std::cerr << "File '"
+						  << dir_iter->path().filename()
+						  << "' matched origin time "
+						  << to_simple_string(origintime)
+						  << std::endl;
+
+			  return boost::shared_ptr<NFmiQueryData>(new NFmiQueryData(dir_iter->path().filename()));
+			}
+
+		}
+	  catch(...)
+		{
+		}
+	}
+
+  return boost::shared_ptr<NFmiQueryData>();
+
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Resolve the used numerical model
+ *
+ * Returns empty shared pointer if there is no model in the WOML.
+ * If there is a model, and the respective file is not found,
+ * an error is thrown *unless* the debug flag is set.
+
+ */
+// ----------------------------------------------------------------------
+
+boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options,
+											   const woml::DataSource & source)
+{
+  boost::shared_ptr<NFmiQueryData> ret;
+
+  if(!source.numericalModelRun())
+	return ret;
+
+  // Shorthand help variables
+
+  const std::string & name = source.numericalModelRun()->name();
+  const boost::posix_time::ptime & origintime = source.numericalModelRun()->originTime();
+
+  std::string path = model_path(name);
+
+  if(path.empty())
+	if(options.debug)
+	  {
+		if(options.verbose)
+		  std::cerr << "Ignoring unknown model '" + name +"'" << std::endl;
+		return ret;
+	  }
+	else
+	  {
+		throw std::runtime_error("Unknown model called '"+name+"' in WOML data");
+	  }
+
+  ret = search_model_origintime(options,path,origintime);
+
+  if(!ret && !options.debug)
+	throw std::runtime_error("Numerical model '"
+							 + name
+							 + "' referenced in data for origin time "
+							 + to_simple_string(origintime)
+							 + " was not found from directory "
+							 + path);
+
+  return ret;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Main program without exception handling
  */
 // ----------------------------------------------------------------------
@@ -273,6 +423,14 @@ int run(int argc, char * argv[])
 
   if(validtimes.size() != 1)
 	throw std::runtime_error("Currently only one valid time can be rendered");
+
+  // Determine respective numerical model
+
+  boost::shared_ptr<NFmiQueryData> qd;
+  if(weather.hasAnalysis())
+	qd = resolve_model(options,weather.analysis().dataSource());
+  else
+	qd = resolve_model(options,weather.analysis().dataSource());
 
   // Render
 
