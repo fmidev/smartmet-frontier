@@ -25,6 +25,7 @@
 #include <smartmet/woml/WarmFront.h>
 
 #include <smartmet/newbase/NFmiArea.h>
+#include <smartmet/newbase/NFmiEnumConverter.h>
 #include <smartmet/newbase/NFmiQueryData.h>
 #include <smartmet/newbase/NFmiFastQueryInfo.h>
 
@@ -90,6 +91,23 @@ namespace frontier
 							   + name
 							   + "' as type "
 							   + Fmi::number_name<T>());
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Convert ptime NFmiMetTime
+   */
+  // ----------------------------------------------------------------------
+  
+  NFmiMetTime to_mettime(const boost::posix_time::ptime  & theTime)
+  {
+	return NFmiMetTime(theTime.date().year(),
+					   theTime.date().month(),
+					   theTime.date().day(),
+					   theTime.time_of_day().hours(),
+					   theTime.time_of_day().minutes(),
+					   theTime.time_of_day().seconds(),
+					   1);
   }
 
   // ----------------------------------------------------------------------
@@ -831,7 +849,25 @@ void
 SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 					 const boost::posix_time::ptime & theTime)
 {
+
+  // Fast access iterator
+
   boost::shared_ptr<NFmiFastQueryInfo> qi(new NFmiFastQueryInfo(theQD.get()));
+
+  NFmiMetTime t = to_mettime(theTime);
+
+  if(!qi->Time(t))
+	{
+	  std::string msg = ("Valid time "
+						 + to_simple_string(theTime)
+						 + " is not available in the numerical model");
+
+	  throw std::runtime_error(msg);
+	}
+
+  // Parameter identification
+
+  NFmiEnumConverter enumconverter;
 
   // Contour lines
 
@@ -878,6 +914,19 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 						<< " in step "
 						<< step
 						<< std::endl;
+			}
+
+		  FmiParameterName param = FmiParameterName(enumconverter.ToEnum(paramname));
+		  if(param == kFmiBadParameter)
+			throw std::runtime_error("Unknown parameter name '"
+									 + paramname
+									 + "' requested for contouring");
+		  
+		  for(double value=start; value<=stop; value+=step)
+			{
+			  if(options.debug)
+				std::cerr << "\t contourline " << value << std::endl;
+
 			}
 
 		}
