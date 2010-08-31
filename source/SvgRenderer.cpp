@@ -840,6 +840,46 @@ double SvgRenderer::getCssSize(const std::string & theCssClass,
 }
 
 // ----------------------------------------------------------------------
+/*
+ * TODO: This part should be refactored when finished
+ */
+// ----------------------------------------------------------------------
+
+#include <smartmet/tron/Tron.h>
+#include <smartmet/newbase/NFmiDataMatrix.h>
+
+class DataMatrixAdapter
+{
+public:
+  typedef float value_type;
+  typedef NFmiDataMatrix<value_type>::size_type size_type;
+
+  DataMatrixAdapter(const NFmiDataMatrix<value_type> & theMatrix)
+	: itsMatrix(theMatrix)
+  { }
+
+  const value_type & operator()(size_type i, size_type j)
+  { return itsMatrix[i][j]; }
+
+  size_type width()  const { return itsMatrix.NX(); }
+  size_type height() const { return itsMatrix.NY(); }
+
+private:
+
+  DataMatrixAdapter();
+  const NFmiDataMatrix<float> & itsMatrix;
+
+};
+
+
+typedef Tron::Traits<float,float,Tron::FmiMissing> MyTraits;
+typedef Tron::Contourer<DataMatrixAdapter,
+                        Path,
+                        MyTraits,
+                        Tron::LinearInterpolation> MyContourer;
+
+
+// ----------------------------------------------------------------------
 /*!
  * \brief Render the contours
  */
