@@ -276,17 +276,20 @@ int run(int argc, char * argv[])
 
   // Render
 
+  boost::posix_time::ptime validtime = *validtimes.begin();
   frontier::SvgRenderer renderer(options, config, svg, area);
 
   if(weather.hasAnalysis())
 	{
 	  BOOST_FOREACH(const woml::Feature & feature, weather.analysis())
-		feature.visit(renderer);
+		if(feature.validTime() == validtime)
+		  feature.visit(renderer);
 	}
   else
 	{
 	  BOOST_FOREACH(const woml::Feature & feature, weather.forecast())
-		feature.visit(renderer);
+		if(feature.validTime() == validtime)
+		  feature.visit(renderer);
 	}
 
   // Output

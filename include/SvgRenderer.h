@@ -13,6 +13,7 @@
 #include <smartmet/woml/Point.h>
 
 #include <boost/shared_ptr.hpp>
+
 #include <libconfig.h++>
 
 #include <sstream>
