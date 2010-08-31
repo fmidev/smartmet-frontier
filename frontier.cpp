@@ -217,6 +217,8 @@ ValidTimes extract_valid_times(const T & collection)
 
 std::string model_path(const std::string & name)
 {
+  // TODO: Replace hard coded paths with configurable paths
+
   if(name == "ECMWF")
 	return "/smartmet/data/ecmwf/eurooppa/pinta_xh/querydata";
   else if(name == "HIRLAM")
