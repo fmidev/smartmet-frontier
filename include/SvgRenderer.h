@@ -12,6 +12,7 @@
 #include <smartmet/woml/FeatureVisitor.h>
 #include <smartmet/woml/Point.h>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/shared_ptr.hpp>
 
 #include <libconfig.h++>
@@ -46,7 +47,8 @@ namespace frontier
     virtual void visit(const woml::UpperTrough & theFeature);
     virtual void visit(const woml::WarmFront & theFeature);
 
-	void contour(const boost::shared_ptr<NFmiQueryData> & theQD);
+	void contour(const boost::shared_ptr<NFmiQueryData> & theQD,
+				 const boost::posix_time::ptime & theTime);
 
 	std::string svg() const;
 

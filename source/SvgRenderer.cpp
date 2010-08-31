@@ -67,6 +67,31 @@ namespace frontier
 	  }
   }
 
+  template <typename T>
+  T lookup(const libconfig::Setting & setting,
+		   const std::string & prefix,
+		   const std::string & name)
+  {
+	T ret;
+
+	if(setting.lookupValue(name,ret))
+	  return ret;
+
+	if(!setting.exists(name))
+	  throw std::runtime_error("Setting for "+name+" is missing");
+
+	if(!prefix.empty())
+	  throw std::runtime_error("Failed to parse value of '"
+							   + (prefix + "." + name)
+							   + "' as type "
+							   + Fmi::number_name<T>());
+	else
+	  throw std::runtime_error("Failed to parse value of '"
+							   + name
+							   + "' as type "
+							   + Fmi::number_name<T>());
+  }
+
   // ----------------------------------------------------------------------
   /*!
    * \brief Make URI valid for SVG
@@ -803,9 +828,64 @@ double SvgRenderer::getCssSize(const std::string & theCssClass,
 // ----------------------------------------------------------------------
 
 void
-SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD)
+SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
+					 const boost::posix_time::ptime & theTime)
 {
   boost::shared_ptr<NFmiFastQueryInfo> qi(new NFmiFastQueryInfo(theQD.get()));
+
+  // Contour lines
+
+  if(config.exists("contourlines"))
+	{
+	  // Except list of groups
+
+	  const char * typemsg = "contourlines must contain a list of groups in parenthesis";
+
+	  const libconfig::Setting & contourspecs = config.lookup("contourlines");
+
+	  if(!contourspecs.isList())
+		throw std::runtime_error(typemsg);
+
+	  for(int i=0; i<contourspecs.getLength(); ++i)
+		{
+		  const libconfig::Setting & specs = contourspecs[i];
+
+		  if(!specs.isGroup())
+			throw std::runtime_error(typemsg);
+
+		  // Now process this individual contour
+
+		  std::string paramname = lookup<std::string>(specs,"contourlines","parameter");
+		  std::string classname = lookup<std::string>(specs,"contourlines","class");
+		  std::string outputname = lookup<std::string>(specs,"contourlines","output");
+
+		  double start = lookup<double>(specs,"contourlines","start");
+		  double stop  = lookup<double>(specs,"contourlines","stop");
+		  double step  = lookup<double>(specs,"contourlines","step");
+
+		  if(options.debug)
+			{
+			  std::cerr << "Contourline "
+						<< paramname
+						<< " class="
+						<< classname
+						<< " to "
+						<< outputname
+						<< " range "
+						<< start
+						<< "..."
+						<< stop
+						<< " in step "
+						<< step
+						<< std::endl;
+			}
+
+		}
+
+
+	  // Required settings
+	}
+
 }
 
 } // namespace frontier

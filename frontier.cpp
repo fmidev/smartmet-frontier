@@ -423,6 +423,8 @@ int run(int argc, char * argv[])
   if(validtimes.size() != 1)
 	throw std::runtime_error("Currently only one valid time can be rendered");
 
+  boost::posix_time::ptime validtime = *validtimes.begin();
+
   // Determine respective numerical model
 
   boost::shared_ptr<NFmiQueryData> qd;
@@ -434,11 +436,9 @@ int run(int argc, char * argv[])
   // Render contours
 
   frontier::SvgRenderer renderer(options, config, svg, area);
-  renderer.contour(qd);
+  renderer.contour(qd,validtime);
 
   // Render woml
-
-  boost::posix_time::ptime validtime = *validtimes.begin();
 
   if(weather.hasAnalysis())
 	{
