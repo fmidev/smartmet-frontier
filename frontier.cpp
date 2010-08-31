@@ -272,30 +272,26 @@ search_model_origintime(const frontier::Options & options,
 	throw std::runtime_error("Path '"+path+"' is not a directory");
 
   fs::directory_iterator end_dir;
-  for(fs::directory_iterator dir_iter(path); dir_iter!=end_dir; ++dir_iter)
+  for(fs::directory_iterator dirptr(path); dirptr!=end_dir; ++dirptr)
 	{
-	  if(!fs::is_regular_file(dir_iter->status()))
+	  if(!fs::is_regular_file(dirptr->status()))
 		continue;
 
 	  try
 		{
-		  if(options.verbose)
-			std::cerr << "Trying " << dir_iter->path().filename() << std::endl;
-
-		  NFmiQueryInfo qi(dir_iter->path().filename());
+		  NFmiQueryInfo qi(dirptr->path().string());
 
 		  if(to_ptime(qi.OriginTime()) == origintime)
 			{
-			  if(options.verbose)
+			  if(options.debug)
 				std::cerr << "File '"
-						  << dir_iter->path().filename()
+						  << dirptr->path()
 						  << "' matched origin time "
 						  << to_simple_string(origintime)
 						  << std::endl;
 
-			  return boost::shared_ptr<NFmiQueryData>(new NFmiQueryData(dir_iter->path().filename()));
+			  return boost::shared_ptr<NFmiQueryData>(new NFmiQueryData(dirptr->path().string()));
 			}
-
 		}
 	  catch(...)
 		{
@@ -416,7 +412,7 @@ int run(int argc, char * argv[])
   else
 	validtimes = extract_valid_times(weather.forecast());
 
-  if(options.verbose)
+  if(options.debug)
 	{
 	  std::cerr << "Available valid times:" << std::endl;
 	  BOOST_FOREACH(const boost::posix_time::ptime & validtime, validtimes)
