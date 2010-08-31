@@ -234,15 +234,31 @@ int run(int argc, char * argv[])
   // TODO PART: HANDLE ANALYSIS/FORECAST
 
   const woml::MeteorologicalAnalysis & analysis = weather.analysis();
-  frontier::SvgRenderer renderer(options,
-								 config,
-								 svg,
-								 area);
+
+  // Collect valid times
+
+  typedef boost::posix_time::time_period ValidTime;
+  typedef std::set<ValidTime> ValidTimes;
+  ValidTimes validtimes;
 
   BOOST_FOREACH(const woml::Feature & feature, analysis)
+	validtimes.insert(feature.validTime());
+
+  if(options.verbose)
 	{
-	  feature.visit(renderer);
+	  std::cerr << "Available valid times:" << std::endl;
+	  BOOST_FOREACH(const ValidTime & validtime, validtimes)
+		std::cerr << validtime << std::endl;
 	}
+
+  // Render
+
+  frontier::SvgRenderer renderer(options, config, svg, area);
+
+  BOOST_FOREACH(const woml::Feature & feature, analysis)
+	feature.visit(renderer);
+
+  // Output
 
   if(options.outfile != "-")
 	{
