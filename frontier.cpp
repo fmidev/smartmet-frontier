@@ -4,7 +4,6 @@
  */
 // ======================================================================
 
-#include "Config.h"
 #include "Options.h"
 #include "SvgRenderer.h"
 
@@ -14,6 +13,8 @@
 #include <smartmet/woml/MeteorologicalAnalysis.h>
 #include <smartmet/woml/WeatherForecast.h>
 
+#include <libconfig.h++>
+
 #include <boost/filesystem/operations.hpp>
 #include <boost/foreach.hpp>
 #include <boost/shared_ptr.hpp>
@@ -21,6 +22,18 @@
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
+
+// Does libconfig++ have readString?
+
+#define NEWLIBCONFIG 0
+
+#if !(NEWLIBCONFIG)
+ #include <boost/lexical_cast.hpp>
+ #include <fstream>
+ #include <stdexcept>
+ #include <sys/types.h>
+ #include <unistd.h>
+#endif
 
 // ----------------------------------------------------------------------
 /*!
@@ -53,6 +66,34 @@ void writefile(const std::string & filename, const std::string & contents)
 	throw std::runtime_error("Failed to open '"+filename+"' for writing");
   out << contents;
   out.close();
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Read the configuration string
+ */
+// ---------------------------------------------------------------------- 
+
+void readconfig(libconfig::Config & config,
+				const std::string & contents)
+{
+#if NEWLIBCONFIG
+  config.readString(contents);
+#else
+  std::string filename = ("/tmp/frontier_"
+						  + boost::lexical_cast<std::string>(getpid())
+						  + ".cnf");
+  std::ofstream out(filename.c_str());
+  if(!out)
+	throw std::runtime_error("Failed to open '"+filename+"' for writing");
+  out << contents;
+  out.close();
+
+  config.readFile(filename.c_str());
+
+  if(unlink(filename.c_str()) != 0)
+	throw std::runtime_error("Failed to delete '"+filename+"'");
+#endif
 }
 
 // ----------------------------------------------------------------------
@@ -187,12 +228,16 @@ int run(int argc, char * argv[])
 
   // Configure
 
-  frontier::Config config(configstring);
+  libconfig::Config config;
+  readconfig(config,configstring);
 
   // TODO PART: HANDLE ANALYSIS/FORECAST
 
   const woml::MeteorologicalAnalysis & analysis = weather.analysis();
-  frontier::SvgRenderer renderer(options,svg,area);
+  frontier::SvgRenderer renderer(options,
+								 config,
+								 svg,
+								 area);
 
   BOOST_FOREACH(const woml::Feature & feature, analysis)
 	{
@@ -224,6 +269,16 @@ catch(std::exception & e)
 	std::cerr << "Error: " << e.what() << std::endl;
 	return 1;
   }
+ catch(libconfig::ParseException & e)
+   {
+	 std::cerr << "Frontier configuration parse error '" << e.getError() << "'" << std::endl;
+	 return 1;
+   }
+ catch(libconfig::ConfigException & e)
+   {
+	 std::cerr << "Frontier configuration error" << std::endl;
+	 return 1;
+   }
 catch(...)
   {
 	std::cerr << "Error: Unknown exception occurred" << std::endl;

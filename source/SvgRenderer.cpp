@@ -35,6 +35,32 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Read a configuration value with proper error messages
+   */
+  // ----------------------------------------------------------------------
+
+  template <typename T>
+  T lookup(const libconfig::Config & config,
+		   const std::string & name)
+  {
+	try
+	  {
+		T value = config.lookup(name);
+		return value;
+	  }
+	catch(libconfig::ConfigException & e)
+	  {
+		if(!config.exists(name))
+		  throw std::runtime_error("Setting for "+name+" is missing");
+		throw std::runtime_error("Failed to parse value of '"
+								 + name
+								 + "' as type "
+								 + Fmi::number_name<T>());
+	  }
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Make URI valid for SVG
    */
   // ----------------------------------------------------------------------
@@ -213,9 +239,11 @@ namespace frontier
 // ----------------------------------------------------------------------
 
 SvgRenderer::SvgRenderer(const Options & theOptions,
+						 const libconfig::Config & theConfig,
 						 const std::string & theTemplate,
 						 const boost::shared_ptr<NFmiArea> & theArea)
   : options(theOptions)
+  , config(theConfig)
   , svgbase(theTemplate)
   , area(theArea)
   , ncloudborders(0)
@@ -281,6 +309,8 @@ std::string SvgRenderer::svg() const
 void
 SvgRenderer::visit(const woml::CloudAreaBorder & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting CloudAreaBorder" << std::endl;
+
   ++ncloudborders;
   std::string id = "cloudborder" + boost::lexical_cast<std::string>(ncloudborders);
 
@@ -322,6 +352,8 @@ SvgRenderer::visit(const woml::CloudAreaBorder & theFeature)
 void
 SvgRenderer::visit(const woml::ColdFront & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting ColdFront" << std::endl;
+
   ++ncoldfronts;
   std::string id = "coldfront" + boost::lexical_cast<std::string>(ncoldfronts);
 
@@ -333,7 +365,7 @@ SvgRenderer::visit(const woml::ColdFront & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("coldfrontglyph","font-size");
-  double spacing  = getCssSize("coldfrontglyph","fmi-letter-spacing");
+  double spacing = lookup<double>(config,"coldfront.letter-spacing");
 
   render_front(path,paths,coldfronts,id,
 			   "coldfront","coldfrontglyph",
@@ -350,6 +382,8 @@ SvgRenderer::visit(const woml::ColdFront & theFeature)
 void
 SvgRenderer::visit(const woml::Jet & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting Jet" << std::endl;
+
   ++njets;
 
   std::string id = "jet" + boost::lexical_cast<std::string>(njets);
@@ -379,6 +413,8 @@ SvgRenderer::visit(const woml::Jet & theFeature)
 void
 SvgRenderer::visit(const woml::OccludedFront & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting OccludedFront" << std::endl;
+
   ++noccludedfronts;
   std::string id = "occludedfront" + boost::lexical_cast<std::string>(noccludedfronts);
 
@@ -390,7 +426,7 @@ SvgRenderer::visit(const woml::OccludedFront & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("occludedfrontglyph","font-size");
-  double spacing  = getCssSize("occludedfrontglyph","fmi-letter-spacing");
+  double spacing = lookup<double>(config,"occludedfront.letter-spacing");
 
   render_front(path,paths,occludedfronts,id,
 			   "occludedfront","occludedfrontglyph",
@@ -407,6 +443,8 @@ SvgRenderer::visit(const woml::OccludedFront & theFeature)
 void
 SvgRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting PointgeophysicalParameterValueSet" << std::endl;
+
   ++npointvalues;
 
   // Find the pixel coordinate
@@ -454,6 +492,8 @@ SvgRenderer::visit(const woml::PointGeophysicalParameterValueSet & theFeature)
 void
 SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting PointMeteorologicalSymbol" << std::endl;
+
   ++npointsymbols;
 
   // Find the pixel coordinate
@@ -529,6 +569,8 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 void
 SvgRenderer::visit(const woml::PointNote & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting PointNote" << std::endl;
+
   ++npointnotes;
   if(options.verbose)
 	std::cerr << "Skipping PointNote " << npointnotes << std::endl;
@@ -543,6 +585,8 @@ SvgRenderer::visit(const woml::PointNote & theFeature)
 void
 SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting SurfacePrecipitationArea" << std::endl;
+
   ++nprecipitationareas;
   std::string id = "precipitation" + boost::lexical_cast<std::string>(nprecipitationareas);
   woml::RainPhase phase = theFeature.rainPhase();
@@ -607,6 +651,8 @@ SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
 void
 SvgRenderer::visit(const woml::Trough & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting Trough" << std::endl;
+
   ++ntroughs;
 
   std::string id = "trough" + boost::lexical_cast<std::string>(ntroughs);
@@ -619,7 +665,7 @@ SvgRenderer::visit(const woml::Trough & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("troughglyph","font-size");
-  double spacing  = getCssSize("troughglyph","fmi-letter-spacing");
+  double spacing = lookup<double>(config,"trough.letter-spacing");
 
   render_front(path,paths,troughs,id,
 			   "trough","troughglyph",
@@ -637,6 +683,8 @@ SvgRenderer::visit(const woml::Trough & theFeature)
 void
 SvgRenderer::visit(const woml::UpperTrough & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting UpperTrough" << std::endl;
+
   ++nuppertroughs;
 
   std::string id = "uppertrough" + boost::lexical_cast<std::string>(nuppertroughs);
@@ -649,7 +697,7 @@ SvgRenderer::visit(const woml::UpperTrough & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("uppertroughglyph","font-size");
-  double spacing  = getCssSize("uppertroughglyph","fmi-letter-spacing");
+  double spacing = lookup<double>(config,"uppertrough.letter-spacing");
 
   render_front(path,paths,uppertroughs,id,
 			   "uppertrough","uppertroughglyph",
@@ -667,6 +715,8 @@ SvgRenderer::visit(const woml::UpperTrough & theFeature)
 void
 SvgRenderer::visit(const woml::WarmFront & theFeature)
 {
+  if(options.debug)	std::cerr << "Visiting WarmFront" << std::endl;
+
   ++nwarmfronts;
   std::string id = "warmfront" + boost::lexical_cast<std::string>(nwarmfronts);
 
@@ -678,7 +728,7 @@ SvgRenderer::visit(const woml::WarmFront & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("warmfrontglyph","font-size");
-  double spacing  = getCssSize("warmfrontglyph","fmi-letter-spacing");
+  double spacing = lookup<double>(config,"warmfront.letter-spacing");
 
   render_front(path,paths,warmfronts,id,
 			   "warmfront","warmfrontglyph",

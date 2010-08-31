@@ -11,7 +11,10 @@
 #include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/woml/FeatureVisitor.h>
 #include <smartmet/woml/Point.h>
+
 #include <boost/shared_ptr.hpp>
+#include <libconfig.h++>
+
 #include <sstream>
 #include <string>
 
@@ -23,6 +26,7 @@ namespace frontier
 
 	virtual ~SvgRenderer() {}
 	SvgRenderer(const Options & theOptions,
+				const libconfig::Config & theConfig,
 				const std::string & theTemplate,
 				const boost::shared_ptr<NFmiArea> & theArea);
 
@@ -51,6 +55,7 @@ namespace frontier
 
 
 	const Options & options;
+	const libconfig::Config & config;
 	std::string svgbase;
 	boost::shared_ptr<NFmiArea> area;
 

@@ -15,9 +15,9 @@
  (
    {
      parameter = "Pressure";
-     start     = 900;
-     stop      = 1100;
-     step      = 5;
+     start     = 900.0;
+     stop      = 1100.0;
+     step      = 5.0;
      class     = "Pressurecontourmajor";
      output    = "--PRESSURELINES--";
    },
@@ -25,7 +25,7 @@
      parameter = "Pressure";
      start     = 902.5;
      stop      = 1097.5;
-     step      = 5;
+     step      = 5.0;
      class     = "Pressurecontourminor";
      output    = "--PRESSURELINES--";
    }
@@ -33,28 +33,28 @@
 
  graphicsymbol:
  {
-     size = 59;
+     size = 59.0;
  };
 
  coldfront:
  {
-     letter-spacing = 60;
+     letter-spacing = 60.0;
  };
  warmfront:
  {
-     letter-spacing = 60;
+     letter-spacing = 60.0;
  };
  occludedfront:
  {
-     letter-spacing = 60;
+     letter-spacing = 60.0;
  };
  trough:
  {
-     letter-spacing = 0;
+     letter-spacing = 0.0;
  };
  uppertrough:
  {
-     letter-spacing = 0;
+     letter-spacing = 0.0;
  };
  </frontier>
 
