@@ -347,6 +347,11 @@ std::string SvgRenderer::svg() const
   replace_all(ret,"--POINTSYMBOLS--"      ,pointsymbols.str());;
   replace_all(ret,"--POINTVALUES--"       ,pointvalues.str());;
 
+  // BOOST_FOREACH does not work nicely with ptr_map
+
+  for(Contours::const_iterator it=contours.begin(); it!=contours.end(); ++it)
+	replace_all(ret,it->first, it->second->str());
+
   return ret;
 
 }
@@ -933,6 +938,8 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 	  if(!contourspecs.isList())
 		throw std::runtime_error(typemsg);
 
+	  std::size_t linenumber = 0;
+
 	  for(int i=0; i<contourspecs.getLength(); ++i)
 		{
 		  const libconfig::Setting & specs = contourspecs[i];
@@ -950,7 +957,7 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 		  double stop  = lookup<double>(specs,"contourlines","stop");
 		  double step  = lookup<double>(specs,"contourlines","step");
 
-		  if(options.debug)
+		  if(options.verbose)
 			{
 			  std::cerr << "Contourline "
 						<< paramname
@@ -987,14 +994,27 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 
 		  for(double value=start; value<=stop; value+=step)
 			{
-			  if(options.debug)
-				std::cerr << "\t contourline " << value << std::endl;
-
 			  Path path;
 			  MyContourer::line(path,grid,value,hints);
 
-			  if(options.debug)
-				std::cerr << "Path: " << path.svg() << std::endl;
+			  if(!path.empty())
+				{
+				  ++linenumber;
+				  std::string id = ("contourline"
+									+ boost::lexical_cast<std::string>(linenumber));
+				  paths << "<path id=\""
+						<< id
+						<< "\" d=\""
+						<< path.svg()
+						<< "\"/>\n";
+
+
+				  contours[outputname] << "<use class=\""
+									   << classname
+									   << "\" xlink:href=\"#"
+									   << id
+									   << "\"/>\n";
+				}
 			}
 
 		}

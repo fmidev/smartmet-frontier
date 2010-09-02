@@ -13,6 +13,7 @@
 #include <smartmet/woml/Point.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/ptr_container/ptr_map.hpp>
 #include <boost/shared_ptr.hpp>
 
 #include <libconfig.h++>
@@ -83,6 +84,9 @@ namespace frontier
 	std::ostringstream troughs;
 	std::ostringstream uppertroughs;
 	std::ostringstream warmfronts;
+
+	typedef boost::ptr_map<std::string,std::ostringstream> Contours;
+	Contours contours;
 
 	int ncloudborders;
 	int ncoldfronts;
