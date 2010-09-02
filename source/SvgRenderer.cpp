@@ -852,14 +852,23 @@ class DataMatrixAdapter
 {
 public:
   typedef float value_type;
+  typedef double coord_type;
   typedef NFmiDataMatrix<value_type>::size_type size_type;
 
-  DataMatrixAdapter(const NFmiDataMatrix<value_type> & theMatrix)
+  DataMatrixAdapter(const NFmiDataMatrix<value_type> & theMatrix,
+					const NFmiDataMatrix<NFmiPoint> & theCoordinates)
 	: itsMatrix(theMatrix)
+	, itsCoordinates(theCoordinates)
   { }
 
   const value_type & operator()(size_type i, size_type j) const
   { return itsMatrix[i][j]; }
+
+  coord_type x(size_type i, size_type j) const
+  { return itsCoordinates[i][j].X(); }
+
+  coord_type y(size_type i, size_type j) const
+  { return itsCoordinates[i][j].Y(); }
 
   size_type width()  const { return itsMatrix.NX(); }
   size_type height() const { return itsMatrix.NY(); }
@@ -868,6 +877,7 @@ private:
 
   DataMatrixAdapter();
   const NFmiDataMatrix<float> & itsMatrix;
+  const NFmiDataMatrix<NFmiPoint> & itsCoordinates;
 
 };
 
@@ -900,6 +910,11 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
   // newbase time
 
   NFmiMetTime validtime = to_mettime(theTime);
+
+  // Coordinates
+
+  NFmiDataMatrix<NFmiPoint> coordinates;
+  qi->LocationsXY(coordinates,*area);
 
   // Parameter identification
 
@@ -966,6 +981,7 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 
 		  NFmiDataMatrix<float> matrix;
 		  qi->Values(matrix,validtime);
+		  DataMatrixAdapter grid(matrix,coordinates);
 
 		  for(double value=start; value<=stop; value+=step)
 			{
@@ -973,7 +989,7 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 				std::cerr << "\t contourline " << value << std::endl;
 
 			  Path path;
-			  MyContourer::line(path,matrix,value);
+			  MyContourer::line(path,grid,value);
 
 			  if(options.debug)
 				std::cerr << "Path: " << path.svg() << std::endl;
