@@ -34,9 +34,10 @@ namespace frontier
 
 	Path & operator+=(const Path & path);
 
-	void transform(const PathTransformation & transformation);
+	bool empty() const;
 	double length() const;
 	std::string svg() const;
+	void transform(const PathTransformation & transformation);
 
   private:
 	typedef std::vector<double> PathData;
