@@ -983,13 +983,15 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 		  qi->Values(matrix,validtime);
 		  DataMatrixAdapter grid(matrix,coordinates);
 
+		  MyHints hints(grid);
+
 		  for(double value=start; value<=stop; value+=step)
 			{
 			  if(options.debug)
 				std::cerr << "\t contourline " << value << std::endl;
 
 			  Path path;
-			  MyContourer::line(path,grid,value);
+			  MyContourer::line(path,grid,value,hints);
 
 			  if(options.debug)
 				std::cerr << "Path: " << path.svg() << std::endl;
