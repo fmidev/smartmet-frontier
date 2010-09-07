@@ -17,17 +17,10 @@
      parameter = "Pressure";
      start     = 900.0;
      stop      = 1100.0;
-     step      = 5.0;
-     class     = "Pressurecontourmajor";
+     step      = 2.5;
+     class     = "Pressurecontour";
      output    = "--PRESSURELINES--";
-   },
-   {
-     parameter = "Pressure";
-     start     = 902.5;
-     stop      = 1097.5;
-     step      = 5.0;
-     class     = "Pressurecontourminor";
-     output    = "--PRESSURELINES--";
+     smoother  = "none";
    }
  );
 
@@ -122,17 +115,11 @@
    stroke: black;
    stroke-width: 1px;
  }
- .Pressurecontourmajor
+ .Pressurecontour
  {
    fill: none;
    stroke: white;
    stroke-width: 2px;
- }
- .Pressurecontourminor
- {
-   fill: none;
-   stroke: white;
-   stroke-width: 1px;
  }
 
  .weather

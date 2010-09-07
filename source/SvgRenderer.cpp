@@ -852,6 +852,8 @@ double SvgRenderer::getCssSize(const std::string & theCssClass,
 
 #include <smartmet/tron/Tron.h>
 #include <smartmet/newbase/NFmiDataMatrix.h>
+#include <smartmet/tron/MirrorMatrix.h>
+#include <smartmet/tron/SavitzkyGolay2D.h>
 
 class DataMatrixAdapter
 {
@@ -869,6 +871,9 @@ public:
   const value_type & operator()(size_type i, size_type j) const
   { return itsMatrix[i][j]; }
 
+  value_type & operator()(size_type i, size_type j)
+  { return itsMatrix[i][j]; }
+
   coord_type x(size_type i, size_type j) const
   { return itsCoordinates[i][j].X(); }
 
@@ -878,11 +883,17 @@ public:
   size_type width()  const { return itsMatrix.NX(); }
   size_type height() const { return itsMatrix.NY(); }
 
+  void swap(DataMatrixAdapter & other)
+  {
+	itsMatrix.swap(other.itsMatrix);
+	itsCoordinates.swap(other.itsCoordinates);
+  }
+
 private:
 
   DataMatrixAdapter();
-  const NFmiDataMatrix<float> & itsMatrix;
-  const NFmiDataMatrix<NFmiPoint> & itsCoordinates;
+  NFmiDataMatrix<float> itsMatrix;
+  NFmiDataMatrix<NFmiPoint> itsCoordinates;
 
 };
 
@@ -952,6 +963,7 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 		  std::string paramname = lookup<std::string>(specs,"contourlines","parameter");
 		  std::string classname = lookup<std::string>(specs,"contourlines","class");
 		  std::string outputname = lookup<std::string>(specs,"contourlines","output");
+		  std::string smoother = lookup<std::string>(specs,"contourlines","smoother");
 
 		  double start = lookup<double>(specs,"contourlines","start");
 		  double stop  = lookup<double>(specs,"contourlines","stop");
@@ -989,6 +1001,19 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 		  NFmiDataMatrix<float> matrix;
 		  qi->Values(matrix,validtime);
 		  DataMatrixAdapter grid(matrix,coordinates);
+
+		  if(smoother == "Savitzky-Golay")
+			{
+			  int window = lookup<int>(specs,"contourlines","smoother-size");
+			  int degree = lookup<int>(specs,"contourlines","smoother-degree");
+			  if(options.verbose)
+				std::cerr << "Savitzky-Golay smoothing of size "
+						  << window
+						  << " of degree "
+						  << degree
+						  << std::endl;
+			  Tron::SavitzkyGolay2D::smooth(grid,window,degree);
+			}
 
 		  MyHints hints(grid);
 
