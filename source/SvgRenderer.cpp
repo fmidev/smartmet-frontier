@@ -38,6 +38,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <limits>
 
 namespace frontier
 {
@@ -889,6 +890,14 @@ public:
 	itsCoordinates.swap(other.itsCoordinates);
   }
 
+  void make_nan_missing()
+  {
+	for(size_type j=0; j<height(); ++j)
+	  for(size_type i=0; i<width(); ++i)
+		if(itsMatrix[i][j] == kFloatMissing)
+		  itsMatrix[i][j] = std::numeric_limits<float>::quiet_NaN();
+  }
+
 private:
 
   DataMatrixAdapter();
@@ -897,8 +906,7 @@ private:
 
 };
 
-
-typedef Tron::Traits<float,float,Tron::FmiMissing> MyTraits;
+typedef Tron::Traits<float,float,Tron::NanMissing> MyTraits;
 
 typedef Tron::Contourer<DataMatrixAdapter,
                         Path,
@@ -906,7 +914,6 @@ typedef Tron::Contourer<DataMatrixAdapter,
                         Tron::LinearInterpolation> MyContourer;
 
 typedef Tron::Hints<DataMatrixAdapter,MyTraits> MyHints;
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -998,11 +1005,19 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 									 + "' is not available in the referenced numerical model");
 
 
+		  // Get data values and replace kFmiMissing with NaN
+
 		  NFmiDataMatrix<float> matrix;
 		  qi->Values(matrix,validtime);
-		  DataMatrixAdapter grid(matrix,coordinates);
 
-		  if(smoother == "Savitzky-Golay")
+		  // Adapt for contouring
+
+		  DataMatrixAdapter grid(matrix,coordinates);
+		  grid.make_nan_missing();
+
+		  if(smoother == "none")
+			;
+		  else if(smoother == "Savitzky-Golay")
 			{
 			  int window = lookup<int>(specs,"contourlines","smoother-size");
 			  int degree = lookup<int>(specs,"contourlines","smoother-degree");
@@ -1014,6 +1029,8 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 						  << std::endl;
 			  Tron::SavitzkyGolay2D::smooth(grid,window,degree);
 			}
+		  else
+			throw std::runtime_error("Unknown smoother name '"+smoother+"'");
 
 		  MyHints hints(grid);
 
@@ -1044,8 +1061,6 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 
 		}
 
-
-	  // Required settings
 	}
 
 }
