@@ -39,6 +39,7 @@ env.Append(LIBS=["smartmet_woml",
 		 "boost_regex",
 		 "boost_iostreams",
 		 "boost_filesystem",
+		 "boost_thread",
 		 "boost_system",
 	 	 "bz2"
 	  ]);
