@@ -41,7 +41,8 @@ env.Append(LIBS=["smartmet_woml",
 		 "boost_filesystem",
 		 "boost_thread",
 		 "boost_system",
-	 	 "bz2"
+	 	 "bz2",
+		 "pthread"
 	  ]);
 
 env.Append( CPPDEFINES= ["UNIX"] )
