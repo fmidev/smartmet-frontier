@@ -330,16 +330,18 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options
   std::string path = model_path(name);
 
   if(path.empty())
-	if(options.debug)
-	  {
-		if(options.verbose)
-		  std::cerr << "Ignoring unknown model '" + name +"'" << std::endl;
-		return ret;
-	  }
-	else
-	  {
-		throw std::runtime_error("Unknown model called '"+name+"' in WOML data");
-	  }
+	{
+	  if(options.debug)
+		{
+		  if(options.verbose)
+			std::cerr << "Ignoring unknown model '" + name +"'" << std::endl;
+		  return ret;
+		}
+	  else
+		{
+		  throw std::runtime_error("Unknown model called '"+name+"' in WOML data");
+		}
+	}
 
   ret = search_model_origintime(options,path,origintime);
 
