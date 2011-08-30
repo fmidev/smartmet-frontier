@@ -105,9 +105,9 @@ namespace frontier
 	return NFmiMetTime(theTime.date().year(),
 					   theTime.date().month(),
 					   theTime.date().day(),
-					   theTime.time_of_day().hours(),
-					   theTime.time_of_day().minutes(),
-					   theTime.time_of_day().seconds(),
+					   static_cast<short>(theTime.time_of_day().hours()),
+					   static_cast<short>(theTime.time_of_day().minutes()),
+					   static_cast<short>(theTime.time_of_day().seconds()),
 					   1);
   }
 
@@ -192,7 +192,7 @@ namespace frontier
 		   << "\"/>\n";
 	
 	double len = path.length();
-	double textlength = 0.5*(glyphs1.size() + glyphs2.size());
+	double textlength = 0.5*static_cast<double>((glyphs1.size() + glyphs2.size()));
 
 	if(textlength > 0)
 	  {
@@ -258,7 +258,7 @@ namespace frontier
 
 	// TODO: THE REST IS UNTESTED - FITTING CHARS TO PATH LENGTH NEEDS FIXING
 
-	double textlength = 0.5*(glyphs1.size() + glyphs2.size());
+	double textlength = 0.5*static_cast<double>((glyphs1.size() + glyphs2.size()));
 
 	if(textlength > 0)
 	  {
@@ -972,9 +972,9 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 		  std::string outputname = lookup<std::string>(specs,"contourlines","output");
 		  std::string smoother = lookup<std::string>(specs,"contourlines","smoother");
 
-		  double start = lookup<double>(specs,"contourlines","start");
-		  double stop  = lookup<double>(specs,"contourlines","stop");
-		  double step  = lookup<double>(specs,"contourlines","step");
+		  float start = lookup<float>(specs,"contourlines","start");
+		  float stop  = lookup<float>(specs,"contourlines","stop");
+		  float step  = lookup<float>(specs,"contourlines","step");
 
 		  if(options.verbose)
 			{
@@ -1034,7 +1034,7 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 
 		  MyHints hints(grid);
 
-		  for(double value=start; value<=stop; value+=step)
+		  for(float value=start; value<=stop; value+=step)
 			{
 			  Path path;
 			  MyContourer::line(path,grid,value,hints);
