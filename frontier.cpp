@@ -477,11 +477,6 @@ try
   {
 	return run(argc,argv);
   }
-catch(std::exception & e)
-  {
-	std::cerr << "Error: " << e.what() << std::endl;
-	return 1;
-  }
  catch(libconfig::ParseException & e)
    {
 	 std::cerr << "Frontier configuration parse error '" << e.getError() << "'" << std::endl;
@@ -492,7 +487,12 @@ catch(std::exception & e)
 	 std::cerr << "Frontier configuration error" << std::endl;
 	 return 1;
    }
-catch(...)
+ catch(std::exception & e)
+  {
+	std::cerr << "Error: " << e.what() << std::endl;
+	return 1;
+  }
+ catch(...)
   {
 	std::cerr << "Error: Unknown exception occurred" << std::endl;
 	return 1;
