@@ -1,17 +1,17 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 11.8.2
+Version: 11.9.16
 Release: 1.el5.fmi
 License: FMI
 Group: Development/Libraries
 URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires: boost-devel >= 1.41
-BuildRequires: libsmartmet-macgyver >= 11.4.19-1
-BuildRequires: libsmartmet-tron >= 11.3.24-1
-BuildRequires: libsmartmet-woml >= 11.8.2-1
+BuildRequires: boost-devel >= 1.47
+BuildRequires: libsmartmet-macgyver >= 11.7.20
+BuildRequires: libsmartmet-tron >= 11.7.20
+BuildRequires: libsmartmet-woml >= 11.8.3
 BuildRequires: libxml++-devel >= 2.20.0-1
 Requires: libxml++ >= 2.20.0-1
 Provides: frontier
@@ -50,6 +50,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Fri Sep 16 2011 Mika Heiskanen <mika.heiskanen@fmi.fi> - 11.9.16-1.el5.fmi
+- Added possibility to configure model paths
 * Tue Aug  2 2011 Mika Heiskanen <mika.heiskanen@fmi.fi> - 11.8.2-1.el5.fmi
 - Ported to use boost 1.46
 * Wed Apr  7 2010 Mika Heiskanen <mika.heiskanen@fmi.fi> - 10.4.7-1.el5.fmi

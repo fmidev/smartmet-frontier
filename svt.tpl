@@ -11,6 +11,13 @@
 
  <frontier>
 
+ models:
+ {
+   ECMWF = "/smartmet/data/ecmwf/eurooppa/pinta_xh/querydata";
+   HIRLAM = "/smartmet/data/hirlam/eurooppa/pinta/querydata";
+   MBEHIRLAM = "/smartmet/data/mbehirlam/eurooppa/pinta/querydata";
+ };
+
  contourlines:
  (
    {

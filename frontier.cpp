@@ -4,6 +4,7 @@
  */
 // ======================================================================
 
+#include "ConfigTools.h"
 #include "Options.h"
 #include "SvgRenderer.h"
 
@@ -212,28 +213,6 @@ ValidTimes extract_valid_times(const T & collection)
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Return the default path for the given model
- */
-// ----------------------------------------------------------------------
-
-std::string model_path(const std::string & name)
-{
-  // TODO: Replace hard coded paths with configurable paths
-
-  if(name == "ECMWF")
-	return "/smartmet/data/ecmwf/eurooppa/pinta_xh/querydata";
-  else if(name == "HIRLAM")
-	return "/smartmet/data/hirlam/eurooppa/pinta/querydata";
-  else if(name == "MBEHIRLAM")
-	return "/smartmet/data/mbehirlam/eurooppa/pinta/querydata";
-
-  // No other models supported yet
-
-  return "";
-}
-
-// ----------------------------------------------------------------------
-/*!
  * \brief Convert NFmiMetTime to ptime
  */
 // ----------------------------------------------------------------------
@@ -315,6 +294,7 @@ search_model_origintime(const frontier::Options & options,
 // ----------------------------------------------------------------------
 
 boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options,
+											   const libconfig::Config & config,
 											   const woml::DataSource & source)
 {
   boost::shared_ptr<NFmiQueryData> ret;
@@ -327,7 +307,7 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options
   const std::string & name = source.numericalModelRun()->name();
   const boost::posix_time::ptime & origintime = source.numericalModelRun()->originTime();
 
-  std::string path = model_path(name);
+  std::string path = frontier::lookup<std::string>(config,"models."+name);
 
   if(path.empty())
 	{
@@ -430,10 +410,11 @@ int run(int argc, char * argv[])
   // Determine respective numerical model
 
   boost::shared_ptr<NFmiQueryData> qd;
+
   if(weather.hasAnalysis())
-	qd = resolve_model(options,weather.analysis().dataSource());
+	qd = resolve_model(options,config, weather.analysis().dataSource());
   else
-	qd = resolve_model(options,weather.analysis().dataSource());
+	qd = resolve_model(options,config, weather.forecast().dataSource());
 
   // Render contours
 

@@ -5,6 +5,7 @@
 // ======================================================================
 
 #include "SvgRenderer.h"
+#include "ConfigTools.h"
 #include "Path.h"
 #include "PathFactory.h"
 #include "PathTransformation.h"
@@ -29,8 +30,6 @@
 #include <smartmet/newbase/NFmiQueryData.h>
 #include <smartmet/newbase/NFmiFastQueryInfo.h>
 
-#include <smartmet/macgyver/Cast.h>
-
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/foreach.hpp>
@@ -42,57 +41,6 @@
 
 namespace frontier
 {
-
-  // ----------------------------------------------------------------------
-  /*!
-   * \brief Read a configuration value with proper error messages
-   */
-  // ----------------------------------------------------------------------
-
-  template <typename T>
-  T lookup(const libconfig::Config & config,
-		   const std::string & name)
-  {
-	try
-	  {
-		T value = config.lookup(name);
-		return value;
-	  }
-	catch(libconfig::ConfigException & e)
-	  {
-		if(!config.exists(name))
-		  throw std::runtime_error("Setting for "+name+" is missing");
-		throw std::runtime_error("Failed to parse value of '"
-								 + name
-								 + "' as type "
-								 + Fmi::number_name<T>());
-	  }
-  }
-
-  template <typename T>
-  T lookup(const libconfig::Setting & setting,
-		   const std::string & prefix,
-		   const std::string & name)
-  {
-	T ret;
-
-	if(setting.lookupValue(name,ret))
-	  return ret;
-
-	if(!setting.exists(name))
-	  throw std::runtime_error("Setting for "+name+" is missing");
-
-	if(!prefix.empty())
-	  throw std::runtime_error("Failed to parse value of '"
-							   + (prefix + "." + name)
-							   + "' as type "
-							   + Fmi::number_name<T>());
-	else
-	  throw std::runtime_error("Failed to parse value of '"
-							   + name
-							   + "' as type "
-							   + Fmi::number_name<T>());
-  }
 
   // ----------------------------------------------------------------------
   /*!
