@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 11.9.16
+Version: 11.9.23
 Release: 1.el5.fmi
 License: FMI
 Group: Development/Libraries
@@ -10,7 +10,7 @@ Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.47
 BuildRequires: libsmartmet-macgyver >= 11.7.20
-BuildRequires: libsmartmet-tron >= 11.7.20
+BuildRequires: libsmartmet-tron >= 11.9.23
 BuildRequires: libsmartmet-woml >= 11.8.3
 BuildRequires: libxml++-devel >= 2.20.0-1
 Requires: libxml++ >= 2.20.0-1
@@ -50,6 +50,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Fri Sep 23 2011 Mika Heiskanen <mika.heiskanen@fmi.fi> - 11.9.23-1.el5.fmi
+- Added detection fro empty grids
 * Fri Sep 16 2011 Mika Heiskanen <mika.heiskanen@fmi.fi> - 11.9.16-1.el5.fmi
 - Added possibility to configure model paths
 * Tue Aug  2 2011 Mika Heiskanen <mika.heiskanen@fmi.fi> - 11.8.2-1.el5.fmi
