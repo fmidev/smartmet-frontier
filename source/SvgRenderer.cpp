@@ -958,6 +958,11 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 		  NFmiDataMatrix<float> matrix;
 		  qi->Values(matrix,validtime);
 
+		  if(matrix.NX() == 0 || matrix.NY() == 0)
+			throw std::runtime_error("Could not extract set valid time " +
+									 std::string(validtime.ToStr(kYYMMDDHHMM)) +
+									 "from query data");
+
 		  // Adapt for contouring
 
 		  DataMatrixAdapter grid(matrix,coordinates);
