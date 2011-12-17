@@ -98,7 +98,7 @@ html:
 rpm: clean
 	if [ -e $(LIB).spec ]; \
 	then \
-	  tar -C ../ -cf $(rpmsourcedir)/smartmet-$(LIB).tar $(LIB) ; \
+	  tar --exclude-vcs -C ../ -cf $(rpmsourcedir)/smartmet-$(LIB).tar $(LIB) ; \
 	  gzip -f $(rpmsourcedir)/smartmet-$(LIB).tar ; \
 	  TAR_OPTIONS=--wildcards rpmbuild -ta $(rpmsourcedir)/smartmet-$(LIB).tar.gz ; \
 	else \
