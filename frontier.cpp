@@ -205,8 +205,14 @@ ValidTimes extract_valid_times(const T & collection)
 {
   ValidTimes times;
 
-  BOOST_FOREACH(const woml::Feature & f, collection)
-	times.insert(f.validTime());
+  BOOST_FOREACH(const woml::Feature & f, collection) {
+	const boost::optional<boost::posix_time::ptime> theTime = f.validTime();
+
+	// Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
+
+    if (theTime && (! (theTime->is_not_a_date_time())))
+      times.insert(*theTime);
+  }
 
   return times;
 }
@@ -293,6 +299,8 @@ search_model_origintime(const frontier::Options & options,
  */
 // ----------------------------------------------------------------------
 
+#ifdef __contouring__
+
 boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options,
 											   const libconfig::Config & config,
 											   const woml::DataSource & source)
@@ -305,7 +313,7 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options
   // Shorthand help variables
 
   const std::string & name = source.numericalModelRun()->name();
-  const boost::posix_time::ptime & origintime = source.numericalModelRun()->originTime();
+  const boost::posix_time::ptime & origintime = source.numericalModelRun()->analysisTime();
 
   std::string path = frontier::lookup<std::string>(config,"models."+name);
 
@@ -336,26 +344,38 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options
   return ret;
 }
 
+#endif
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Main program without exception handling
  */
 // ----------------------------------------------------------------------
 
-int run(int argc, char * argv[])
+int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string & outfile, bool & debug, std::ostringstream & debugoutput)
 {
   frontier::Options options;
 
+  outfile.clear();
+  debug = false;
+
   if(!parse_options(argc,argv,options))
     return 0;
+
+  outfile = options.outfile;
+  debug = options.debug;
 
   // Read the SVG template
 
   std::string svg = readfile(options.svgfile);
 
+  // --DEBUGOUTPUT-- placeholder in template sets debug mode
+
+  if (!debug)
+	  debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
+
   // Establish the projection
 
-  boost::shared_ptr<NFmiArea> area;
   if(boost::filesystem::is_regular_file(options.projection))
 	area = readprojection(options.projection);
   else
@@ -408,32 +428,46 @@ int run(int argc, char * argv[])
   boost::posix_time::ptime validtime = *validtimes.begin();
 
   // Determine respective numerical model
+  //
+  // == Model not used anymore; background data is handled by frontier frontend ==
 
-  boost::shared_ptr<NFmiQueryData> qd;
+#ifdef __contouring__
 
-  if(weather.hasAnalysis())
-	qd = resolve_model(options,config, weather.analysis().dataSource());
-  else
-	qd = resolve_model(options,config, weather.forecast().dataSource());
+    boost::shared_ptr<NFmiQueryData> qd;
+
+    if(weather.hasAnalysis())
+  	  qd = resolve_model(options,config, weather.analysis().dataSource());
+    else
+  	  qd = resolve_model(options,config, weather.forecast().dataSource());
 
   // Render contours
 
-  frontier::SvgRenderer renderer(options, config, svg, area);
-  renderer.contour(qd,validtime);
+#endif
 
-  // Render woml
+  frontier::SvgRenderer renderer(options, config, svg, area, validtime, &debugoutput);
+
+  // renderer.contour(qd,validtime);
+
+  // Render woml.
+  // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
   if(weather.hasAnalysis())
 	{
-	  BOOST_FOREACH(const woml::Feature & feature, weather.analysis())
-		if(feature.validTime() == validtime)
+	  BOOST_FOREACH(const woml::Feature & feature, weather.analysis()) {
+		const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
+
+		if(theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
 		  feature.visit(renderer);
+	  }
 	}
   else
 	{
-	  BOOST_FOREACH(const woml::Feature & feature, weather.forecast())
-		if(feature.validTime() == validtime)
+	  BOOST_FOREACH(const woml::Feature & feature, weather.forecast()) {
+		const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
+
+		if(theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
 		  feature.visit(renderer);
+	  }
 	}
 
   // Output
@@ -453,28 +487,82 @@ int run(int argc, char * argv[])
   return 0;
 }
 
-int main(int argc, char * argv[])
-try
-  {
-	return run(argc,argv);
+// ----------------------------------------------------------------------
+/*!
+ * \brief In debug mode generate a svg file containing debug/error message(s).
+ *
+ * Otherwise output the message(s) to stderr and return nonzero exit value.
+ */
+// ----------------------------------------------------------------------
+
+void generatesvg(int exitCode, const boost::shared_ptr<NFmiArea> & area, const std::string & outfile,bool debug,std::ostringstream & debugoutput)
+{
+  if (!debug) {
+	  std::cerr << debugoutput.str();
+	  exit(exitCode);
   }
- catch(libconfig::ParseException & e)
-   {
-	 std::cerr << "Frontier configuration parse error '" << e.getError() << "'" << std::endl;
-	 return 1;
-   }
- catch(libconfig::ConfigException & e)
-   {
-	 std::cerr << "Frontier configuration error" << std::endl;
-	 return 1;
-   }
- catch(std::exception & e)
-  {
-	std::cerr << "Error: " << e.what() << std::endl;
-	return 1;
+
+  std::string sbeg("<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"--WIDTH--px\" height=\"--HEIGHT--px\" viewBox=\"0 0 --WIDTH-- --HEIGHT--\"><text x=\"10\" y=\"10\">");
+  std::string send("</text></svg>");
+
+  int h = static_cast<int>(std::floor(0.5+area->Height()));
+  int w = static_cast<int>(std::floor(0.5+area->Width()));
+
+  std::string width = boost::lexical_cast<std::string>(w);
+  std::string height = boost::lexical_cast<std::string>(h);
+
+  boost::replace_all(sbeg,"--WIDTH--",width);
+  boost::replace_all(sbeg,"--HEIGHT--",height);
+
+  typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
+  boost::char_separator<char> sep("\n");
+  std::string s(debugoutput.str());
+  tokenizer tok(s,sep);
+
+  std::ostringstream output;
+
+  for (tokenizer::iterator it = tok.begin(); it != tok.end(); ++it)
+	output << "<tspan x=\"10\" dy=\"20\">" << *it << "</tspan>";
+
+  if(outfile != "-") {
+	writefile(outfile,sbeg + output.str() + send);
   }
- catch(...)
+  else
+	std::cout << sbeg << output.str() << send;
+
+  exit(0);
+}
+
+int main(int argc, char * argv[]) {
+
+  std::string outfile;
+  bool debug;
+  std::ostringstream debugoutput;
+  boost::shared_ptr<NFmiArea> area;
+
+  try
   {
-	std::cerr << "Error: Unknown exception occurred" << std::endl;
-	return 1;
+	run(argc,argv,area,outfile,debug,debugoutput);
+	return 0;
   }
+  catch(libconfig::ParseException & e)
+  {
+	debugoutput << "Frontier configuration parse error '" << e.getError() << "' at or near line " << e.getLine() << std::endl;
+	generatesvg(1,area,outfile,debug,debugoutput);
+  }
+  catch(libconfig::ConfigException & e)
+  {
+	debugoutput << "Frontier configuration error" << std::endl;
+	generatesvg(2,area,outfile,debug,debugoutput);
+  }
+  catch(std::exception & e)
+  {
+	debugoutput << "Error: " << e.what() << std::endl;
+	generatesvg(3,area,outfile,debug,debugoutput);
+  }
+  catch(...)
+  {
+	debugoutput << "Error: Unknown exception occurred" << std::endl;
+	generatesvg(4,area,outfile,debug,debugoutput);
+  }
+}

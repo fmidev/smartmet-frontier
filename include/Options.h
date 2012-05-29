@@ -38,6 +38,16 @@ namespace frontier
 
 	std::string outfile;
 
+	// -t type { conceptualmodelanalysis | conceptualmodelforecast | aerodromeforecast }
+
+	enum documentType { conceptualmodelanalysis,conceptualmodelforecast,aerodromeforecast };
+	std::string type;
+	documentType doctype;
+
+	// -l locale; defaults to "" (using configuration blocks having empty ("") or non specified locale)
+
+	std::string locale;
+
   }; // class Options
 
   bool parse_options(int argc, char * argv[], Options & theOptions);

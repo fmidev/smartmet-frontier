@@ -11,7 +11,7 @@
 #include <iomanip>
 #include <sstream>
 
-#define sqr(x) (x * x)
+#define sqr(x) ((x) * (x))
 
 namespace frontier
 {
@@ -171,11 +171,12 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Length of the curve
+   * \brief Length of the curve. Adds the curve points to a fillmap to be used
+   * 	    when determing positions for symbol/pattern fill.
    */
   // ----------------------------------------------------------------------
 
-  double Path::length() const
+  double Path::length(NFmiFillMap * fmap) const
   {
 	double len = 0;
 	double lastx = 0;
@@ -216,7 +217,7 @@ namespace frontier
 							  pathdata[i+2],pathdata[i+3],
 							  pathdata[i+4],pathdata[i+5]);
 			  double eps = 0.001;
-			  len += bez.length(eps);
+			  len += bez.length(eps,fmap,&lastx,&lasty);
 			  lastx = pathdata[i+4];
 			  lasty = pathdata[i+5];
 			  i += 6;
