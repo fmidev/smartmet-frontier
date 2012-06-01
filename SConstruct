@@ -43,8 +43,6 @@ env.Append(LIBS=["smartmet_woml",
 		 "boost_system",
 	 	 "bz2",
 		 "pthread",
-		 "xerces-c-3.1",
-		 "xqilla-6.0",
 		 "cairo"
 	  ]);
 
