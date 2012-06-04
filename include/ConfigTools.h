@@ -19,22 +19,22 @@ namespace frontier
 {
   enum settings { s_optional = 0, s_required, s_base };
 
-  class SettingIdNotFoundException : public libconfig::SettingNotFoundException
+  class SettingIdNotFoundException
   {
 	public:
-		SettingIdNotFoundException(settings theId,const std::string & theName)
+		SettingIdNotFoundException(settings theId,const std::string & theMsg)
 		{
 			itsId = theId;
-			itsName = theName;
+			itsMsg = theMsg;
 		}
 
 		settings id() const { return itsId; }
-		const std::string & msg() const { return itsName; }
+		const std::string & what() const { return itsMsg; }
 
 	private:
 		SettingIdNotFoundException();
 		settings itsId;
-		std::string itsName;
+		std::string itsMsg;
   };
 
   // ----------------------------------------------------------------------

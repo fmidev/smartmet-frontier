@@ -1486,7 +1486,7 @@ namespace frontier
 		bool nameMatch;
 		bool hasLocaleGlobals = false;
 
-		int symbolIdx = -1;
+		int symbolIdx = -1,localeIdx = -1;
 		int lastIdx = symbolspecs.getLength() - 1;
 
 		for(int i=0; i<=lastIdx; ++i)
@@ -1521,8 +1521,10 @@ namespace frontier
 							if ((i < lastIdx) || (!hasLocaleGlobals))
 								continue;
 						}
-						else
+						else {
+							localeIdx = i;
 							scope.push_back(&symbolspecs[i]);
+						}
 					}
 
 					// Symbol code. May contain folder too; [<folder>/]<code>
@@ -1653,9 +1655,9 @@ namespace frontier
 		}	// for
 
 		if (options.debug) {
-			// No (locale) settings for the symbol
+			// No (locale) settings for the symbol or code
 			//
-			const char * p = ((symbolIdx < 0) ? "Settings for " : "Locale specific settings for " );
+			const char * p = (((symbolIdx < 0) || hasLocaleGlobals || (localeIdx >= 0)) ? "Settings for " : "Locale specific settings for " );
 
 			debugoutput << p
 						<< symClass
