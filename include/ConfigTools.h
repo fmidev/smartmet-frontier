@@ -17,6 +17,25 @@
 
 namespace frontier
 {
+  enum settings { s_optional = 0, s_required, s_base };
+
+  class SettingIdNotFoundException
+  {
+	public:
+		SettingIdNotFoundException(settings theId,const std::string & theMsg)
+		{
+			itsId = theId;
+			itsMsg = theMsg;
+		}
+
+		settings id() const { return itsId; }
+		const std::string & what() const { return itsMsg; }
+
+	private:
+		SettingIdNotFoundException();
+		settings itsId;
+		std::string itsMsg;
+  };
 
   // ----------------------------------------------------------------------
   /*!
@@ -47,15 +66,23 @@ namespace frontier
   template <typename T>
   T lookup(const libconfig::Setting & setting,
 		   const std::string & prefix,
-		   const std::string & name)
+		   const std::string & name,
+		   settings settingId = s_required,
+		   bool * isSet = NULL)
   {
-	T ret;
-	
-	if(setting.lookupValue(name,ret))
+	T ret = T();
+	bool bSet;
+	bool *_isSet = &bSet;
+	bool **pSet = (isSet ? &isSet : &_isSet);
+
+	if((**pSet = setting.lookupValue(name,ret)) || (settingId == s_optional))
 	  return ret;
 	
 	if(!setting.exists(name))
-	  throw std::runtime_error("Setting for "+name+" is missing");
+	  if ((settingId != s_optional) && (settingId != s_required))
+	    throw SettingIdNotFoundException(settingId,prefix.empty() ? name : (prefix + "." + name));
+	  else
+	    throw std::runtime_error("Setting for "+(prefix.empty() ? name : (prefix + "." + name))+" is missing");
 	
 	if(!prefix.empty())
 	  throw std::runtime_error("Failed to parse value of '"

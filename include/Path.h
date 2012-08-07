@@ -17,6 +17,8 @@
 #ifndef FRONTIER_PATH_H
 #define FRONTIER_PATH_H
 
+#include "NFmiFillMap.h"
+
 #include <string>
 #include <vector>
 
@@ -35,7 +37,7 @@ namespace frontier
 	Path & operator+=(const Path & path);
 
 	bool empty() const;
-	double length() const;
+	double length(NFmiFillMap * fmap = NULL) const;
 	std::string svg() const;
 	void transform(const PathTransformation & transformation);
 

@@ -42,16 +42,16 @@ env.Append(LIBS=["smartmet_woml",
 		 "boost_thread",
 		 "boost_system",
 	 	 "bz2",
-		 "pthread"
+		 "pthread",
+		 "cairo"
 	  ]);
 
 env.Append( CPPDEFINES= ["UNIX"] )
 env.Append( CPPDEFINES="FMI_MULTITHREAD" )
 env.Append( CPPDEFINES= "_REENTRANT" )
 
-env.Append( CPPPATH= [ "./include" ] )
+env.Append( CPPPATH= [ "./include", "/usr/include/cairo" ] )
 
-env.ParseConfig("(pkg-config --exists libxml++-2.6 && pkg-config libxml++-2.6 --cflags --libs)")
 env.ParseConfig("(pkg-config --exists libconfig++ && pkg-config libconfig++ --cflags --libs)")
 
 env.Append( CXXFLAGS= [

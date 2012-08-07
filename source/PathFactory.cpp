@@ -55,7 +55,7 @@ namespace frontier { namespace PathFactory {
 	  }
 
 	for(size_t j=1; j<n; j++) 
-	  u[n-j-1] -= gam[n-j]*u[n-j]; // Backsubstitution.
+	  u[n-j-1] -= gam[n-j]*u[n-j]; // Back substitution.
 
 	return u;
   }
@@ -249,8 +249,8 @@ namespace frontier { namespace PathFactory {
 		  }
 		else
 		  {
-			x2 = (knots[i].x + ctrl[i-1].x)/2;
-			y2 = (knots[i].y + ctrl[i-1].y)/2;
+			x2 = (knots[n].x + ctrl[n-1].x)/2;
+			y2 = (knots[n].y + ctrl[n-1].y)/2;
 		  }
 
 		x = knots[i+1].x;

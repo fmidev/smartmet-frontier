@@ -8,6 +8,8 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem/operations.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/replace.hpp>
 #include <iostream>
 
 namespace frontier {
@@ -26,6 +28,8 @@ namespace frontier {
 	, svgfile()
 	, womlfile()
 	, outfile("-")
+	, type("")
+	, locale("")
   {
   }
 
@@ -48,7 +52,9 @@ namespace frontier {
 	std::string msgproj = ("projection description or file");
 	std::string msgwoml = ("WOML file");
 	std::string msgoutfile = ("output file, default=- (stdout)");
-	
+	std::string msgtype = ("Document type: 'conceptualmodelanalysis', 'conceptualmodelforecast' or 'aerodromeforecast'");
+	std::string msglocale = ("locale");
+
 	desc.add_options()
 	  ("help,h","print out help message")
 	  ("debug,d",po::bool_switch(&theOptions.debug),"debug mode")
@@ -59,6 +65,8 @@ namespace frontier {
 	  ("svg,s",po::value(&theOptions.svgfile),msgsvg.c_str())
 	  ("proj,p",po::value(&theOptions.projection),msgproj.c_str())
 	  ("outfile,o",po::value(&theOptions.outfile),msgoutfile.c_str())
+	  ("type,t",po::value(&theOptions.type),msgtype.c_str())
+	  ("locale,l",po::value(&theOptions.locale),msglocale.c_str())
         ;
 	
 	po::positional_options_description p;
@@ -108,6 +116,23 @@ namespace frontier {
 
 	if(theOptions.quiet)   theOptions.verbose = false;
 	if(theOptions.verbose) theOptions.quiet = false;
+
+	if (theOptions.type == "conceptualmodelanalysis")
+	    theOptions.doctype = Options::conceptualmodelanalysis;
+	else if (theOptions.type == "conceptualmodelforecast")
+		theOptions.doctype = Options::conceptualmodelforecast;
+	else if (theOptions.type == "aerodromeforecast")
+		theOptions.doctype = Options::aerodromeforecast;
+	else if (theOptions.type == "")
+		throw std::runtime_error("'type' option is missing");
+	else
+		throw std::runtime_error("'type' option is not valid");
+
+	// The locale string is used for case insensitive comparisons (only).
+	// In woml and templates locales are entered with hyphen (fi-FI); convert underscore
+
+	boost::replace_first(theOptions.locale,"_","-");
+	boost::to_lower(theOptions.locale);
 
 	return true;
   }

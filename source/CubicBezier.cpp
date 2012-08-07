@@ -66,7 +66,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  double CubicBezier::length(double eps) const
+  double CubicBezier::length(double eps,NFmiFillMap * fmap,double * lastx,double * lasty) const
   {
 	// Length along control points and the end points
 	double chord = distance(P1,P4);
@@ -79,13 +79,28 @@ namespace frontier
 	  return 0;
 
 	// If the relative difference is small, return good length estimate
-	if( (arc-chord)/arc < eps)
+	if( (arc-chord)/arc < eps) {
+		if (fmap && lastx && lasty) {
+			fmap->Add(*lastx,*lasty,P1.x,P1.y);
+			fmap->Add(P1.x,P1.y,P2.x,P2.y);
+			fmap->Add(P2.x,P2.y,P3.x,P3.y);
+			fmap->Add(P3.x,P3.y,P4.x,P4.y);
+
+			*lastx = P4.x;
+			*lasty = P4.y;
+		}
+
 	  return 0.5*(arc+chord);
+	}
 
 	// Otherwise subdivide and recurse
 
 	std::pair<CubicBezier,CubicBezier> parts = split();
-	return parts.first.length(eps) + parts.second.length(eps);
+
+	double l1 = parts.first.length(eps,fmap,lastx,lasty);
+	double l2 = parts.second.length(eps,fmap,lastx,lasty);
+
+	return l1 + l2;
   }
 
 } // namespace frontier
