@@ -245,10 +245,12 @@ namespace frontier
 	for(iter=data.begin(); iter!=enditer; i += (scanUpDown ? 1 : 2))
 	  {
 		if (i)
+		  {
 			if ((! scanUpDown) || i % 2)
 				iter++;
 			else
 				riter++;
+		  }
 
 		// Skip the row if the y-coordinate is below 0.
 		//

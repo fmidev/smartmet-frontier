@@ -11,6 +11,10 @@
 
  <frontier>
 
+ models:
+ {
+ };
+
  contourlines:
  (
    {

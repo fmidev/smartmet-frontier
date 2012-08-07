@@ -32,8 +32,8 @@ OBJDIR=     ARGUMENTS.get("objdir","obj")
 env = Environment( )
 
 env.Append(LIBS=["smartmet_woml",
-		 "smartmet_macgyver-mt",
-		 "smartmet_newbase-mt",
+		 "smartmet_macgyver",
+		 "smartmet_newbase",
 		 "boost_date_time",
 		 "boost_program_options",
 		 "boost_regex",
@@ -43,6 +43,8 @@ env.Append(LIBS=["smartmet_woml",
 		 "boost_system",
 	 	 "bz2",
 		 "pthread",
+		 "xqilla",
+		 "xerces-c",
 		 "cairo"
 	  ]);
 
@@ -79,7 +81,6 @@ if DEBUG:
         "-ansi",
         "-Wcast-align",
         "-Wcast-qual",
-        "-Wconversion",
         "-Winline",
         "-Wno-multichar",
         "-Wno-pmf-conversions",
@@ -92,6 +93,8 @@ if DEBUG:
             #"-Wold-style-cast",
             #"-Wshadow",
             # "-Wsign-promo",
+	    # Disabled because of RHEL6 nitpicking
+	    # "-Wconversion",
         ] )
 
 #
