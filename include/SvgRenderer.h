@@ -13,6 +13,8 @@
 #include "smartmet/woml/FeatureVisitor.h"
 #include <smartmet/woml/Point.h>
 #include <smartmet/woml/MeasureValue.h>
+#include <smartmet/woml/GeophysicalParameterValueSet.h>
+#include <smartmet/woml/TimeSeriesSlot.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/ptr_container/ptr_map.hpp>
@@ -28,6 +30,162 @@ class NFmiQueryData;
 
 namespace frontier
 {
+
+  class Elevation
+  {
+  public:
+	Elevation(double theElevation,double theScale,int theScaledElevation,const std::string & theLLabel,const std::string & theRLabel);
+	Elevation(double theElevation);
+
+	bool operator < (const Elevation & theOther) const;
+
+	double elevation() const { return itsElevation; }
+	double scale() const { return itsScale; }
+	int scaledElevation() const { return itsScaledElevation; }
+	const std::string & lLabel() const { return itsLLabel; }
+	const std::string & rLabel() const { return itsRLabel; }
+	void factor(double theFactor) { itsFactor = theFactor; }
+	double factor() const { return itsFactor; }
+
+  private:
+	double itsElevation;
+	double itsScale;
+	int itsScaledElevation;
+	std::string itsLLabel;
+	std::string itsRLabel;
+	double itsFactor;		// Factor for linear interpolation between this and the next elevation
+  };
+
+  class AxisManager
+  {
+  public:
+	AxisManager(const libconfig::Config & config);
+
+	// Y -axis height
+	double axisHeight() const { return itsAxisHeight; }
+
+	// X -axis width
+	void axisWidth(double theWidth) { itsAxisWidth = theWidth; }
+	double axisWidth() const { return itsAxisWidth; }
+
+	// Time period
+	void timePeriod(const boost::posix_time::time_period & theTimePeriod) { itsTimePeriod = theTimePeriod; }
+	const boost::posix_time::time_period & timePeriod() { return itsTimePeriod; }
+
+	// X -axis offset
+	double xOffset(const boost::posix_time::ptime & validTime) const;
+
+	// X -axis step
+	double xStep() const;
+
+	// utc
+	void utc(bool theUtc) { itsUtc = theUtc; }
+	bool utc() const { return itsUtc; }
+
+	// Elevations
+	const std::list<Elevation> & elevations() { return itsElevations; }
+
+	// Scaled elevation
+	double scaledElevation(double elevation);
+
+	// Min elevation value to be taken as nonzero
+	double nonZeroElevation() { return 10.0; }
+
+  private:
+	double itsAxisHeight;
+	double itsMinElevation;
+	double itsMaxElevation;
+	double itsAxisWidth;
+	bool itsUtc;
+	boost::posix_time::time_period itsTimePeriod;
+
+	std::list<Elevation> itsElevations;
+  };
+
+  class CloudGroup
+  {
+  public:
+	CloudGroup(const std::string & theCloudTypes,
+			   const std::string & theLabel,
+			   const std::string & thePlaceHolder,
+			   bool combined,
+			   bool symbol,
+			   unsigned int theBaseStep,
+			   unsigned int theMaxRand,
+			   unsigned int theMaxRepeat,
+			   int theScaleHeightMin,
+			   int theScaleHeightRandom,
+			   int theControlMin,
+			   int theControlRandom);
+
+	const std::string & label() const { return itsLabel; }
+	const std::string & placeHolder() const { return itsPlaceHolder; }
+	bool standalone() const { return itsStandalone; }
+	bool symbol() const { return itsSymbol; }
+	bool contains(const std::string & theCloudType) const;
+
+	unsigned int baseStep() const { return itsBaseStep; }
+	unsigned int maxRand() const { return itsMaxRand; }
+	unsigned int maxRepeat() const { return itsMaxRepeat; }
+
+	int scaleHeightMin() const { return itsScaleHeightMin; }
+	int scaleHeightRandom() const { return itsScaleHeightRandom; }
+	int controlMin() const { return itsControlMin; }
+	int controlRandom() const { return itsControlRandom; }
+
+  private:
+	std::string itsCloudTypes;
+	std::string itsLabel;
+	std::string itsPlaceHolder;
+	bool itsStandalone;
+	bool itsSymbol;
+
+	unsigned int itsBaseStep;
+	unsigned int itsMaxRand;
+	unsigned int itsMaxRepeat;
+
+	int itsScaleHeightMin;
+	int itsScaleHeightRandom;
+	int itsControlMin;
+	int itsControlRandom;
+  };
+
+  struct CloudType : public std::binary_function< CloudGroup, std::string, bool > {
+    bool operator () ( const CloudGroup & cloudGroup, const std::string & cloudType) const;
+  };
+
+  class ElevationGroupItem
+  {
+  public:
+	ElevationGroupItem(boost::posix_time::ptime theValidTime,
+					   const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator & thePvs,
+					   const std::list<woml::GeophysicalParameterValue>::iterator & thePv);
+
+	const boost::posix_time::ptime & validTime() const { return itsValidTime; }
+	const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator & Pvs() const { return itsPvs; }
+	const std::list<woml::GeophysicalParameterValue>::iterator & Pv() const { return itsPv; }
+	void topConnected(bool connected) { itsTopConnected = connected; }
+	bool topConnected() const { return itsTopConnected; }
+	void bottomConnected(bool connected) { itsBottomConnected = connected; }
+	bool bottomConnected() const { return itsBottomConnected; }
+	void leftOpen(bool leftOpen) { itsLeftOpen = leftOpen; }
+	bool leftOpen() const { return itsLeftOpen; }
+	void bottomConnection(woml::Elevation theBottomConnection) { itsBottomConnection = theBottomConnection; }
+	const boost::optional<woml::Elevation> & bottomConnection() const { return itsBottomConnection; }
+	void elevation(boost::optional<woml::Elevation> & theElevation) { itsElevation = theElevation; }
+	const woml::Elevation & elevation() const { return (itsElevation ? *itsElevation : itsPv->elevation()); }
+
+  private:
+	boost::posix_time::ptime itsValidTime;
+	std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator itsPvs;
+	std::list<woml::GeophysicalParameterValue>::iterator itsPv;
+	bool itsTopConnected;
+	bool itsBottomConnected;
+	bool itsLeftOpen;
+	boost::optional<woml::Elevation> itsBottomConnection;	// Rigth side elevation
+	boost::optional<woml::Elevation> itsElevation;			// ZeroTolerance; part of the original elevation cut into 2 pieces or generated ground elevation
+  };
+
   class SvgRenderer : public woml::FeatureVisitor
   {
   public:
@@ -48,7 +206,6 @@ namespace frontier
     virtual void visit(const woml::PointMeteorologicalSymbol & theFeature);
     virtual void visit(const woml::Ridge & theFeature);
     virtual void visit(const woml::SurfacePrecipitationArea & theFeature);
-    virtual void visit(const woml::TimeGeophysicalParameterValueSet & theFeature);
     virtual void visit(const woml::Trough & theFeature);
     virtual void visit(const woml::UpperTrough & theFeature);
     virtual void visit(const woml::WarmAdvection & theFeature);
@@ -70,8 +227,19 @@ namespace frontier
 
 	virtual void visit(const woml::InfoText & theFeature);
 
-//	void contour(const boost::shared_ptr<NFmiQueryData> & theQD,
-//				 const boost::posix_time::ptime & theTime);
+	virtual void visit(const woml::CloudLayers & theFeature);
+	virtual void visit(const woml::Contrails & theFeature);
+	virtual void visit(const woml::Icing & theFeature);
+	virtual void visit(const woml::MigratoryBirds & theFeature);
+	virtual void visit(const woml::SurfaceVisibility & theFeature);
+	virtual void visit(const woml::SurfaceWeather & theFeature);
+	virtual void visit(const woml::Winds & theFeature);
+	virtual void visit(const woml::ZeroTolerance & theFeature);
+
+#ifdef __contouring__
+	void contour(const boost::shared_ptr<NFmiQueryData> & theQD,
+				 const boost::posix_time::ptime & theTime);
+#endif
 
 	std::string svg() const;
 
@@ -94,6 +262,13 @@ namespace frontier
 						std::ostringstream & surfaces,
 						const std::string & id,
 						const std::string & surfaceName);
+	void render_aerodromeSymbol(const std::string & confPath,
+								const std::string & symClass,
+								const std::string & value,
+								double x,double y,
+								bool codeValue = true);
+	template <typename T> void render_aerodromeSymbols(const T & theFeature,
+												       const std::string & confPath);
 	void render_symbol(const std::string & path,
 					   const std::string & symClass,
 					   const std::string & symCode,
@@ -106,12 +281,40 @@ namespace frontier
 					  double lon,
 					  double lat);
 
+	typedef enum { fst, fwd, vup, eup, bwd, vdn, edn, lst } Phase;
+	typedef std::list<ElevationGroupItem> ElevGrp;
+	bool elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
+						const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
+						ElevGrp & eGrp,
+						bool all = false,
+						std::list<CloudGroup> * cloudGroups = NULL,
+						std::list<CloudGroup>::const_iterator * itcg = NULL);
+	Phase uprightdown(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndFwd2Gnd = true);
+	Phase downleftup(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi);
+
+	template <typename T> void render_aerodrome(const T & theFeature);
+	void render_aerodromeFrame(const boost::posix_time::time_period & theTimePeriod);
+	void render_elevationAxis();
+	void render_timeAxis(const boost::posix_time::time_period & theTimePeriod);
+	void cloudLayerConfig(std::string & classdef,std::list<CloudGroup> & cloudGroups);
+	void render_timeserie(const woml::CloudLayers & cloudlayers);
+	void render_timeserie(const woml::Contrails & contrails);
+	void render_timeserie(const woml::Icing & icing);
+	void render_timeserie(const woml::MigratoryBirds & migratorybirds);
+	void render_timeserie(const woml::SurfaceVisibility & surfacevisibility);
+	void render_timeserie(const woml::SurfaceWeather & surfaceweather);
+	void render_timeserie(const woml::Winds & winds);
+	void checkZeroToleranceGroup(ElevGrp & eGrpIn,ElevGrp & eGrpOut);
+	void render_timeserie(const woml::ZeroTolerance & zerotolerance);
+
 	const Options & options;
 	const libconfig::Config & config;
 	std::string svgbase;
 	boost::shared_ptr<NFmiArea> area;
 	const boost::posix_time::ptime validtime;
 	std::ostringstream _debugoutput;
+	boost::shared_ptr<AxisManager> axisManager;
+	bool initAerodrome;
 
 	// defs
 	std::ostringstream masks;
@@ -135,6 +338,8 @@ namespace frontier
 	std::ostringstream warmadvections;
 	std::ostringstream warmfronts;
 	std::ostringstream & debugoutput;
+
+	// For text and various stuff
 	typedef boost::ptr_map<std::string,std::ostringstream> Texts;
 	Texts texts;
 

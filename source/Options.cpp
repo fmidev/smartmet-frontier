@@ -5,6 +5,7 @@
 // ======================================================================
 
 #include "Options.h"
+#include "Weather.h"
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem/operations.hpp>
@@ -118,11 +119,11 @@ namespace frontier {
 	if(theOptions.verbose) theOptions.quiet = false;
 
 	if (theOptions.type == "conceptualmodelanalysis")
-	    theOptions.doctype = Options::conceptualmodelanalysis;
+	    theOptions.doctype = woml::conceptualmodelanalysis;
 	else if (theOptions.type == "conceptualmodelforecast")
-		theOptions.doctype = Options::conceptualmodelforecast;
+		theOptions.doctype = woml::conceptualmodelforecast;
 	else if (theOptions.type == "aerodromeforecast")
-		theOptions.doctype = Options::aerodromeforecast;
+		theOptions.doctype = woml::aerodromeforecast;
 	else if (theOptions.type == "")
 		throw std::runtime_error("'type' option is missing");
 	else

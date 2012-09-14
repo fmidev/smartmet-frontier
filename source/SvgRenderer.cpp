@@ -9,11 +9,13 @@
 #include "PathFactory.h"
 #include "PathTransformation.h"
 
+#include "BezierModel.h"
+
 #include <smartmet/woml/CubicSplineSurface.h>
 #include <smartmet/woml/GeophysicalParameterValueSet.h>
 #include <smartmet/woml/JetStream.h>
 #include <smartmet/woml/OccludedFront.h>
-#include <smartmet/woml/TimeGeophysicalParameterValueSet.h>
+#include <smartmet/woml/ParameterTimeSeriesPoint.h>
 
 #include <smartmet/woml/ParameterValueSetPoint.h>
 #include <smartmet/woml/PointMeteorologicalSymbol.h>
@@ -29,9 +31,9 @@
 #include <smartmet/newbase/NFmiStringTools.h>
 
 #ifdef __contouring__
-//#include <smartmet/newbase/NFmiEnumConverter.h>
-//#include <smartmet/newbase/NFmiQueryData.h>
-//#include <smartmet/newbase/NFmiFastQueryInfo.h>
+#include <smartmet/newbase/NFmiEnumConverter.h>
+#include <smartmet/newbase/NFmiQueryData.h>
+#include <smartmet/newbase/NFmiFastQueryInfo.h>
 #endif
 
 #include <boost/algorithm/string/replace.hpp>
@@ -42,6 +44,7 @@
 #include <boost/format.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/date_time/local_time/local_time.hpp>
+#include <boost/regex.hpp>
 
 #include <iomanip>
 #include <iostream>
@@ -219,14 +222,16 @@ namespace frontier
 		  	    const std::string & param,
 		  	    const libconfig::Setting * globalScope = NULL,
 		  	    settings settingId = s_required,
-		  	    bool *isSet = NULL)
+		  	    bool *isSet = NULL,
+		  	    const libconfig::Setting ** matchingScope = NULL)
   {
     // Read the setting as optional. If the setting is missing, try to read with secondary type
 
+	const libconfig::Setting * scope = &localScope;
     bool _isSet;
 
     T value = lookup<T>(localScope,localScopeName,param,s_optional,&_isSet);
-    if ((!_isSet) &&  (typeid(T) != typeid(T2))) {
+    if ((!_isSet) && (typeid(T) != typeid(T2))) {
         T2 value2 = lookup<T2>(localScope,localScopeName,param,s_optional,&_isSet);
 
         if (_isSet)
@@ -235,10 +240,10 @@ namespace frontier
 
     // Try global scope if available
 
-    if ((!_isSet) && globalScope) {
+    if ((!_isSet) && (scope = globalScope)) {
   	  value = lookup<T>(*globalScope,localScopeName,param,s_optional,&_isSet);
 
-      if ((!_isSet) &&  (typeid(T) != typeid(T2))) {
+      if ((!_isSet) && (typeid(T) != typeid(T2))) {
           T2 value2 = lookup<T2>(*globalScope,localScopeName,param,s_optional,&_isSet);
 
           if (_isSet)
@@ -248,6 +253,9 @@ namespace frontier
 
     if (isSet)
   	  *isSet = _isSet;
+
+    if (matchingScope)
+        *matchingScope = (_isSet ? scope : NULL);
 
     if (_isSet || (settingId == s_optional))
     	return value;
@@ -266,9 +274,10 @@ namespace frontier
 		  	    const std::string & param,
 		  	    const libconfig::Setting * globalScope = NULL,
 		  	    settings settingId = s_required,
-		  	    bool *isSet = NULL)
+		  	    bool *isSet = NULL,
+		  	    const libconfig::Setting ** matchingScope = NULL)
   {
-	return configValue<T,T>(localScope,localScopeName,param,globalScope,settingId,isSet);
+	return configValue<T,T>(localScope,localScopeName,param,globalScope,settingId,isSet,matchingScope);
   }
 
   // ----------------------------------------------------------------------
@@ -278,18 +287,20 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   template <typename T,typename T2>
-  T configValue(const std::list<const libconfig::Setting *> & scope,
+  T configValue(std::list<const libconfig::Setting *> & scope,
 		  	    const std::string & localScopeName,
 		  	    const std::string & param,
 		  	    settings settingId = s_required,
-		  	    bool *isSet = NULL)
+		  	    bool *isSet = NULL,
+		  	    bool truncate = false)
   {
 	T value = T();
+	const libconfig::Setting *matchingScope = NULL;
     bool _isSet = false;
 
-	std::list<const libconfig::Setting *>::const_reverse_iterator riter(scope.end()),renditer(scope.begin()),it,git;
+	std::list<const libconfig::Setting *>::reverse_iterator rbegiter(scope.end()),renditer(scope.begin()),riter,it,git;
 
-	for( ; ((riter!=renditer) && (!_isSet)); ) {
+	for(riter=rbegiter; ((riter!=renditer) && (!_isSet)); ) {
 		it = riter;
 		riter++;
     	git = riter;
@@ -299,23 +310,31 @@ namespace frontier
 
 	    // For the last block(s) use the given settingId; the call throws if the setting is required but not found
 	    //
-	    value = configValue<T,T2>(**it,localScopeName,param,((git!=renditer) ? *git : NULL),(riter!=renditer) ? s_optional : settingId,&_isSet);
+	    value = configValue<T,T2>(**it,localScopeName,param,((git!=renditer) ? *git : NULL),(riter!=renditer) ? s_optional : settingId,&_isSet,&matchingScope);
 	}
 
     if (isSet)
       *isSet = _isSet;
 
+    if (truncate && _isSet) {
+    	// Truncate the scope to have the matching block as the last block
+    	//
+    	std::list<const libconfig::Setting *>::iterator fenditer = scope.end(),fiter = ((matchingScope == *it) ? it : git).base();
+		scope.erase(fiter,fenditer);
+    }
+
     return value;
   }
 
   template <typename T>
-  T configValue(std::list<const libconfig::Setting *> & blocks,
+  T configValue(std::list<const libconfig::Setting *> & scope,
 		  	    const std::string & localScopeName,
 		  	    const std::string & param,
 		  	    settings settingId = s_required,
-		  	    bool *isSet = NULL)
+		  	    bool *isSet = NULL,
+		  	    bool truncate = false)
   {
-	return configValue<T,T>(blocks,localScopeName,param,settingId,isSet);
+	return configValue<T,T>(scope,localScopeName,param,settingId,isSet,truncate);
   }
 
   // ----------------------------------------------------------------------
@@ -354,6 +373,223 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Utility function for converting boost::ptime to utc or localized
+   *		formatted datum string
+   */
+  // ----------------------------------------------------------------------
+
+  NFmiString toFormattedString(const boost::posix_time::ptime & pt,
+		  	  	  	  	  	   const std::string & pref,
+		  	  	  	  	  	   bool utc,
+		  	  	  	  	  	   FmiLanguage language = kFinnish)
+
+  {
+	// Convert from ptime (to_iso_string() format YYYYMMDDTHHMMSS,fffffffff
+	// where T is the date-time separator) to NFmiMetTime (utc) and further
+	// to local time if (utc not) requested
+
+	NFmiMetTime utcTime(1);
+	std::string isoString = to_iso_string(pt);
+	boost::replace_first(isoString,"T","");
+	utcTime.FromStr(isoString);
+
+	return (utc ? utcTime.ToStr(pref,language) : utcTime.CorrectLocalTime().ToStr(pref,language));
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Render aerodrome timeserie
+   */
+  // ----------------------------------------------------------------------
+
+  template <typename T>
+  void
+  SvgRenderer::render_aerodrome(const T & theFeature)
+  {
+    // First initialize axis manager and render axis labels and elevation lines
+
+	if (initAerodrome) {
+		render_aerodromeFrame(theFeature.timePeriod());
+		initAerodrome = false;
+	}
+
+    render_timeserie(theFeature);
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Initialization for aerodrome rendering.
+   */
+  // ----------------------------------------------------------------------
+
+  void
+  SvgRenderer::render_aerodromeFrame(const boost::posix_time::time_period & theTimePeriod)
+  {
+    if(options.debug)	std::cerr << "Rendering AerodromeFrame" << std::endl;
+
+    boost::posix_time::ptime bt = theTimePeriod.begin();
+    boost::posix_time::ptime et = theTimePeriod.end();
+
+    if (
+  	    (bt.is_not_a_date_time() || et.is_not_a_date_time()) ||
+  	    (et < (bt + boost::posix_time::hours(1))) ||
+  	    (et > (bt + boost::posix_time::hours(240)))
+  	   )
+  	  throw std::runtime_error("render_aerodromeFrame: invalid time period");
+
+    // Initialize axis manager and render y -axis labels and elevation lines
+
+	render_elevationAxis();
+
+    // Render x -axis labels
+
+	render_timeAxis(theTimePeriod);
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Aerodrome y -axis label rendering.
+   *
+   * 		Initializes axis manager.
+   */
+  // ----------------------------------------------------------------------
+
+  void
+  SvgRenderer::render_elevationAxis()
+  {
+	// Initialize axis manager
+
+	axisManager.reset(new AxisManager(config));
+
+	// Output y -axis labels
+	//
+	// svg y -axis grows downwards; use axis height to transfrom the y -coordinates
+
+	double axisHeight = axisManager->axisHeight();
+
+	const std::list<Elevation> & elevations = axisManager->elevations();
+	std::list<Elevation>::const_iterator it = elevations.begin();
+
+	std::string ELEVATIONLABELS1("ELEVATIONLABELS1");
+	std::string ELEVATIONLABELS2("ELEVATIONLABELS2");
+
+	for ( ; (it != elevations.end()); it++) {
+		const std::string & lLabel = it->lLabel();
+		if (!lLabel.empty())
+			texts[ELEVATIONLABELS1] << "<text x=\"0\" y=\""
+									<< std::fixed << std::setprecision(1) << (axisHeight - it->scaledElevation())
+									<< "\">"
+									<< lLabel
+									<< "</text>\n";
+
+		const std::string & rLabel = it->rLabel();
+		if (!rLabel.empty())
+			texts[ELEVATIONLABELS2] << "<text x=\"0\" y=\""
+									<< std::fixed << std::setprecision(1) << (axisHeight - it->scaledElevation())
+									<< "\">"
+									<< rLabel
+									<< "</text>\n";
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Aerodrome x -axis label and elevation line rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void
+  SvgRenderer::render_timeAxis(const boost::posix_time::time_period & theTimePeriod)
+  {
+  	const std::string confPath("TimeAxis");
+
+  	try {
+  		const char * typemsg = " must contain a group in curly brackets";
+  		const char * stepmsg = ": value >= 1 expected";
+
+  		const libconfig::Setting & timespecs = config.lookup(confPath);
+  		if(!timespecs.isGroup())
+  			throw std::runtime_error(confPath + typemsg);
+
+  		// configValue()/lookup() logic:
+  		//
+  		// If s_required (default) setting is not found, std::runtime_error is thrown (not catched here).
+  		//
+  		// If s_optional setting is not found, unset (default constructor) value is returned and
+  		// 'isSet' flag (if available) is set to false.
+  		//
+  		// If specific (s_base + n) setting is not found, SettingIdNotFoundException is thrown.
+
+		// Axis width (px)
+
+		int width = configValue<int>(timespecs,confPath,"width");
+		axisManager->axisWidth(width);
+
+		// Step for label/hour output
+
+		const char *l;
+		unsigned int step = configValue<unsigned int>(timespecs,confPath,l = "step");
+
+		if (step < 1)
+			throw std::runtime_error(confPath + ": " + l + ": '" + boost::lexical_cast<std::string>(step) + "'" + stepmsg);
+
+		// utc (default: false)
+
+		bool isSet;
+		bool utc = configValue<bool>(timespecs,confPath,"utc",NULL,s_optional,&isSet);
+		if (!isSet)
+			utc = false;
+		axisManager->utc(utc);
+
+		// Time period
+
+		axisManager->timePeriod(theTimePeriod);
+
+		// Output the labels
+
+		boost::posix_time::ptime bt = theTimePeriod.begin(),et = theTimePeriod.end();
+		boost::posix_time::time_iterator it(bt,boost::posix_time::hours(step));
+
+		double x = 0.0,xStep = axisManager->xStep();
+
+		for ( ; (it <= et); ++it, x += xStep)
+			texts["TIMELABELS"] << "<text x=\""
+								<< std::fixed << std::setprecision(1) << x
+								<< "\" y=\"0\">"
+								<< toFormattedString(*it,"HH",utc).CharPtr()
+								<< "</text>\n";
+
+		// Output elevation lines
+
+		const std::list<Elevation> & elevations = axisManager->elevations();
+		std::list<Elevation>::const_iterator eit = elevations.begin();
+
+		for ( ; (eit != elevations.end()); eit++) {
+			double y = eit->scaledElevation();
+
+			if (y > 0.1)
+				texts["ELEVATIONLINES"] << "<line x1=\"0\" y1=\""
+										<< std::fixed << std::setprecision(1) << y
+										<< "\" x2=\""
+										<< std::fixed << width
+										<< "\" y2=\""
+										<< std::fixed << std::setprecision(1) << y
+										<< "\"/>\n";
+		}
+  	}
+  	catch(libconfig::ConfigException & ex)
+  	{
+		if(!config.exists(confPath))
+	  		// No settings for confPath
+	  		//
+		    throw std::runtime_error("Settings for " + confPath + " are missing");
+
+	    throw ex;
+  	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Picture header rendering
    */
   // ----------------------------------------------------------------------
@@ -365,10 +601,7 @@ namespace frontier
 		const char * typemsg = " must contain a list of groups in parenthesis";
 		const char * hdrtypemsg = ": type must be 'datetime'";
 
-		// Set empty text to replace the template's placeholder even if no output is generated
-
 		std::string HEADERhdrClass("HEADER" + hdrClass);
-		texts[HEADERhdrClass] << "";
 
 		const libconfig::Setting & hdrspecs = config.lookup(confPath);
 		if(!hdrspecs.isList())
@@ -444,46 +677,14 @@ namespace frontier
 						// NFmiTime language and format
 						//
 						FmiLanguage language = locale2FmiLanguage(confPath,options.locale);
-						std::string pref(svgescapetext(configValue<std::string>(scope,hdrClass,"pref"),true));
+						std::string pref(configValue<std::string>(scope,hdrClass,"pref"));
 
-						// Convert from ptime (to_iso_string() format YYYYMMDDTHHMMSS,fffffffff
-						// where T is the date-time separator) to NFmiMetTime (utc) and further
-						// to local time if (utc not) requested
-
-						NFmiMetTime utcTime(1);
-						NFmiString datum;
-						std::string isoString = to_iso_string(validtime);
-						boost::replace_first(isoString,"T","");
-						utcTime.FromStr(isoString);
-
+						// utc
 						bool isSet;
 						bool utc(configValue<bool>(scope,hdrClass,"utc",s_optional,&isSet));
-						if ((!isSet) || (!utc)) {
-							// LocalTime() takes daylight saving time information using current system time; adjust the
-							// result using daylight saving time information for the target datetime.
-							//
-							// The need to correct the result (if the result is based on wrong dst) is detected
-							// from the offset given by NFmiTime (instead of checking the current system time dst
-							// which could have changed after queried by NFmiMetTime), so this correction only works for
-							// certain (here GMT+2) timezone
-							//
-							NFmiTime localTime = utcTime.LocalTime();
-							struct tm vtm = to_tm(validtime);
-							mktime(&vtm);
 
-							short tzDiff = abs(localTime.GetZoneDifferenceHour());
-
-							if ((tzDiff == 3) && (vtm.tm_isdst == 0))
-								localTime.ChangeByHours(-1);
-							else if ((tzDiff == 2) && (vtm.tm_isdst == 1))
-								localTime.ChangeByHours(1);
-
-							datum = localTime.ToStr(pref,language);
-						}
-						else
-							datum = utcTime.ToStr(pref,language);
-
-						texts[HEADERhdrClass] << datum.CharPtr();
+						// Store formatted datum
+						texts[HEADERhdrClass] << svgescapetext(toFormattedString(validtime,pref,isSet && utc,language).CharPtr(),true);
 
 						return;
 					}
@@ -512,13 +713,12 @@ namespace frontier
 	catch (libconfig::SettingNotFoundException & ex) {
 		// No settings for confPath
 		//
-		if (options.debug) {
+		if (options.debug)
 			debugoutput << "Settings for "
 						<< confPath
 						<< " ("
 						<< hdrClass
 						<< ") not found\n";
-		}
 	}
   }
 
@@ -576,6 +776,161 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Utility function for splitting text into lines using given
+   * 		max. linewidth.
+   *
+   * 		Note: Only a small set (serif, ...) of fonts currently supported
+   * 			  (limitation of cairo 'toy' api).
+   *
+   * 		Note: Max text height is not taken into account currently.
+   *
+   *		Returns true if the text could be fitted using the given w/h limits.
+   */
+  // ----------------------------------------------------------------------
+
+  bool getTextLines(const std::string & text,				// Text to split
+		  	  	    std::string font,						// Fonts
+		  	  	    unsigned int fontsize,					// Font size
+		  	  	  	cairo_font_slant_t slant,				// Font slant
+		  	  	  	cairo_font_weight_t weight,				// Font weight
+		  	  	  	unsigned int maxWidth,					// Max text width
+		  	  	  	unsigned int maxHeight,					// Max text height
+					std::list<std::string> & outputLines,	// Text lines
+					unsigned int & textWidth,				// Text width
+					unsigned int & textHeight,				// Text height
+					unsigned int & maxLineHeight)			// Max line height
+  {
+	// cairo surface to get font mectrics
+
+	cairo_surface_t *cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,1,1);
+	cairo_t * cr = cairo_create(cs);
+	cairo_surface_destroy(cs);
+
+	cairo_select_font_face(cr,font.c_str(),slant,weight);
+	cairo_set_font_size(cr,fontsize);
+
+	// Split the text to lines shorter than given max. width.
+	// Keep track of max. line width and height
+
+	std::vector<std::string> inputLines;
+	boost::split(inputLines,text,boost::is_any_of("\n"));
+	size_t l,textlc = inputLines.size();
+
+	cairo_text_extents_t extents;
+	std::ostringstream line;
+	std::string word;
+
+// for regenerate with smaller fontsize {
+//
+
+	unsigned int maxLineWidth = 0;
+	maxLineHeight = 0;
+
+	for (l = 0; (l < textlc); l++) {
+		// Next line
+		//
+		std::vector<std::string> words;
+		boost::split(words,inputLines[l],boost::is_any_of(" \t"));
+
+		cairo_text_extents(cr,inputLines[l].c_str(),&extents);
+		unsigned int lineHeight = static_cast<unsigned int>(ceil(extents.height));
+
+		if (lineHeight > maxLineHeight)
+			maxLineHeight = lineHeight;
+
+		size_t w,linewc = 0,textwc = words.size(),pos = std::string::npos;
+		double lineWidth = 0;
+		bool fits;
+
+		for (w = 0; (w < textwc); ) {
+			// Next word.
+			// Add a space in front of it if not the first word of the line
+			//
+			word = std::string((linewc > 0) ? " " : "") + words[w];
+			cairo_text_extents(cr,word.c_str(),&extents);
+
+			if (! (fits = (ceil(lineWidth + extents.x_advance) < maxWidth))) {
+				// Goes too wide, try cutting to first comma or period
+				//
+				pos = word.find_first_of(",.");
+
+				if (pos != std::string::npos) {
+					std::string cutted = word.substr(0,pos + 1);
+					cairo_text_extents(cr,cutted.c_str(),&extents);
+
+					if ((fits = (ceil(lineWidth + extents.x_advance) < maxWidth)))
+						word = cutted;
+				}
+			}
+
+			if (fits) {
+				line << word;
+
+				lineWidth += extents.x_advance;
+				linewc++;
+
+				if ((fits = (pos == std::string::npos))) {
+					// Word was not cutted; next word
+					//
+					w++;
+
+					if (w < textwc)
+						continue;
+				}
+				else
+					// Cutted; the rest of the word goes to the next line
+					//
+					words[w].erase(0,pos + 1);
+			}
+
+			if (linewc > 0) {
+				unsigned int width = static_cast<unsigned int>(ceil(lineWidth));
+
+				if (width > maxLineWidth)
+					maxLineWidth = width;
+			}
+			else {
+				// A single word exceeding the max line width
+				//
+				line << word;
+				w++;
+			}
+
+			// Store the line; maximum line width or end of line reached
+
+			outputLines.push_back(line.str());
+
+			line.str("");
+			line.clear();
+			lineWidth = 0;
+			linewc = 0;
+
+			pos = std::string::npos;
+
+//			if ((maxHeight > 0) && (maxHeight < ((outputLines.size() * (maxLineHeight + 2)) - 2)))
+//				// Max height exceeded; decrement font size (downto half of the given size) and regenerate the text
+//				;
+
+		}  // for word
+	}  // for line
+
+	textHeight = ((outputLines.size() * (maxLineHeight + 2)) - 2);
+	textWidth = ((maxLineWidth == 0) ? maxWidth : maxLineWidth);
+
+//	if ((maxHeight > 0) && (maxHeight < textHeight))
+//		// Max height exceeded; decrement font size (downto half of the given size) and regenerate the text
+//		;
+//
+//  }  // for regenerate with smaller fontsize
+
+	cairo_destroy(cr);
+//	cairo_debug_reset_static_data();
+
+	return true;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Text rendering
    */
   // ----------------------------------------------------------------------
@@ -589,15 +944,13 @@ namespace frontier
 		const char * stylemsg = ": slant must be 'normal', 'italic' or 'oblique'";
 		const char * weightmsg = ": weight must be 'normal' or 'bold'";
 
-		// Set initial texts to replace template's placeholders even if no output is generated
-
 		std::string TEXTCLASStextName("TEXTCLASS" + textName);
 		std::string TEXTAREAtextName("TEXTAREA" + textName);
 		std::string TEXTtextName("TEXT" + textName);
 
-		texts[TEXTCLASStextName] << "";
+		// Set initial textarea rect in case no output is generated
+
 		texts[TEXTAREAtextName] << " x=\"0\" y=\"0\" width=\"0\" height=\"0\"";
-		texts[TEXTtextName] << "";
 
 		if (text.empty())
 			return;
@@ -673,7 +1026,7 @@ namespace frontier
 					std::string font = configValue<std::string>(scope,textName,"font-family");
 
 					// Font size
-					int size = configValue<int>(scope,textName,"font-size");
+					unsigned int fontsize = configValue<unsigned int>(scope,textName,"font-size");
 
 					// Font style
 					cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
@@ -700,137 +1053,32 @@ namespace frontier
 						weight = "normal";
 
 					// Max width, height and x/y margin
-					int maxWidth = configValue<int>(scope,textName,"width");
+					unsigned int maxWidth = configValue<unsigned int>(scope,textName,"width");
 
 					bool isSet;
-					int maxHeight = configValue<int>(scope,textName,"height",s_optional,&isSet);
+					unsigned int maxHeight = configValue<unsigned int>(scope,textName,"height",s_optional,&isSet);
 					if (! isSet)
 						maxHeight = 0;
 
-					int margin = configValue<int>(scope,textName,"margin",s_optional,&isSet);
+					unsigned int margin = configValue<unsigned int>(scope,textName,"margin",s_optional,&isSet);
 					if (! isSet)
 						margin = 2;
-					else
-						margin = abs(margin);
 
 					if (maxWidth <= 20)
 						maxWidth = 20;
 					if ((maxHeight != 0) && (maxHeight <= 20))
 						maxHeight = 20;
 
-					// cairo surface to get font mectrics
+					// Split the text into lines using given max. width and height
 
-					cairo_surface_t *cs = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,1,1);
-					cairo_t * cr = cairo_create(cs);
-					cairo_surface_destroy(cs);
+					std::list<std::string> textLines;
+					unsigned int textWidth,textHeight,maxLineHeight;
 
-					cairo_select_font_face(cr,font.c_str(),slant,_weight);
-					cairo_set_font_size(cr,size);
-
-					// Split the text to lines shorter than given max. width.
-					// Keep track of max. line width and height
-
-					std::list<std::string> outputLines;
-					std::vector<std::string> inputLines;
-					boost::split(inputLines,text,boost::is_any_of("\n"));
-					size_t l,textlc = inputLines.size();
-					int maxLineWidth = 0,maxLineHeight = 0;
-
-					cairo_text_extents_t extents;
-					std::ostringstream line;
-					std::string word;
-
-					for (l = 0; (l < textlc); l++) {
-						// Next line
-						//
-						std::vector<std::string> words;
-						boost::split(words,inputLines[l],boost::is_any_of(" \t"));
-
-						cairo_text_extents(cr,inputLines[l].c_str(),&extents);
-						int lineHeight = static_cast<int>(ceil(extents.height));
-
-						if (lineHeight > maxLineHeight)
-							maxLineHeight = lineHeight;
-
-						size_t w,linewc = 0,textwc = words.size(),pos = std::string::npos;
-						double lineWidth = 0;
-						bool fits;
-
-						for (w = 0; (w < textwc); ) {
-							// Next word.
-							// Add a space in front of it if not the first word of the line
-							//
-							word = std::string((linewc > 0) ? " " : "") + words[w];
-							cairo_text_extents(cr,word.c_str(),&extents);
-
-							if (! (fits = (ceil(lineWidth + extents.x_advance) < maxWidth))) {
-								// Goes too wide, try cutting to first comma or period
-								//
-								pos = word.find_first_of(",.");
-
-								if (pos != std::string::npos) {
-									std::string cutted = word.substr(0,pos + 1);
-									cairo_text_extents(cr,cutted.c_str(),&extents);
-
-									if ((fits = (ceil(lineWidth + extents.x_advance) < maxWidth)))
-										word = cutted;
-								}
-							}
-
-							if (fits) {
-								line << word;
-
-								lineWidth += extents.x_advance;
-								linewc++;
-
-								if ((fits = (pos == std::string::npos))) {
-									// Word was not cutted; next word
-									//
-									w++;
-
-									if (w < textwc)
-										continue;
-								}
-								else
-									// Cutted; the rest of the word goes to the next line
-									//
-									words[w].erase(0,pos + 1);
-							}
-
-							if (linewc > 0) {
-								int width = static_cast<int>(ceil(lineWidth));
-
-								if (width > maxLineWidth)
-									maxLineWidth = width;
-							}
-							else {
-								// A single word exceeding the max line width
-								//
-								line << word;
-								w++;
-							}
-
-							// Store the line; maximum line width or end of line reached
-
-							outputLines.push_back(line.str());
-
-							line.str("");
-							line.clear();
-							lineWidth = 0;
-							linewc = 0;
-
-							pos = std::string::npos;
-						}  // for word
-					}  // for line
-
-					cairo_destroy(cr);
-//					cairo_debug_reset_static_data();
-
-					int textHeight = static_cast<int>((outputLines.size() * (maxLineHeight + 2)) - 2);
-
-					if ((maxHeight > 0) && (maxHeight < textHeight))
-						// Max height exceeded
-						;
+					getTextLines(text,
+							  	 font,fontsize,slant,_weight,
+							  	 maxWidth,maxHeight,
+								 textLines,
+								 textWidth,textHeight,maxLineHeight);
 
 					// Store the css class definition
 
@@ -838,7 +1086,7 @@ namespace frontier
 
 					texts[TEXTCLASStextName] << "." << textClass
 											 << " {\nfont-family: " << font
-											 << ";\nfont-size: " << size
+											 << ";\nfont-size: " << fontsize
 											 << ";\nfont-weight : " << weight
 											 << ";\nfont-style : " << style
 											 << ";\n}\n";
@@ -848,18 +1096,16 @@ namespace frontier
 					texts[TEXTAREAtextName].str("");
 					texts[TEXTAREAtextName].clear();
 
-					int textWidth = ((maxLineWidth == 0) ? maxWidth : maxLineWidth);
-
 					texts[TEXTAREAtextName] << " x=\"0\" y=\"0\""
 											<< " width=\"" << (2 * margin) + textWidth
 											<< "\" height=\"" << (2 * margin) + textHeight
 											<< "\" ";
 
-					// Store the text. Final position (transformation) is supposed to be defined in the template
+					// Store the text. Final position (transformation) is (supposed to be) defined in the template
 
-					std::list<std::string>::const_iterator it = outputLines.begin();
+					std::list<std::string>::const_iterator it = textLines.begin();
 
-					for (int y = (margin + maxLineHeight); (it != outputLines.end()); it++, y += maxLineHeight)
+					for (int y = (margin + maxLineHeight); (it != textLines.end()); it++, y += maxLineHeight)
 						texts[TEXTtextName] << "<text class=\"" << textClass
 											<< "\" x=\"" << margin
 											<< "\" y=\"" << y
@@ -909,7 +1155,7 @@ namespace frontier
 		  	  	  	  	  	  	   const std::string & id,
 		  	  	  	  	  	  	   const std::string & surfaceName)		// cloudType (for CloudArea) or rainPhase (for SurfacePrecipitationArea)
   {
-	std::string confPath("Surface");
+	const std::string confPath("Surface");
 
 	try {
 		const char * typemsg = " must contain a list of groups in parenthesis";
@@ -1325,7 +1571,7 @@ namespace frontier
 							// Validtime is between the range; check if the parameter is available
 							//
 							std::string condPath(confPath +
-												 ".[" + boost::lexical_cast<std::string>(specsIdx) + "].conditions" +
+											     ((specsIdx >= 0) ? (".[" + boost::lexical_cast<std::string>(specsIdx) + "]") : "") + ".conditions" +
 												 ".[" + boost::lexical_cast<std::string>(i) + "]." + parameter);
 
 							if (parameter.empty() || config.exists(condPath))
@@ -1365,7 +1611,7 @@ namespace frontier
   {
 	const char * typemsg = " must contain a list of groups in parenthesis";
 
-	std::string condPath(confPath + ".[" + boost::lexical_cast<std::string>(specsIdx) + "].conditions");
+	std::string condPath(confPath + ((specsIdx >= 0) ? (".[" + boost::lexical_cast<std::string>(specsIdx) + "]") : "") + ".conditions");
 
 	if (!config.exists(condPath))
 		return NULL;
@@ -1384,28 +1630,19 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   std::string getFolderAndSymbol(const libconfig::Config & config,
-		  	  	  	  	  	  	 std::list<const libconfig::Setting *> scope,
-		  	  	  	  	  	  	 const libconfig::Setting & specs,
+		  	  	  	  	  	  	 std::list<const libconfig::Setting *> & scope,
 		  	  	  	  	  	  	 const std::string & confPath,
 		  	  	  	  	  	  	 const std::string & symClass,
 		  	  	  	  	  	  	 const std::string & symCode,
 		  	  	  	  	  	  	 settings s_code,
-		  	  	  	  	  	  	 int specsIdx,
 		  	  	  	  	  	  	 const boost::posix_time::ptime & dateTimeValue,
 		  	  	  	  	  	  	 std::string & folder)
   {
-	// First search for conditional settings based on the documents validTime (it's time value)
-
-	if (specsIdx >= 0) {
-		const libconfig::Setting * condSpecs = matchingCondition(config,confPath,symClass,symCode,specsIdx,dateTimeValue);
-
-		if (condSpecs)
-			scope.push_back(condSpecs);
-	}
-
 	const char * codemsg = ": symbol code: [<folder>/]<code> expected";
 
-	std::string code = configValue<std::string,int>(scope,symClass,symCode,s_code);
+	// Search for the code truncating the scope to have the matching block as the last block
+
+	std::string code = configValue<std::string,int>(scope,symClass,symCode,s_code,NULL,true);
 
 	std::vector<std::string> cols;
 	boost::split(cols,code,boost::is_any_of("/"));
@@ -1426,7 +1663,292 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Symbol rendering
+   * \brief Utility function for formatting
+   */
+  // ----------------------------------------------------------------------
+
+  std::string formattedValue(const woml::NumericalSingleValueMeasure * lowerLimit,
+		  	  	  	  	     const woml::NumericalSingleValueMeasure * upperLimit,
+		  	  	  	  	     const std::string & confPath,
+		  	  	  	  	     const std::string & pref,
+		  	  	  	  	     double * scale = NULL)
+  {
+	if (pref.empty())
+		return upperLimit ? (lowerLimit->value() + ".." + upperLimit->value()) : lowerLimit->value();
+	else if (pref.find('%') == std::string::npos)
+		// Static/literal format
+		//
+		return pref;
+
+	std::ostringstream os;
+
+	if (scale && (*scale == 0.0))
+		scale = NULL;
+
+	try {
+		if (upperLimit)
+			if (scale)
+				os << boost::format(pref) % (lowerLimit->numericValue() / *scale) % (upperLimit->numericValue() / *scale);
+			else
+				os << boost::format(pref) % lowerLimit->numericValue() % upperLimit->numericValue();
+		else
+			os << boost::format(pref) % (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue());
+
+		return os.str();
+	}
+	catch(std::exception & ex) {
+		throw std::runtime_error(confPath + ": '" + pref + "': " + ex.what());
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Aerodrome symbol rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_aerodromeSymbol(const std::string & confPath,
+		  	  	  	  	  	  	  	  	   const std::string & symClass,
+		  	  	  	  	  	  	  	  	   const std::string & value,
+		  	  	  	  	  	  	  	  	   double x,double y,
+		  	  	  	  	  	  	  	  	   bool codeValue)
+  {
+	// Nothing to do with empty value
+	//
+	// Note: libconfig does not support special characters in configuration keys; the code values
+	//		 have their +/- characters replaced with P_ and M_ (e.g. '+RA' is converted to 'P_RA')
+
+	std::string code = boost::algorithm::trim_copy(value);
+
+	if (code.size() == 0)
+		return;
+
+	if (codeValue) {
+		boost::algorithm::replace_all(code,"+","P_");
+		boost::algorithm::replace_all(code,"-","M_");
+	}
+
+	try {
+		const char * typemsg = " must contain a group in curly brackets";
+
+		const libconfig::Setting & symbolspecs = config.lookup(confPath);
+		if(!symbolspecs.isGroup())
+			throw std::runtime_error(confPath + typemsg);
+
+		// configValue()/lookup() logic:
+		//
+		// If s_required (default) setting is not found, std::runtime_error is thrown (not catched here).
+		//
+		// If s_optional setting is not found, unset (default constructor) value is returned and
+		// 'isSet' flag (if available) is set to false.
+		//
+		// If specific (s_base + n) setting is not found, SettingIdNotFoundException is thrown.
+
+		// Class
+
+		std::string class1 = configValue<std::string>(symbolspecs,confPath,"class");
+		boost::trim(class1);
+
+		std::string uri;
+		std::string class2;
+
+		if (codeValue) {
+			// Symbol's <code>; code_<symCode> = <code>
+			//
+			settings s_code((settings) (s_base + 0));
+			code = configValue<std::string>(symbolspecs,confPath,"code_" + code,NULL,s_code);
+
+			// Url
+
+			uri = configValue<std::string>(symbolspecs,confPath,"url");
+			boost::algorithm::replace_all(uri,"%symbol%",code);
+
+			// Use last of the given classes for symbol specific class reference
+
+			std::vector<std::string> classes;
+			boost::split(classes,class1,boost::is_any_of(" "));
+
+			class2 = (class1.empty() ? "" : " ") + classes[classes.size() - 1] + code;
+		}
+
+		// Scale
+
+		bool hasScale;
+		double scale = (double) configValue<double,int>(symbolspecs,confPath,"scale",NULL,s_optional,&hasScale);
+
+		std::ostringstream sc;
+		if (hasScale)
+			sc << " scale(" << std::fixed << std::setprecision(1) << scale << ")";
+
+		npointsymbols++;
+		std::string id = confPath + boost::lexical_cast<std::string>(npointsymbols);
+
+		if (codeValue)
+			texts[symClass] << "<g id=\"" << id
+							<< "\" class=\"" << class1 << class2
+							<< "\" transform=\"translate(" << std::fixed << std::setprecision(1) << x << "," << y << ")"
+							<< sc.str()
+							<< "\">\n"
+							<< "<use xlink:href=\"" << uri << "\"/>\n"
+							<< "</g>\n";
+		else
+			texts[symClass] << "<g id=\"" << id
+							<< "\" class=\"" << class1
+							<< "\" transform=\"translate(" << std::fixed << std::setprecision(1) << x << "," << y << ")"
+							<< sc.str()
+							<< "\">\n"
+							<< "<text stroke=\"black\">" << value << "</text>\n"
+							<< "</g>\n";
+
+		return;
+	}
+	catch (SettingIdNotFoundException & ex) {
+		// Symbol code not found
+		//
+//			if (options.debug)
+//				debugoutput << "Setting for "
+//							<< confPath
+//							<< ".code_"
+//							<< symCode
+//							<< " not found\n";
+
+    	throw std::runtime_error("Setting for " + confPath + ".code_" + value + " not found");
+	}
+	catch (libconfig::ConfigException & ex) {
+		if (!config.exists(confPath)) {
+			// No settings for confPath
+			//
+//			if (options.debug)s
+//				debugoutput << "Settings for "
+//							<< confPath
+//							<< " not found\n";
+
+			throw std::runtime_error("Settings for " + confPath + " are missing");
+		}
+
+	    throw ex;
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Aerodrome symbol rendering
+   */
+  // ----------------------------------------------------------------------
+
+  template <typename T>
+  void SvgRenderer::render_aerodromeSymbols(const T & theFeature,
+		  	  	  	  	  	  	  	  	    const std::string & confPath)
+  {
+	// Document's time period
+
+	const boost::posix_time::time_period & tp = axisManager->timePeriod();
+	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+
+	// Get the elevations from the time serie
+
+	ElevGrp eGrp;
+
+	bool ground = elevationGroup(theFeature.timeseries(),bt,et,eGrp,true);
+
+	if (eGrp.size() == 0)
+		return;
+
+	// Class
+
+	std::string symClass(boost::algorithm::to_upper_copy(confPath));
+
+	// Render the symbols
+
+	try {
+		const char * grouptypemsg = " must contain a group in curly brackets";
+
+		const libconfig::Setting & specs = config.lookup(confPath);
+		if(!specs.isGroup())
+			throw std::runtime_error(confPath + grouptypemsg);
+
+		ElevGrp::const_iterator egend = eGrp.end(),iteg;
+
+		for (iteg = eGrp.begin(); (iteg != egend); iteg++) {
+			// Note: Using the lo-hi range average value for "nonground" elevations (Icing, MigratoryBirds) and
+			// 		 0 for "ground" elevation (SurfaceVisibility, SurfaceWeather)
+			//
+			double y = 0.0;
+
+			if (!ground) {
+				const woml::Elevation & e = iteg->Pv()->elevation();
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+				double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+				y = axisManager->scaledElevation(lo + ((hi - lo) / 2));
+			}
+
+			// x -coord of this time instant
+
+			double x = axisManager->xOffset(iteg->validTime());
+
+			// Category/magnitude or visibility (meters)
+
+			const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(iteg->Pv()->value());
+			const woml::NumericalSingleValueMeasure * nsv = (cvm ? NULL : dynamic_cast<const woml::NumericalSingleValueMeasure *>(iteg->Pv()->value()));
+
+			if ((!cvm) && (!nsv))
+				throw std::runtime_error("render_aerodromeSymbol: " + confPath + ": CategoryValueMeasure or NumericalSingleValueMeasure values expected");
+
+			// Render the symbol or visibility value
+
+			if (cvm)
+				// Symbol
+				//
+				render_aerodromeSymbol(confPath,symClass,cvm->value(),x,y);
+			else {
+				// Format visibility based on it's value
+				//
+				// The default format is "%.1f KM" upto visibilityPrec100m and "%.0f KM" above it
+				//
+				double scale = 1000.0,value = nsv->numericValue();
+				std::string pref;
+
+				const libconfig::Setting * condspecs = matchingCondition(config,confPath,confPath,"",-1,value);
+
+				if (condspecs)
+					pref = configValue<std::string>(*condspecs,confPath,"pref",&specs);
+				else
+					pref = configValue<std::string>(specs,confPath,"pref",NULL,s_optional);
+
+				if (pref.empty()) {
+					const double visibilityPrec100m = 5000.0;
+					pref = ((value <= visibilityPrec100m) ? "%.1f KM" : "%.0f KM");
+				}
+
+				render_aerodromeSymbol(confPath,symClass,formattedValue(nsv,NULL,confPath,pref,&scale),x,y,false);
+			}
+		}
+	}
+	catch (libconfig::ConfigException & ex) {
+		if (!config.exists(confPath)) {
+			// No settings for confPath
+			//
+//			if (options.debug)s
+//				debugoutput << "Settings for "
+//							<< confPath
+//							<< " not found\n";
+
+			throw std::runtime_error("Settings for " + confPath + " are missing");
+		}
+
+	    throw ex;
+	}
+ }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Conseptual model symbol rendering
    */
   // ----------------------------------------------------------------------
 
@@ -1443,7 +1965,7 @@ namespace frontier
 	// 		PointMeteorologicalSymbol:	code_<symCode> = <code>
 	// 		AntiCyclone etc.			code = <code>
 	//
-	std::string _symCode(symCode.empty() ? "" : ("_" + symCode));
+	std::string _symCode("code" + (symCode.empty() ? "" : ("_" + symCode)));
 
 	// Find the pixel coordinate. For surface fill the positions are already projected
 	if (!fpos) {
@@ -1506,6 +2028,13 @@ namespace frontier
 					if (nameMatch) {
 						symbolIdx = i;
 
+						// Search for conditional settings based on the documents validTime (it's time value)
+
+						const libconfig::Setting * condSpecs = matchingCondition(config,confPath,symClass,_symCode,symbolIdx,validtime);
+
+						if (condSpecs)
+							scope.push_back(condSpecs);
+
 						// Locale
 						//
 						std::string locale(toLower(configValue<std::string>(specs,symClass,"locale",NULL,s_optional)));
@@ -1517,20 +2046,23 @@ namespace frontier
 								scope.push_back(&symbolspecs[i]);
 								hasLocaleGlobals = true;
 							}
-
-							if ((i < lastIdx) || (!hasLocaleGlobals))
-								continue;
 						}
 						else {
 							localeIdx = i;
 							scope.push_back(&symbolspecs[i]);
 						}
+
+						if (condSpecs)
+							scope.push_back(condSpecs);
+
+						if ((localeIdx < 0) && ((i < lastIdx) || (!hasLocaleGlobals)))
+							continue;
 					}
 
 					// Symbol code. May contain folder too; [<folder>/]<code>
 					//
 					std::string folder;
-					std::string code = getFolderAndSymbol(config,scope,symbolspecs[i],confPath,symClass,"code" + _symCode,s_code,symbolIdx,validtime,folder);
+					std::string code = getFolderAndSymbol(config,scope,confPath,symClass,_symCode,s_code,validtime,folder);
 
 					// Symbol type; (fill, fill+mask ==>) svg, img or font
 					std::string type = configValue<std::string>(scope,symClass,"type");
@@ -1661,7 +2193,7 @@ namespace frontier
 
 			debugoutput << p
 						<< symClass
-						<< " (code"
+						<< " ("
 						<< _symCode
 						<< ") not found\n";
 		}
@@ -1681,31 +2213,1553 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Utility function for formatting
+   * \brief Determine next path point for given hi range point
    */
   // ----------------------------------------------------------------------
 
-  std::string formattedValue(const woml::NumericalSingleValueMeasure * lowerLimit,
-		  	  	  	  	     const woml::NumericalSingleValueMeasure * upperLimit,
-		  	  	  	  	     const std::string & confPath,
-		  	  	  	  	     const std::string & pref)
+  SvgRenderer::Phase SvgRenderer::uprightdown(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndFwd2Gnd)
   {
-	if (pref.empty())
-		return upperLimit ? (lowerLimit->value() + ".." + upperLimit->value()) : lowerLimit->value();
+	ElevGrp::iterator uiteg = iteg,riteg = iteg,triteg = iteg;
+	const boost::posix_time::ptime & vt = iteg->validTime();
+	double ulo = 0.0;
+	double uhi = 0.0;
+	bool upopen = false;
 
-	std::ostringstream os;
+	if (iteg != eGrp.begin()) {
+		uiteg--;
+
+		if ((uiteg->validTime() == vt) && (!(uiteg->bottomConnected()))) {
+			const woml::Elevation & e = uiteg->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			ulo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			uhi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+		}
+		else
+			uiteg = iteg;
+	}
+
+	for (riteg++; (riteg != eGrp.end()); riteg++) {
+		int dh = (riteg->validTime() - vt).hours();
+
+		if (dh == 0) {
+			if (riteg->bottomConnected() && (!(riteg->topConnected())))
+				// Lower elevation has it's bottom connected, close the loop by going down
+				//
+				return edn;
+
+			continue;
+		}
+		else if (dh == 1) {
+			const woml::Elevation & e = riteg->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			double rlo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			double rhi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+			if ((rlo <= hi) && (rhi >= lo)) {
+				if ((uiteg != iteg) && ((rlo <= uhi) && (rhi >= ulo))) {
+					// Can go up
+					//
+					upopen = true;
+				}
+
+				// If nonGndFwd2Gnd is false (ZeroTolerance), go forward (directly) only if current elevation is "ground"
+				// elevation or if the right side elevation is "nonground" elevation; otherwise go 'edn' and then possibly
+				// backwards until reaching "ground" elevation (if any) or the first time instant of the forecast; then go
+				// forward (through the generated 0 elevations below the "nonground" elevations), connecting finally to
+				// the top of the right side elevation
+
+				bool fwd = (nonGndFwd2Gnd || (lo < axisManager->nonZeroElevation()) || (rlo >= axisManager->nonZeroElevation()));
+
+				if (fwd && ((triteg == iteg) || riteg->bottomConnected()) && (!(riteg->topConnected())))
+					// Can go right
+					//
+					triteg = riteg;
+			}
+		}
+		else
+			break;
+	}
+
+	if (upopen && ((!(uiteg->topConnected())) || (triteg == iteg))) {
+		// Up
+		//
+		// Inform the right side elevation that the path has travelled on it's left side
+		// (the right side elevation can not be travelled through upwards)
+
+		if (triteg != iteg)
+			triteg->leftOpen(false);
+		iteg = uiteg;
+
+		return vup;
+	}
+	else if (triteg != iteg) {
+		// Right
+		//
+		iteg = triteg;
+		return fwd;
+	}
+
+	// Down (or last)
+
+	return (iteg->bottomConnected() ? lst : edn);
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Determine next path point for given lo range point
+   */
+  // ----------------------------------------------------------------------
+
+  SvgRenderer::Phase SvgRenderer::downleftup(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi)
+  {
+	ElevGrp::iterator diteg = iteg,liteg = iteg,bliteg = iteg;
+	const boost::posix_time::ptime & vt = iteg->validTime();
+	double dlo = 0.0;
+	double dhi = 0.0;
+	bool downopen = false,leftopen = false,upopen = false;
+
+	if (iteg != eGrp.begin()) {
+		diteg++;
+
+		if ((diteg != eGrp.end()) && (diteg->validTime() == vt) && (!(diteg->topConnected()))) {
+			const woml::Elevation & e = diteg->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			dlo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			dhi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+			// Check if the elevation below overlaps the elevation on the right side of the current elevation
+
+			if (iteg->bottomConnected() && /* then always set */ iteg->bottomConnection())
+			{
+				const woml::Elevation & e = *(iteg->bottomConnection());
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+				double bclo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+				double bchi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+				downopen = ((bclo <= dhi) && (bchi >= dlo));
+			}
+		}
+		else
+			diteg = iteg;
+
+		for ( ; ; ) {
+			if (liteg == eGrp.begin())
+				break;
+			liteg--;
+
+			int dh = (liteg->validTime() - vt).hours();
+
+			if (dh == 0) {
+				if (liteg->topConnected() && (!(liteg->bottomConnected())))
+					// Upper elevation having only it's top connected
+					//
+					upopen = true;
+
+				continue;
+			}
+			else if (dh == -1) {
+				const woml::Elevation & e = liteg->elevation();
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+				double llo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+				double lhi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+				if ((llo <= hi) && (lhi >= lo)) {
+					if ((diteg != iteg) && ((llo <= dhi) && (lhi >= dlo))) {
+						// Can go down
+						//
+						downopen = true;
+					}
+
+					// Select the lowest overlapping left side elevation if the path has not travelled on it's
+					// left side (otherwise the elevation can not be travelled through upwards); otherwise select
+					// the uppermost left side elevation
+
+					if (((bliteg == iteg) || (!(bliteg->leftOpen()))) && (!(liteg->bottomConnected()))) {
+						// Can go left
+						//
+						leftopen = (!(liteg->topConnected()));
+						bliteg = liteg;
+					}
+				}
+			}
+			else
+				break;
+		}
+	}
+
+	if (downopen && ((!upopen) || leftopen)) {
+		// Go down; there is no upper elevation having only it's top connected or it can reached
+		// through overlapping left side elevation
+		//
+		iteg = diteg;
+		return vdn;
+	}
+	else if ((bliteg != iteg) && ((!upopen) || leftopen)) {
+		// Go left; there is no upper elevation having only it's top connected or it can reached
+		// through the overlapping left side elevation
+		//
+		bliteg->bottomConnection(iteg->elevation());
+		iteg = bliteg;
+
+		return bwd;
+	}
+
+	// Up (or last)
+
+	return (iteg->topConnected() ? lst : eup);
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Loads cloud layer configuration
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::cloudLayerConfig(std::string & classdef,std::list<CloudGroup> & cloudGroups)
+  {
+	std::string confPath("CloudLayers");
 
 	try {
-		if (upperLimit)
-			os << boost::format(pref) % lowerLimit->numericValue() % upperLimit->numericValue();
-		else
-			os << boost::format(pref) % lowerLimit->numericValue();
+		const char * grouptypemsg = " must contain a group in curly brackets";
+		const char * listtypemsg = " must contain a list of groups in parenthesis";
 
-		return os.str();
+		std::string CLOUDLAYERS(boost::algorithm::to_upper_copy(confPath));
+
+		// Class
+
+		const libconfig::Setting & specs = config.lookup(confPath);
+		if(!specs.isGroup())
+			throw std::runtime_error(confPath + grouptypemsg);
+
+		classdef = configValue<std::string>(specs,confPath,"class");
+
+		// Grouping; cloud types to be combined and output label and templace placeholder for the group.
+		//
+		// Standalone cloud types (only one type in the group) have flag controlling whether the
+		// group/cloud is combined or not
+
+		confPath += ".groups";
+
+		const libconfig::Setting & groupspecs = config.lookup(confPath);
+		if(!groupspecs.isList())
+			throw std::runtime_error(confPath + listtypemsg);
+
+		for(int i=0, globalsIdx = -1; i<groupspecs.getLength(); i++)
+		{
+			// Missing settings from globals when available
+
+			libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &groupspecs[globalsIdx] : NULL);
+
+			const libconfig::Setting & group = groupspecs[i];
+			if(!group.isGroup())
+				throw std::runtime_error(confPath + listtypemsg);
+
+			std::string cloudTypes(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"types",NULL,s_optional)));
+			if (cloudTypes.empty())
+				// Global settings have no type
+				//
+				globalsIdx = i;
+
+			std::string label(configValue<std::string>(group,confPath,"label",NULL,s_optional));
+
+			std::string placeHolder(configValue<std::string>(group,confPath,"output",globalScope,s_optional));
+			if (placeHolder.empty())
+				placeHolder = CLOUDLAYERS;
+
+			bool isSet;
+			bool combined = configValue<bool>(group,confPath,"combined",globalScope,s_optional,&isSet);
+			if (!isSet)
+				combined = false;
+
+			bool symbol = configValue<bool>(group,confPath,"symbol",globalScope,s_optional,&isSet);
+			if (!isSet)
+				symbol = false;
+
+			// Controls for extracting Bezier curve points; base distance between curve points along the line,
+			// max random distance added to the base and max number of subsequent points having equal distance
+
+			unsigned int baseStep = configValue<unsigned int>(group,confPath,"baseStep",globalScope,s_optional,&isSet);
+			if (!isSet)
+				baseStep = 10;
+			unsigned int maxRand = configValue<unsigned int>(group,confPath,"maxRand",globalScope,s_optional,&isSet);
+			if (!isSet)
+				maxRand = 4;
+			unsigned int maxRepeat = configValue<unsigned int>(group,confPath,"maxRepeat",globalScope,s_optional,&isSet);
+			if (!isSet)
+				maxRepeat = 3;
+
+			// Controls for decorating the Bezier curve; base curve distance (normal length) for the decorator points,
+			// max random distance added to the base, base offset for the decorator points and max random offset added to the base
+
+			int scaleHeightMin = configValue<int>(group,confPath,"scaleHeightMin",globalScope,s_optional,&isSet);
+			if (!isSet)
+				scaleHeightMin = 5;
+			int scaleHeightRandom = configValue<int>(group,confPath,"scaleHeightRandom",globalScope,s_optional,&isSet);
+			if (!isSet)
+				scaleHeightRandom = 3;
+			int controlMin = configValue<int>(group,confPath,"controlMin",globalScope,s_optional,&isSet);
+			if (!isSet)
+				controlMin = -2;
+			int controlRandom = configValue<int>(group,confPath,"controlRandom",globalScope,s_optional,&isSet);
+			if (!isSet)
+			   controlRandom = 4;
+
+			cloudGroups.push_back(CloudGroup(cloudTypes,label,placeHolder,combined,symbol,baseStep,maxRand,maxRepeat,scaleHeightMin,scaleHeightRandom,controlMin,controlRandom));
+		}
+
+		return;
 	}
-	catch(std::exception & ex) {
-		throw std::runtime_error(confPath + ": '" + pref + "': " + ex.what());
+	catch(libconfig::ConfigException & ex)
+	{
+		if(!config.exists(confPath))
+			// No settings for confPath
+			//
+			throw std::runtime_error("Settings for " + confPath + " are missing");
+
+		throw ex;
 	}
+
+	if (options.debug)
+		debugoutput << "Settings for "
+					<< confPath
+					<< " not found\n";
+
+	return;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Cloud layer rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::CloudLayers & cloudlayers)
+  {
+	// Get class and cloud groups from configuration
+
+	std::string classdef;
+	std::list<CloudGroup> cloudGroups;
+	std::list<CloudGroup>::const_iterator itcg;
+
+	cloudLayerConfig(classdef,cloudGroups);
+
+	// Document's time period and x -axis step (px)
+
+	const boost::posix_time::time_period & tp = axisManager->timePeriod();
+	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+
+	double xStep = axisManager->xStep();
+
+	// Loop thru the time instants
+	//
+	// The elevations (lo-hi ranges) are scanned/grouped in time instant order starting from
+	// topmost elevation grouping subsequent overlapping elevations taking cloud type into account
+	//
+	// The path points are collected into a vector (List in original java code)
+	// to be passed to Esa's bezier model
+
+	const std::list<woml::TimeSeriesSlot> & ts = cloudlayers.timeseries();
+
+	ElevGrp eGrp;
+	int nGroups = 0;
+
+	List<DirectPosition> curvePositions;
+	std::list<DirectPosition> curvePoints;
+	std::list<doubleArr> decoratorPoints;
+
+	do {
+		elevationGroup(ts,bt,et,eGrp,false,&cloudGroups,&itcg);
+
+		if (eGrp.size() == 0)
+			break;
+
+		nGroups++;
+
+		if (itcg->symbol()) {
+			continue;
+		}
+
+		// Loop thru the collected group and create path connecting hi range points
+		// and lo range points for subsequent overlapping elevations
+
+		ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
+		Phase phase;
+		double lopx = 0.0,plopx = 0.0;
+		double hipx = 0.0,phipx = 0.0;
+		bool single = true;
+
+		std::ostringstream path;
+		path << std::fixed << std::setprecision(1);
+
+		for (iteg = egbeg, phase = fst; (iteg != egend); ) {
+			// Get elevation's lo and hi range values
+			//
+			const woml::Elevation & e = iteg->Pv()->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+			plopx = lopx;
+			phipx = hipx;
+			lopx = axisManager->scaledElevation(lo);
+			hipx = axisManager->scaledElevation(hi);
+
+			// x -coord of this time instant
+
+			const boost::posix_time::ptime & vt = iteg->validTime();
+
+			double x = axisManager->xOffset(vt);
+
+#define STEPSS
+
+#ifdef STEPS
+std::string cs;
+if (iteg->topConnected()) cs = " top";
+if (iteg->bottomConnected()) cs += " bot";
+cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
+#endif
+
+			if (phase == fst) {
+				// First hi range point
+				//
+#ifdef STEPS
+printf("> fst hi=%.0f %s\n",hi,cs.c_str());
+#endif
+path << "M" << x << "," << hipx;
+				curvePositions.push_back(DirectPosition(x,hipx));
+				iteg->topConnected(true);
+
+				phase = fwd;
+			}
+			else if (phase == fwd) {
+				// Move forward connecting to next elevation's hi range point
+				//
+#ifdef STEPS
+printf("> fwd hi=%.0f %s\n",hi,cs.c_str());
+#endif
+path << " L" << x << "," << hipx;
+				curvePositions.push_back(DirectPosition(x,hipx));
+				iteg->topConnected(true);
+			}
+			else if (phase == vup) {
+				// Move up connecting to upper elevation's lo range point.
+				//
+				// Generate intermediate point half timestep forwards
+				//
+#ifdef STEPS
+printf("> vup lo=%.0f %s\n",lo,cs.c_str());
+#endif
+path << " L" << x << "," << lopx;
+				curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
+				curvePositions.push_back(DirectPosition(x,lopx));
+				iteg->bottomConnected(true);
+
+				phase = bwd;
+			}
+			else if (phase == vdn) {
+				// Move down connecting to lower elevation's hi range point
+				//
+				// Generate intermediate point half timestep backwards
+				//
+#ifdef STEPS
+printf("> vdn hi=%.0f %s\n",hi,cs.c_str());
+#endif
+path << " L" << x << "," << hipx;
+				curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
+				curvePositions.push_back(DirectPosition(x,hipx));
+				iteg->topConnected(true);
+
+				phase = fwd;
+			}
+			else if (phase == eup) {
+				// Move up connecting elevation's lo range point to hi range point
+				//
+//if (((vt == tp.begin()) || (vt == tp.end())) && (iteg != egbeg))
+//break;
+#ifdef STEPS
+printf("> eup hi=%.0f %s\n",hi,cs.c_str());
+#endif
+path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << hipx;
+				curvePositions.push_back(DirectPosition(x,hipx));
+
+				if (iteg->topConnected())
+					// Path is now closed
+					//
+					break;
+
+				iteg->topConnected(true);
+
+				phase = fwd;
+			}
+			else if (phase == edn) {
+				// Move down connecting elevation's hi range point to lo range point
+				//
+//if (((vt == tp.begin()) || (vt == tp.end())) && (iteg != egbeg))
+//break;
+#ifdef STEPS
+printf("> edn lo=%.0f %s\n",lo,cs.c_str());
+#endif
+path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << lopx;
+				curvePositions.push_back(DirectPosition(x,lopx));
+				iteg->bottomConnected(true);
+
+				phase = bwd;
+			}
+			else if (phase == bwd) {
+				// Move backward connecting to previous elevation's lo range point
+				//
+#ifdef STEPS
+printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
+#endif
+path << " L" << x << "," << lopx;
+				curvePositions.push_back(DirectPosition(x,lopx));
+				iteg->bottomConnected(true);
+			}
+			else {	// lst
+				if (single) {
+					// Bounding box for single elevation
+					//
+path.clear();
+path.str("");
+path << std::fixed << std::setprecision(1);
+
+x -= (xStep / 2);
+
+path << "M" << x << "," << hipx
+ << " L" << x + xStep << "," << hipx
+ << " L" << x + xStep << "," << lopx
+ << " L" << x << "," << lopx
+ << " L" << x << "," << hipx;
+
+					curvePositions.clear();
+
+					curvePositions.push_back(DirectPosition(x,hipx));
+					curvePositions.push_back(DirectPosition(x + xStep,hipx));
+					curvePositions.push_back(DirectPosition(x + xStep,lopx));
+					curvePositions.push_back(DirectPosition(x,lopx));
+					curvePositions.push_back(DirectPosition(x,hipx));
+
+					break;
+				}
+
+				// Close the path
+				//
+				phase = eup;
+
+				continue;
+			}
+
+			if (phase == fwd)
+				phase = uprightdown(eGrp,iteg,lo,hi);
+			else
+				phase = downleftup(eGrp,iteg,lo,hi);
+
+			if ((phase == fwd) || (phase == bwd)) {
+				// Path covers multiple time instants
+				//
+				single = false;
+			}
+		}	// for iteg
+
+		// Remove group's elevations from the collection
+
+		for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
+			if (iteg->topConnected() && iteg->bottomConnected())
+				iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+
+//texts[itcg->placeHolder()] << "<path class=\"" << classdef
+//						   << "\" id=\"" << "CloudLayers" << nGroups
+//						   << "\" d=\""
+//						   << path.str()
+//						   << "\"/>\n";
+
+		// Create bezier curve and get curve and decorator points
+
+		BezierModel bm(curvePositions,false);
+		bm.getSteppedCurvePoints(itcg->baseStep(),itcg->maxRand(),itcg->maxRepeat(),curvePoints);
+		bm.decorateCurve(curvePoints,itcg->scaleHeightMin(),itcg->scaleHeightRandom(),itcg->controlMin(),itcg->controlRandom(),decoratorPoints);
+
+		// Output the path
+
+		std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
+		std::list<doubleArr>::iterator itdp = decoratorPoints.begin();
+//printf("> Bez:\n");
+//for (itcp = cpbeg; (itcp != cpend); itcp++) {
+//printf("> Bez x=%.1f, y=%.1f\n",(*itcp)[0],(*itcp)[1]); }
+path.clear();
+path.str("");
+
+		for (itcp = cpbeg; (itcp != cpend); itcp++) {
+			if (itcp == cpbeg)
+				path << "M";
+			else {
+				path << " Q" << (*itdp)[0] << "," << (*itdp)[1];
+				itdp++;
+			}
+
+			path << " " << itcp->getX() << "," << itcp->getY();
+		}
+
+		texts[itcg->placeHolder()] << "<path class=\"" << classdef
+								   << "\" id=\"" << "CloudLayersBZ" << nGroups
+								   << "\" d=\""
+								   << path.str()
+								   << "\"/>\n";
+
+		curvePositions.clear();
+		curvePoints.clear();
+		decoratorPoints.clear();
+	}
+	while (eGrp.size() > 0);
+
+	return;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get group of elevations from a time serie.
+   *
+   * 		Returns true for "ground" group based on group's first elevation
+   */
+  // ----------------------------------------------------------------------
+
+  bool SvgRenderer::elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
+		  	  	  	  	  	  	   const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
+		  	  	  	  	  	  	   ElevGrp & eGrp,
+		  	  	  	  	  	  	   bool all,
+		  	  	  	  	  	  	   std::list<CloudGroup> * cloudGroups,
+								   std::list<CloudGroup>::const_iterator * itcg)
+  {
+	// Loop thru the time instants
+	//
+	// If 'all' is false the elevations (lo-hi ranges) are scanned/grouped in time instant order starting
+	// from topmost elevation grouping all subsequent overlapping "ground" (lo -range (near) 0) and "nonground"
+	// elevations. If 'cloudGroups' is nonnull, category (cloud type for CloudLayers) is taken into account.
+	// All elevations of the overlapping time instants are included into the group; the group may contain
+	// nonoverlapping elevations too
+	//
+	// If 'all' is true, returns all elevations
+
+	std::list<woml::TimeSeriesSlot>::const_iterator tsbeg = ts.begin();
+	std::list<woml::TimeSeriesSlot>::const_iterator tsend = ts.end();
+	std::list<woml::TimeSeriesSlot>::const_iterator itts;
+
+	bool byCategory = (cloudGroups != NULL);
+
+	bool ground = true; 			// Group type "ground" (true) or "nonground"; set based on group's first elevation
+	double tsLo = 0.0,tsHi = 0.0;	// Last lo and hi range value for "nonground" group
+	double loLim,hiLim;				// Last lo and hi range value for "nonground" group
+
+	eGrp.clear();
+
+	for (itts = tsbeg; (itts != tsend); itts++) {
+		// Skip time instants outside the given time range
+		//
+		const boost::posix_time::ptime & vt = itts->validTime();
+
+		if ((vt < bt) || (vt > et))
+			if (vt < bt)
+				continue;
+			else
+				break;
+
+		bool overlap = false;	// Set if time instant had elevation added to the group
+		loLim = tsLo;
+		hiLim = tsHi;
+
+		// Loop thru the parameter sets and their parameters
+
+		std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator pvsend = itts->values().end(),itpvs;
+
+		for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++) {
+			std::list<woml::GeophysicalParameterValue>::iterator pvend = itpvs->get()->editableValues().end(),itpv;
+
+			for (itpv = itpvs->get()->editableValues().begin(); (itpv != pvend); itpv++) {
+				const woml::Elevation & e = itpv->elevation();
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+
+				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+				double hi = 0.0;
+
+				if (!all) {
+					boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+					const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+					hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+					if (byCategory) {
+						// Take category (cloud type) into account
+						//
+						const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(itpv->value());
+
+						if (!cvm)
+							throw std::runtime_error("elevationGroup: CategoryValueMeasure values expected");
+
+						if (eGrp.size() == 0) {
+							const std::string & category = cvm->category();
+							*itcg = std::find_if(cloudGroups->begin(),cloudGroups->end(),std::bind2nd(CloudType(),category));
+
+							if (*itcg == cloudGroups->end()) {
+								if (options.debug)
+									debugoutput << "Settings for "
+											    << category
+											    << " not found\n";
+
+								continue;
+							}
+						}
+						else if (std::find_if(cloudGroups->begin(),cloudGroups->end(),std::bind2nd(CloudType(),cvm->category())) != *itcg)
+							continue;
+					}
+
+					if ((eGrp.size() == 0) || ((lo <= hiLim) && (hi >= loLim))) {
+						if (! overlap) {
+							tsLo = lo;
+							tsHi = hi;
+
+							overlap = true;
+						}
+						else {
+							if (lo < tsLo) tsLo = lo;
+							if (hi > tsHi) tsHi = hi;
+						}
+					}
+				}
+
+				if (eGrp.size() == 0)
+					ground = (lo < axisManager->nonZeroElevation());
+
+				eGrp.push_back(ElevationGroupItem(vt,itpvs,itpv));
+
+				if (byCategory && (*itcg)->standalone())
+					return ground;
+			}	// for itpv
+		}	// for itpvs
+
+		// Continue to next time instant if getting all elevations or the group is empty
+		// or this time instant had elevation included into the group
+
+		if ((!all) && (eGrp.size() > 0) && (!overlap))
+			return ground;
+	}	// for itts
+
+	return ground;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Contrails rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::Contrails & contrails)
+  {
+	const std::string confPath("Contrails");
+
+	try {
+		const char * typemsg = " must contain a group in curly brackets";
+
+		// Document's time period
+
+		const boost::posix_time::time_period & tp = axisManager->timePeriod();
+		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+
+		// Get the elevations from the time serie
+
+		ElevGrp eGrp;
+
+		elevationGroup(contrails.timeseries(),bt,et,eGrp,true);
+
+		if (eGrp.size() == 0)
+			return;
+
+		// Class
+
+		const libconfig::Setting & specs = config.lookup(confPath);
+		if(!specs.isGroup())
+			throw std::runtime_error(confPath + typemsg);
+
+		std::string classdef = configValue<std::string>(specs,confPath,"class");
+
+		// Loop thru the elevations connecting the hi range points and the lo range points
+
+		ElevGrp::const_iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
+		std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
+
+		std::ostringstream loPath;
+		std::ostringstream hiPath;
+		loPath << std::fixed << std::setprecision(1);
+		hiPath << std::fixed << std::setprecision(1);
+
+		for (iteg = egbeg; (iteg != egend); iteg++) {
+			// Get elevation's lo and hi range values
+			//
+			const woml::Elevation & e = iteg->Pv()->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+			double lopx = axisManager->scaledElevation(lo);
+			double hipx = axisManager->scaledElevation(hi);
+
+			// x -coord of this time instant
+
+			double x = axisManager->xOffset(iteg->validTime());
+
+			loPath << ((iteg == egbeg) ? "M" : " L") << x << "," << lopx;
+			hiPath << ((iteg == egbeg) ? "M" : " L") << x << "," << hipx;
+		}
+
+		texts[CONTRAILS] << "<path class=\"" << classdef
+						 << "\" id=\"" << "ContrailsLo"
+						 << "\" d=\""
+						 << loPath.str()
+						 << "\"/>\n";
+
+		texts[CONTRAILS] << "<path class=\"" << classdef
+						 << "\" id=\"" << "ContrailsHi"
+						 << "\" d=\""
+						 << hiPath.str()
+						 << "\"/>\n";
+
+		return;
+	}
+	catch(libconfig::ConfigException & ex)
+	{
+		if(!config.exists(confPath))
+			// No settings for confPath
+			//
+			throw std::runtime_error("Settings for " + confPath + " are missing");
+
+		throw ex;
+	}
+
+	if (options.debug)
+		debugoutput << "Settings for "
+					<< confPath
+					<< " not found\n";
+
+	return;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Icing rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::Icing & icing)
+  {
+	render_aerodromeSymbols<woml::Icing>(icing,"Icing");
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Migratory birds rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::MigratoryBirds & migratorybirds)
+  {
+	render_aerodromeSymbols<woml::MigratoryBirds>(migratorybirds,"MigratoryBirds");
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Surface visibility rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::SurfaceVisibility & surfacevisibility)
+  {
+  	render_aerodromeSymbols<woml::SurfaceVisibility>(surfacevisibility,"SurfaceVisibility");
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Surface weather rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::SurfaceWeather & surfaceweather)
+  {
+	render_aerodromeSymbols<woml::SurfaceWeather>(surfaceweather,"SurfaceWeather");
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Wind rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::Winds & winds)
+  {
+	const std::string confPath("Wind");
+
+	try {
+		const char * typemsg = " must contain a group in curly brackets";
+		const char * valtypemsg = "render_winds: FlowDirectionMeasure values expected";
+		const char * directionmsg = "render_winds: wind speed: '";
+
+		std::string WINDBASE("WINDBASE");
+		std::string WINDBASEHOUR("WINDBASEHOUR");
+		std::string WINDEXTRA("WINDEXTRA");
+
+		const libconfig::Setting & specs = config.lookup(confPath);
+		if(!specs.isGroup())
+			throw std::runtime_error(confPath + typemsg);
+
+		// configValue()/lookup() logic:
+		//
+		// If s_required (default) setting is not found, std::runtime_error is thrown (not catched here).
+		//
+		// If s_optional setting is not found, unset (default constructor) value is returned and
+		// 'isSet' flag (if available) is set to false.
+		//
+		// If specific (s_base + n) setting is not found, SettingIdNotFoundException is thrown.
+
+		// Symbol background
+
+		std::string href = configValue<std::string>(specs,confPath,"href",NULL,s_optional);
+
+		// Loop thru the (ascending) time serie
+
+		int nSymbols = 0;
+
+		const boost::posix_time::time_period & tp = axisManager->timePeriod();
+
+		std::list<woml::TimeSeriesSlot>::const_iterator tsbeg = winds.timeseries().begin();
+		std::list<woml::TimeSeriesSlot>::const_iterator tsend = winds.timeseries().end();
+		std::list<woml::TimeSeriesSlot>::const_iterator fstts = tsend,itts;
+
+		for (itts = tsbeg; (itts != tsend); itts++, nSymbols = 0) {
+			// Skip time instants outside the document's time period.
+			//
+			const boost::posix_time::ptime & vt = itts->validTime();
+
+			if ((vt < tp.begin()) || (vt > tp.end()))
+				if (vt < tp.begin())
+					continue;
+				else
+					break;
+
+			// Loop thru the parameter sets
+
+			std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator pvsend = itts->values().end(),itpvs;
+
+			for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++) {
+				// Loop thru the parameters
+				//
+				std::list<woml::GeophysicalParameterValue>::const_iterator pvend = itpvs->get()->values().end(),itpv;
+
+				for (itpv = itpvs->get()->values().begin(); (itpv != pvend); itpv++) {
+					// Search for matching condition for the wind speed with nearest comparison value.
+					//
+					// Take missing config values from the main block
+
+					const woml::FlowDirectionMeasure * fdm = dynamic_cast<const woml::FlowDirectionMeasure *>(itpv->value());
+
+					if (!fdm)
+						throw std::runtime_error(valtypemsg);
+
+					// DirectionVector: space separated wind speed and direction
+
+					double ws,wd;
+					std::vector<std::string> cols;
+					boost::split(cols,fdm->directionVector(),boost::is_any_of(" "));
+
+					if (cols.size() != 2)
+						throw std::runtime_error(directionmsg);
+					else try {
+						ws = boost::lexical_cast<double>(cols[0]);
+						wd = boost::lexical_cast<double>(cols[1]);
+					}
+					catch(std::exception & ex) {
+						throw std::runtime_error(std::string(directionmsg) + fdm->directionVector() + "': " + ex.what());
+					}
+
+					const libconfig::Setting * condspecs = matchingCondition(config,confPath,confPath,"",-1,ws);
+
+					if (condspecs) {
+						// Symbol library and symbol's name, class and scale
+						//
+						std::string uri = configValue<std::string>(*condspecs,confPath,"url",&specs);
+						std::string symbol = configValue<std::string>(*condspecs,confPath,"symbol",&specs);
+						std::string classdef = configValue<std::string>(*condspecs,confPath,"class",&specs);
+
+						bool isSet;
+						double scale = configValue<double,int>(*condspecs,confPath,"scale",&specs,s_optional,&isSet);
+						if (!isSet)
+							scale = 1.0;
+
+						const woml::Elevation & e = itpv->elevation();
+						boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLower = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+						const boost::optional<woml::NumericalSingleValueMeasure> & itsLowerLimit = (e.bounded() ? itsBoundedLower : e.value());
+
+						if (fstts == tsend)
+							fstts = itts;
+
+						// Get scaled elevation
+						//
+						double y = axisManager->scaledElevation(itsLowerLimit->numericValue());
+
+						if (itts == fstts) {
+							// Backgroud reference
+							//
+							if ((nSymbols == 0) && (!href.empty()))
+								texts[WINDBASE] << "<use transform=\"translate(0,0)\" xlink:href=\""
+												<< href
+												<< "\"/>\n";
+
+							// Wind symbol
+							//
+							texts[WINDBASE] << "<g transform=\"translate(0,"
+											<< std::fixed << std::setprecision(1) << y
+											<< ") scale("
+											<< std::fixed << std::setprecision(1) << scale
+											<< ")\" class=\""
+											<< classdef
+											<< "\">\n"
+											<< "<use transform=\"rotate("
+											<< std::fixed << std::setprecision(1) << wd
+											<< ")\" xlink:href=\""
+											<< svgescape(uri + "#" + symbol)
+											<< "\"/>\n</g>\n";
+
+							nSymbols++;
+						}
+						else {
+							double xpos = axisManager->xOffset(vt);
+
+							if (xpos > 0) {
+								if ((nSymbols == 0) && (!href.empty()))
+									texts[WINDEXTRA] << "<use transform=\"translate("
+													 << std::fixed << std::setprecision(1) << xpos
+													 << ",0)\" xlink:href=\""
+													 << href
+													 << "\"/>\n";
+
+								texts[WINDEXTRA] << "<g transform=\"translate("
+												 << std::fixed << std::setprecision(1) << xpos
+												 << ","
+												 << std::fixed << std::setprecision(1) << y
+												 << ") scale("
+												 << std::fixed << std::setprecision(1) << scale
+												 << ")\" class=\""
+												 << classdef
+												 << "\">\n"
+												 << "<use transform=\"rotate("
+												 << std::fixed << std::setprecision(1) << wd
+												 << ")\" xlink:href=\""
+												 << svgescape(uri + "#" + symbol)
+												 << "\"/>\n</g>\n";
+
+								nSymbols++;
+							}
+						}
+					}
+				}  // for parameters
+			}  // for parametervalueset
+		}  // for timeserie
+
+		// Time (hour) of earliest rendered wind values
+
+		if (fstts != tsend)
+			texts[WINDBASEHOUR] << toFormattedString(fstts->validTime(),"HH",axisManager->utc()).CharPtr();
+
+		return;
+	}
+  	catch(libconfig::ConfigException & ex)
+	{
+		if(!config.exists(confPath))
+			// No settings for confPath
+			//
+			throw std::runtime_error("Settings for " + confPath + " are missing");
+
+		throw ex;
+	}
+
+	if (options.debug)
+		debugoutput << "Settings for "
+					<< confPath
+					<< " not found\n";
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Zero tolerance group preprocessing
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::checkZeroToleranceGroup(ElevGrp & eGrpIn,ElevGrp & eGrpOut)
+  {
+	// Check for overlapping elevations within time instants; inner elevation (below zero temp) splits
+	// outer (above zero temp) elevation into 2 pieces.
+	//
+	// If time instant does not have elevation with lo range (near) 0, generate elevation
+	// below 0 forcing the curve path to go to the ground
+
+	ElevGrp::iterator egbeg = eGrpIn.begin(),egend = eGrpIn.end(),iteg,piteg;
+	double plo = 0.0,phi = 0.0;
+
+	eGrpOut.clear();
+
+	for (iteg = piteg = egbeg; (iteg != egend); iteg++) {
+		// Get elevation's lo and hi range values
+		//
+		const woml::Elevation & e = iteg->Pv()->elevation();
+		boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+		const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+		boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+		const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+		double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+		double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+		if (iteg != egbeg)
+			if (iteg->validTime() == piteg->validTime()) {
+				if ((lo < phi) && (hi > plo))
+					if ((lo > plo) && (hi < phi)) {
+						// Cut the outer elevation into 2 pieces; the upper part is stored into the outer
+						// and the lower part into the inner elevaton
+						//
+						boost::optional<woml::NumericalValueRangeMeasure> hiR(woml::NumericalValueRangeMeasure(
+							woml::NumericalSingleValueMeasure(hi,"",""),
+							woml::NumericalSingleValueMeasure(phi,"","")
+						));
+						boost::optional<woml::NumericalValueRangeMeasure> loR(woml::NumericalValueRangeMeasure(
+							woml::NumericalSingleValueMeasure(plo,"",""),
+							woml::NumericalSingleValueMeasure(lo,"","")
+						));
+
+						woml::Elevation hiE(hiR);
+						woml::Elevation loE(loR);
+						boost::optional<woml::Elevation> eHi(hiE);
+						boost::optional<woml::Elevation> eLo(loE);
+
+						eGrpOut.back().elevation(eHi);
+						eGrpOut.push_back(*iteg);
+						eGrpOut.back().elevation(eLo);
+
+						continue;
+					}
+					else {
+						// Elevations partially overlap; forget them
+						//
+						eGrpOut.pop_back();
+						continue;
+					}
+			}
+			else if (plo >= axisManager->nonZeroElevation()) {
+				// Generate elevation below 0 forcing the curve path to go to the ground
+				//
+				eGrpOut.push_back(*piteg);
+
+				boost::optional<woml::NumericalValueRangeMeasure> gR(woml::NumericalValueRangeMeasure(
+					woml::NumericalSingleValueMeasure(-100,"",""),
+					woml::NumericalSingleValueMeasure(0,"","")
+				));
+
+				woml::Elevation gE(gR);
+				boost::optional<woml::Elevation> eG(gE);
+
+				eGrpOut.back().elevation(eG);
+			}
+
+		eGrpOut.push_back(*iteg);
+
+		piteg = iteg;
+		plo = lo;
+		phi = hi;
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Zero tolerance rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::ZeroTolerance & zerotolerance)
+  {
+	const std::string confPath("ZeroTolerance");
+
+	try {
+		const char * typemsg = " must contain a group in curly brackets";
+
+		std::string ZEROTOLERANCE(boost::algorithm::to_upper_copy(confPath));
+
+		// Class
+
+		const libconfig::Setting & specs = config.lookup(confPath);
+		if(!specs.isGroup())
+			throw std::runtime_error(confPath + typemsg);
+
+		std::string classdef = configValue<std::string>(specs,confPath,"class");
+
+		// Document's time period and x -axis step (px)
+
+		const boost::posix_time::time_period & tp = axisManager->timePeriod();
+		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+
+		double xStep = axisManager->xStep();
+
+		// Loop thru the time instants
+		//
+		// The elevations (lo-hi ranges) are scanned/grouped in time instant order starting from
+		// topmost elevation grouping subsequent overlapping elevations
+
+		const std::list<woml::TimeSeriesSlot> & ts = zerotolerance.timeseries();
+
+		ElevGrp eGrp0,eGrp;
+		int nGroups = 0;
+
+		List<DirectPosition> curvePositions;
+		std::list<DirectPosition> curvePoints;
+
+		do {
+			elevationGroup(ts,bt,et,eGrp0);
+
+			if (eGrp0.size() == 0)
+				break;
+
+			nGroups++;
+
+			// Check for overlapping elevations within time instants; inner elevation (below zero temp) splits
+			// outer (above zero temp) elevation into 2 pieces.
+			//
+			// If time instant does not have elevation with lo range (near) 0, generate elevation
+			// below 0 forcing the curve path to go to the ground
+
+{
+printf("> \n> eG0 size=%d\n",(int) eGrp0.size());
+ElevGrp::iterator egbeg = eGrp0.begin(),egend = eGrp0.end(),iteg;
+for (iteg = egbeg; (iteg != egend); iteg++) {
+const woml::Elevation & e = iteg->elevation();
+boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+const boost::posix_time::ptime & vt = iteg->validTime();
+
+printf("> %s lo=%.0f hi=%.0f\n",to_iso_string(vt).c_str(),lo,hi);
+}
+}
+			checkZeroToleranceGroup(eGrp0,eGrp);
+{
+printf("> \n> eG0 size=%d\n",(int) eGrp0.size());
+ElevGrp::iterator egbeg = eGrp0.begin(),egend = eGrp0.end(),iteg;
+for (iteg = egbeg; (iteg != egend); iteg++) {
+const woml::Elevation & e = iteg->elevation();
+boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+const boost::posix_time::ptime & vt = iteg->validTime();
+
+printf("> %s lo=%.0f hi=%.0f\n",to_iso_string(vt).c_str(),lo,hi);
+}
+}
+{
+printf("> \n> eG  size=%d\n",(int) eGrp.size());
+ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
+for (iteg = egbeg; (iteg != egend); iteg++) {
+const woml::Elevation & e = iteg->elevation();
+boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+const boost::posix_time::ptime & vt = iteg->validTime();
+
+printf("> %s lo=%.0f hi=%.0f\n",to_iso_string(vt).c_str(),lo,hi);
+}
+}
+
+			// Loop thru the collected group and create path connecting hi range points
+			// and lo range points for subsequent overlapping elevations
+
+			ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
+			Phase phase;
+			double lopx = 0.0,plopx = 0.0;
+			double hipx = 0.0,phipx = 0.0;
+			bool single = true;
+
+			std::ostringstream path;
+			path << std::fixed << std::setprecision(1);
+
+			for (iteg = egbeg, phase = fst; (iteg != egend); ) {
+				// Get elevation's lo and hi range values
+				//
+//				const woml::Elevation & e = iteg->Pv()->elevation();
+				const woml::Elevation & e = iteg->elevation();
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+				double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+				plopx = lopx;
+				phipx = hipx;
+				lopx = axisManager->scaledElevation(lo);
+				hipx = axisManager->scaledElevation(hi);
+
+				// x -coord of this time instant
+
+				const boost::posix_time::ptime & vt = iteg->validTime();
+
+				double x = axisManager->xOffset(vt);
+
+#define STEPS
+
+#ifdef STEPS
+std::string cs;
+if (iteg->topConnected()) cs = " top";
+if (iteg->bottomConnected()) cs += " bot";
+cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
+#endif
+
+				if (phase == fst) {
+					// First hi range point
+					//
+#ifdef STEPS
+printf("> fst hi=%.0f %s\n",hi,cs.c_str());
+#endif
+path << "M" << x << "," << hipx;
+					curvePositions.push_back(DirectPosition(x,hipx));
+					iteg->topConnected(true);
+
+					phase = fwd;
+				}
+				else if (phase == fwd) {
+					// Move forward connecting to next elevation's hi range point
+					//
+#ifdef STEPS
+printf("> fwd hi=%.0f %s\n",hi,cs.c_str());
+#endif
+path << " L" << x << "," << hipx;
+					curvePositions.push_back(DirectPosition(x,hipx));
+					iteg->topConnected(true);
+				}
+				else if (phase == vup) {
+					// Move up connecting to upper elevation's lo range point.
+					//
+					// Generate intermediate point half timestep forwards
+					//
+#ifdef STEPS
+printf("> vup lo=%.0f %s\n",lo,cs.c_str());
+#endif
+path << " L" << x << "," << lopx;
+					curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
+					curvePositions.push_back(DirectPosition(x,lopx));
+					iteg->bottomConnected(true);
+
+					phase = bwd;
+				}
+				else if (phase == vdn) {
+					// Move down connecting to lower elevation's hi range point
+					//
+					// Generate intermediate point half timestep backwards
+					//
+#ifdef STEPS
+printf("> vdn hi=%.0f %s\n",hi,cs.c_str());
+#endif
+path << " L" << x << "," << hipx;
+					curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
+					curvePositions.push_back(DirectPosition(x,hipx));
+					iteg->topConnected(true);
+
+					phase = fwd;
+				}
+				else if (phase == eup) {
+					// Move up connecting elevation's lo range point to hi range point
+					//
+//if (((vt == tp.begin()) || (vt == tp.end())) && (iteg != egbeg))
+//break;
+#ifdef STEPS
+printf("> eup hi=%.0f %s\n",hi,cs.c_str());
+#endif
+//path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << hipx;
+path << " L" << x << "," << hipx;
+					curvePositions.push_back(DirectPosition(x,hipx));
+
+					if (iteg->topConnected())
+						// Path is now closed
+						//
+						break;
+
+					iteg->topConnected(true);
+
+					phase = fwd;
+				}
+				else if (phase == edn) {
+					// Move down connecting elevation's hi range point to lo range point
+					//
+//if (((vt == tp.begin()) || (vt == tp.end())) && (iteg != egbeg))
+//break;
+#ifdef STEPS
+printf("> edn lo=%.0f %s\n",lo,cs.c_str());
+#endif
+//path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << lopx;
+path << " L" << x << "," << lopx;
+					curvePositions.push_back(DirectPosition(x,lopx));
+					iteg->bottomConnected(true);
+
+					phase = bwd;
+				}
+				else if (phase == bwd) {
+					// Move backward connecting to previous elevation's lo range point
+					//
+#ifdef STEPS
+printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
+#endif
+path << " L" << x << "," << lopx;
+					curvePositions.push_back(DirectPosition(x,lopx));
+					iteg->bottomConnected(true);
+				}
+				else {	// lst
+					if (single) {
+						// Bounding box for single elevation
+						//
+path.clear();
+path.str("");
+path << std::fixed << std::setprecision(1);
+x -= (xStep / 2);
+path << "M" << x << "," << hipx
+	 << " L" << x + xStep << "," << hipx
+	 << " L" << x + xStep << "," << lopx
+	 << " L" << x << "," << lopx
+	 << " L" << x << "," << hipx;
+						curvePositions.clear();
+
+						curvePositions.push_back(DirectPosition(x,hipx));
+						curvePositions.push_back(DirectPosition(x + xStep,hipx));
+						curvePositions.push_back(DirectPosition(x + xStep,lopx));
+						curvePositions.push_back(DirectPosition(x,lopx));
+						curvePositions.push_back(DirectPosition(x,hipx));
+
+						break;
+					}
+
+					// Close the path
+					//
+					phase = eup;
+
+					continue;
+				}
+
+				if (phase == fwd)
+					phase = uprightdown(eGrp,iteg,lo,hi);
+				else
+					phase = downleftup(eGrp,iteg,lo,hi);
+
+				if ((phase == fwd) || (phase == bwd)) {
+					// Path covers multiple time instants
+					//
+					single = false;
+				}
+			}	// for iteg
+
+			// Remove group's elevations from the collection
+
+//			for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
+//				if (iteg->topConnected() && iteg->bottomConnected())
+//					iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+
+texts[ZEROTOLERANCE] << "<path class=\"" << classdef
+					 << "\" id=\"" << "ZeroTolerance" << nGroups
+					 << "\" d=\""
+					 << path.str()
+					 << "\"/>\n";
+
+			// Create bezier curve and get curve points
+
+			BezierModel bm(curvePositions,false);
+			bm.getSteppedCurvePoints(10,0,0,curvePoints);
+
+			// Output the path
+
+			std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
+//printf("> Bez:\n");
+//for (itcp = cpbeg; (itcp != cpend); itcp++) {
+//printf("> Bez x=%.1f, y=%.1f\n",(*itcp)[0],(*itcp)[1]); }
+path.clear();
+path.str("");
+
+			for (itcp = cpbeg; (itcp != cpend); itcp++)
+				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY();
+
+//			texts[ZEROTOLERANCE] << "<path class=\"" << classdef
+//								 << "\" id=\"" << "ZeroTolerance" << nGroups
+//								 << "\" d=\""
+//								 << path.str()
+//								 << "\"/>\n";
+
+			curvePositions.clear();
+			curvePoints.clear();
+break;
+		}
+		while (eGrp0.size() > 0);
+
+		return;
+	}
+  	catch(libconfig::ConfigException & ex)
+	{
+		if(!config.exists(confPath))
+			// No settings for confPath
+			//
+			throw std::runtime_error("Settings for " + confPath + " are missing");
+
+		throw ex;
+	}
+
+	if (options.debug)
+		debugoutput << "Settings for "
+					<< confPath
+					<< " not found\n";
+
+	return;
   }
 
   // ----------------------------------------------------------------------
@@ -1766,7 +3820,7 @@ namespace frontier
 					std::string type = configValue<std::string>(specs,valClass,"type",globalScope,s_optional);
 
 					if (type.empty() || (type == "value")) {
-						// Class, format and reference for "background" class
+						// Class, format and reference for background class
 						//
 						std::string vtype(upperLimit ? "Range" : "");
 
@@ -1848,13 +3902,12 @@ namespace frontier
 	catch (libconfig::SettingNotFoundException & ex) {
 		// No settings for confPath
 		//
-		if (options.debug) {
+		if (options.debug)
 			debugoutput << "Settings for "
 						<< confPath
 						<< " ("
 						<< valClass
 						<< ") not found\n";
-		}
 	}
   }
 
@@ -1875,6 +3928,7 @@ SvgRenderer::SvgRenderer(const Options & theOptions,
   , svgbase(theTemplate)
   , area(theArea)
   , validtime(theValidTime)
+  , initAerodrome(true)
   , debugoutput(theDebugOutput ? *theDebugOutput : _debugoutput)
   , ncloudareas(0)
   , ncoldfronts(0)
@@ -1936,7 +3990,7 @@ std::string SvgRenderer::svg() const
   replace_all(ret,"--POINTVALUES--"       ,pointvalues.str());;
 
   if (options.debug) {
-	  replace_all(ret,"--DEBUGOUTPUT--"       ,"<![CDATA[\n" + debugoutput.str() + "]]>\n");
+	  replace_all(ret,"--DEBUGOUTPUT--","<![CDATA[\n" + debugoutput.str() + "]]>\n");
 	  std::cerr << debugoutput.str();
   }
 
@@ -1952,11 +4006,285 @@ std::string SvgRenderer::svg() const
   for(Texts::const_iterator it=texts.begin(); it!=texts.end(); ++it)
 	replace_all(ret,"--" + it->first + "--", it->second->str());
 
-  return ret;
+  // Clear all remaining placeholders
+
+  boost::regex pl("--[[:upper:]*[:lower:]*[:digit:]]*--");
+
+  return boost::regex_replace(ret,pl,"");
 
 }
 
-void SvgRenderer::visit(const woml::TimeGeophysicalParameterValueSet & theFeature) { };
+// ----------------------------------------------------------------------
+/*!
+ * \brief Elevation
+ */
+// ----------------------------------------------------------------------
+
+Elevation::Elevation(double theElevation,double theScale,int theScaledElevation,const std::string & theLLabel,const std::string & theRLabel)
+: itsElevation(theElevation)
+, itsScale(theScale)
+, itsScaledElevation(theScaledElevation)
+, itsLLabel(theLLabel)
+, itsRLabel(theRLabel)
+, itsFactor(0.0)
+{ }
+
+Elevation::Elevation(double theElevation)
+: itsElevation(theElevation)
+, itsScale(0.0)
+, itsScaledElevation(0)
+, itsLLabel("")
+, itsRLabel("")
+, itsFactor(0.0)
+{ }
+
+bool Elevation::operator < (const Elevation & theOther) const
+{
+	return itsElevation < theOther.elevation();
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief AxisManager
+ */
+// ----------------------------------------------------------------------
+
+AxisManager::AxisManager(const libconfig::Config & config)
+  : itsAxisHeight(0)
+  , itsMinElevation(0.0)
+  , itsMaxElevation(0.0)
+  , itsAxisWidth(0)
+  , itsUtc(false)
+  , itsTimePeriod(boost::posix_time::ptime(boost::posix_time::not_a_date_time),boost::posix_time::ptime(boost::posix_time::not_a_date_time))
+  , itsElevations()
+{
+	std::string confPath("ElevationAxis");
+
+	try {
+		const char * groupmsg = " must contain a group in curly brackets";
+		const char * listmsg = " must contain a list of groups in parenthesis";
+		const std::string valuemsg(": value between 0.0 and 1.0 expected");
+		const char * scalemsg = ": scale must be rising for rising elevation";
+
+		// configValue()/lookup() logic:
+		//
+		// If s_required (default) setting is not found, std::runtime_error is thrown (not catched here).
+		//
+		// If s_optional setting is not found, unset (default constructor) value is returned and
+		// 'isSet' flag (if available) is set to false.
+		//
+		// If specific (s_base + n) setting is not found, SettingIdNotFoundException is thrown
+
+		// Y -axis height (px)
+
+		const libconfig::Setting & elevAxisSpecs = config.lookup(confPath);
+		if(!elevAxisSpecs.isGroup())
+			throw std::runtime_error(confPath + groupmsg);
+
+		itsAxisHeight = configValue<int>(elevAxisSpecs,confPath,"height");
+
+		// Y -axis labels and their elevation (meters) and relative position [0,1] on y -axis.
+		// The listed elevations are used for y -coord linear interpolation when rendering
+
+		confPath += ".elevations";
+
+		const libconfig::Setting & elevspecs = config.lookup(confPath);
+		if((!elevspecs.isList()) || (elevspecs.getLength() < 1))
+			throw std::runtime_error(confPath + listmsg);
+
+		for(int i=0; i<elevspecs.getLength(); ++i)
+		{
+			const libconfig::Setting & specs = elevspecs[i];
+			if(!specs.isGroup())
+				throw std::runtime_error(confPath + listmsg);
+
+			double elevation = configValue<double,int>(specs,confPath,"elevation");					// Meters
+			double scale = configValue<double,int>(specs,confPath,"scale");							// [0,1]
+			std::string lLabel = configValue<std::string>(specs,confPath,"llabel",NULL,s_optional);	// Left side label
+			std::string rLabel = configValue<std::string>(specs,confPath,"rlabel",NULL,s_optional);	// Right side label
+
+			if ((scale < 0.0) || (scale > 1.0))
+				throw std::runtime_error(confPath + ": " + boost::lexical_cast<std::string>(boost::format("%.3f") % scale) + valuemsg);
+
+			boost::algorithm::trim(lLabel);
+			boost::algorithm::trim(rLabel);
+
+			if (i) {
+				if (elevation < itsMinElevation)
+					itsMinElevation = elevation;
+				else if (elevation > itsMaxElevation)
+					itsMaxElevation = elevation;
+			}
+			else
+				itsMinElevation = itsMaxElevation = elevation;
+
+			itsElevations.push_back(Elevation(elevation,scale,(int) (itsAxisHeight * scale),lLabel,rLabel));
+		}
+
+		// Add elevation 0.0 and sort the elevations.
+		// Check the elevations have rising scale
+		// Precalculate factors for linear interapolation
+
+		itsElevations.sort();
+
+		std::list<Elevation>::iterator it = itsElevations.begin();
+		if (it->elevation() > 0.0) {
+			itsMinElevation = 0.0;
+			itsElevations.push_front(Elevation(itsMinElevation));
+		}
+
+		std::list<Elevation>::iterator it2 = it = itsElevations.begin();
+
+		for (it++; (it != itsElevations.end()); it++, it2++)
+			if (it2->scale() >= it->scale())
+				throw std::runtime_error(confPath + ": " + boost::lexical_cast<std::string>(boost::format("%.3f") % it->scale()) + scalemsg);
+			else
+				it2->factor((it->scale() - it2->scale()) / (it->elevation() - it2->elevation()));
+  	}
+  	catch(libconfig::ConfigException & ex)
+  	{
+		if(!config.exists(confPath))
+	  		// No settings for confPath
+	  		//
+		    throw std::runtime_error("Settings for " + confPath + " are missing");
+
+	    throw ex;
+  	}
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Elevation value scaling
+ */
+// ----------------------------------------------------------------------
+
+double AxisManager::scaledElevation(double elevation)
+{
+	// Find lo/hi limits for linear interpolation
+	//
+	// svg y -axis grows downwards; use axis height to transfrom the y -coordinates
+
+	if (elevation <= itsMinElevation)
+		return itsAxisHeight;
+	else if (elevation >= itsMaxElevation)
+		return 0;
+
+	std::list<Elevation>::iterator ith = lower_bound(itsElevations.begin(),itsElevations.end(),Elevation(elevation));
+	if (ith == itsElevations.end())
+		// Never
+		return 0;
+
+	if (ith->elevation() > elevation) {
+		std::list<Elevation>::iterator itl = ith;
+		itl--;
+
+		return itsAxisHeight - (itsAxisHeight * (itl->scale() + ((elevation - itl->elevation()) * itl->factor())));
+	}
+
+	return itsAxisHeight - (itsAxisHeight * ith->scale());
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief X -axis offset
+ */
+// ----------------------------------------------------------------------
+
+double AxisManager::xOffset(const boost::posix_time::ptime & validTime) const
+{
+	if (validTime < itsTimePeriod.begin())
+		return 0.0;
+	else if (validTime > itsTimePeriod.end())
+		return itsAxisWidth;
+
+	return (((double) (validTime - itsTimePeriod.begin()).total_seconds()) / itsTimePeriod.length().total_seconds()) * itsAxisWidth;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief X -axis step
+ */
+// ----------------------------------------------------------------------
+
+double AxisManager::xStep() const
+{
+	int nH = (itsTimePeriod.end() - itsTimePeriod.begin()).hours();
+
+	return ((nH > 0) ? (itsAxisWidth / nH) : 0);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief ElevationGroupItem
+ */
+// ----------------------------------------------------------------------
+
+ElevationGroupItem::ElevationGroupItem(boost::posix_time::ptime theValidTime,
+									   const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator & thePvs,
+									   const std::list<woml::GeophysicalParameterValue>::iterator & thePv)
+: itsValidTime(theValidTime)
+, itsPvs(thePvs)
+, itsPv(thePv)
+, itsTopConnected(false)
+, itsBottomConnected(false)
+, itsLeftOpen(true)
+, itsBottomConnection()
+, itsElevation()
+{ }
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief CloudGroup
+ */
+// ----------------------------------------------------------------------
+
+CloudGroup::CloudGroup(const std::string & theCloudTypes,
+					   const std::string & theLabel,
+					   const std::string & thePlaceHolder,
+					   bool combined,
+					   bool symbol,
+					   unsigned int theBaseStep,
+					   unsigned int theMaxRand,
+					   unsigned int theMaxRepeat,
+					   int theScaleHeightMin,
+					   int theScaleHeightRandom,
+					   int theControlMin,
+					   int theControlRandom)
+{
+  itsStandalone = ((!(theCloudTypes.find(" ") != std::string::npos)) && (!combined));
+  itsSymbol = (symbol && itsStandalone);
+  itsCloudTypes = (itsStandalone ? theCloudTypes : (" " + theCloudTypes + " "));
+  itsLabel = (theLabel.empty() ? itsCloudTypes : theLabel);
+  itsPlaceHolder = thePlaceHolder;
+
+  itsBaseStep = theBaseStep;
+  itsMaxRand = theMaxRand;
+  itsMaxRepeat = theMaxRepeat;
+
+  itsScaleHeightMin = theScaleHeightMin;
+  itsScaleHeightRandom = theScaleHeightRandom;
+  itsControlMin = theControlMin;
+  itsControlRandom = theControlRandom;
+
+}
+
+bool CloudGroup::contains(const std::string & theCloudType) const
+{
+  if (itsStandalone)
+	  return (itsCloudTypes == theCloudType);
+
+  return (itsCloudTypes.find(" " + theCloudType + " ") != std::string::npos);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief CloudType
+ */
+// ----------------------------------------------------------------------
+
+bool CloudType::operator ()(const CloudGroup & cloudGroup, const std::string & cloudType) const {
+  return cloudGroup.contains(cloudType);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -1980,6 +4308,19 @@ SvgRenderer::visit(const woml::CloudArea & theFeature)
   path.transform(proj);
 
   render_surface(path,cloudareas,id,theFeature.cloudTypeName());
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render cloud layers
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::visit(const woml::CloudLayers & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting CloudLayers" << std::endl;
+
+  render_aerodrome<woml::CloudLayers>(theFeature);
 }
 
 // ----------------------------------------------------------------------
@@ -2048,6 +4389,32 @@ SvgRenderer::visit(const woml::ColdFront & theFeature)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Render contrails
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::visit(const woml::Contrails & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting Contrails" << std::endl;
+
+  render_aerodrome<woml::Contrails>(theFeature);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render icing
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::visit(const woml::Icing & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting Icing" << std::endl;
+
+  render_aerodrome<woml::Icing>(theFeature);
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Render a InfoText
  */
 // ----------------------------------------------------------------------
@@ -2093,6 +4460,20 @@ SvgRenderer::visit(const woml::JetStream & theFeature)
 			   "jet","",
 			   "","",
 			   fontsize,spacing);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render migratory birds
+ */
+// ----------------------------------------------------------------------
+
+void
+SvgRenderer::visit(const woml::MigratoryBirds & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting MigratoryBirds" << std::endl;
+
+  render_aerodrome<woml::MigratoryBirds>(theFeature);
 }
 
 // ----------------------------------------------------------------------
@@ -2286,6 +4667,34 @@ SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Render surface visibility
+ */
+// ----------------------------------------------------------------------
+
+void
+SvgRenderer::visit(const woml::SurfaceVisibility & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting SurfaceVisibility" << std::endl;
+
+  render_aerodrome<woml::SurfaceVisibility>(theFeature);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render surface weather
+ */
+// ----------------------------------------------------------------------
+
+void
+SvgRenderer::visit(const woml::SurfaceWeather & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting SurfaceWeather" << std::endl;
+
+  render_aerodrome<woml::SurfaceWeather>(theFeature);
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Render a Trough
  */
 // ----------------------------------------------------------------------
@@ -2410,6 +4819,34 @@ SvgRenderer::visit(const woml::WarmFront & theFeature)
 			   "warmfront","warmfrontglyph",
 			   Ww,Ww,
 			   fontsize,spacing);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render winds
+ */
+// ----------------------------------------------------------------------
+
+void
+SvgRenderer::visit(const woml::Winds & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting Winds" << std::endl;
+
+  render_aerodrome<woml::Winds>(theFeature);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render zero tolerance
+ */
+// ----------------------------------------------------------------------
+
+void
+SvgRenderer::visit(const woml::ZeroTolerance & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting ZeroTolerance" << std::endl;
+
+  render_aerodrome<woml::ZeroTolerance>(theFeature);
 }
 
 // ----------------------------------------------------------------------

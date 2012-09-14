@@ -8,6 +8,7 @@
 #define FRONTIER_OPTIONS_H
 
 #include <string>
+#include "Weather.h"
 
 namespace frontier
 {
@@ -40,9 +41,8 @@ namespace frontier
 
 	// -t type { conceptualmodelanalysis | conceptualmodelforecast | aerodromeforecast }
 
-	enum documentType { conceptualmodelanalysis,conceptualmodelforecast,aerodromeforecast };
 	std::string type;
-	documentType doctype;
+	woml::documentType doctype;
 
 	// -l locale; defaults to "" (using configuration blocks having empty ("") or non specified locale)
 
