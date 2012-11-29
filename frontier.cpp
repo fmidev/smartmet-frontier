@@ -17,6 +17,7 @@
 #include <smartmet/woml/MeteorologicalAnalysis.h>
 #include <smartmet/woml/Parser.h>
 #include <smartmet/woml/WeatherForecast.h>
+#include <smartmet/woml/TargetRegion.h>
 
 #include <libconfig.h++>
 
@@ -363,16 +364,15 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
     return 0;
 
   outfile = options.outfile;
-  debug = options.debug;
 
   // Read the SVG template
 
   std::string svg = readfile(options.svgfile);
 
-  // --DEBUGOUTPUT-- placeholder in template sets debug mode
+  // --DEBUGOUTPUT-- placeholder in the template sets debug mode
 
-  if (!debug)
-	  debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
+  if (!options.debug)
+	  options.debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
 
   // Establish the projection
 
@@ -447,6 +447,38 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
   frontier::SvgRenderer renderer(options, config, svg, area, validtime, &debugoutput);
 
   // renderer.contour(qd,validtime);
+
+  // Synchronize some aerodrome forecast features (SurfaceWeather and SurfaceVisibility)
+  // to have common time serie
+  //
+  // 22-Nov-2012: No sync
+  //
+  // if (options.doctype == woml::aerodromeforecast)
+  // 	weather.synchronize();
+
+  // Render picture header
+
+  bool analysis = weather.hasAnalysis();
+
+  std::list<woml::TargetRegion>::const_iterator trbeg(analysis ? weather.analysis().TargetRegions_begin() : weather.forecast().TargetRegions_begin());
+  std::list<woml::TargetRegion>::const_iterator trend(analysis ? weather.analysis().TargetRegions_end() : weather.forecast().TargetRegions_end());
+
+  std::list<std::pair<std::string,std::string> >::const_iterator lnbeg(trbeg->LocalizedNames_begin());
+  std::list<std::pair<std::string,std::string> >::const_iterator lnend(trbeg->LocalizedNames_end());
+  std::list<std::pair<std::string,std::string> >::const_iterator ribeg(trbeg->RegionIds_begin());
+  std::list<std::pair<std::string,std::string> >::const_iterator riend(trbeg->RegionIds_end());
+
+  std::string regionName((lnbeg != lnend) ? lnbeg->second : "");
+  std::string regionId((ribeg != riend) ? ribeg->second : "");
+
+  renderer.render_header(validtime,
+		  	  	  	  	 (analysis ? weather.analysis().validTime() : weather.forecast().validTime()),
+					     (analysis ? weather.analysis().analysisTime() : weather.forecast().forecastTime()),
+					     (analysis ? weather.analysis().creationTime() : weather.forecast().creationTime()),
+					     (analysis ? weather.analysis().latestModificationTime() : weather.forecast().latestModificationTime()),
+					     regionName,
+					     regionId
+					    );
 
   // Render woml.
   // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time

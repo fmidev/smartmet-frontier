@@ -199,6 +199,9 @@ namespace frontier
 		  						 bool retainMap,
 		  						 bool scanUpDown)
   {
+	if (itsData.empty())
+		return false;
+
 	symbolWidth = static_cast<int>(floor(symbolWidth * scale));
 	symbolHeight = static_cast<int>(floor(symbolHeight * scale));
 

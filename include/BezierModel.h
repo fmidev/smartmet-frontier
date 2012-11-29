@@ -30,7 +30,7 @@ namespace frontier
 	// http://www.pixelnerve.com/v/2010/05/11/evaluate-a-cubic-bezier-on-gpu/ (Also found in nvidia sdk)
 
   public:
-	BezierModel(List<DirectPosition> curvePositions, boolean isClosedCurve);
+	BezierModel(List<DirectPosition> curvePositions, boolean isClosedCurve, double tightness = -1.0);
 
 	void init(List<DirectPosition> curvePositions, boolean isClosedCurve);
 
@@ -55,6 +55,7 @@ namespace frontier
 	double totalCurveLengthInPixels;
 	std::list<double> cumulatedCurveLengthInPixels;
 	boolean isClosedCurve;
+	double tightness;
   };
 
   class Vector2Dee {

@@ -70,6 +70,13 @@ namespace frontier
 		   settings settingId = s_required,
 		   bool * isSet = NULL)
   {
+	// If 's_required' setting is not found, std::runtime_error is thrown.
+	//
+	// If 's_optional' setting is not found, unset (default constructor) value is returned and
+	// 'isSet' flag (if available) is set to false.
+	//
+	// If specific ('s_base' + n) setting is not found, SettingIdNotFoundException is thrown.
+
 	T ret = T();
 	bool bSet;
 	bool *_isSet = &bSet;

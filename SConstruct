@@ -52,7 +52,7 @@ env.Append( CPPDEFINES= ["UNIX"] )
 env.Append( CPPDEFINES="FMI_MULTITHREAD" )
 env.Append( CPPDEFINES= "_REENTRANT" )
 
-env.Append( CPPPATH= [ "./include", "/usr/include/cairo" ] )
+env.Append( CPPPATH= [ "./include", "/usr/include/smartmet/woml", "/usr/include/cairo" ] )
 
 env.ParseConfig("(pkg-config --exists libconfig++ && pkg-config libconfig++ --cflags --libs)")
 

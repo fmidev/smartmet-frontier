@@ -13,12 +13,13 @@
 namespace frontier
 {
 
-BezierModel::BezierModel(List<DirectPosition> _curvePositions, boolean _isClosedCurve)
+BezierModel::BezierModel(List<DirectPosition> _curvePositions, boolean _isClosedCurve, double _tightness)
   : curvePositions(_curvePositions)
   , bezierSegments()
   , totalCurveLengthInPixels(0.)
   , cumulatedCurveLengthInPixels()
   , isClosedCurve(_isClosedCurve)
+  , tightness(_tightness)
 {
 	if(isClosedCurve)
 	{
@@ -28,7 +29,7 @@ BezierModel::BezierModel(List<DirectPosition> _curvePositions, boolean _isClosed
 
 	for(int i = 0; i < (int) curvePositions.size(); i++)
 	{
-		BezSeg bs(curvePositions, i);
+		BezSeg bs(curvePositions, i, tightness);
 
 		bezierSegments.push_back(bs);
 		totalCurveLengthInPixels += bs.getSegmentLengthInPixels();

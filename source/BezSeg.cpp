@@ -12,9 +12,10 @@
 namespace frontier
 {
 
-BezSeg::BezSeg(List<DirectPosition> _curvePositions, int _segmentIndex)
+BezSeg::BezSeg(List<DirectPosition> _curvePositions, int _segmentIndex, double _tightness)
   : dt(0.04)
   , segmentIndex(_segmentIndex)
+  , tightness((_tightness <= 0.) ? 3.0 : _tightness)
   , segmentLength(0.)
   , curvePositions(_curvePositions)
 {
@@ -78,7 +79,6 @@ doubleArr BezSeg::createControlPoint(doubleArr & a, doubleArr & b, doubleArr & c
 	// direction value 1 is assumed to be given when creating second control point c2.
 	// This part is modified from Ref [1].
 
-	double tightness = 3.0;
 	doubleArr delta_a = Vector2Dee::sub(b, a);
 	doubleArr delta_c = Vector2Dee::sub(c, b);
 	doubleArr delta;

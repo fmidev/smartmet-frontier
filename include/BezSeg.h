@@ -49,7 +49,7 @@ namespace frontier
   class BezSeg {
 
   public:
-	BezSeg(List<DirectPosition> curvePositions, int segmentIndex);
+	BezSeg(List<DirectPosition> curvePositions, int segmentIndex, double tightness = -1.0);
 
 	int getSegmentIndex();
 	double getSegmentLength();
@@ -64,6 +64,7 @@ namespace frontier
   private:
 	double dt; 	// Bezier segment evalation step [0..1]
 	int segmentIndex;
+	double tightness;
 	double segmentLength;
 	List<DirectPosition> curvePositions;
 
