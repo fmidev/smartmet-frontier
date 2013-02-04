@@ -3178,10 +3178,12 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		const boost::posix_time::ptime & vt = itts->validTime();
 
 		if ((vt < bt) || (vt > et))
+		  {
 			if (vt < bt)
 				continue;
 			else
 				break;
+		  }
 
 		bool overlap = false;	// Set if time instant had elevation added to the group
 		loLim = tsLo;
@@ -3243,16 +3245,19 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						(*itcg)->addType(category);
 					}
 					else if ((!mixed) && (eGrp.size() > 0))
-						if (groundGrp) {
+					  {
+						if (groundGrp)
+						  {
 							if (!ground)
-								continue;
-						}
+							  continue;
+						  }
 						else if (ground || (hi < loLim))
-							// Overlapping elevation does not exist
-							//
-							break;
+						  // Overlapping elevation does not exist
+						  //
+						  break;
 						else if (lo > hiLim)
-							continue;
+						  continue;
+					  }
 
 					if ((eGrp.size() == 0) || (groundGrp && ground) || ((lo <= hiLim) && (hi >= loLim))) {
 						if (! overlap) {
@@ -3482,10 +3487,12 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			const boost::posix_time::ptime & vt = itts->validTime();
 
 			if ((vt < tp.begin()) || (vt > tp.end()))
+			  {
 				if (vt < tp.begin())
 					continue;
 				else
 					break;
+			  }
 
 			// Loop thru the parameter sets
 
@@ -3695,10 +3702,15 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			}
 
 			if (iteg != egbeg)
-				if ((iteg != egend) && iteg->validTime() == piteg->validTime()) {
+			  {
+				if ((iteg != egend) && iteg->validTime() == piteg->validTime())
+				  {
 					if ((lo < phi) && (hi > plo))
-						if ((lo > plo) && (hi < phi)) {
-							if (mixed) {
+					  {
+						if ((lo > plo) && (hi < phi))
+						  {
+							if (mixed)
+							  {
 								// Cut the outer elevation into 2 pieces; the upper part is stored into the outer
 								// and the lower part into the inner elevation
 								//
@@ -3709,75 +3721,78 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 								// Upper part
 								//
 								boost::optional<woml::NumericalValueRangeMeasure> hiR(woml::NumericalValueRangeMeasure(
-									woml::NumericalSingleValueMeasure(hi,"",""),
-									woml::NumericalSingleValueMeasure(phi,"","")
-								));
+														   woml::NumericalSingleValueMeasure(hi,"",""),
+														   woml::NumericalSingleValueMeasure(phi,"","")
+																												   ));
 								woml::Elevation hiE(hiR);
 								boost::optional<woml::Elevation> eHi(hiE);
-
+								
 								piteg->Pv()->elevation(*eHi);
 								eGrpOut.back().elevation(eHi);
-
+								
 								// Lower part
 								//
 								boost::optional<woml::NumericalValueRangeMeasure> loR(woml::NumericalValueRangeMeasure(
-									woml::NumericalSingleValueMeasure(plo,"",""),
-									woml::NumericalSingleValueMeasure(lo,"","")
-								));
+								   woml::NumericalSingleValueMeasure(plo,"",""),
+								   woml::NumericalSingleValueMeasure(lo,"","")
+																			   ));
 								woml::Elevation loE(loR);
 								boost::optional<woml::Elevation> eLo(loE);
 
 								iteg->Pv()->elevation(*eLo);
 
 								// Set ground connection based on outer elevation; it was originally set based on inner elevation
-
+							  
 								piteg->groundConnected(plo < axisManager->nonZeroElevation());
 								iteg->groundConnected(piteg->groundConnected());
-
+								
 								eGrpOut.push_back(*iteg);
-							}
+							  }
 							else
-								iteg->negativeTemp(true);
-
+							  iteg->negativeTemp(true);
+							
 							continue;
-						}
-						else if (mixed) {
+						  }
+						else if (mixed)
+						  {
 							// Elevations partially overlap; mark them to be forgotten
 							//
 							eGrpOut.pop_back();
-
+							
 							if (erriteg == egend)
-								erriteg = piteg;
-
+							  erriteg = piteg;
+							
 							piteg->topConnected(true);
 							iteg->topConnected(true);
-
+							
 							continue;
-						}
-				}
-				else if (mixed && (plo >= axisManager->nonZeroElevation()) && (!(piteg->groundConnected()))) {
-					// Generate below 0 elevation forcing the curve path to go to the ground
-					//
-					eGrpOut.push_back(*piteg);
-
-					boost::optional<woml::NumericalValueRangeMeasure> gR(woml::NumericalValueRangeMeasure(
+						  }
+					  }
+				  }
+				else if (mixed && (plo >= axisManager->nonZeroElevation()) && (!(piteg->groundConnected())))
+				{
+				  // Generate below 0 elevation forcing the curve path to go to the ground
+				  //
+				  eGrpOut.push_back(*piteg);
+				  
+				  boost::optional<woml::NumericalValueRangeMeasure> gR(woml::NumericalValueRangeMeasure(
 						woml::NumericalSingleValueMeasure(-1200,"",""),
 						woml::NumericalSingleValueMeasure(-1100,"","")
 					));
 
-					woml::Elevation gE(gR);
-					boost::optional<woml::Elevation> eG(gE);
-
-					eGrpOut.back().elevation(eG);
-					eGrpOut.back().generated(true);
+				  woml::Elevation gE(gR);
+				  boost::optional<woml::Elevation> eG(gE);
+				  
+				  eGrpOut.back().elevation(eG);
+				  eGrpOut.back().generated(true);
 				}
-
+			  }
 			if (iteg == egend)
-				break;
+			  break;
 
 			if (mixed)
-				eGrpOut.push_back(*iteg);
-
+			  eGrpOut.push_back(*iteg);
+			
 			piteg = iteg;
 			plo = lo;
 			phi = hi;

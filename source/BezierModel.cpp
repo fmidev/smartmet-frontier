@@ -97,12 +97,15 @@ int BezierModel::getSteppedCurvePoints(unsigned int baseStep,					// Base distan
 				step += (int) ((maxRand + 1) * (rand() / (RAND_MAX + 1.0)));
 	
 				if (step == prevStep)
-					if (repStep >= maxRepeat) {
+				  {
+					if (repStep >= maxRepeat)
+					  {
 						step += ((step == (baseStep + maxRand)) ? -1 : 1);
 						repStep = 0;
-					}
+					  }
 					else
-						repStep++;
+					  repStep++;
+				  }
 	
 				prevStep = step;
 			}
