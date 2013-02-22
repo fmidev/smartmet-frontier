@@ -51,6 +51,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Fri Feb 22 2013 Mikko Visa <mikko.visa@fmi.fi> - 13.2.22-1.el6.fmi
+- Using svgescape for header texts
 * Tue Aug  7 2012 Mika Heiskanen <mika.heiskanen@fmi.fi> - 12.8.7-1.el6.fmi
 - RHEL6 recompile
 * Fri Jun  1 2012 Mikko Visa <mikko.visa@fmi.fi> - 12.6.1-1.el6.fmi
