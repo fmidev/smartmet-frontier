@@ -1,19 +1,19 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 12.8.7
+Version: 13.1.11
 Release: 1.el6.fmi
 License: FMI
 Group: Development/Libraries
 URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires: boost-devel >= 1.49
-BuildRequires: libsmartmet-macgyver >= 11.7.20
-BuildRequires: libsmartmet-tron >= 11.9.23
-BuildRequires: libsmartmet-woml >= 12.8.7-1
+BuildRequires: boost-devel >= 1.52
+BuildRequires: libsmartmet-macgyver >= 13.1.11
+BuildRequires: libsmartmet-tron >= 12.11.7
+BuildRequires: libsmartmet-woml >= 13.1.11-1
 BuildRequires: libxml++-devel >= 2.20.0-1
-Requires: libxml++ >= 2.20.0-1
+Requires: libxml++ >= 2.30.0-1
 Requires: cairo >= 1.8.8-3.1
 Provides: frontier
 

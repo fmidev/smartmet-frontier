@@ -85,12 +85,13 @@ namespace frontier
 	if((**pSet = setting.lookupValue(name,ret)) || (settingId == s_optional))
 	  return ret;
 	
-	if(!setting.exists(name)) {
-	  if ((settingId != s_optional) && (settingId != s_required))
-	    throw SettingIdNotFoundException(settingId,prefix.empty() ? name : (prefix + "." + name));
-	  else
-	    throw std::runtime_error("Setting for "+(prefix.empty() ? name : (prefix + "." + name))+" is missing");
-	}
+	if(!setting.exists(name))
+	  {
+		if ((settingId != s_optional) && (settingId != s_required))
+		  throw SettingIdNotFoundException(settingId,prefix.empty() ? name : (prefix + "." + name));
+		else
+		  throw std::runtime_error("Setting for "+(prefix.empty() ? name : (prefix + "." + name))+" is missing");
+	  }
 	
 	if(!prefix.empty())
 	  throw std::runtime_error("Failed to parse value of '"
