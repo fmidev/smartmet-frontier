@@ -115,16 +115,22 @@ namespace frontier
 		// ÄäÖöÅå
 		//
 		replace_all(ret,"\303\204","\304");
+		replace_all(ret,"%C3%84","\304");
 		replace_all(ret,"\304","\303\204");
 		replace_all(ret,"\303\244","\344");
+		replace_all(ret,"%C3%A4","\344");
 		replace_all(ret,"\344","\303\244");
 		replace_all(ret,"\303\226","\326");
+		replace_all(ret,"%C3%96","\326");
 		replace_all(ret,"\326","\303\226");
 		replace_all(ret,"\303\266","\366");
+		replace_all(ret,"%C3%B6","\366");
 		replace_all(ret,"\366","\303\266");
 		replace_all(ret,"\303\205","\305");
+		replace_all(ret,"%C3%85","\305");
 		replace_all(ret,"\305","\303\205");
 		replace_all(ret,"\303\245","\345");
+		replace_all(ret,"%C3%A5","\345");
 		replace_all(ret,"\345","\303\245");
 	}
 
@@ -605,7 +611,7 @@ namespace frontier
 		if (!text.empty()) {
 			// Just store the text (target region's name or id)
 			//
-			texts[HEADERhdrClass] << text;
+			texts[HEADERhdrClass] << svgescapetext(text,true);
 			return;
 		}
 
@@ -3177,11 +3183,12 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		//
 		const boost::posix_time::ptime & vt = itts->validTime();
 
-		if ((vt < bt) || (vt > et))
+		if ((vt < bt) || (vt > et)) {
 			if (vt < bt)
 				continue;
 			else
 				break;
+		}
 
 		bool overlap = false;	// Set if time instant had elevation added to the group
 		loLim = tsLo;
@@ -3242,7 +3249,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 						(*itcg)->addType(category);
 					}
-					else if ((!mixed) && (eGrp.size() > 0))
+					else if ((!mixed) && (eGrp.size() > 0)) {
 						if (groundGrp) {
 							if (!ground)
 								continue;
@@ -3253,6 +3260,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 							break;
 						else if (lo > hiLim)
 							continue;
+					}
 
 					if ((eGrp.size() == 0) || (groundGrp && ground) || ((lo <= hiLim) && (hi >= loLim))) {
 						if (! overlap) {
@@ -3481,11 +3489,12 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			//
 			const boost::posix_time::ptime & vt = itts->validTime();
 
-			if ((vt < tp.begin()) || (vt > tp.end()))
+			if ((vt < tp.begin()) || (vt > tp.end())) {
 				if (vt < tp.begin())
 					continue;
 				else
 					break;
+			}
 
 			// Loop thru the parameter sets
 
@@ -3694,9 +3703,9 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 				hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 			}
 
-			if (iteg != egbeg)
+			if (iteg != egbeg) {
 				if ((iteg != egend) && iteg->validTime() == piteg->validTime()) {
-					if ((lo < phi) && (hi > plo))
+					if ((lo < phi) && (hi > plo)) {
 						if ((lo > plo) && (hi < phi)) {
 							if (mixed) {
 								// Cut the outer elevation into 2 pieces; the upper part is stored into the outer
@@ -3754,6 +3763,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 							continue;
 						}
+					}
 				}
 				else if (mixed && (plo >= axisManager->nonZeroElevation()) && (!(piteg->groundConnected()))) {
 					// Generate below 0 elevation forcing the curve path to go to the ground
@@ -3771,6 +3781,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 					eGrpOut.back().elevation(eG);
 					eGrpOut.back().generated(true);
 				}
+			}
 
 			if (iteg == egend)
 				break;
