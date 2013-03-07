@@ -36,7 +36,8 @@ endif
 
 # rpm variables
 
-rpmsourcedir=/tmp/$(shell whoami)/rpmbuild
+#rpmsourcedir=/tmp/$(shell whoami)/rpmbuild
+rpmsourcedir=${HOME}/rpmbuild
 rpmerr = "There's no spec file ($(LIB).spec). RPM wasn't created. Please make a spec file or copy and rename it into $(LIB).spec"
 
 rpmversion := $(shell grep "^Version:" $(LIB).spec  | cut -d\  -f 2 | tr . _)
