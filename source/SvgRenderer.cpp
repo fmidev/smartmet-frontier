@@ -452,11 +452,11 @@ namespace frontier
   	   )
   	  throw std::runtime_error("render_aerodromeFrame: invalid time period");
 
-    // Initialize axis manager and render y -axis labels and elevation lines
+    // Initialize axis manager and render y -axis labels
 
 	render_elevationAxis();
 
-    // Render x -axis labels
+    // Render x -axis labels and elevation lines
 
 	render_timeAxis(theTimePeriod);
   }
@@ -566,6 +566,10 @@ namespace frontier
 								<< "</text>\n";
 
 		// Output elevation lines
+		//
+		// svg y -axis grows downwards; use axis height to transfrom the y -coordinates
+
+		double axisHeight = axisManager->axisHeight();
 
 		const std::list<Elevation> & elevations = axisManager->elevations();
 		std::list<Elevation>::const_iterator eit = elevations.begin();
@@ -575,11 +579,11 @@ namespace frontier
 
 			if (y > 0.1)
 				texts["ELEVATIONLINES"] << "<line x1=\"0\" y1=\""
-										<< std::fixed << std::setprecision(1) << y
+										<< std::fixed << std::setprecision(1) << (axisHeight - y)
 										<< "\" x2=\""
 										<< std::fixed << width
 										<< "\" y2=\""
-										<< std::fixed << std::setprecision(1) << y
+										<< std::fixed << std::setprecision(1) << (axisHeight - y)
 										<< "\"/>\n";
 		}
   	}
@@ -1874,6 +1878,9 @@ namespace frontier
 				double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
 				y = axisManager->scaledElevation(lo + ((hi - lo) / 2));
+
+				if (y < 0)
+					continue;
 			}
 
 			// x -coord of this time instant
@@ -2759,7 +2766,7 @@ namespace frontier
 			int n = ((nX - 1) / 2);
 
 			lx = minx + (n * xStep);
-			ly = (_lopx[n] - ((_lopx[n] - _hipx[n]) / 2));
+			ly = (_lopx[n] - ((_lopx[n] - std::max(_hipx[n],0.0)) / 2));
 		}
 		else {
 			int n2 = nX / 2;
@@ -2767,8 +2774,8 @@ namespace frontier
 
 			lx = minx + (n1 * xStep) + (xStep / 2);
 
-			double y2 = (_lopx[n2] - ((_lopx[n2] - _hipx[n2]) / 2));
-			double y1 = (_lopx[n1] - ((_lopx[n1] - _hipx[n1]) / 2));
+			double y2 = std::max((_lopx[n2] - ((_lopx[n2] - _hipx[n2]) / 2)),0.0);
+			double y1 = std::max((_lopx[n1] - ((_lopx[n1] - _hipx[n1]) / 2)),0.0);
 
 			if (y2 > y1)
 				ly = (y2 - ((y2 - y1) / 2));
@@ -2778,7 +2785,7 @@ namespace frontier
 	}
 	else {
 		lx = (maxx - ((maxx - minx) / 2));
-		ly  = (_lopx[0] - ((_lopx[0] - _hipx[0]) / 2));
+		ly = (_lopx[0] - ((_lopx[0] - std::max(_hipx[0],0.0)) / 2));
 	}
   }
 
@@ -3370,8 +3377,10 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 			double x = axisManager->xOffset(iteg->validTime());
 
-			loPath << ((iteg == egbeg) ? "M" : " L") << x << "," << lopx;
-			hiPath << ((iteg == egbeg) ? "M" : " L") << x << "," << hipx;
+			if (lopx >= 0)
+				loPath << ((iteg == egbeg) ? "M" : " L") << x << "," << lopx;
+			if (hipx >= 0)
+				hiPath << ((iteg == egbeg) ? "M" : " L") << x << "," << hipx;
 		}
 
 		texts[CONTRAILS] << "<path class=\"" << classdef
@@ -4685,18 +4694,22 @@ AxisManager::AxisManager(const libconfig::Config & config)
  */
 // ----------------------------------------------------------------------
 
-double AxisManager::scaledElevation(double elevation)
+double AxisManager::scaledElevation(double elevation,double belowZero,double aboveTop)
 {
 	// Find lo/hi limits for linear interpolation
 	//
 	// svg y -axis grows downwards; use axis height to transfrom the y -coordinates
 
 	if (elevation <= itsMinElevation)
-		// Go below 0 to avoid drawing over the X -axis
+		// Go below 0 (invisible) to avoid drawing along the X -axis
 		//
-		return itsAxisHeight + 50;
-	else if (elevation >= itsMaxElevation)
-		return 0;
+		return itsAxisHeight + belowZero;
+	else if (elevation >= itsMaxElevation) {
+		// Go above the top (invisible) but not too far to prevent a single cloud spreading too much
+		// (bezier curve construction feature when control curve 'bbox' height/width relation grows)
+		//
+		return -aboveTop;
+	}
 
 	std::list<Elevation>::iterator ith = lower_bound(itsElevations.begin(),itsElevations.end(),Elevation(elevation));
 	if (ith == itsElevations.end())

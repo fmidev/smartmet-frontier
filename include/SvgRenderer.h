@@ -86,7 +86,7 @@ namespace frontier
 	const std::list<Elevation> & elevations() { return itsElevations; }
 
 	// Scaled elevation
-	double scaledElevation(double elevation);
+	double scaledElevation(double elevation,double belowZero = 50.0,double aboveTop = 100.0);
 
 	// Min elevation value to be taken as nonzero
 	double nonZeroElevation() { return 10.0; }
