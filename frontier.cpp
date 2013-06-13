@@ -379,7 +379,7 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
   if(boost::filesystem::is_regular_file(options.projection))
 	area = readprojection(options.projection);
   else
-	area.reset(NFmiAreaFactory::Create(options.projection).release());
+	area = NFmiAreaFactory::Create(options.projection);
 
   // Parse the WOML
 
