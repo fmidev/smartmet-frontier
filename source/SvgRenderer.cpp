@@ -3346,17 +3346,20 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		if(!specs.isGroup())
 			throw std::runtime_error(confPath + typemsg);
 
-		std::string classdef = configValue<std::string>(specs,confPath,"class");
+		const std::string classdef = configValue<std::string>(specs,confPath,"class");
 
 		// Loop thru the elevations connecting the hi range points and the lo range points
 
 		ElevGrp::const_iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
-		std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
+		const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
+		const std::string CONTRAILSVISIBLE(CONTRAILS + "VISIBLE");
 
 		std::ostringstream loPath;
 		std::ostringstream hiPath;
 		loPath << std::fixed << std::setprecision(1);
 		hiPath << std::fixed << std::setprecision(1);
+
+		bool visible = false;
 
 		for (iteg = egbeg; (iteg != egend); iteg++) {
 			// Get elevation's lo and hi range values
@@ -3377,23 +3380,35 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 			double x = axisManager->xOffset(iteg->validTime());
 
-			if (lopx >= 0)
+			if (lopx >= 0) {
 				loPath << ((iteg == egbeg) ? "M" : " L") << x << "," << lopx;
-			if (hipx >= 0)
+				visible = true;
+			}
+			if (hipx >= 0) {
 				hiPath << ((iteg == egbeg) ? "M" : " L") << x << "," << hipx;
+				visible = true;
+			}
 		}
 
-		texts[CONTRAILS] << "<path class=\"" << classdef
-						 << "\" id=\"" << "ContrailsLo"
-						 << "\" d=\""
-						 << loPath.str()
-						 << "\"/>\n";
+		if (visible) {
+			// At least the other (lower) curve is visible (scaled elevation(s) above zero did exist)
+			//
+			texts[CONTRAILS] << "<path class=\"" << classdef
+							 << "\" id=\"" << "ContrailsLo"
+							 << "\" d=\""
+							 << loPath.str()
+							 << "\"/>\n";
 
-		texts[CONTRAILS] << "<path class=\"" << classdef
-						 << "\" id=\"" << "ContrailsHi"
-						 << "\" d=\""
-						 << hiPath.str()
-						 << "\"/>\n";
+			texts[CONTRAILS] << "<path class=\"" << classdef
+							 << "\" id=\"" << "ContrailsHi"
+							 << "\" d=\""
+							 << hiPath.str()
+							 << "\"/>\n";
+
+			// Hide the fixed template text "No condensation trails"
+
+			texts[CONTRAILSVISIBLE] << classdef << "Unvisible";
+		}
 
 		return;
 	}
