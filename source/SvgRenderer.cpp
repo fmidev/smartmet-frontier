@@ -556,7 +556,7 @@ namespace frontier
 		boost::posix_time::ptime bt = theTimePeriod.begin(),et = theTimePeriod.end();
 		boost::posix_time::time_iterator it(bt,boost::posix_time::hours(step));
 
-		double x = 0.0,xStep = axisManager->xStep();
+		double x = 0.0,xStep = (step * axisManager->xStep());
 
 		for ( ; (it <= et); ++it, x += xStep)
 			texts["TIMELABELS"] << "<text x=\""
