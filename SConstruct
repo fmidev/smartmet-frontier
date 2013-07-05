@@ -45,7 +45,8 @@ env.Append(LIBS=["smartmet_woml",
 		 "pthread",
 		 "xqilla",
 		 "xerces-c",
-		 "cairo"
+		 "cairo",
+		 "rt"
 	  ]);
 
 env.Append( CPPDEFINES= ["UNIX"] )
