@@ -3321,7 +3321,12 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   void SvgRenderer::render_timeserie(const woml::Contrails & contrails)
   {
+	ElevGrp eGrp;
+	double xStep = axisManager->xStep();
 	const std::string confPath("Contrails");
+	const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
+	bool visible = false,aboveTop = false;
+	int nGroups = 0;
 
 	try {
 		const char * typemsg = " must contain a group in curly brackets";
@@ -3331,15 +3336,6 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		const boost::posix_time::time_period & tp = axisManager->timePeriod();
 		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
-		// Get the elevations from the time serie
-
-		ElevGrp eGrp;
-
-		elevationGroup(contrails.timeseries(),bt,et,eGrp,true);
-
-		if (eGrp.size() == 0)
-			return;
-
 		// Class
 
 		const libconfig::Setting & specs = config.lookup(confPath);
@@ -3348,66 +3344,126 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		const std::string classdef = configValue<std::string>(specs,confPath,"class");
 
-		// Loop thru the elevations connecting the hi range points and the lo range points
-
-		ElevGrp::const_iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
-		const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
-		const std::string CONTRAILSVISIBLE(CONTRAILS + "VISIBLE");
-
-		std::ostringstream loPath;
-		std::ostringstream hiPath;
-		loPath << std::fixed << std::setprecision(1);
-		hiPath << std::fixed << std::setprecision(1);
-
-		bool visible = false;
-
-		for (iteg = egbeg; (iteg != egend); iteg++) {
-			// Get elevation's lo and hi range values
+		for ( ; ; ) {
+			// Get group of overlapping elevations from the time serie
 			//
-			const woml::Elevation & e = iteg->Pv()->elevation();
-			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
-			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+			elevationGroup(contrails.timeseries(),bt,et,eGrp,false,false);
 
-			double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
-			double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+			if (eGrp.size() == 0)
+				break;
 
-			double lopx = axisManager->scaledElevation(lo);
-			double hipx = axisManager->scaledElevation(hi);
+			// Loop thru the elevations connecting first the continuous visible lo range points and then the
+			// continuous visible hi range points
 
-			// x -coord of this time instant
+			ElevGrp::const_iterator egend = eGrp.end(),iteg;
 
-			double x = axisManager->xOffset(iteg->validTime());
+			for (int rng = 0; (rng < 2); rng++) {
+				double lo,hi;
+				double & eVal = ((rng == 0) ? lo : hi);
+				std::string contrailId = ((rng == 0) ? "ContrailsLo" : "ContrailsHi");
 
-			if (lopx >= 0) {
-				loPath << ((iteg == egbeg) ? "M" : " L") << x << "," << lopx;
-				visible = true;
-			}
-			if (hipx >= 0) {
-				hiPath << ((iteg == egbeg) ? "M" : " L") << x << "," << hipx;
-				visible = true;
-			}
+				std::ostringstream path;
+				path << std::fixed << std::setprecision(1);
+
+				double prevX = -xStep,prevVal = -1;
+				size_t visibleCnt = 0;
+				bool segmentVisible = false;
+
+				for (iteg = eGrp.begin(); (iteg != egend); ) {
+					// Get elevation's lo and hi range values
+					//
+					const woml::Elevation & e = iteg->Pv()->elevation();
+					boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+					const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+					boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+					const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+					lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+					hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+					// scaledElevation() returns negative value and 'above' is set if the scaled value exceeds y -axis height.
+
+					bool above = false;
+					double val = axisManager->scaledElevation(eVal,&above);
+
+					// x -coord of this time instant
+
+					double x = axisManager->xOffset(iteg->validTime());
+
+					bool prevMissing = ((val >= 0) && (x > (xStep / 2)) && ((x > (prevX + xStep + (xStep / 2))) || (prevVal < 0)));
+
+					if (((val < 0) || prevMissing) && (visibleCnt > 0))
+						// Continue ending path segment half timestep forwards
+						//
+						path << " L" << (prevX + (xStep / 2)) << "," << prevVal;
+
+					if (val >= 0) {
+						// Visible
+						//
+						if (prevMissing) {
+							// Start new path segment half timestep backwards
+							//
+							path << " M" << (x - (xStep / 2)) << "," << val;
+							visibleCnt++;
+						}
+
+						path << ((visibleCnt == 0) ? "M" : " L") << x << "," << val;
+						visibleCnt++;
+					}
+					else {
+						// Missing or above the top
+						//
+						if (above)
+							aboveTop = true;
+
+						if (visibleCnt > 0)
+							segmentVisible = true;
+
+						visibleCnt = 0;
+					}
+
+					prevX = x;
+					prevVal = val;
+
+					iteg++;
+
+					if ((iteg == egend) && ((visibleCnt > 0) || segmentVisible)) {
+						// At least part of the curve is visible (scaled elevation(s) above zero and below the top of y -axis did exist)
+						//
+						if ((visibleCnt > 0) && (eGrp.back().validTime() < et))
+							// Continue ending path segment half timestep forwards
+							//
+							path << " L" << (x + (xStep / 2)) << "," << val;
+
+						nGroups++;
+
+						texts[CONTRAILS] << "<path class=\"" << classdef
+										 << "\" id=\"" << contrailId << nGroups
+										 << "\" d=\""
+										 << path.str()
+										 << "\"/>\n";
+					}
+				}	// for iteg
+			}	// for rng
+
+			// Remove group's elevations from the collection
+
+			for (iteg = eGrp.begin(); (iteg != eGrp.end()); iteg++)
+				iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+		}	// for group
+
+		if (visible || aboveTop) {
+			// Hide the fixed template text "No condensation trails"
+			//
+			const std::string CONTRAILSVISIBLE(CONTRAILS + "VISIBLE");
+			texts[CONTRAILSVISIBLE] << classdef << "Unvisible";
 		}
 
-		if (visible) {
-			// At least the other (lower) curve is visible (scaled elevation(s) above zero did exist)
+		if ((!visible) && aboveTop) {
+			// Show the fixed template text "Condensation trails are located in the upper"
 			//
-			texts[CONTRAILS] << "<path class=\"" << classdef
-							 << "\" id=\"" << "ContrailsLo"
-							 << "\" d=\""
-							 << loPath.str()
-							 << "\"/>\n";
-
-			texts[CONTRAILS] << "<path class=\"" << classdef
-							 << "\" id=\"" << "ContrailsHi"
-							 << "\" d=\""
-							 << hiPath.str()
-							 << "\"/>\n";
-
-			// Hide the fixed template text "No condensation trails"
-
-			texts[CONTRAILSVISIBLE] << classdef << "Unvisible";
+			const std::string CONTRAILSUNVISIBLE(CONTRAILS + "UNVISIBLE");
+			texts[CONTRAILSUNVISIBLE] << classdef << "Visible";
 		}
 
 		return;
@@ -4709,7 +4765,7 @@ AxisManager::AxisManager(const libconfig::Config & config)
  */
 // ----------------------------------------------------------------------
 
-double AxisManager::scaledElevation(double elevation,double belowZero,double aboveTop)
+double AxisManager::scaledElevation(double elevation,bool * above,double belowZero,double aboveTop)
 {
 	// Find lo/hi limits for linear interpolation
 	//
@@ -4723,6 +4779,9 @@ double AxisManager::scaledElevation(double elevation,double belowZero,double abo
 		// Go above the top (invisible) but not too far to prevent a single cloud spreading too much
 		// (bezier curve construction feature when control curve 'bbox' height/width relation grows)
 		//
+		if (above)
+			*above = true;
+
 		return -aboveTop;
 	}
 
