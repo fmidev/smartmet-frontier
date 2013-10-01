@@ -361,7 +361,7 @@ namespace frontier
   FmiLanguage locale2FmiLanguage(const std::string & confPath,
   	  	  	  	  	  	  	  	 const std::string & theLocale)
   {
-	const char * langmsg = ": language must be 'fi','en' or 'sv'";
+	const char * langMsg = ": language must be 'fi','en' or 'sv'";
 
 	if (theLocale.empty() || (theLocale.find("fi") == 0))
 		return kFinnish;
@@ -370,7 +370,7 @@ namespace frontier
 	else if (theLocale.find("sv") == 0)
 		return kSwedish;
 	else
-		throw std::runtime_error(confPath + ": '" + theLocale + "'" + langmsg);
+		throw std::runtime_error(confPath + ": '" + theLocale + "'" + langMsg);
   }
 
   // ----------------------------------------------------------------------
@@ -519,30 +519,30 @@ namespace frontier
   	const std::string confPath("TimeAxis");
 
   	try {
-  		const char * typemsg = " must contain a group in curly brackets";
-  		const char * stepmsg = ": value >= 1 expected";
+  		const char * typeMsg = " must contain a group in curly brackets";
+  		const char * stepMsg = ": value >= 1 expected";
 
-  		const libconfig::Setting & timespecs = config.lookup(confPath);
-  		if(!timespecs.isGroup())
-  			throw std::runtime_error(confPath + typemsg);
+  		const libconfig::Setting & timeSpecs = config.lookup(confPath);
+  		if(!timeSpecs.isGroup())
+  			throw std::runtime_error(confPath + typeMsg);
 
 		// Axis width (px)
 
-		int width = configValue<int>(timespecs,confPath,"width");
+		int width = configValue<int>(timeSpecs,confPath,"width");
 		axisManager->axisWidth(width);
 
 		// Step for label/hour output
 
 		const char *l;
-		unsigned int step = configValue<unsigned int>(timespecs,confPath,l = "step");
+		unsigned int step = configValue<unsigned int>(timeSpecs,confPath,l = "step");
 
 		if (step < 1)
-			throw std::runtime_error(confPath + ": " + l + ": '" + boost::lexical_cast<std::string>(step) + "'" + stepmsg);
+			throw std::runtime_error(confPath + ": " + l + ": '" + boost::lexical_cast<std::string>(step) + "'" + stepMsg);
 
 		// utc (default: false)
 
 		bool isSet;
-		bool utc = configValue<bool>(timespecs,confPath,"utc",NULL,s_optional,&isSet);
+		bool utc = configValue<bool>(timeSpecs,confPath,"utc",NULL,s_optional,&isSet);
 		if (!isSet)
 			utc = false;
 		axisManager->utc(utc);
@@ -619,12 +619,12 @@ namespace frontier
 			return;
 		}
 
-		const char * typemsg = " must contain a list of groups in parenthesis";
-		const char * hdrtypemsg = ": type must be 'datetime'";
+		const char * typeMsg = " must contain a list of groups in parenthesis";
+		const char * hdrtypeMsg = ": type must be 'datetime'";
 
-		const libconfig::Setting & hdrspecs = config.lookup(confPath);
-		if(!hdrspecs.isList())
-			throw std::runtime_error(confPath + typemsg);
+		const libconfig::Setting & hdrSpecs = config.lookup(confPath);
+		if(!hdrSpecs.isList())
+			throw std::runtime_error(confPath + typeMsg);
 
 		settings s_name((settings) (s_base + 0));
 
@@ -644,13 +644,13 @@ namespace frontier
 		bool hasLocaleGlobals = false;
 
 		int hdrIdx = -1;
-		int lastIdx = hdrspecs.getLength() - 1;
+		int lastIdx = hdrSpecs.getLength() - 1;
 
 		for(int i=0; i<=lastIdx; ++i)
 		{
-			const libconfig::Setting & specs = hdrspecs[i];
+			const libconfig::Setting & specs = hdrSpecs[i];
 			if(!specs.isGroup())
-				throw std::runtime_error(confPath + typemsg);
+				throw std::runtime_error(confPath + typeMsg);
 
 			try {
 				noName = false;
@@ -677,7 +677,7 @@ namespace frontier
 					bool localeMatch = (locale == options.locale);
 
 					if (localeMatch || (locale == "")) {
-						scope.push_back(&hdrspecs[i]);
+						scope.push_back(&hdrSpecs[i]);
 
 						// Currently no locale settings are required
 						//
@@ -714,7 +714,7 @@ namespace frontier
 					return;
 				}
 				else
-					throw std::runtime_error(confPath + ": '" + type + "'" + hdrtypemsg);
+					throw std::runtime_error(confPath + ": '" + type + "'" + hdrtypeMsg);
 			}  // if
 		}	// for
 
@@ -958,9 +958,9 @@ namespace frontier
 		  	  	  	  	  	    const std::string & text)
   {
 	try {
-		const char * typemsg = " must contain a list of groups in parenthesis";
-		const char * stylemsg = ": slant must be 'normal', 'italic' or 'oblique'";
-		const char * weightmsg = ": weight must be 'normal' or 'bold'";
+		const char * typeMsg = " must contain a list of groups in parenthesis";
+		const char * styleMsg = ": slant must be 'normal', 'italic' or 'oblique'";
+		const char * weightMsg = ": weight must be 'normal' or 'bold'";
 
 		std::string TEXTCLASStextName("TEXTCLASS" + textName);
 		std::string TEXTAREAtextName("TEXTAREA" + textName);
@@ -973,9 +973,9 @@ namespace frontier
 		if (text.empty())
 			return;
 
-		const libconfig::Setting & textspecs = config.lookup(confPath);
-		if(!textspecs.isList())
-			throw std::runtime_error(confPath + typemsg);
+		const libconfig::Setting & textSpecs = config.lookup(confPath);
+		if(!textSpecs.isList())
+			throw std::runtime_error(confPath + typeMsg);
 
 		settings s_name((settings) (s_base + 0));
 
@@ -993,13 +993,13 @@ namespace frontier
 		bool hasLocaleGlobals = false;
 
 		int textIdx = -1;
-		int lastIdx = textspecs.getLength() - 1;
+		int lastIdx = textSpecs.getLength() - 1;
 
 		for(int i=0; i<=lastIdx; ++i)
 		{
-			const libconfig::Setting & specs = textspecs[i];
+			const libconfig::Setting & specs = textSpecs[i];
 			if(!specs.isGroup())
-				throw std::runtime_error(confPath + typemsg);
+				throw std::runtime_error(confPath + typeMsg);
 
 			try {
 				noName = false;
@@ -1026,7 +1026,7 @@ namespace frontier
 					bool localeMatch = (locale == options.locale);
 
 					if (localeMatch || (locale == "")) {
-						scope.push_back(&textspecs[i]);
+						scope.push_back(&textSpecs[i]);
 
 						if ((nameMatch && (locale == "")) || (noName && localeMatch))
 							hasLocaleGlobals = true;
@@ -1051,7 +1051,7 @@ namespace frontier
 				else if (style == "oblique")
 			    	slant = CAIRO_FONT_SLANT_OBLIQUE;
 				else if (style != "")
-					throw std::runtime_error(confPath + stylemsg);
+					throw std::runtime_error(confPath + styleMsg);
 				else
 					style = "normal";
 
@@ -1062,7 +1062,7 @@ namespace frontier
 				if (weight == "bold")
 					_weight = CAIRO_FONT_WEIGHT_BOLD;
 				else if (weight != "")
-					throw std::runtime_error(confPath + weightmsg);
+					throw std::runtime_error(confPath + weightMsg);
 				else
 					weight = "normal";
 
@@ -1165,30 +1165,30 @@ namespace frontier
 	const std::string confPath("Surface");
 
 	try {
-		const char * typemsg = " must contain a list of groups in parenthesis";
-		const char * surftypemsg = ": surface type must be 'pattern', 'mask', 'glyph' or 'svg'";
+		const char * typeMsg = " must contain a list of groups in parenthesis";
+		const char * surfTypeMsg = ": surface type must be 'pattern', 'mask', 'glyph' or 'svg'";
 
-		const libconfig::Setting & surfspecs = config.lookup(confPath);
-		if(!surfspecs.isList())
-			throw std::runtime_error(confPath + typemsg);
+		const libconfig::Setting & surfSpecs = config.lookup(confPath);
+		if(!surfSpecs.isList())
+			throw std::runtime_error(confPath + typeMsg);
 
 		settings s_name((settings) (s_base + 0));
 
 		int surfIdx = -1;
 		int globalsIdx = -1;
 
-		for(int i=0; i<surfspecs.getLength(); ++i)
+		for(int i=0; i<surfSpecs.getLength(); ++i)
 		{
-			const libconfig::Setting & specs = surfspecs[i];
+			const libconfig::Setting & specs = surfSpecs[i];
 			if(!specs.isGroup())
-				throw std::runtime_error(confPath + typemsg);
+				throw std::runtime_error(confPath + typeMsg);
 
 			try {
 				if (lookup<std::string>(specs,confPath,"name",s_name) == surfaceName) {
 					surfIdx = i;
 
 					// Missing settings from globals when available
-					libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &surfspecs[globalsIdx] : NULL);
+					libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &surfSpecs[globalsIdx] : NULL);
 
 					// Surface type; pattern, mask, glyph or svg
 
@@ -1376,7 +1376,7 @@ namespace frontier
 						throw std::runtime_error(confPath + " type 'svg' not implemented yet");
 					}
 					else
-						throw std::runtime_error(confPath + ": '" + type + "'" + surftypemsg);
+						throw std::runtime_error(confPath + ": '" + type + "'" + surfTypeMsg);
 				}
 			}
 			catch (SettingIdNotFoundException & ex) {
@@ -1417,24 +1417,24 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   const libconfig::Setting * matchingCondition(const libconfig::Config & config,
-		  	  	  	  	  	  	  	  	  	   const libconfig::Setting & condspecs,
+		  	  	  	  	  	  	  	  	  	   const libconfig::Setting & condSpecs,
 		  	  	  	  	  	  	  	  	  	   const std::string & confPath,
 		  	  	  	  	  	  	  	  	  	   const std::string & className,
 		  	  	  	  	  	  	  	  	  	   int specsIdx,
 		  	  	  	  	  	  	  	  	  	   const std::string & parameter,
 		  	  	  	  	  	  	  	  	  	   const double numericValue)
   {
-	const char * typemsg = " must contain a list of groups in parenthesis";
-	const char * condmsg = ": refix must be 'eq', 'le', 'lt', 'ge' or 'gt'";
+	const char * typeMsg = " must contain a list of groups in parenthesis";
+	const char * condMsg = ": refix must be 'eq', 'le', 'lt', 'ge' or 'gt'";
 
 	double ltCondValue = 0.0,gtCondValue = 0.0,eps = 0.00001;
 	int ltCondIdx = -1,gtCondIdx = -1,idx = -1;
 
-	for(int i=0; i<condspecs.getLength(); i++)
+	for(int i=0; i<condSpecs.getLength(); i++)
 	{
-		const libconfig::Setting & conds = condspecs[i];
+		const libconfig::Setting & conds = condSpecs[i];
 		if(!conds.isGroup())
-			throw std::runtime_error(confPath + ".conditions" + typemsg);
+			throw std::runtime_error(confPath + ".conditions" + typeMsg);
 
 		std::string refix(configValue<std::string>(conds,className,"refix"));
 		double condValue(configValue<double>(conds,className,"value"));
@@ -1482,7 +1482,7 @@ namespace frontier
 			}
 		}
 		else
-			throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condmsg);
+			throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
 	}
 
 	if ((ltCondIdx >= 0) || (gtCondIdx >= 0)) {
@@ -1490,7 +1490,7 @@ namespace frontier
 			  ? gtCondIdx
 			  : ltCondIdx;
 
-		return &(condspecs[idx]);
+		return &(condSpecs[idx]);
 	}
 
 	return NULL;
@@ -1504,22 +1504,22 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   const libconfig::Setting * matchingCondition(const libconfig::Config & config,
-		  	  	  	  	  	  	  	  	  	   const libconfig::Setting & condspecs,
+		  	  	  	  	  	  	  	  	  	   const libconfig::Setting & condSpecs,
 		  	  	  	  	  	  	  	  	  	   const std::string & confPath,
 		  	  	  	  	  	  	  	  	  	   const std::string & className,
 		  	  	  	  	  	  	  	  	  	   int specsIdx,
 		  	  	  	  	  	  	  	  	  	   const std::string & parameter,
 		  	  	  	  	  	  	  	  	  	   const boost::posix_time::ptime & dateTimeValue)
   {
-	const char * typemsg = " must contain a list of groups in parenthesis";
-	const char * condmsg = ": refix must be 'range'";
-	const char * rngmsg = ": hh[:mm]-hh[:mm] range expected";
+	const char * typeMsg = " must contain a list of groups in parenthesis";
+	const char * condMsg = ": refix must be 'range'";
+	const char * rngMsg = ": hh[:mm]-hh[:mm] range expected";
 
-	for(int i=0; i<condspecs.getLength(); i++)
+	for(int i=0; i<condSpecs.getLength(); i++)
 	{
-		const libconfig::Setting & conds = condspecs[i];
+		const libconfig::Setting & conds = condSpecs[i];
 		if(!conds.isGroup())
-			throw std::runtime_error(confPath + ".conditions" + typemsg);
+			throw std::runtime_error(confPath + ".conditions" + typeMsg);
 
 		std::string refix(configValue<std::string>(conds,className,"refix",NULL,s_optional));
 		std::string condValue(configValue<std::string>(conds,className,"value"));
@@ -1575,7 +1575,7 @@ namespace frontier
 												 ".[" + boost::lexical_cast<std::string>(i) + "]." + parameter);
 
 							if (parameter.empty() || config.exists(condPath))
-								return &(condspecs[i]);
+								return &(condSpecs[i]);
 						}
 
 						continue;
@@ -1586,10 +1586,10 @@ namespace frontier
 				}
 			}
 
-			throw std::runtime_error(confPath + ".conditions: '" + condValue + "'" + rngmsg + rngErr);
+			throw std::runtime_error(confPath + ".conditions: '" + condValue + "'" + rngMsg + rngErr);
 		}
 		else
-			throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condmsg);
+			throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
 	}
 
 	return NULL;
@@ -1609,18 +1609,18 @@ namespace frontier
 		  	  	  	  	  	  	  	  	  	   int specsIdx,
 		  	  	  	  	  	  	  	  	  	   const T & condValue)
   {
-	const char * typemsg = " must contain a list of groups in parenthesis";
+	const char * typeMsg = " must contain a list of groups in parenthesis";
 
 	std::string condPath(confPath + ((specsIdx >= 0) ? (".[" + boost::lexical_cast<std::string>(specsIdx) + "]") : "") + ".conditions");
 
 	if (!config.exists(condPath))
 		return NULL;
 
-	const libconfig::Setting & condspecs = config.lookup(condPath);
-	if(!condspecs.isList())
-		throw std::runtime_error(confPath + ".conditions" + typemsg);
+	const libconfig::Setting & condSpecs = config.lookup(condPath);
+	if(!condSpecs.isList())
+		throw std::runtime_error(confPath + ".conditions" + typeMsg);
 
-	return matchingCondition(config,condspecs,confPath,className,specsIdx,parameter,condValue);
+	return matchingCondition(config,condSpecs,confPath,className,specsIdx,parameter,condValue);
   }
 
   // ----------------------------------------------------------------------
@@ -1638,7 +1638,7 @@ namespace frontier
 		  	  	  	  	  	  	 const boost::posix_time::ptime & dateTimeValue,
 		  	  	  	  	  	  	 std::string & folder)
   {
-	const char * codemsg = ": symbol code: [<folder>/]<code> expected";
+	const char * codeMsg = ": symbol code: [<folder>/]<code> expected";
 
 	// Search for the code truncating the scope to have the matching block as the last block
 
@@ -1654,7 +1654,7 @@ namespace frontier
 		boost::trim(cols[codeIdx = 1]);
 
 	if ((cols.size() > 2) || (cols[0] == "") || (cols[codeIdx] == ""))
-		throw std::runtime_error(confPath + ": '" + code + "'" + codemsg);
+		throw std::runtime_error(confPath + ": '" + code + "'" + codeMsg);
 
 	folder = ((codeIdx == 1) ? cols[0] : "");
 
@@ -1730,15 +1730,15 @@ namespace frontier
 	}
 
 	try {
-		const char * typemsg = " must contain a group in curly brackets";
+		const char * typeMsg = " must contain a group in curly brackets";
 
-		const libconfig::Setting & symbolspecs = config.lookup(confPath);
-		if(!symbolspecs.isGroup())
-			throw std::runtime_error(confPath + typemsg);
+		const libconfig::Setting & symbolSpecs = config.lookup(confPath);
+		if(!symbolSpecs.isGroup())
+			throw std::runtime_error(confPath + typeMsg);
 
 		// Class
 
-		std::string class1 = configValue<std::string>(symbolspecs,confPath,"class");
+		std::string class1 = configValue<std::string>(symbolSpecs,confPath,"class");
 		boost::trim(class1);
 
 		std::string uri;
@@ -1748,11 +1748,11 @@ namespace frontier
 			// Symbol's <code>; code_<symCode> = <code>
 			//
 			settings s_code((settings) (s_base + 0));
-			code = configValue<std::string>(symbolspecs,confPath,"code_" + code,NULL,s_code);
+			code = configValue<std::string>(symbolSpecs,confPath,"code_" + code,NULL,s_code);
 
 			// Url
 
-			uri = configValue<std::string>(symbolspecs,confPath,"url");
+			uri = configValue<std::string>(symbolSpecs,confPath,"url");
 			boost::algorithm::replace_all(uri,"%symbol%",code + classNameExt);
 
 			// Use last of the given classes for symbol specific class reference
@@ -1766,7 +1766,7 @@ namespace frontier
 		// Scale
 
 		bool hasScale;
-		double scale = (double) configValue<double,int>(symbolspecs,confPath,"scale",NULL,s_optional,&hasScale);
+		double scale = (double) configValue<double,int>(symbolSpecs,confPath,"scale",NULL,s_optional,&hasScale);
 
 		std::ostringstream sc;
 		if (hasScale)
@@ -1853,11 +1853,11 @@ namespace frontier
 	// Render the symbols
 
 	try {
-		const char * grouptypemsg = " must contain a group in curly brackets";
+		const char * grouptypeMsg = " must contain a group in curly brackets";
 
 		const libconfig::Setting & specs = config.lookup(confPath);
 		if(!specs.isGroup())
-			throw std::runtime_error(confPath + grouptypemsg);
+			throw std::runtime_error(confPath + grouptypeMsg);
 
 		ElevGrp::const_iterator egend = eGrp.end(),iteg;
 
@@ -1909,10 +1909,10 @@ namespace frontier
 				double scale = 1000.0,value = nsv->numericValue();
 				std::string pref;
 
-				const libconfig::Setting * condspecs = matchingCondition(config,confPath,confPath,"",-1,value);
+				const libconfig::Setting * condSpecs = matchingCondition(config,confPath,confPath,"",-1,value);
 
-				if (condspecs)
-					pref = configValue<std::string>(*condspecs,confPath,"pref",&specs);
+				if (condSpecs)
+					pref = configValue<std::string>(*condSpecs,confPath,"pref",&specs);
 				else
 					pref = configValue<std::string>(specs,confPath,"pref",NULL,s_optional);
 
@@ -1971,12 +1971,12 @@ namespace frontier
 	++npointsymbols;
 
 	try {
-		const char * typemsg = " must contain a list of groups in parenthesis";
-		const char * symtypemsg = ": symbol type must be 'svg', 'img' or 'font'";
+		const char * typeMsg = " must contain a list of groups in parenthesis";
+		const char * symTypeMsg = ": symbol type must be 'svg', 'img' or 'font'";
 
-		const libconfig::Setting & symbolspecs = config.lookup(confPath);
-		if(!symbolspecs.isList())
-			throw std::runtime_error(confPath + typemsg);
+		const libconfig::Setting & symbolSpecs = config.lookup(confPath);
+		if(!symbolSpecs.isList())
+			throw std::runtime_error(confPath + typeMsg);
 
 		settings s_name((settings) (s_base + 0));
 		settings s_code((settings) (s_base + 1));
@@ -1995,13 +1995,13 @@ namespace frontier
 		bool hasLocaleGlobals = false,_hasLocaleGlobals = false;
 
 		int symbolIdx = -1,localeIdx = -1;
-		int lastIdx = symbolspecs.getLength() - 1;
+		int lastIdx = symbolSpecs.getLength() - 1;
 
 		for(int i=0; i<=lastIdx; ++i)
 		{
-			const libconfig::Setting & specs = symbolspecs[i];
+			const libconfig::Setting & specs = symbolSpecs[i];
 			if(!specs.isGroup())
-				throw std::runtime_error(confPath + typemsg);
+				throw std::runtime_error(confPath + typeMsg);
 
 			try {
 				nameMatch = (lookup<std::string>(specs,confPath,"name",s_name) == symClass);
@@ -2009,7 +2009,7 @@ namespace frontier
 			catch (SettingIdNotFoundException & ex) {
 				// Global settings have no name
 				//
-				scope.push_back(&symbolspecs[i]);
+				scope.push_back(&symbolSpecs[i]);
 				nameMatch = false;
 			}
 
@@ -2025,7 +2025,7 @@ namespace frontier
 					bool localeMatch = (locale == options.locale);
 
 					if (localeMatch || (locale == "")) {
-						scope.push_back(&symbolspecs[i]);
+						scope.push_back(&symbolSpecs[i]);
 
 						if (localeMatch)
 							localeIdx = i;
@@ -2173,7 +2173,7 @@ namespace frontier
 					return;
 				}
 				else
-					throw std::runtime_error(confPath + ": '" + type + "'" + symtypemsg);
+					throw std::runtime_error(confPath + ": '" + type + "'" + symTypeMsg);
 			}  // if
 		}	// for
 
@@ -2474,8 +2474,8 @@ namespace frontier
 	std::string confPath(_confPath);
 
 	try {
-		const char * grouptypemsg = " must contain a group in curly brackets";
-		const char * listtypemsg = " must contain a list of groups in parenthesis";
+		const char * grouptypeMsg = " must contain a group in curly brackets";
+		const char * listtypeMsg = " must contain a list of groups in parenthesis";
 
 		std::string CLOUDLAYERS(boost::algorithm::to_upper_copy(confPath));
 
@@ -2483,7 +2483,7 @@ namespace frontier
 
 		const libconfig::Setting & specs = config.lookup(confPath);
 		if(!specs.isGroup())
-			throw std::runtime_error(confPath + grouptypemsg);
+			throw std::runtime_error(confPath + grouptypeMsg);
 
 		std::string classdef = configValue<std::string>(specs,confPath,"class");
 
@@ -2508,15 +2508,15 @@ namespace frontier
 
 		confPath += ".groups";
 
-		const libconfig::Setting & groupspecs = config.lookup(confPath);
-		if(!groupspecs.isList())
-			throw std::runtime_error(confPath + listtypemsg);
+		const libconfig::Setting & groupSpecs = config.lookup(confPath);
+		if(!groupSpecs.isList())
+			throw std::runtime_error(confPath + listtypeMsg);
 
-		for(int i=0, globalsIdx = -1; i<groupspecs.getLength(); i++)
+		for(int i=0, globalsIdx = -1; i<groupSpecs.getLength(); i++)
 		{
-			const libconfig::Setting & group = groupspecs[i];
+			const libconfig::Setting & group = groupSpecs[i];
 			if(!group.isGroup())
-				throw std::runtime_error(confPath + listtypemsg);
+				throw std::runtime_error(confPath + listtypeMsg);
 
 			// Cloud types
 
@@ -2551,7 +2551,7 @@ namespace frontier
 
 			// Missing settings from globals when available
 
-			libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &groupspecs[globalsIdx] : NULL);
+			libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &groupSpecs[globalsIdx] : NULL);
 
 			// Output label; default label is the cloud types concatenated with ',' as separator.
 			// If empty label is given, no label.
@@ -2665,7 +2665,7 @@ namespace frontier
 	// Search for conditional settings based on cloud height in px
 
 	double hpx = lopx - hipx;
-	const libconfig::Setting * condspecs = matchingCondition(config,confPath,confPath,"",-1,hpx);
+	const libconfig::Setting * condSpecs = matchingCondition(config,confPath,confPath,"",-1,hpx);
 
 	// Set active configuration scope
 
@@ -2676,8 +2676,8 @@ namespace frontier
 
 	scope.push_back(cg.localScope());
 
-	if (condspecs)
-		scope.push_back(condspecs);
+	if (condSpecs)
+		scope.push_back(condSpecs);
 
 	// Symbol url, type, height and width
 
@@ -3329,7 +3329,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	int nGroups = 0;
 
 	try {
-		const char * typemsg = " must contain a group in curly brackets";
+		const char * typeMsg = " must contain a group in curly brackets";
 
 		// Document's time period
 
@@ -3340,7 +3340,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		const libconfig::Setting & specs = config.lookup(confPath);
 		if(!specs.isGroup())
-			throw std::runtime_error(confPath + typemsg);
+			throw std::runtime_error(confPath + typeMsg);
 
 		const std::string classdef = configValue<std::string>(specs,confPath,"class");
 
@@ -3541,9 +3541,9 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const std::string confPath("Wind");
 
 	try {
-		const char * typemsg = " must contain a group in curly brackets";
-		const char * valtypemsg = "render_winds: FlowDirectionMeasure values expected";
-		const char * directionmsg = "render_winds: wind speed: '";
+		const char * typeMsg = " must contain a group in curly brackets";
+		const char * valtypeMsg = "render_winds: FlowDirectionMeasure values expected";
+		const char * directionMsg = "render_winds: wind speed: '";
 
 		std::string WINDBASE("WINDBASE");
 		std::string WINDBASEHOUR("WINDBASEHOUR");
@@ -3551,7 +3551,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		const libconfig::Setting & specs = config.lookup(confPath);
 		if(!specs.isGroup())
-			throw std::runtime_error(confPath + typemsg);
+			throw std::runtime_error(confPath + typeMsg);
 
 		// Symbol background
 
@@ -3597,7 +3597,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 					const woml::FlowDirectionMeasure * fdm = dynamic_cast<const woml::FlowDirectionMeasure *>(itpv->value());
 
 					if (!fdm)
-						throw std::runtime_error(valtypemsg);
+						throw std::runtime_error(valtypeMsg);
 
 					// DirectionVector: space separated wind speed and direction
 
@@ -3606,26 +3606,26 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 					boost::split(cols,fdm->directionVector(),boost::is_any_of(" "));
 
 					if (cols.size() != 2)
-						throw std::runtime_error(directionmsg);
+						throw std::runtime_error(directionMsg);
 					else try {
 						ws = boost::lexical_cast<double>(cols[0]);
 						wd = boost::lexical_cast<double>(cols[1]);
 					}
 					catch(std::exception & ex) {
-						throw std::runtime_error(std::string(directionmsg) + fdm->directionVector() + "': " + ex.what());
+						throw std::runtime_error(std::string(directionMsg) + fdm->directionVector() + "': " + ex.what());
 					}
 
-					const libconfig::Setting * condspecs = matchingCondition(config,confPath,confPath,"",-1,ws);
+					const libconfig::Setting * condSpecs = matchingCondition(config,confPath,confPath,"",-1,ws);
 
-					if (condspecs) {
+					if (condSpecs) {
 						// Symbol library and symbol's name, class and scale
 						//
-						std::string uri = configValue<std::string>(*condspecs,confPath,"url",&specs);
-						std::string symbol = configValue<std::string>(*condspecs,confPath,"symbol",&specs);
-						std::string classdef = configValue<std::string>(*condspecs,confPath,"class",&specs);
+						std::string uri = configValue<std::string>(*condSpecs,confPath,"url",&specs);
+						std::string symbol = configValue<std::string>(*condSpecs,confPath,"symbol",&specs);
+						std::string classdef = configValue<std::string>(*condSpecs,confPath,"class",&specs);
 
 						bool isSet;
-						double scale = configValue<double,int>(*condspecs,confPath,"scale",&specs,s_optional,&isSet);
+						double scale = configValue<double,int>(*condSpecs,confPath,"scale",&specs,s_optional,&isSet);
 						if (!isSet)
 							scale = 1.0;
 
@@ -3912,7 +3912,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const std::string confPath("ZeroTolerance");
 
 	try {
-		const char * typemsg = " must contain a group in curly brackets";
+		const char * typeMsg = " must contain a group in curly brackets";
 
 		std::string ZEROTOLERANCE(boost::algorithm::to_upper_copy(confPath));
 		std::string ZEROTOLERANCEVISIBLE(ZEROTOLERANCE + "VISIBLE");
@@ -3921,7 +3921,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		const libconfig::Setting & specs = config.lookup(confPath);
 		if(!specs.isGroup())
-			throw std::runtime_error(confPath + typemsg);
+			throw std::runtime_error(confPath + typeMsg);
 
 		std::string classdef = configValue<std::string>(specs,confPath,"class");
 		std::string textClassDef = classdef + "Text";
@@ -4365,30 +4365,30 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	++npointvalues;
 
 	try {
-		const char * typemsg = " must contain a list of groups in parenthesis";
-		const char * valtypemsg = ": type must be 'value' or 'svg'";
+		const char * typeMsg = " must contain a list of groups in parenthesis";
+		const char * valtypeMsg = ": type must be 'value' or 'svg'";
 
-		const libconfig::Setting & valspecs = config.lookup(confPath);
-		if(!valspecs.isList())
-			throw std::runtime_error(confPath + typemsg);
+		const libconfig::Setting & valSpecs = config.lookup(confPath);
+		if(!valSpecs.isList())
+			throw std::runtime_error(confPath + typeMsg);
 
 		settings s_name((settings) (s_base + 0));
 
 		int valIdx = -1;
 		int globalsIdx = -1;
 
-		for(int i=0; i<valspecs.getLength(); ++i)
+		for(int i=0; i<valSpecs.getLength(); ++i)
 		{
-			const libconfig::Setting & specs = valspecs[i];
+			const libconfig::Setting & specs = valSpecs[i];
 			if(!specs.isGroup())
-				throw std::runtime_error(confPath + typemsg);
+				throw std::runtime_error(confPath + typeMsg);
 
 			try {
 				if (lookup<std::string>(specs,confPath,"name",s_name) == valClass) {
 					valIdx = i;
 
 					// Missing settings from globals when available
-					libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &valspecs[globalsIdx] : NULL);
+					libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &valSpecs[globalsIdx] : NULL);
 
 					// Value type; value (the default) or svg
 					std::string type = configValue<std::string>(specs,valClass,"type",globalScope,s_optional);
@@ -4407,21 +4407,21 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 						// For single value, search for matching condition with nearest comparison value
 
-						const libconfig::Setting * condspecs = (! upperLimit)
+						const libconfig::Setting * condSpecs = (! upperLimit)
 							? matchingCondition(config,confPath,valClass,"",i,lowerLimit->numericValue())
 							: NULL;
 
-						if (condspecs) {
+						if (condSpecs) {
 							// Class from the condition or from the parent/parameter block
 							//
-							classdef = configValue<std::string>(*condspecs,valClass,"class",&specs);
+							classdef = configValue<std::string>(*condSpecs,valClass,"class",&specs);
 
 							bool isSet;
-							std::string cpref = configValue<std::string>(*condspecs,valClass,"pref" + vtype,NULL,s_optional,&isSet);
+							std::string cpref = configValue<std::string>(*condSpecs,valClass,"pref" + vtype,NULL,s_optional,&isSet);
 							if (isSet)
 								pref = cpref;
 
-							std::string chref = configValue<std::string>(*condspecs,valClass,"href" + vtype,NULL,s_optional,&isSet);
+							std::string chref = configValue<std::string>(*condSpecs,valClass,"href" + vtype,NULL,s_optional,&isSet);
 							if (isSet)
 								href = chref;
 						}
@@ -4452,7 +4452,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						throw std::runtime_error(confPath + " type 'svg' not implemented yet");
 					}
 					else
-						throw std::runtime_error(confPath + ": '" + type + "'" + valtypemsg);
+						throw std::runtime_error(confPath + ": '" + type + "'" + valtypeMsg);
 				}
 			}
 			catch (SettingIdNotFoundException & ex) {
@@ -4677,16 +4677,16 @@ AxisManager::AxisManager(const libconfig::Config & config)
 	std::string confPath("ElevationAxis");
 
 	try {
-		const char * groupmsg = " must contain a group in curly brackets";
-		const char * listmsg = " must contain a list of groups in parenthesis";
-		const std::string valuemsg(": value between 0.0 and 1.0 expected");
-		const char * scalemsg = ": scale must be rising for rising elevation";
+		const char * groupMsg = " must contain a group in curly brackets";
+		const char * listMsg = " must contain a list of groups in parenthesis";
+		const std::string valueMsg(": value between 0.0 and 1.0 expected");
+		const char * scaleMsg = ": scale must be rising for rising elevation";
 
 		// Y -axis height (px)
 
 		const libconfig::Setting & elevAxisSpecs = config.lookup(confPath);
 		if(!elevAxisSpecs.isGroup())
-			throw std::runtime_error(confPath + groupmsg);
+			throw std::runtime_error(confPath + groupMsg);
 
 		itsAxisHeight = configValue<int>(elevAxisSpecs,confPath,"height");
 
@@ -4695,15 +4695,15 @@ AxisManager::AxisManager(const libconfig::Config & config)
 
 		confPath += ".elevations";
 
-		const libconfig::Setting & elevspecs = config.lookup(confPath);
-		if((!elevspecs.isList()) || (elevspecs.getLength() < 1))
-			throw std::runtime_error(confPath + listmsg);
+		const libconfig::Setting & elevSpecs = config.lookup(confPath);
+		if((!elevSpecs.isList()) || (elevSpecs.getLength() < 1))
+			throw std::runtime_error(confPath + listMsg);
 
-		for(int i=0; i<elevspecs.getLength(); ++i)
+		for(int i=0; i<elevSpecs.getLength(); ++i)
 		{
-			const libconfig::Setting & specs = elevspecs[i];
+			const libconfig::Setting & specs = elevSpecs[i];
 			if(!specs.isGroup())
-				throw std::runtime_error(confPath + listmsg);
+				throw std::runtime_error(confPath + listMsg);
 
 			double elevation = configValue<double,int>(specs,confPath,"elevation");					// Meters
 			double scale = configValue<double,int>(specs,confPath,"scale");							// [0,1]
@@ -4711,7 +4711,7 @@ AxisManager::AxisManager(const libconfig::Config & config)
 			std::string rLabel = configValue<std::string>(specs,confPath,"rlabel",NULL,s_optional);	// Right side label
 
 			if ((scale < 0.0) || (scale > 1.0))
-				throw std::runtime_error(confPath + ": " + boost::lexical_cast<std::string>(boost::format("%.3f") % scale) + valuemsg);
+				throw std::runtime_error(confPath + ": " + boost::lexical_cast<std::string>(boost::format("%.3f") % scale) + valueMsg);
 
 			boost::algorithm::trim(lLabel);
 			boost::algorithm::trim(rLabel);
@@ -4744,7 +4744,7 @@ AxisManager::AxisManager(const libconfig::Config & config)
 
 		for (it++; (it != itsElevations.end()); it++, it2++)
 			if (it2->scale() >= it->scale())
-				throw std::runtime_error(confPath + ": " + boost::lexical_cast<std::string>(boost::format("%.3f") % it->scale()) + scalemsg);
+				throw std::runtime_error(confPath + ": " + boost::lexical_cast<std::string>(boost::format("%.3f") % it->scale()) + scaleMsg);
 			else
 				it2->factor((it->scale() - it2->scale()) / (it->elevation() - it2->elevation()));
   	}
@@ -5728,21 +5728,21 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 	{
 	  // Except list of groups
 
-	  const char * typemsg = "contourlines must contain a list of groups in parenthesis";
+	  const char * typeMsg = "contourlines must contain a list of groups in parenthesis";
 
-	  const libconfig::Setting & contourspecs = config.lookup("contourlines");
+	  const libconfig::Setting & contourSpecs = config.lookup("contourlines");
 
-	  if(!contourspecs.isList())
-		throw std::runtime_error(typemsg);
+	  if(!contourSpecs.isList())
+		throw std::runtime_error(typeMsg);
 
 	  std::size_t linenumber = 0;
 
-	  for(int i=0; i<contourspecs.getLength(); ++i)
+	  for(int i=0; i<contourSpecs.getLength(); ++i)
 		{
-		  const libconfig::Setting & specs = contourspecs[i];
+		  const libconfig::Setting & specs = contourSpecs[i];
 
 		  if(!specs.isGroup())
-			throw std::runtime_error(typemsg);
+			throw std::runtime_error(typeMsg);
 
 		  // Now process this individual contour
 
