@@ -3321,14 +3321,16 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   void SvgRenderer::render_timeserie(const woml::Contrails & contrails)
   {
-	ElevGrp eGrp;
-	double xStep = axisManager->xStep();
 	const std::string confPath("Contrails");
-	const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
-	bool visible = false,aboveTop = false;
-	int nGroups = 0;
 
 	try {
+		ElevGrp eGrp;
+		double xStep = axisManager->xStep();
+		const std::string confPath("Contrails");
+		const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
+		bool visible = false,aboveTop = false;
+		int nGroups = 0;
+
 		const char * typeMsg = " must contain a group in curly brackets";
 
 		// Document's time period
@@ -3390,14 +3392,16 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 					double x = axisManager->xOffset(iteg->validTime());
 
-					bool prevMissing = ((val >= 0) && (x > (xStep / 2)) && ((x > (prevX + xStep + (xStep / 2))) || (prevVal < 0)));
+					// Check if the elevation for the previous time instant was missing or invisible
 
-					if (((val < 0) || prevMissing) && (visibleCnt > 0))
+					bool prevMissing = ((val > 0) && (x > (xStep / 2)) && ((x > (prevX + xStep + (xStep / 2))) || (prevVal <= 0)));
+
+					if (((val <= 0) || prevMissing) && (visibleCnt > 0))
 						// Continue ending path segment half timestep forwards
 						//
 						path << " L" << (prevX + (xStep / 2)) << "," << prevVal;
 
-					if (val >= 0) {
+					if (val > 0) {
 						// Visible
 						//
 						if (prevMissing) {
@@ -3442,6 +3446,8 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 										 << "\" d=\""
 										 << path.str()
 										 << "\"/>\n";
+
+						visible = true;
 					}
 				}	// for iteg
 			}	// for rng
