@@ -3563,6 +3563,16 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		std::string href = configValue<std::string>(specs,confPath,"href",NULL,s_optional);
 
+		// Control to render all winds or only at elevation line heights (default: true; render all)
+
+		const std::list<Elevation> & elevations = axisManager->elevations();
+		std::list<Elevation>::const_iterator elevend = elevations.end();
+
+		bool isSet;
+		bool renderAll = configValue<bool>(specs,confPath,"renderall",NULL,s_optional,&isSet);
+		if (!isSet)
+			renderAll = true;
+
 		// Loop thru the (ascending) time serie
 
 		int nSymbols = 0;
@@ -3639,12 +3649,29 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLower = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
 						const boost::optional<woml::NumericalSingleValueMeasure> & itsLowerLimit = (e.bounded() ? itsBoundedLower : e.value());
 
-						if (fstts == tsend)
-							fstts = itts;
+						double height = itsLowerLimit->numericValue();
+
+						if (!renderAll) {
+							// Check elevation lines if height matches
+							//
+							std::list<Elevation>::const_iterator eit = elevations.begin();
+
+							for ( ; ((eit != elevend) && (fabs(eit->elevation() - height) > 1.0)); eit++)
+								;
+
+							if (eit == elevend)
+								continue;
+						}
 
 						// Get scaled elevation
 						//
-						double y = axisManager->scaledElevation(itsLowerLimit->numericValue());
+						double y = axisManager->scaledElevation(height);
+
+						if (y < 0)
+							continue;
+
+						if (fstts == tsend)
+							fstts = itts;
 
 						if (itts == fstts) {
 							// Backgroud reference
