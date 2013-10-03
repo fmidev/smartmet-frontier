@@ -2725,24 +2725,16 @@ namespace frontier
 		  	  	  	  	 double lopx,std::vector<double> & _lopx,
 		  	  	  	  	 double hipx,std::vector<double> & _hipx)
   {
-	// Keep track of elevations (when travelling forwards) or area's overall bounding box
+	// Keep track of elevations (when travelling forwards)
 
 	int nX = _lopx.size();
 
 	if ((nX == 0) || (x > (maxx + 0.01))) {
-		if ((!bbCenterLabel) || (nX == 0)) {
-			if (nX == 0)
-				minx = x;
+		if (nX == 0)
+			minx = x;
 
-			_lopx.push_back(lopx);
-			_hipx.push_back(hipx);
-		}
-		else {
-			if (lopx > _lopx[0])
-				_lopx[0] = lopx;
-			if (hipx < _hipx[0])
-				_hipx[0] = hipx;
-		}
+		_lopx.push_back(lopx);
+		_hipx.push_back(hipx);
 
 		maxx = x;
 	}
@@ -2750,42 +2742,83 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Utility function for getting area's label position
+   * \brief Utility function for getting area's label position(s)
    */
   // ----------------------------------------------------------------------
 
   void getAreaLabelPos(bool bbCenterLabel,
-		  	  	  	   double & minx,double & maxx,double xStep,
+		  	  	  	   double minx,double xStep,
 		  	  	  	   std::vector<double> & _lopx,std::vector<double> & _hipx,
-		  	  	  	   double & lx,double & ly)
+		  	  	  	   std::vector<double> & labelX,std::vector<double> & labelY)
   {
-	if (!bbCenterLabel) {
-		int nX = _lopx.size();
+	double lopx,lx,ly;
 
-		if (nX % 2) {
-			int n = ((nX - 1) / 2);
+	for (size_t npx = 0,nX = 0,n0 = 0; (npx < _lopx.size()); ) {
+		// Step until end of data or area is no longer visible
+		//
+		lopx = _lopx[npx];
 
-			lx = minx + (n * xStep);
-			ly = (_lopx[n] - ((_lopx[n] - std::max(_hipx[n],0.0)) / 2));
+		if (lopx > 0) {
+			if (nX == 0)
+				// First visible time instant
+				//
+				n0 = npx;
+
+			if (bbCenterLabel && (npx > 0)) {
+				// Keep track of bounding box
+				//
+				double hipx = std::max(_hipx[npx],0.0);
+
+				if ((nX == 0) || (lopx > _lopx[0]))
+					_lopx[0] = lopx;
+				if ((nX == 0) || (hipx < _hipx[0]))
+					_hipx[0] = hipx;
+			}
+
+			nX++;
+		}
+
+		npx++;
+
+		if (((lopx > 0) && (npx < _lopx.size())) || (nX == 0))
+			continue;
+
+		if (!bbCenterLabel) {
+			// Using 1 or 2 elevations in the middle of the area
+			//
+			if (nX % 2) {
+				size_t n = n0 + ((nX - 1) / 2);
+
+				lx = minx + (n * xStep);
+				ly = (_lopx[n] - ((_lopx[n] - std::max(_hipx[n],0.0)) / 2));
+			}
+			else {
+				int n2 = n0 + (nX / 2);
+				int n1 = n2 - 1;
+
+				lx = minx + (n1 * xStep) + (xStep / 2);
+
+				double y2 = _lopx[n2] - ((_lopx[n2] - std::max(_hipx[n2],0.0)) / 2);
+				double y1 = _lopx[n1] - ((_lopx[n1] - std::max(_hipx[n1],0.0)) / 2);
+
+				if (y2 > y1)
+					ly = (y2 - ((y2 - y1) / 2));
+				else
+					ly = (y1 - ((y1 - y2) / 2));
+			}
 		}
 		else {
-			int n2 = nX / 2;
-			int n1 = n2 - 1;
+			double xmin = minx + (n0 * xStep);
+			double xmax = xmin + ((nX - 1) * xStep);
 
-			lx = minx + (n1 * xStep) + (xStep / 2);
-
-			double y2 = std::max((_lopx[n2] - ((_lopx[n2] - _hipx[n2]) / 2)),0.0);
-			double y1 = std::max((_lopx[n1] - ((_lopx[n1] - _hipx[n1]) / 2)),0.0);
-
-			if (y2 > y1)
-				ly = (y2 - ((y2 - y1) / 2));
-			else
-				ly = (y1 - ((y1 - y2) / 2));
+			lx = (xmax - ((xmax - xmin) / 2));
+			ly = (_lopx[0] - ((_lopx[0] - std::max(_hipx[0],0.0)) / 2));
 		}
-	}
-	else {
-		lx = (maxx - ((maxx - minx) / 2));
-		ly = (_lopx[0] - ((_lopx[0] - std::max(_hipx[0],0.0)) / 2));
+
+		labelX.push_back(lx);
+		labelY.push_back(ly);
+
+		nX = 0;
 	}
   }
 
@@ -3120,16 +3153,20 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::string label = itcg->label();
 
 		if (!label.empty()) {
-			double lx,ly;
+			std::vector<double> labelX,labelY;
+			std::vector<double>::const_iterator itx,ity;
+			int n;
 
-			getAreaLabelPos(itcg->bbCenterLabel(),minx,maxx,xStep,_lopx,_hipx,lx,ly);
+			getAreaLabelPos(itcg->bbCenterLabel(),minx,xStep,_lopx,_hipx,labelX,labelY);
 
-			texts[itcg->labelPlaceHolder()] << "<text class=\"" << itcg->textClassDef()
-										    << "\" id=\"" << "CloudLayersText" << nGroups
-										    << "\" text-anchor=\"middle"
-										    << "\" x=\"" << lx
-										    << "\" y=\"" << ly
-										    << "\">" << label << "</text>\n";
+			for (itx = labelX.begin(),ity = labelY.begin(),n = 0; (itx != labelX.end()); itx++, ity++, n++) {
+				texts[itcg->labelPlaceHolder()] << "<text class=\"" << itcg->textClassDef()
+												<< "\" id=\"" << "CloudLayersText" << nGroups << n
+												<< "\" text-anchor=\"middle"
+												<< "\" x=\"" << *itx
+												<< "\" y=\"" << *ity
+												<< "\">" << label << "</text>\n";
+			}
 		}
 
 		curvePositions.clear();
@@ -4338,16 +4375,24 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 				std::string & label = (egbeg->negativeTemp() ? negLabel : posLabel);
 
 				if (!label.empty()) {
-					double lx,ly;
+					std::vector<double> labelX,labelY;
+					std::vector<double>::const_iterator itx,ity;
+					int n;
 
-					getAreaLabelPos(bbCenterLabel,minx,maxx,xStep,_lopx,_hipx,lx,ly);
+					getAreaLabelPos(bbCenterLabel,minx,xStep,_lopx,_hipx,labelX,labelY);
 
-					texts[labelPlaceHolder] << "<text class=\"" << textClassDef
-											<< "\" id=\"" << "ZeroToleranceText" << nGroups
-											<< "\" text-anchor=\"middle"
-											<< "\" x=\"" << lx
-											<< "\" y=\"" << ly
-											<< "\">" << label << "</text>\n";
+					// Note: only one label expected/rendered
+
+					for (itx = labelX.begin(),ity = labelY.begin(),n = 0; (itx != labelX.end()); n++) {
+						texts[labelPlaceHolder] << "<text class=\"" << textClassDef
+												<< "\" id=\"" << "ZeroToleranceText" << nGroups << n
+												<< "\" text-anchor=\"middle"
+												<< "\" x=\"" << *itx
+												<< "\" y=\"" << *ity
+												<< "\">" << label << "</text>\n";
+
+						break;
+					}
 				}
 			}
 
