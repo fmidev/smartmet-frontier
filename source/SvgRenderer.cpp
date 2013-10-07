@@ -3600,15 +3600,22 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		std::string href = configValue<std::string>(specs,confPath,"href",NULL,s_optional);
 
-		// Control to render all winds or only at elevation line heights (default: true; render all)
+		// Controls to render all winds or only at elevation line heights (default: true; render all)
+		// and if the wind at the highest elevation line height is rendered or not (default: true)
 
 		const std::list<Elevation> & elevations = axisManager->elevations();
 		std::list<Elevation>::const_iterator elevend = elevations.end();
+		double axisHeight = elevations.back().elevation();
 
 		bool isSet;
+
 		bool renderAll = configValue<bool>(specs,confPath,"renderall",NULL,s_optional,&isSet);
 		if (!isSet)
 			renderAll = true;
+
+		bool renderTop = configValue<bool>(specs,confPath,"rendertop",NULL,s_optional,&isSet);
+		if (!isSet)
+			renderTop = true;
 
 		// Loop thru the (ascending) time serie
 
@@ -3702,6 +3709,13 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 						// Get scaled elevation
 						//
+						// Note: Winds seem to have heights like 3500.5m, thus sligthly exceeding the configured
+						//		 top elevation line 3500m etc; if needed allow some tolerance to prevent scaledElevation
+						//		 ignoring the overflowing elevation
+
+						if (fabs(axisHeight - height) <= 1.0)
+							height = (renderTop ? (axisHeight - 1.0) : (axisHeight + 1.0));
+
 						double y = axisManager->scaledElevation(height);
 
 						if (y < 0)
