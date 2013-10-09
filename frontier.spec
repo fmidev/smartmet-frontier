@@ -55,6 +55,8 @@ rm -rf $RPM_BUILD_ROOT
 - LENTOSAA-688
 - LENTOSAA-706
 - LENTOSAA-753
+- LENTOSAA-754
+- LENTOSAA-687
 * Wed Jul  3 2013 Mika Heiskanen <mika.heiskanen@fmi.fi> 13.7.3-1.fmi
 - Update to boost 1.54
 * Wed Feb 27 2013 Mikko Visa <mikko.visa@fmi.fi> - 13.2.27-1.fmi
