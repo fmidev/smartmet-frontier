@@ -182,6 +182,43 @@ namespace frontier
     bool operator () ( const CloudGroup & cloudGroup, const std::string & cloudType) const;
   };
 
+  class CategoryValueMeasureGroup
+  {
+  public:
+	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm) = 0;
+	virtual bool standalone() = 0;
+  };
+
+  class CloudGroupCategory : public CategoryValueMeasureGroup
+  {
+  public:
+	CloudGroupCategory();
+
+	std::list<CloudGroup> & cloudGroups() { return itsCloudGroups; }
+	std::list<CloudGroup>::const_iterator currentGroup() { return itcg; }
+
+	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm);
+	bool standalone() { return ((itsCloudGroups.size() > 0) && (*itcg).standalone()); }
+
+  private:
+	std::list<CloudGroup> itsCloudGroups;
+	std::list<CloudGroup>::const_iterator itcg;
+  };
+
+  class IcingCategory : public CategoryValueMeasureGroup
+  {
+  public:
+	IcingCategory();
+
+	const std::string & category() { return itsCategory; }
+
+	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm);
+	bool standalone() { return false; }
+
+  private:
+	std::string itsCategory;
+  };
+
   class ElevationGroupItem
   {
   public:
@@ -338,8 +375,7 @@ namespace frontier
 							 ElevGrp & eGrp,
 							 bool all = false,
 							 bool mixed = true,
-							 std::list<CloudGroup> * cloudGroups = NULL,
-							 std::list<CloudGroup>::const_iterator * itcg = NULL);
+							 CategoryValueMeasureGroup * groupCategory = NULL);
 	Phase uprightdown(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndFwd2Gnd = true);
 	Phase downleftup(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndVdn2Gnd = false);
 

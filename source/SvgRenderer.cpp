@@ -1862,7 +1862,7 @@ namespace frontier
 		ElevGrp::const_iterator egend = eGrp.end(),iteg;
 
 		for (iteg = eGrp.begin(); (iteg != egend); iteg++) {
-			// Note: Using the lo-hi range average value for "nonground" elevations (Icing, MigratoryBirds) and
+			// Note: Using the lo-hi range average value for "nonground" elevations (MigratoryBirds) and
 			// 		 0 for "ground" elevation (SurfaceVisibility, SurfaceWeather)
 			//
 			double y = 0.0;
@@ -2485,7 +2485,7 @@ namespace frontier
 		if(!specs.isGroup())
 			throw std::runtime_error(confPath + grouptypeMsg);
 
-		std::string classdef = configValue<std::string>(specs,confPath,"class");
+		std::string classDef = configValue<std::string>(specs,confPath,"class");
 
 		// Bezier curve tightness
 
@@ -2497,8 +2497,8 @@ namespace frontier
 			//
 			tightness = -1.0;
 
-		// If bbcntlabel is true (default: false), cloud labels are positioned to the center of the cloud's bounding box;
-		// otherwise using 2 elevations in the middle of the cloud in x -direction
+		// If bbcenterlabel is true (default: false), cloud label is positioned to the center of the cloud's bounding box;
+		// otherwise using 1 or 2 elevations in the middle of the cloud in x -direction
 
 		bool bbCenterLabel = configValue<bool>(specs,confPath,"bbcenterlabel",NULL,s_optional,&isSet);
 		if (!isSet)
@@ -2616,7 +2616,7 @@ namespace frontier
 			if (!isSet)
 			   controlRandom = 4;
 
-			cloudGroups.push_back(CloudGroup(classdef,
+			cloudGroups.push_back(CloudGroup(classDef,
 											 cloudTypes,
 											 symbolType,
 											 hasLabel ? &label : NULL,
@@ -2824,6 +2824,42 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Cloud group membership detection
+   */
+  // ----------------------------------------------------------------------
+
+  CloudGroupCategory::CloudGroupCategory() : CategoryValueMeasureGroup()
+  {
+  }
+
+  bool CloudGroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm)
+  {
+	// Add first member to the cloud group or check if the given cloud type is compatible with the group
+
+	std::string category(boost::algorithm::to_upper_copy(cvm->category()));
+
+	if (first) {
+		itcg = std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category));
+
+		if (itcg == itsCloudGroups.end())
+			return false;
+
+		// The cloud set is common for all groups; clear it
+
+		itcg->cloudSet().clear();
+	}
+	else if (std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category)) != itcg)
+		return false;
+
+	// Add contained cloud type into the cloud set
+
+	itcg->addType(category);
+
+	return true;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Cloud layer rendering
    */
   // ----------------------------------------------------------------------
@@ -2835,8 +2871,7 @@ namespace frontier
 	std::string confPath("CloudLayers");
 
 	double tightness;
-	std::list<CloudGroup> cloudGroups;
-	std::list<CloudGroup>::const_iterator itcg;
+	CloudGroupCategory cloudGroupCategory;
 
 	// Cloud types (their starting positions in the group's 'types' setting) contained in current group;
 	// if group's label is not given, label (comma separated list of types) is build using the order
@@ -2847,7 +2882,7 @@ namespace frontier
 
 	std::set<size_t> cloudSet;
 
-	cloudLayerConfig(confPath,tightness,cloudGroups,cloudSet);
+	cloudLayerConfig(confPath,tightness,cloudGroupCategory.cloudGroups(),cloudSet);
 
 	// Document's time period and x -axis step (px)
 
@@ -2874,7 +2909,7 @@ namespace frontier
 	std::list<doubleArr> decoratorPoints;
 
 	for ( ; ; ) {
-		elevationGroup(ts,bt,et,eGrp,false,true,&cloudGroups,&itcg);
+		elevationGroup(ts,bt,et,eGrp,false,true,&cloudGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
@@ -2885,6 +2920,7 @@ namespace frontier
 		// hi range points and lo range points for subsequent overlapping elevations
 
 		ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
+		std::list<CloudGroup>::const_iterator itcg = cloudGroupCategory.currentGroup();
 		Phase phase;
 		double lopx = 0.0,plopx = 0.0;
 		double hipx = 0.0,phipx = 0.0;
@@ -2924,7 +2960,7 @@ namespace frontier
 				continue;
 			}
 
-			// Keep track of elevations or cloud's overall bounding box to calculate the label position
+			// Keep track of elevations to calculate the label position
 
 			trackAreaLabelPos(itcg->bbCenterLabel(),x,minx,maxx,lopx,_lopx,hipx,_hipx);
 
@@ -3189,14 +3225,13 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		  	  	  	  	  	  	  	  	  	  	  	 ElevGrp & eGrp,
 		  	  	  	  	  	  	  	  	  	  	  	 bool all,
 		  	  	  	  	  	  	  	  	  	  	  	 bool mixed,
-		  	  	  	  	  	  	  	  	  	  	  	 std::list<CloudGroup> * cloudGroups,
-		  	  	  	  	  	  	  	  	  	  	  	 std::list<CloudGroup>::const_iterator * itcg)
+		  	  	  	  	  	  	  	  	  	  	  	 CategoryValueMeasureGroup * groupCategory)
   {
 	// Loop thru the time instants.
 	//
 	// If 'all' is false and 'mixed' is true the elevations (lo-hi ranges) are scanned/grouped in time instant order
 	// starting from topmost elevation grouping all subsequent overlapping "ground" (lo -range (near) 0) and "nonground"
-	// elevations. If 'cloudGroups' is nonnull, category (cloud type for CloudLayers) is taken into account.
+	// elevations. If 'groupCategory' is nonnull, category (cloud type for CloudLayers or magnitude for Icing) is taken into account.
 	// All elevations of the selected time instants are included into the group; the group may contain
 	// logically nongroup (nonoverlapping) elevations too.
 	//
@@ -3210,10 +3245,10 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	std::list<woml::TimeSeriesSlot>::const_iterator tsend = ts.end();
 	std::list<woml::TimeSeriesSlot>::const_iterator itts;
 
-	bool byCategory = (cloudGroups != NULL),groundGrp = false,nonGroundGrp = false;
+	bool byCategory = (groupCategory != NULL),groundGrp = false,nonGroundGrp = false;
 
 	if (byCategory)
-		// 'mixed' is ignored for CloudLayers; always true
+		// 'mixed' is ignored for CloudLayers and Icing; always true
 		//
 		mixed = true;
 
@@ -3262,37 +3297,21 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 					hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
 					if (byCategory) {
-						// Take category (cloud type) into account
+						// Take category (cloud type or icing magnitude) into account
 						//
 						const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(itpv->value());
 
 						if (!cvm)
 							throw std::runtime_error("elevationGroup: CategoryValueMeasure values expected");
 
-						std::string category(boost::algorithm::to_upper_copy(cvm->category()));
+						if (!(groupCategory->groupMember((eGrp.size() == 0),cvm))) {
+							if ((eGrp.size() == 0) && options.debug)
+								debugoutput << "Settings for "
+											<< cvm->category()
+											<< " not found\n";
 
-						if (eGrp.size() == 0) {
-							*itcg = std::find_if(cloudGroups->begin(),cloudGroups->end(),std::bind2nd(CloudType(),category));
-
-							if (*itcg == cloudGroups->end()) {
-								if (options.debug)
-									debugoutput << "Settings for "
-											    << category
-											    << " not found\n";
-
-								continue;
-							}
-
-							// The cloud set is common for all groups; clear it
-
-							(*itcg)->cloudSet().clear();
-						}
-						else if (std::find_if(cloudGroups->begin(),cloudGroups->end(),std::bind2nd(CloudType(),category)) != *itcg)
 							continue;
-
-						// Add contained cloud type into the cloud set
-
-						(*itcg)->addType(category);
+						}
 					}
 					else if ((!mixed) && (eGrp.size() > 0))
 					  {
@@ -3335,7 +3354,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 				eGrp.push_back(ElevationGroupItem(vt,itpvs,itpv));
 
-				if (byCategory && (*itcg)->standalone())
+				if (byCategory && groupCategory->standalone())
 					return (groundGrp ? t_ground : t_nonground);
 			}	// for itpv
 		}	// for itpvs
@@ -3363,7 +3382,6 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	try {
 		ElevGrp eGrp;
 		double xStep = axisManager->xStep();
-		const std::string confPath("Contrails");
 		const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
 		bool visible = false,aboveTop = false;
 		int nGroups = 0;
@@ -3375,18 +3393,20 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		const boost::posix_time::time_period & tp = axisManager->timePeriod();
 		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
+		const std::list<woml::TimeSeriesSlot> & ts = contrails.timeseries();
+
 		// Class
 
 		const libconfig::Setting & specs = config.lookup(confPath);
 		if(!specs.isGroup())
 			throw std::runtime_error(confPath + typeMsg);
 
-		const std::string classdef = configValue<std::string>(specs,confPath,"class");
+		const std::string classDef = configValue<std::string>(specs,confPath,"class");
 
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
 			//
-			elevationGroup(contrails.timeseries(),bt,et,eGrp,false,false);
+			elevationGroup(ts,bt,et,eGrp,false,false);
 
 			if (eGrp.size() == 0)
 				break;
@@ -3478,7 +3498,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 						nGroups++;
 
-						texts[CONTRAILS] << "<path class=\"" << classdef
+						texts[CONTRAILS] << "<path class=\"" << classDef
 										 << "\" id=\"" << contrailId << nGroups
 										 << "\" d=\""
 										 << path.str()
@@ -3499,14 +3519,14 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			// Hide the fixed template text "No condensation trails"
 			//
 			const std::string CONTRAILSVISIBLE(CONTRAILS + "VISIBLE");
-			texts[CONTRAILSVISIBLE] << classdef << "Unvisible";
+			texts[CONTRAILSVISIBLE] << classDef << "Unvisible";
 		}
 
 		if ((!visible) && aboveTop) {
 			// Show the fixed template text "Condensation trails are located in the upper"
 			//
 			const std::string CONTRAILSUNVISIBLE(CONTRAILS + "UNVISIBLE");
-			texts[CONTRAILSUNVISIBLE] << classdef << "Visible";
+			texts[CONTRAILSUNVISIBLE] << classDef << "Visible";
 		}
 
 		return;
@@ -3531,13 +3551,391 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Icing category membership detection
+   */
+  // ----------------------------------------------------------------------
+
+  IcingCategory::IcingCategory() : CategoryValueMeasureGroup()
+  {
+  }
+
+  bool IcingCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm)
+  {
+	// Store category or check if the given category matches
+
+	std::string category(boost::algorithm::to_upper_copy(cvm->category()));
+
+	if (first)
+		itsCategory = category;
+	else if (category != itsCategory)
+		return false;
+
+	return true;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Icing rendering
    */
   // ----------------------------------------------------------------------
 
   void SvgRenderer::render_timeserie(const woml::Icing & icing)
   {
-	render_aerodromeSymbols<woml::Icing>(icing,"Icing");
+	const std::string confPath("Icing");
+
+	try {
+		const std::string ICING(boost::algorithm::to_upper_copy(confPath));
+		const char * typeMsg = " must contain a group in curly brackets";
+
+		// Document's time period and x -axis step (px)
+
+		const boost::posix_time::time_period & tp = axisManager->timePeriod();
+		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+
+		double xStep = axisManager->xStep();
+
+		// Class
+
+		const libconfig::Setting & specs = config.lookup(confPath);
+		if(!specs.isGroup())
+			throw std::runtime_error(confPath + typeMsg);
+
+		const std::string pathClass = configValue<std::string>(specs,confPath,"class") + "Path";
+		const std::string symClass(boost::algorithm::to_upper_copy(confPath + icing.classNameExt()));
+
+		// If bbcenterlabel is true (default: false), icing symbol is positioned to the center of the area's bounding box;
+		// otherwise using 1 or 2 elevations in the middle of the area in x -direction
+
+		bool isSet;
+
+		bool bbCenterLabel = configValue<bool>(specs,confPath,"bbcenterlabel",NULL,s_optional,&isSet);
+		if (!isSet)
+			bbCenterLabel = false;
+
+		// If symbol is true (default: true), single icing symbol is rendered as symbol
+
+		bool symbol = configValue<bool>(specs,confPath,"symbol",NULL,s_optional,&isSet);
+		if (!isSet)
+			symbol = true;
+
+		// Bezier curve tightness
+
+		double tightness = (double) configValue<double,int>(specs,confPath,"tightness",NULL,s_optional,&isSet);
+		if (!isSet)
+			// Using the default by setting a negative value
+			//
+			tightness = -1.0;
+
+		// Loop thru the time instants
+		//
+		// The elevations (lo-hi ranges) are scanned/grouped in time instant order starting from
+		// topmost elevation grouping subsequent overlapping elevations taking icing magnitude into account
+		//
+		// The path points are collected into a vector (List in original java code)
+		// to be passed to Esa's bezier model
+
+		const std::list<woml::TimeSeriesSlot> & ts = icing.timeseries();
+
+		ElevGrp eGrp;
+		IcingCategory icingCategory;
+		int nGroups = 0;
+
+		List<DirectPosition> curvePositions;
+		std::list<DirectPosition> curvePoints;
+
+		for ( ; ; ) {
+			// Get group of overlapping elevations from the time serie
+			//
+			elevationGroup(ts,bt,et,eGrp,false,true,&icingCategory);
+
+			if (eGrp.size() == 0)
+				break;
+
+			nGroups++;
+
+			// Loop thru the collected group and output icing symbol or create path connecting
+			// hi range points and lo range points for subsequent overlapping elevations
+
+			ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
+			Phase phase;
+			double lopx = 0.0,plopx = 0.0;
+			double hipx = 0.0,phipx = 0.0;
+			double minx = 0.0,maxx = 0.0;
+			bool single = true;
+			std::vector<double> _lopx,_hipx;
+
+			std::ostringstream path;
+			path << std::fixed << std::setprecision(3);
+
+			for (iteg = egbeg, phase = fst; (iteg != egend); ) {
+				// Get elevation's lo and hi range values
+				//
+				const woml::Elevation & e = iteg->Pv()->elevation();
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+				double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+				// x -coord of this time instant
+
+				const boost::posix_time::ptime & vt = iteg->validTime();
+				double x = axisManager->xOffset(vt);
+
+				plopx = lopx;
+				phipx = hipx;
+				lopx = axisManager->scaledElevation(lo);
+				hipx = axisManager->scaledElevation(hi);
+
+				// Keep track of elevations to calculate the label position
+
+				trackAreaLabelPos(bbCenterLabel,x,minx,maxx,lopx,_lopx,hipx,_hipx);
+
+#define STEPSS
+
+#ifdef STEPS
+std::string cs;
+if (iteg->topConnected()) cs = " top";
+if (iteg->bottomConnected()) cs += " bot";
+cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
+#endif
+
+				if (phase == fst) {
+					// First hi range point
+					//
+#ifdef STEPS
+printf("> fst hi=%.0f %s\n",hi,cs.c_str());
+#endif
+					curvePositions.push_back(DirectPosition(x,hipx));
+					iteg->topConnected(true);
+
+					if (options.debug)
+						path << "M" << x << "," << hipx;
+
+					phase = fwd;
+				}
+				else if (phase == fwd) {
+					// Move forward thru intermediate point connecting to next elevation's hi range point
+					//
+#ifdef STEPS
+printf("> fwd hi=%.0f %s\n",hi,cs.c_str());
+#endif
+					double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
+
+					curvePositions.push_back(DirectPosition(x - (xStep / 2),ipx));
+					curvePositions.push_back(DirectPosition(x,hipx));
+					iteg->topConnected(true);
+
+					if (options.debug)
+						path << " L" << x << "," << hipx;
+				}
+				else if (phase == vup) {
+					// Move up connecting to upper elevation's lo range point.
+					//
+					// Generate intermediate point half timestep forwards
+					//
+#ifdef STEPS
+printf("> vup lo=%.0f %s\n",lo,cs.c_str());
+#endif
+					curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
+					curvePositions.push_back(DirectPosition(x,lopx));
+					iteg->bottomConnected(true);
+
+					if (options.debug)
+						path << " L" << x << "," << lopx;
+
+					phase = bwd;
+				}
+				else if (phase == vdn) {
+					// Move down connecting to lower elevation's hi range point
+					//
+					// Generate intermediate point half timestep backwards
+					//
+#ifdef STEPS
+printf("> vdn hi=%.0f %s\n",hi,cs.c_str());
+#endif
+					curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
+					curvePositions.push_back(DirectPosition(x,hipx));
+					iteg->topConnected(true);
+
+					if (options.debug)
+						path << " L" << x << "," << hipx;
+
+					phase = fwd;
+				}
+				else if (phase == eup) {
+					// Move up connecting elevation's lo range point to hi range point
+					//
+#ifdef STEPS
+printf("> eup hi=%.0f %s\n",hi,cs.c_str());
+#endif
+					curvePositions.push_back(DirectPosition(x,hipx));
+
+					if (options.debug)
+						path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << hipx;
+
+					if (iteg->topConnected())
+						// Path is now closed
+						//
+						break;
+
+					iteg->topConnected(true);
+
+					phase = fwd;
+				}
+				else if (phase == edn) {
+					// Move down connecting elevation's hi range point to lo range point
+					//
+#ifdef STEPS
+printf("> edn lo=%.0f %s\n",lo,cs.c_str());
+#endif
+					curvePositions.push_back(DirectPosition(x,lopx));
+					iteg->bottomConnected(true);
+
+					if (options.debug)
+						path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << lopx;
+
+					phase = bwd;
+				}
+				else if (phase == bwd) {
+					// Move backward thru intermediate point connecting to previous elevation's lo range point
+					//
+#ifdef STEPS
+printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
+#endif
+					double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
+
+					curvePositions.push_back(DirectPosition(x + (xStep / 2),ipx));
+					curvePositions.push_back(DirectPosition(x,lopx));
+					iteg->bottomConnected(true);
+
+					if (options.debug)
+						path << " L" << x << "," << lopx;
+				}
+				else {	// lst
+					if (single) {
+						// Bounding box for single elevation
+						//
+						double offset = (xStep / 3);
+
+						if (options.debug) {
+							path.clear();
+							path.str("");
+
+							path << std::fixed << std::setprecision(1);
+							path << "M" << x - offset << "," << hipx
+								 << " L" << x << "," << hipx
+								 << " L" << x + offset << "," << hipx
+								 << " L" << x + offset << "," << lopx
+								 << " L" << x << "," << lopx
+								 << " L" << x - offset << "," << lopx
+								 << " L" << x - offset << "," << hipx;
+						}
+
+						curvePositions.clear();
+
+						curvePositions.push_back(DirectPosition(x - offset,hipx));
+						curvePositions.push_back(DirectPosition(x,hipx));
+						curvePositions.push_back(DirectPosition(x + offset,hipx));
+						curvePositions.push_back(DirectPosition(x + offset,lopx));
+						curvePositions.push_back(DirectPosition(x,lopx));
+						curvePositions.push_back(DirectPosition(x - offset,lopx));
+						curvePositions.push_back(DirectPosition(x - offset,hipx));
+
+						break;
+					}
+
+					// Close the path
+					//
+					phase = eup;
+
+					continue;
+				}
+
+				if (phase == fwd)
+					phase = uprightdown(eGrp,iteg,lo,hi);
+				else
+					phase = downleftup(eGrp,iteg,lo,hi);
+
+				if ((phase == fwd) || (phase == bwd)) {
+					// Path covers multiple time instants
+					//
+					single = false;
+				}
+			}	// for iteg
+
+			// Remove group's elevations from the collection
+
+			for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
+				if (iteg->topConnected() && iteg->bottomConnected())
+					iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+
+			if (!(single && symbol)) {
+				if (options.debug)
+					texts[ICING + "PATH"] << "<path class=\"" << pathClass
+										  << "\" id=\"" << "Icing" << nGroups
+										  << "\" d=\""
+										  << path.str()
+										  << "\"/>\n";
+
+				// Create bezier curve and get curve points
+
+				BezierModel bm(curvePositions,false,tightness);
+				bm.getSteppedCurvePoints(0,0,0,curvePoints);
+
+				// Output the path and label
+
+				std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
+
+				if (options.debug) {
+					path.clear();
+					path.str("");
+				}
+
+				for (itcp = cpbeg; (itcp != cpend); itcp++)
+					path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY();
+
+				texts[ICING] << "<path class=\"" << pathClass
+							 << "\" id=\"" << "Icing" << nGroups
+							 << "\" d=\""
+							 << path.str()
+							 << "\"/>\n";
+			}
+
+			curvePositions.clear();
+			curvePoints.clear();
+
+			// Render the single symbol or one symbol to the center of each visible part of the area
+
+			std::vector<double> labelX,labelY;
+			std::vector<double>::const_iterator itx,ity;
+
+			getAreaLabelPos(bbCenterLabel,minx,xStep,_lopx,_hipx,labelX,labelY);
+
+			for (itx = labelX.begin(),ity = labelY.begin(); (itx != labelX.end()); itx++, ity++)
+				render_aerodromeSymbol(confPath,symClass,icing.classNameExt(),icingCategory.category(),*itx,*ity);
+		}	// for group
+
+		return;
+	}
+	catch(libconfig::ConfigException & ex)
+	{
+		if(!config.exists(confPath))
+			// No settings for confPath
+			//
+			throw std::runtime_error("Settings for " + confPath + " are missing");
+
+		throw ex;
+	}
+
+	if (options.debug)
+		debugoutput << "Settings for "
+					<< confPath
+					<< " not found\n";
+
+	return;
   }
 
   // ----------------------------------------------------------------------
@@ -3682,7 +4080,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						//
 						std::string uri = configValue<std::string>(*condSpecs,confPath,"url",&specs);
 						std::string symbol = configValue<std::string>(*condSpecs,confPath,"symbol",&specs);
-						std::string classdef = configValue<std::string>(*condSpecs,confPath,"class",&specs);
+						std::string classDef = configValue<std::string>(*condSpecs,confPath,"class",&specs);
 
 						bool isSet;
 						double scale = configValue<double,int>(*condSpecs,confPath,"scale",&specs,s_optional,&isSet);
@@ -3739,7 +4137,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 											<< ") scale("
 											<< std::fixed << std::setprecision(1) << scale
 											<< ")\" class=\""
-											<< classdef
+											<< classDef
 											<< "\">\n"
 											<< "<use transform=\"rotate("
 											<< std::fixed << std::setprecision(1) << wd
@@ -3767,7 +4165,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 												 << ") scale("
 												 << std::fixed << std::setprecision(1) << scale
 												 << ")\" class=\""
-												 << classdef
+												 << classDef
 												 << "\">\n"
 												 << "<use transform=\"rotate("
 												 << std::fixed << std::setprecision(1) << wd
@@ -4007,8 +4405,8 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		if(!specs.isGroup())
 			throw std::runtime_error(confPath + typeMsg);
 
-		std::string classdef = configValue<std::string>(specs,confPath,"class");
-		std::string textClassDef = classdef + "Text";
+		std::string classDef = configValue<std::string>(specs,confPath,"class");
+		std::string textClassDef = classDef + "Text";
 
 		// Bezier curve tightness
 
@@ -4031,8 +4429,8 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		// Labels for positive (default: "+deg") and negative (default: "-deg") temperature areas.
 		// If empty label is given, no label.
 		//
-		// If bbcntlabel is true (default: false), the label is positioned to the center of the area's bounding box;
-		// otherwise using 2 elevations in the middle of the area in x -direction
+		// If bbcenterlabel is true (default: false), the label is positioned to the center of the area's bounding box;
+		// otherwise using 1 or 2 elevations in the middle of the area in x -direction
 
 		posLabel = boost::algorithm::trim_copy(configValue<std::string>(specs,confPath,"poslabel",NULL,s_optional,&isSet));
 		if (!isSet)
@@ -4145,7 +4543,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 				double x = axisManager->xOffset(vt);
 
-				// Keep track of "nonground" group's elevations or it's overall bounding box to calculate the label position
+				// Keep track of "nonground" group's elevations to calculate the label position
 
 				if (nonGroundGrp)
 					trackAreaLabelPos(bbCenterLabel,x,minx,maxx,lopx,_lopx,hipx,_hipx);
@@ -4343,7 +4741,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			// Create bezier curve and get curve points
 
 			if (options.debug)
-				texts[ZEROTOLERANCE + "PATH"] << "<path class=\"" << classdef
+				texts[ZEROTOLERANCE + "PATH"] << "<path class=\"" << classDef
 											  << "\" id=\"" << "ZeroTolerance" << nGroups
 											  << "\" d=\""
 											  << path.str()
@@ -4367,7 +4765,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			for (itcp = cpbeg; (itcp != cpend); itcp++)
 				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY();
 
-			texts[ZEROTOLERANCE] << "<path class=\"" << classdef
+			texts[ZEROTOLERANCE] << "<path class=\"" << classDef
 								 << "\" id=\"" << "ZeroTolerance" << nGroups
 								 << "\" d=\""
 								 << path.str()
@@ -4379,7 +4777,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			if (visible && setUnvisible) {
 				// The curve is visible (elevation(s) above zero did exist); hide the fixed template text "Zerolevel is null"
 				//
-				texts[ZEROTOLERANCEVISIBLE] << classdef << "Unvisible";
+				texts[ZEROTOLERANCEVISIBLE] << classDef << "Unvisible";
 				setUnvisible = false;
 			}
 
@@ -4490,9 +4888,9 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						//
 						std::string vtype(upperLimit ? "Range" : "");
 
-						std::string classdef(configValue<std::string>(specs,valClass,"class" + vtype,globalScope,s_optional));
-						if (classdef.empty())
-							classdef = (vtype.empty() ? valClass : (valClass + " " + valClass + vtype));
+						std::string classDef(configValue<std::string>(specs,valClass,"class" + vtype,globalScope,s_optional));
+						if (classDef.empty())
+							classDef = (vtype.empty() ? valClass : (valClass + " " + valClass + vtype));
 
 						std::string pref(configValue<std::string>(specs,valClass,"pref" + vtype,globalScope,s_optional));
 						std::string href(configValue<std::string>(specs,valClass,"href" + vtype,globalScope,s_optional));
@@ -4506,7 +4904,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						if (condSpecs) {
 							// Class from the condition or from the parent/parameter block
 							//
-							classdef = configValue<std::string>(*condSpecs,valClass,"class",&specs);
+							classDef = configValue<std::string>(*condSpecs,valClass,"class",&specs);
 
 							bool isSet;
 							std::string cpref = configValue<std::string>(*condSpecs,valClass,"pref" + vtype,NULL,s_optional,&isSet);
@@ -4519,7 +4917,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						}
 
 						pointvalues << "<g class=\""
-									<< classdef
+									<< classDef
 									<< "\">\n";
 
 						if (href.empty())
