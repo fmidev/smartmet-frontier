@@ -3097,10 +3097,8 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 						path << std::fixed << std::setprecision(1);
 						path << "M" << x - offset << "," << hipx
-							 << " L" << x << "," << hipx
 							 << " L" << x + offset << "," << hipx
 							 << " L" << x + offset << "," << lopx
-							 << " L" << x << "," << lopx
 							 << " L" << x - offset << "," << lopx
 							 << " L" << x - offset << "," << hipx;
 					}
@@ -3108,10 +3106,8 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 					curvePositions.clear();
 
 					curvePositions.push_back(DirectPosition(x - offset,hipx));
-					curvePositions.push_back(DirectPosition(x,hipx));
 					curvePositions.push_back(DirectPosition(x + offset,hipx));
 					curvePositions.push_back(DirectPosition(x + offset,lopx));
-					curvePositions.push_back(DirectPosition(x,lopx));
 					curvePositions.push_back(DirectPosition(x - offset,lopx));
 					curvePositions.push_back(DirectPosition(x - offset,hipx));
 
@@ -3679,15 +3675,15 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 				double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
-				// x -coord of this time instant
-
-				const boost::posix_time::ptime & vt = iteg->validTime();
-				double x = axisManager->xOffset(vt);
-
 				plopx = lopx;
 				phipx = hipx;
 				lopx = axisManager->scaledElevation(lo);
 				hipx = axisManager->scaledElevation(hi);
+
+				// x -coord of this time instant
+
+				const boost::posix_time::ptime & vt = iteg->validTime();
+				double x = axisManager->xOffset(vt);
 
 				// Keep track of elevations to calculate the label position
 
@@ -3826,10 +3822,8 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 							path << std::fixed << std::setprecision(1);
 							path << "M" << x - offset << "," << hipx
-								 << " L" << x << "," << hipx
 								 << " L" << x + offset << "," << hipx
 								 << " L" << x + offset << "," << lopx
-								 << " L" << x << "," << lopx
 								 << " L" << x - offset << "," << lopx
 								 << " L" << x - offset << "," << hipx;
 						}
@@ -3837,10 +3831,8 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						curvePositions.clear();
 
 						curvePositions.push_back(DirectPosition(x - offset,hipx));
-						curvePositions.push_back(DirectPosition(x,hipx));
 						curvePositions.push_back(DirectPosition(x + offset,hipx));
 						curvePositions.push_back(DirectPosition(x + offset,lopx));
-						curvePositions.push_back(DirectPosition(x,lopx));
 						curvePositions.push_back(DirectPosition(x - offset,lopx));
 						curvePositions.push_back(DirectPosition(x - offset,hipx));
 
