@@ -2720,8 +2720,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void trackAreaLabelPos(bool bbCenterLabel,
-		  	  	  	  	 double x,double & minx,double & maxx,
+  void trackAreaLabelPos(double x,double & minx,double & maxx,
 		  	  	  	  	 double lopx,std::vector<double> & _lopx,
 		  	  	  	  	 double hipx,std::vector<double> & _hipx)
   {
@@ -2962,7 +2961,7 @@ namespace frontier
 
 			// Keep track of elevations to calculate the label position
 
-			trackAreaLabelPos(itcg->bbCenterLabel(),x,minx,maxx,lopx,_lopx,hipx,_hipx);
+			trackAreaLabelPos(x,minx,maxx,lopx,_lopx,hipx,_hipx);
 
 #define STEPSS
 
@@ -3687,7 +3686,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 				// Keep track of elevations to calculate the label position
 
-				trackAreaLabelPos(bbCenterLabel,x,minx,maxx,lopx,_lopx,hipx,_hipx);
+				trackAreaLabelPos(x,minx,maxx,lopx,_lopx,hipx,_hipx);
 
 #define STEPSS
 
@@ -4538,7 +4537,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 				// Keep track of "nonground" group's elevations to calculate the label position
 
 				if (nonGroundGrp)
-					trackAreaLabelPos(bbCenterLabel,x,minx,maxx,lopx,_lopx,hipx,_hipx);
+					trackAreaLabelPos(x,minx,maxx,lopx,_lopx,hipx,_hipx);
 
 #define STEPSS
 
