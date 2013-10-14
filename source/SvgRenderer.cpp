@@ -2214,6 +2214,7 @@ namespace frontier
 	const boost::posix_time::ptime & vt = iteg->validTime();
 	double ulo = 0.0;
 	double uhi = 0.0;
+	double nonZ = axisManager->nonZeroElevation();
 	bool upopen = false;
 
 	if (iteg != eGrp.begin()) {
@@ -2257,7 +2258,7 @@ namespace frontier
 			// If nonGndFwd2Gnd is false (ZeroTolerance), can always go forward from below 0 to below 0 or ground elevation
 			// (even if the elevations do not overlap)
 
-			bool FWD = ((!nonGndFwd2Gnd) && (hi < axisManager->nonZeroElevation()) && (rlo < axisManager->nonZeroElevation()));
+			bool FWD = ((!nonGndFwd2Gnd) && (hi < nonZ) && (rlo < nonZ));
 
 			if (((rlo <= hi) && (rhi >= lo)) || FWD) {
 				if ((uiteg != iteg) && ((rlo <= uhi) && (rhi >= ulo))) {
@@ -2275,9 +2276,9 @@ namespace frontier
 				FWD = (
 					   nonGndFwd2Gnd ||
 					   (iteg == eGrp.begin()) ||
-					   (lo < axisManager->nonZeroElevation()) ||
+					   (lo < nonZ) ||
 					   iteg->bottomConnected() ||
-					   (rlo >= axisManager->nonZeroElevation())
+					   (rlo >= nonZ)
 					  );
 
 				if (FWD && ((triteg == iteg) || riteg->bottomConnected()) && (!(riteg->topConnected())))
@@ -2326,6 +2327,7 @@ namespace frontier
 	const boost::posix_time::ptime & vt = iteg->validTime();
 	double dlo = 0.0;
 	double dhi = 0.0;
+	double nonZ = axisManager->nonZeroElevation();
 	bool downopen = false,leftopen = false,upopen = false;
 
 	if (iteg != eGrp.begin()) {
@@ -2360,7 +2362,7 @@ namespace frontier
 				// If nonGndVdn2Gnd is true (ZeroTolerance), can go down from "nonground" to generated below 0 elevation
 				//
 				if (!downopen)
-					downopen = (nonGndVdn2Gnd && (lo >= axisManager->nonZeroElevation()) && (dhi < axisManager->nonZeroElevation()));
+					downopen = (nonGndVdn2Gnd && (lo >= nonZ) && (dhi < nonZ));
 			}
 		}
 		else
@@ -2394,7 +2396,7 @@ namespace frontier
 				// If nonGndVdn2Gnd is true (ZeroTolerance), can always go backward between below 0 and/or ground elevations
 				// (even if the elevations do not overlap)
 
-				bool BWD = (nonGndVdn2Gnd && (lo < axisManager->nonZeroElevation()) && (llo < axisManager->nonZeroElevation()));
+				bool BWD = (nonGndVdn2Gnd && (lo < nonZ) && (llo < nonZ));
 
 				if (((llo <= hi) && (lhi >= lo)) || BWD) {
 					if ((diteg != iteg) && ((llo <= dhi) && (lhi >= dlo))) {
@@ -2408,8 +2410,8 @@ namespace frontier
 
 					BWD = (
 						   (!nonGndVdn2Gnd) ||
-						   (lo < axisManager->nonZeroElevation()) ||
-						   (llo >= axisManager->nonZeroElevation())
+						   (lo < nonZ) ||
+						   (llo >= nonZ)
 						  );
 
 					// If nonGndVdn2Gnd is false (not ZeroTolerance) or current elevation is ground elevation, select the lowest
@@ -2420,7 +2422,7 @@ namespace frontier
 						BWD &&
 						(
 						 (bliteg == iteg) || (!(bliteg->leftOpen())) ||
-						 (nonGndVdn2Gnd && (lo >= axisManager->nonZeroElevation()))
+						 (nonGndVdn2Gnd && (lo >= nonZ))
 						 ) &&
 						 (!(liteg->bottomConnected()))
 					   ) {
@@ -2720,7 +2722,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void trackAreaLabelPos(double x,double & minx,double & maxx,
+  void trackAreaLabelPos(double x,double & maxx,
 		  	  	  	  	 double lopx,std::vector<double> & _lopx,
 		  	  	  	  	 double hipx,std::vector<double> & _hipx)
   {
@@ -2729,9 +2731,6 @@ namespace frontier
 	int nX = _lopx.size();
 
 	if ((nX == 0) || (x > (maxx + 0.01))) {
-		if (nX == 0)
-			minx = x;
-
 		_lopx.push_back(lopx);
 		_hipx.push_back(hipx);
 
@@ -2859,109 +2858,114 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Cloud layer rendering
+   * \brief Render group's elevations as cloud symbols
+   *
    */
   // ----------------------------------------------------------------------
 
-  void SvgRenderer::render_timeserie(const woml::CloudLayers & cloudlayers)
+  void SvgRenderer::render_cloudSymbols(const std::string confPath,
+		  	  	  	  	  	  	  	    const ElevGrp & eGrp,
+		  	  	  	  	  	  	  	    std::list<CloudGroup>::const_iterator itcg,
+		  	  	  	  	  	  	  	    int nGroups)
   {
-	// Get bezier curve tightness and cloud groups from configuration
-
-	std::string confPath("CloudLayers");
-
-	double tightness;
-	CloudGroupCategory cloudGroupCategory;
-
-	// Cloud types (their starting positions in the group's 'types' setting) contained in current group;
-	// if group's label is not given, label (comma separated list of types) is build using the order
-	// the types are defined in 'types' setting
-	//
-	// The cloud set is cleared and then set by all the groups; cloud types contained are
-	// added to the set when collecting a group in elevationGroup()
-
-	std::set<size_t> cloudSet;
-
-	cloudLayerConfig(confPath,tightness,cloudGroupCategory.cloudGroups(),cloudSet);
-
-	// Document's time period and x -axis step (px)
+	ElevGrp::const_iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
+	Phase phase;
 
 	const boost::posix_time::time_period & tp = axisManager->timePeriod();
 	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
-	double xStep = axisManager->xStep();
+	for (iteg = egbeg, phase = fst; (iteg != egend); iteg++) {
+		// Get elevation's lo and hi range values
+		//
+		const woml::Elevation & e = iteg->elevation();
+		boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+		const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+		boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+		const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
 
-	// Loop thru the time instants
-	//
-	// The elevations (lo-hi ranges) are scanned/grouped in time instant order starting from
-	// topmost elevation grouping subsequent overlapping elevations taking cloud type into account
-	//
-	// The path points are collected into a vector (List in original java code)
-	// to be passed to Esa's bezier model
+		double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+		double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+		double lopx = axisManager->scaledElevation(lo);
+		double hipx = axisManager->scaledElevation(hi);
 
-	const std::list<woml::TimeSeriesSlot> & ts = cloudlayers.timeseries();
+		// x -coord of this time instant
 
-	ElevGrp eGrp;
-	int nGroups = 0;
+		const boost::posix_time::ptime & vt = iteg->validTime();
+		double x = axisManager->xOffset(vt);
 
-	List<DirectPosition> curvePositions;
-	std::list<DirectPosition> curvePoints;
-	std::list<doubleArr> decoratorPoints;
+		// Render cloud symbol
 
-	for ( ; ; ) {
-		elevationGroup(ts,bt,et,eGrp,false,true,&cloudGroupCategory);
+		render_cloudSymbol(confPath,*itcg,nGroups,x,lopx,hipx);
+	}
 
-		if (eGrp.size() == 0)
-			break;
+	// Remove group's elevations from the collection
 
-		nGroups++;
+	for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
+		iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
 
-		// Loop thru the collected group and output cloud symbols or create path connecting
-		// hi range points and lo range points for subsequent overlapping elevations
+  }
 
-		ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
-		std::list<CloudGroup>::const_iterator itcg = cloudGroupCategory.currentGroup();
-		Phase phase;
-		double lopx = 0.0,plopx = 0.0;
-		double hipx = 0.0,phipx = 0.0;
-		double minx = 0.0,maxx = 0.0;
-		std::vector<double> _lopx,_hipx;
-		bool single = true,symbol = (!(itcg->symbolType().empty()));
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get scaled curve points connecting hi range points and
+   *		lo range points for subsequent overlapping elevations.
+   *
+   *		Returs true if the curve encapsulates a single elevation only.
+   */
+  // ----------------------------------------------------------------------
 
-		std::ostringstream path;
-		path << std::fixed << std::setprecision(3);
+  bool SvgRenderer::scaledCurvePositions(ElevGrp & eGrp,
+		  	  	  	  	  	  	  	     List<DirectPosition> & curvePositions,
+		  	  	  	  	  	  	  	     std::vector<double> & scaledLo,std::vector<double> & scaledHi,
+		  	  	  	  	  	  	  	     std::ostringstream & path,
+		  	  	  	  	  	  	  	     bool * isVisible,
+		  	  	  	  	  	  	  	     bool checkGround,
+		  	  	  	  	  	  	  	     bool nonGndFwd2Gnd,
+		  	  	  	  	  	  	  	     bool nonGndVdn2Gnd
+		  	  	  	  	  	  	  	    )
+  {
+	ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
+	Phase phase;
+	double lopx = 0.0,plopx = 0.0;
+	double hipx = 0.0,phipx = 0.0;
+	double maxx = 0.0;
+	bool single = true;
 
-		for (iteg = egbeg, phase = fst; (iteg != egend); ) {
-			// Get elevation's lo and hi range values
-			//
-			const woml::Elevation & e = iteg->Pv()->elevation();
-			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
-			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+	const boost::posix_time::time_period & tp = axisManager->timePeriod();
+	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
-			double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
-			double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+	double xStep = axisManager->xStep(),nonZ = axisManager->nonZeroElevation();
 
-			plopx = lopx;
-			phipx = hipx;
-			lopx = axisManager->scaledElevation(lo);
-			hipx = axisManager->scaledElevation(hi);
+	for (iteg = egbeg, phase = fst; (iteg != egend); ) {
+		// Get elevation's lo and hi range values
+		//
+		const woml::Elevation & e = iteg->elevation();
+		boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+		const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+		boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+		const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
 
-			// x -coord of this time instant
+		double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+		double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
-			const boost::posix_time::ptime & vt = iteg->validTime();
-			double x = axisManager->xOffset(vt);
+		bool ground = (checkGround && (lo < nonZ));
 
-			if (symbol) {
-				render_cloudSymbol(confPath,*itcg,nGroups,x,lopx,hipx);
+		if (isVisible && (hi >= nonZ))
+			*isVisible = true;
 
-				iteg++;
-				continue;
-			}
+		plopx = lopx;
+		phipx = hipx;
+		lopx = axisManager->scaledElevation(lo);
+		hipx = axisManager->scaledElevation(hi);
 
-			// Keep track of elevations to calculate the label position
+		// x -coord of this time instant
 
-			trackAreaLabelPos(x,minx,maxx,lopx,_lopx,hipx,_hipx);
+		const boost::posix_time::ptime & vt = iteg->validTime();
+		double x = axisManager->xOffset(vt);
+
+		// Keep track of elevations to calculate the label position
+
+		trackAreaLabelPos(x,maxx,lopx,scaledLo,hipx,scaledHi);
 
 #define STEPSS
 
@@ -2972,174 +2976,276 @@ if (iteg->bottomConnected()) cs += " bot";
 cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
 #endif
 
-			if (phase == fst) {
-				// First hi range point
-				//
+		if (phase == fst) {
+			// First hi range point
+			//
+			// If the time instant of the first "ground" (zeroTolerance) elevation is not the forecast's first
+			// time instant, connect the hi range point to 0 at the previous time instant
+			//
 #ifdef STEPS
 printf("> fst hi=%.0f %s\n",hi,cs.c_str());
 #endif
-				curvePositions.push_back(DirectPosition(x,hipx));
-				iteg->topConnected(true);
-
-				if (options.debug)
-					path << "M" << x << "," << hipx;
-
-				phase = fwd;
+			if (ground && (vt > bt)) {
+				curvePositions.push_back(DirectPosition(x - xStep,axisManager->axisHeight()));
+				single = false;
 			}
-			else if (phase == fwd) {
-				// Move forward thru intermediate point connecting to next elevation's hi range point
-				//
+
+			curvePositions.push_back(DirectPosition(x,hipx));
+			iteg->topConnected(true);
+
+			if (options.debug) {
+				if (ground && (vt > bt))
+					path << "M" << (x - xStep) << "," << axisManager->axisHeight()
+						 << " L" << x << "," << hipx;
+				else
+					path << "M" << x << "," << hipx;
+			}
+
+			phase = fwd;
+		}
+		else if (phase == fwd) {
+			// Move forward thru intermediate point connecting to next elevation's hi range point
+			//
 #ifdef STEPS
 printf("> fwd hi=%.0f %s\n",hi,cs.c_str());
 #endif
-				double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
+			double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
 
-				curvePositions.push_back(DirectPosition(x - (xStep / 2),ipx));
-				curvePositions.push_back(DirectPosition(x,hipx));
-				iteg->topConnected(true);
+			curvePositions.push_back(DirectPosition(x - (xStep / 2),ipx));
+			curvePositions.push_back(DirectPosition(x,hipx));
+			iteg->topConnected(true);
 
-				if (options.debug)
-					path << " L" << x << "," << hipx;
-			}
-			else if (phase == vup) {
-				// Move up connecting to upper elevation's lo range point.
-				//
-				// Generate intermediate point half timestep forwards
-				//
+			if (options.debug)
+				path << " L" << x << "," << hipx;
+		}
+		else if (phase == vup) {
+			// Move up connecting to upper elevation's lo range point.
+			//
+			// Generate intermediate point half timestep forwards
+			//
 #ifdef STEPS
 printf("> vup lo=%.0f %s\n",lo,cs.c_str());
 #endif
-				curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
-				curvePositions.push_back(DirectPosition(x,lopx));
-				iteg->bottomConnected(true);
+			curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
+			curvePositions.push_back(DirectPosition(x,lopx));
+			iteg->bottomConnected(true);
 
-				if (options.debug)
-					path << " L" << x << "," << lopx;
+			if (options.debug)
+				path << " L" << x << "," << lopx;
 
-				phase = bwd;
-			}
-			else if (phase == vdn) {
-				// Move down connecting to lower elevation's hi range point
-				//
-				// Generate intermediate point half timestep backwards
-				//
+			phase = bwd;
+		}
+		else if (phase == vdn) {
+			// Move down connecting to lower elevation's hi range point
+			//
+			// Generate intermediate point half timestep backwards
+			//
 #ifdef STEPS
 printf("> vdn hi=%.0f %s\n",hi,cs.c_str());
 #endif
-				curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
-				curvePositions.push_back(DirectPosition(x,hipx));
-				iteg->topConnected(true);
+			curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
+			curvePositions.push_back(DirectPosition(x,hipx));
+			iteg->topConnected(true);
 
-				if (options.debug)
-					path << " L" << x << "," << hipx;
+			if (options.debug)
+				path << " L" << x << "," << hipx;
 
-				phase = fwd;
-			}
-			else if (phase == eup) {
-				// Move up connecting elevation's lo range point to hi range point
-				//
+			phase = fwd;
+		}
+		else if (phase == eup) {
+			// Move up connecting "nonground" (or non ZeroTolorence) elevation's lo range point to hi range point
+			//
 #ifdef STEPS
 printf("> eup hi=%.0f %s\n",hi,cs.c_str());
 #endif
+			if (!ground) {
 				curvePositions.push_back(DirectPosition(x,hipx));
 
 				if (options.debug)
-					path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << hipx;
-
-				if (iteg->topConnected())
-					// Path is now closed
-					//
-					break;
-
-				iteg->topConnected(true);
-
-				phase = fwd;
+					path << (((vt != bt) && (vt != et)) ? " L" : " M") << x << "," << hipx;
 			}
-			else if (phase == edn) {
-				// Move down connecting elevation's hi range point to lo range point
+
+			if (iteg->topConnected())
+				// Path is now closed
 				//
+				break;
+
+			iteg->topConnected(true);
+
+			phase = fwd;
+		}
+		else if (phase == edn) {
+			// Move down connecting elevation's hi range point to lo range point
+			//
+			// If the time instant of the last "ground" (zeroTolerance) elevation in the group is not the forecast's last
+			// time instant, use 0 at the next time instant as intermediate point
+			//
 #ifdef STEPS
 printf("> edn lo=%.0f %s\n",lo,cs.c_str());
 #endif
-				curvePositions.push_back(DirectPosition(x,lopx));
-				iteg->bottomConnected(true);
-
-				if (options.debug)
-					path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << lopx;
-
-				phase = bwd;
+			if (ground && (vt < et)) {
+				curvePositions.push_back(DirectPosition(x + xStep,axisManager->axisHeight()));
+				single = false;
 			}
-			else if (phase == bwd) {
-				// Move backward thru intermediate point connecting to previous elevation's lo range point
-				//
+
+			curvePositions.push_back(DirectPosition(x,lopx));
+			iteg->bottomConnected(true);
+
+			if (options.debug) {
+				if (ground && (vt < et))
+					path << " L" << (x + xStep) << "," << axisManager->axisHeight();
+
+				path << (((vt != bt) && (vt != et)) ? " L" : " M") << x << "," << lopx;
+			}
+
+			phase = bwd;
+		}
+		else if (phase == bwd) {
+			// Move backward thru intermediate point connecting to previous elevation's lo range point
+			//
 #ifdef STEPS
 printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 #endif
-				double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
+			double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
 
-				curvePositions.push_back(DirectPosition(x + (xStep / 2),ipx));
-				curvePositions.push_back(DirectPosition(x,lopx));
-				iteg->bottomConnected(true);
+			curvePositions.push_back(DirectPosition(x + (xStep / 2),ipx));
+			curvePositions.push_back(DirectPosition(x,lopx));
+			iteg->bottomConnected(true);
 
-				if (options.debug)
-					path << " L" << x << "," << lopx;
-			}
-			else {	// lst
-				if (single) {
-					// Bounding box for single elevation
-					//
-					double offset = (xStep / 3);
+			if (options.debug)
+				path << " L" << x << "," << lopx;
+		}
+		else {	// lst
+			if (single) {
+				// Bounding box for single elevation
+				//
+				double offset = (xStep / 3);
 
-					if (options.debug) {
-						path.clear();
-						path.str("");
+				if (options.debug) {
+					path.clear();
+					path.str("");
 
-						path << std::fixed << std::setprecision(1);
-						path << "M" << x - offset << "," << hipx
-							 << " L" << x + offset << "," << hipx
-							 << " L" << x + offset << "," << lopx
-							 << " L" << x - offset << "," << lopx
-							 << " L" << x - offset << "," << hipx;
-					}
-
-					curvePositions.clear();
-
-					curvePositions.push_back(DirectPosition(x - offset,hipx));
-					curvePositions.push_back(DirectPosition(x + offset,hipx));
-					curvePositions.push_back(DirectPosition(x + offset,lopx));
-					curvePositions.push_back(DirectPosition(x - offset,lopx));
-					curvePositions.push_back(DirectPosition(x - offset,hipx));
-
-					break;
+					path << "M" << x - offset << "," << hipx
+						 << " L" << x + offset << "," << hipx
+						 << " L" << x + offset << "," << lopx
+						 << " L" << x - offset << "," << lopx
+						 << " L" << x - offset << "," << hipx;
 				}
 
-				// Close the path
-				//
-				phase = eup;
+				curvePositions.clear();
 
-				continue;
+				curvePositions.push_back(DirectPosition(x - offset,hipx));
+				curvePositions.push_back(DirectPosition(x + offset,hipx));
+				curvePositions.push_back(DirectPosition(x + offset,lopx));
+				curvePositions.push_back(DirectPosition(x - offset,lopx));
+				curvePositions.push_back(DirectPosition(x - offset,hipx));
+
+				break;
 			}
 
-			if (phase == fwd)
-				phase = uprightdown(eGrp,iteg,lo,hi);
-			else
-				phase = downleftup(eGrp,iteg,lo,hi);
+			// Close the path
+			//
+			phase = eup;
 
-			if ((phase == fwd) || (phase == bwd)) {
-				// Path covers multiple time instants
-				//
-				single = false;
-			}
-		}	// for iteg
-
-		// Remove group's elevations from the collection
-
-		for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
-			if (symbol || (iteg->topConnected() && iteg->bottomConnected()))
-				iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
-
-		if (symbol)
 			continue;
+		}
+
+		if (phase == fwd)
+			phase = uprightdown(eGrp,iteg,lo,hi,nonGndFwd2Gnd);
+		else
+			phase = downleftup(eGrp,iteg,lo,hi,nonGndVdn2Gnd);
+
+		if ((phase == fwd) || (phase == bwd)) {
+			// Path covers multiple time instants
+			//
+			single = false;
+		}
+	}	// for iteg
+
+	// Remove group's elevations from the collection
+
+	for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
+		if ((!(iteg->generated())) && iteg->topConnected() && iteg->bottomConnected())
+			iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+
+	return single;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Cloud layer rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::CloudLayers & cloudlayers)
+  {
+	// Get bezier curve tightness and cloud groups from configuration
+	//
+	// Cloud types (their starting positions in the group's 'types' setting) contained in current group;
+	// if group's label is not given, label (comma separated list of types) is build using the order
+	// the types are defined in 'types' setting
+	//
+	// The cloud set is cleared and then set by all the groups; cloud types contained are
+	// added to the set when collecting a group in elevationGroup()
+
+	const std::string confPath("CloudLayers");
+
+	double tightness;
+	CloudGroupCategory cloudGroupCategory;
+
+	std::set<size_t> cloudSet;
+
+	cloudLayerConfig(confPath,tightness,cloudGroupCategory.cloudGroups(),cloudSet);
+
+	// Document's time period, cloud layer time series and x -axis step (px)
+
+	const boost::posix_time::time_period & tp = axisManager->timePeriod();
+	const std::list<woml::TimeSeriesSlot> & ts = cloudlayers.timeseries();
+
+	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+	double xStep = axisManager->xStep();
+
+	// Elevation group and curve point data
+
+	ElevGrp eGrp;
+	int nGroups = 0;
+
+	List<DirectPosition> curvePositions;
+	std::list<DirectPosition> curvePoints;
+	std::list<doubleArr> decoratorPoints;
+
+	for ( ; ; ) {
+		// Get group of overlapping elevations from the time serie
+		//
+		elevationGroup(ts,bt,et,eGrp,false,true,&cloudGroupCategory);
+
+		if (eGrp.size() == 0)
+			break;
+
+		nGroups++;
+
+		// Cloud group for current elevation group
+
+		std::list<CloudGroup>::const_iterator itcg = cloudGroupCategory.currentGroup();
+
+		if (!(itcg->symbolType().empty())) {
+			// Rendering the group as cloud symbols
+			//
+			render_cloudSymbols(confPath,eGrp,itcg,nGroups);
+			continue;
+		}
+
+		// Rendering the group as bezier curve; get curve positions for bezier creation.
+		//
+		// The scaled lo/hi values for the elevations are set to scaledLo/scaledHi;
+		// they are used to calculate cloud label positions
+
+		std::vector<double> scaledLo,scaledHi;
+
+		std::ostringstream path;
+		path << std::fixed << std::setprecision(3);
+
+		scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,path);
 
 		if (options.debug)
 			texts[itcg->placeHolder() + "PATH"] << "<path class=\"" << itcg->classDef()
@@ -3154,7 +3260,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		bm.getSteppedCurvePoints(itcg->baseStep(),itcg->maxRand(),itcg->maxRepeat(),curvePoints);
 		bm.decorateCurve(curvePoints,itcg->scaleHeightMin(),itcg->scaleHeightRandom(),itcg->controlMin(),itcg->controlRandom(),decoratorPoints);
 
-		// Output the path and label
+		// Render path
 
 		std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
 		std::list<doubleArr>::iterator itdp = decoratorPoints.begin();
@@ -3184,11 +3290,18 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::string label = itcg->label();
 
 		if (!label.empty()) {
+			// Render label to the center of each visible part of the cloud
+			//
+			// x -coord of group's first time instant
+			//
+			const boost::posix_time::ptime & vt = eGrp.front().validTime();
+			double minX = axisManager->xOffset(vt);
+
 			std::vector<double> labelX,labelY;
 			std::vector<double>::const_iterator itx,ity;
 			int n;
 
-			getAreaLabelPos(itcg->bbCenterLabel(),minx,xStep,_lopx,_hipx,labelX,labelY);
+			getAreaLabelPos(itcg->bbCenterLabel(),minX,xStep,scaledLo,scaledHi,labelX,labelY);
 
 			for (itx = labelX.begin(),ity = labelY.begin(),n = 0; (itx != labelX.end()); itx++, ity++, n++) {
 				texts[itcg->labelPlaceHolder()] << "<text class=\"" << itcg->textClassDef()
@@ -3203,7 +3316,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		curvePositions.clear();
 		curvePoints.clear();
 		decoratorPoints.clear();
-	}
+	}	// for group
 
 	return;
   }
@@ -3249,6 +3362,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	double tsLo = 0.0,tsHi = 0.0;	// Min lo range and max hi range elevation value for previous time instant
 	double loLim,hiLim;				// Last lo and hi range value for "nonground" group
+	double nonZ = axisManager->nonZeroElevation();
 
 	eGrp.clear();
 
@@ -3284,7 +3398,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 				double hi = 0.0;
 
-				bool ground = (lo < axisManager->nonZeroElevation());
+				bool ground = (lo < nonZ);
 
 				if (!all) {
 					boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
@@ -3582,11 +3696,12 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		const std::string ICING(boost::algorithm::to_upper_copy(confPath));
 		const char * typeMsg = " must contain a group in curly brackets";
 
-		// Document's time period and x -axis step (px)
+		// Document's time period, icing time series and x -axis step (px)
 
 		const boost::posix_time::time_period & tp = axisManager->timePeriod();
-		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+		const std::list<woml::TimeSeriesSlot> & ts = icing.timeseries();
 
+		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 		double xStep = axisManager->xStep();
 
 		// Class
@@ -3607,7 +3722,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		if (!isSet)
 			bbCenterLabel = false;
 
-		// If symbol is true (default: true), single icing symbol is rendered as symbol
+		// If symbol is true (default: true), single elevation is rendered as symbol
 
 		bool symbol = configValue<bool>(specs,confPath,"symbol",NULL,s_optional,&isSet);
 		if (!isSet)
@@ -3621,15 +3736,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			//
 			tightness = -1.0;
 
-		// Loop thru the time instants
-		//
-		// The elevations (lo-hi ranges) are scanned/grouped in time instant order starting from
-		// topmost elevation grouping subsequent overlapping elevations taking icing magnitude into account
-		//
-		// The path points are collected into a vector (List in original java code)
-		// to be passed to Esa's bezier model
-
-		const std::list<woml::TimeSeriesSlot> & ts = icing.timeseries();
+		// Elevation group and curve point data
 
 		ElevGrp eGrp;
 		IcingCategory icingCategory;
@@ -3648,225 +3755,24 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 			nGroups++;
 
-			// Loop thru the collected group and output icing symbol or create path connecting
-			// hi range points and lo range points for subsequent overlapping elevations
+			// Get curve positions for bezier creation.
+			//
+			// The scaled lo/hi values for the elevations are set to scaledLo/scaledHi;
+			// they are used to calculate label (icing symbol) positions
 
-			ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
-			Phase phase;
-			double lopx = 0.0,plopx = 0.0;
-			double hipx = 0.0,phipx = 0.0;
-			double minx = 0.0,maxx = 0.0;
-			bool single = true;
-			std::vector<double> _lopx,_hipx;
+			std::vector<double> scaledLo,scaledHi;
 
 			std::ostringstream path;
 			path << std::fixed << std::setprecision(3);
 
-			for (iteg = egbeg, phase = fst; (iteg != egend); ) {
-				// Get elevation's lo and hi range values
-				//
-				const woml::Elevation & e = iteg->Pv()->elevation();
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
-
-				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
-				double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
-
-				plopx = lopx;
-				phipx = hipx;
-				lopx = axisManager->scaledElevation(lo);
-				hipx = axisManager->scaledElevation(hi);
-
-				// x -coord of this time instant
-
-				const boost::posix_time::ptime & vt = iteg->validTime();
-				double x = axisManager->xOffset(vt);
-
-				// Keep track of elevations to calculate the label position
-
-				trackAreaLabelPos(x,minx,maxx,lopx,_lopx,hipx,_hipx);
-
-#define STEPSS
-
-#ifdef STEPS
-std::string cs;
-if (iteg->topConnected()) cs = " top";
-if (iteg->bottomConnected()) cs += " bot";
-cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
-#endif
-
-				if (phase == fst) {
-					// First hi range point
-					//
-#ifdef STEPS
-printf("> fst hi=%.0f %s\n",hi,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x,hipx));
-					iteg->topConnected(true);
-
-					if (options.debug)
-						path << "M" << x << "," << hipx;
-
-					phase = fwd;
-				}
-				else if (phase == fwd) {
-					// Move forward thru intermediate point connecting to next elevation's hi range point
-					//
-#ifdef STEPS
-printf("> fwd hi=%.0f %s\n",hi,cs.c_str());
-#endif
-					double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
-
-					curvePositions.push_back(DirectPosition(x - (xStep / 2),ipx));
-					curvePositions.push_back(DirectPosition(x,hipx));
-					iteg->topConnected(true);
-
-					if (options.debug)
-						path << " L" << x << "," << hipx;
-				}
-				else if (phase == vup) {
-					// Move up connecting to upper elevation's lo range point.
-					//
-					// Generate intermediate point half timestep forwards
-					//
-#ifdef STEPS
-printf("> vup lo=%.0f %s\n",lo,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
-					curvePositions.push_back(DirectPosition(x,lopx));
-					iteg->bottomConnected(true);
-
-					if (options.debug)
-						path << " L" << x << "," << lopx;
-
-					phase = bwd;
-				}
-				else if (phase == vdn) {
-					// Move down connecting to lower elevation's hi range point
-					//
-					// Generate intermediate point half timestep backwards
-					//
-#ifdef STEPS
-printf("> vdn hi=%.0f %s\n",hi,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
-					curvePositions.push_back(DirectPosition(x,hipx));
-					iteg->topConnected(true);
-
-					if (options.debug)
-						path << " L" << x << "," << hipx;
-
-					phase = fwd;
-				}
-				else if (phase == eup) {
-					// Move up connecting elevation's lo range point to hi range point
-					//
-#ifdef STEPS
-printf("> eup hi=%.0f %s\n",hi,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x,hipx));
-
-					if (options.debug)
-						path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << hipx;
-
-					if (iteg->topConnected())
-						// Path is now closed
-						//
-						break;
-
-					iteg->topConnected(true);
-
-					phase = fwd;
-				}
-				else if (phase == edn) {
-					// Move down connecting elevation's hi range point to lo range point
-					//
-#ifdef STEPS
-printf("> edn lo=%.0f %s\n",lo,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x,lopx));
-					iteg->bottomConnected(true);
-
-					if (options.debug)
-						path << (((vt != tp.begin()) && (vt != tp.end())) ? " L" : " M") << x << "," << lopx;
-
-					phase = bwd;
-				}
-				else if (phase == bwd) {
-					// Move backward thru intermediate point connecting to previous elevation's lo range point
-					//
-#ifdef STEPS
-printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
-#endif
-					double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
-
-					curvePositions.push_back(DirectPosition(x + (xStep / 2),ipx));
-					curvePositions.push_back(DirectPosition(x,lopx));
-					iteg->bottomConnected(true);
-
-					if (options.debug)
-						path << " L" << x << "," << lopx;
-				}
-				else {	// lst
-					if (single) {
-						// Bounding box for single elevation
-						//
-						double offset = (xStep / 3);
-
-						if (options.debug) {
-							path.clear();
-							path.str("");
-
-							path << std::fixed << std::setprecision(1);
-							path << "M" << x - offset << "," << hipx
-								 << " L" << x + offset << "," << hipx
-								 << " L" << x + offset << "," << lopx
-								 << " L" << x - offset << "," << lopx
-								 << " L" << x - offset << "," << hipx;
-						}
-
-						curvePositions.clear();
-
-						curvePositions.push_back(DirectPosition(x - offset,hipx));
-						curvePositions.push_back(DirectPosition(x + offset,hipx));
-						curvePositions.push_back(DirectPosition(x + offset,lopx));
-						curvePositions.push_back(DirectPosition(x - offset,lopx));
-						curvePositions.push_back(DirectPosition(x - offset,hipx));
-
-						break;
-					}
-
-					// Close the path
-					//
-					phase = eup;
-
-					continue;
-				}
-
-				if (phase == fwd)
-					phase = uprightdown(eGrp,iteg,lo,hi);
-				else
-					phase = downleftup(eGrp,iteg,lo,hi);
-
-				if ((phase == fwd) || (phase == bwd)) {
-					// Path covers multiple time instants
-					//
-					single = false;
-				}
-			}	// for iteg
-
-			// Remove group's elevations from the collection
-
-			for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
-				if (iteg->topConnected() && iteg->bottomConnected())
-					iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+			bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,path);
 
 			if (!(single && symbol)) {
+				// Rendering the group as bezier curve
+				//
 				if (options.debug)
 					texts[ICING + "PATH"] << "<path class=\"" << pathClass
-										  << "\" id=\"" << "Icing" << nGroups
+										  << "\" id=\"" << "IcingB" << nGroups
 										  << "\" d=\""
 										  << path.str()
 										  << "\"/>\n";
@@ -3876,7 +3782,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 				BezierModel bm(curvePositions,false,tightness);
 				bm.getSteppedCurvePoints(0,0,0,curvePoints);
 
-				// Output the path and label
+				// Render path
 
 				std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
 
@@ -3893,17 +3799,23 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 							 << "\" d=\""
 							 << path.str()
 							 << "\"/>\n";
+
+				curvePoints.clear();
 			}
 
 			curvePositions.clear();
-			curvePoints.clear();
 
-			// Render the single symbol or one symbol to the center of each visible part of the area
+			// Render the single symbol or one symbol to the center of each visible part of the area.
+			//
+			// x -coord of group's first time instant
+
+			const boost::posix_time::ptime & vt = eGrp.front().validTime();
+			double minX = axisManager->xOffset(vt);
 
 			std::vector<double> labelX,labelY;
 			std::vector<double>::const_iterator itx,ity;
 
-			getAreaLabelPos(bbCenterLabel,minx,xStep,_lopx,_hipx,labelX,labelY);
+			getAreaLabelPos(bbCenterLabel,minX,xStep,scaledLo,scaledHi,labelX,labelY);
 
 			for (itx = labelX.begin(),ity = labelY.begin(); (itx != labelX.end()); itx++, ity++)
 				render_aerodromeSymbol(confPath,symClass,icing.classNameExt(),icingCategory.category(),*itx,*ity);
@@ -4212,6 +4124,8 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// First check the need for generated below 0 elevations
 
+	double nonZ = axisManager->nonZeroElevation();
+
 	if (mixed) {
 		ElevGrp::reverse_iterator rbegiter(eGrpIn.end()),renditer(eGrpIn.begin()),riteg,priteg;
 		bool groundConnected = true;
@@ -4224,7 +4138,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 
-				groundConnected = (lo < axisManager->nonZeroElevation());
+				groundConnected = (lo < nonZ);
 			}
 
 			// If ground connection was detected before, the condition will remain;
@@ -4302,7 +4216,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 								// Set ground connection based on outer elevation; it was originally set based on inner elevation
 							  
-								piteg->groundConnected(plo < axisManager->nonZeroElevation());
+								piteg->groundConnected(plo < nonZ);
 								iteg->groundConnected(piteg->groundConnected());
 								
 								eGrpOut.push_back(*iteg);
@@ -4328,7 +4242,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						  }
 					  }
 				  }
-				else if (mixed && (plo >= axisManager->nonZeroElevation()) && (!(piteg->groundConnected())))
+				else if (mixed && (plo >= nonZ) && (!(piteg->groundConnected())))
 				{
 				  // Generate below 0 elevation forcing the curve path to go to the ground
 				  //
@@ -4440,24 +4354,22 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 				labelPlaceHolder = ZEROTOLERANCE + "TEXT";
 		}
 
-		// Document's time period and x -axis step (px)
+		// Document's time period, zero tolerance time series and x -axis step (px)
 
 		const boost::posix_time::time_period & tp = axisManager->timePeriod();
-		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+		const std::list<woml::TimeSeriesSlot> & ts = zerotolerance.timeseries();
 
+		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 		double xStep = axisManager->xStep();
 
-		// Loop thru the time instants
-		//
-		// The elevations (lo-hi ranges) are scanned/grouped in time instant order starting from
-		// topmost elevation grouping subsequent overlapping elevations
+		// Curve/text visibility
 
-		const std::list<woml::TimeSeriesSlot> & ts = zerotolerance.timeseries();
-		double nonZ = axisManager->nonZeroElevation();
 		bool visible = false,setUnvisible = true;
 
+		// Elevation group and curve point data
+
 		ElevGrp eGrp0,eGrp;
-		ElevGrp & _eGrp = (mixed ? eGrp0 : eGrp);
+		ElevGrp & eGrpRef = (mixed ? eGrp0 : eGrp);
 		int nGroups = 0;
 
 		List<DirectPosition> curvePositions;
@@ -4468,18 +4380,20 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			// time instants the "inner" elevations are marked negative ("nonground" elevations
 			// are positive by default)
 
-			elevationGroup(ts,bt,et,_eGrp,true);
-			checkZeroToleranceGroup(_eGrp,_eGrp,false);
+			elevationGroup(ts,bt,et,eGrpRef,true);
+			checkZeroToleranceGroup(eGrpRef,eGrpRef,false);
 
-			_eGrp.clear();
+			eGrpRef.clear();
 		}
 
 		bool nonGroundGrp = false;
 
 		for ( ; ; ) {
-			nonGroundGrp = (elevationGroup(ts,bt,et,_eGrp,false,mixed) == t_nonground);
+			// Get group of overlapping elevations from the time serie
+			//
+			nonGroundGrp = (elevationGroup(ts,bt,et,eGrpRef,false,mixed) == t_nonground);
 
-			if (_eGrp.size() == 0)
+			if (eGrpRef.size() == 0)
 				break;
 
 			nGroups++;
@@ -4493,247 +4407,23 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			if (mixed)
 				checkZeroToleranceGroup(eGrp0,eGrp);
 
-			// Loop thru the collected group and create path connecting hi range points
-			// and lo range points for subsequent overlapping elevations
+			// Get curve positions for bezier creation.
+			//
+			// The scaled lo/hi values for the elevations are set to scaledLo/scaledHi;
+			// they are used to calculate cloud label positions
 
-			ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
-			Phase phase;
-			double lopx = 0.0,plopx = 0.0;
-			double hipx = 0.0,phipx = 0.0;
-			double minx = 0.0,maxx = 0.0;
-			std::vector<double> _lopx,_hipx;
-			bool single = true;
+			std::vector<double> scaledLo,scaledHi;
 
 			std::ostringstream path;
-			path << std::fixed << std::setprecision(1);
+			path << std::fixed << std::setprecision(3);
 
-			for (iteg = egbeg, phase = fst; (iteg != egend); ) {
-				// Get elevation's lo and hi range values
-				//
-				const woml::Elevation & e = iteg->elevation();
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
-
-				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
-				double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
-				bool ground = (lo < axisManager->nonZeroElevation());
-
-				plopx = lopx;
-				phipx = hipx;
-				lopx = axisManager->scaledElevation(lo);
-				hipx = axisManager->scaledElevation(hi);
-
-				if (hi >= nonZ)
-					visible = true;
-
-				// x -coord of this time instant
-
-				const boost::posix_time::ptime & vt = iteg->validTime();
-
-				double x = axisManager->xOffset(vt);
-
-				// Keep track of "nonground" group's elevations to calculate the label position
-
-				if (nonGroundGrp)
-					trackAreaLabelPos(x,minx,maxx,lopx,_lopx,hipx,_hipx);
-
-#define STEPSS
-
-#ifdef STEPS
-std::string cs;
-if (iteg->topConnected()) cs = " top";
-if (iteg->bottomConnected()) cs += " bot";
-cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
-#endif
-
-				if (phase == fst) {
-					// First hi range point
-					//
-					// If the time instant of the first ("ground") elevation is not the forecast's first
-					// time instant, connect the hi range point to 0 at the previous time instant
-					//
-#ifdef STEPS
-printf("> fst hi=%.0f %s\n",hi,cs.c_str());
-#endif
-					if (ground && (vt > bt)) {
-						curvePositions.push_back(DirectPosition(x - xStep,axisManager->axisHeight()));
-						single = false;
-					}
-
-					curvePositions.push_back(DirectPosition(x,hipx));
-					iteg->topConnected(true);
-
-					if (options.debug) {
-						if (ground && (vt > bt))
-							path << "M" << (x - xStep) << "," << axisManager->axisHeight()
-								 << " L" << x << "," << hipx;
-						else
-							path << "M" << x << "," << hipx;
-					}
-
-					phase = fwd;
-				}
-				else if (phase == fwd) {
-					// Move forward connecting to next elevation's hi range point
-					//
-#ifdef STEPS
-printf("> fwd hi=%.0f %s\n",hi,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x,hipx));
-					iteg->topConnected(true);
-
-					if (options.debug)
-						path << " L" << x << "," << hipx;
-				}
-				else if (phase == vup) {
-					// Move up connecting to upper elevation's lo range point.
-					//
-					// Generate intermediate point half timestep forwards
-					//
-#ifdef STEPS
-printf("> vup lo=%.0f %s\n",lo,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
-					curvePositions.push_back(DirectPosition(x,lopx));
-					iteg->bottomConnected(true);
-
-					if (options.debug)
-						path << " L" << x << "," << lopx;
-
-					phase = bwd;
-				}
-				else if (phase == vdn) {
-					// Move down connecting to lower elevation's hi range point
-					//
-					// Generate intermediate point half timestep backwards
-					//
-#ifdef STEPS
-printf("> vdn hi=%.0f %s\n",hi,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
-					curvePositions.push_back(DirectPosition(x,hipx));
-					iteg->topConnected(true);
-
-					if (options.debug)
-						path << " L" << x << "," << hipx;
-
-					phase = fwd;
-				}
-				else if (phase == eup) {
-					// Move up connecting nonground elevation's lo range point to hi range point
-					//
-#ifdef STEPS
-printf("> eup hi=%.0f %s\n",hi,cs.c_str());
-#endif
-					if (!ground) {
-						curvePositions.push_back(DirectPosition(x,hipx));
-
-						if (options.debug)
-							path << " L" << x << "," << hipx;
-					}
-
-					if (iteg->topConnected())
-						// Path is now closed
-						//
-						break;
-
-					iteg->topConnected(true);
-
-					phase = fwd;
-				}
-				else if (phase == edn) {
-					// Move down connecting elevation's hi range point to lo range point
-					//
-					// If the time instant of the last ("ground") elevation in the group is not the forecast's last
-					// time instant, use 0 at the next time instant as intermediate point
-					//
-#ifdef STEPS
-printf("> edn lo=%.0f %s\n",lo,cs.c_str());
-#endif
-					if (ground && (vt < et)) {
-						curvePositions.push_back(DirectPosition(x + xStep,axisManager->axisHeight()));
-						single = false;
-					}
-
-					curvePositions.push_back(DirectPosition(x,lopx));
-					iteg->bottomConnected(true);
-
-					if (options.debug) {
-						if (ground && (vt < et))
-							path << " L" << (x + xStep) << "," << axisManager->axisHeight();
-
-						path << " L" << x << "," << lopx;
-					}
-
-					phase = bwd;
-				}
-				else if (phase == bwd) {
-					// Move backward connecting to previous elevation's lo range point
-					//
-#ifdef STEPS
-printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
-#endif
-					curvePositions.push_back(DirectPosition(x,lopx));
-					iteg->bottomConnected(true);
-
-					if (options.debug)
-						path << " L" << x << "," << lopx;
-				}
-				else {	// lst
-					if (single) {
-						// Bounding box for single elevation
-						//
-						curvePositions.clear();
-
-						curvePositions.push_back(DirectPosition(x,hipx));
-						curvePositions.push_back(DirectPosition(x + xStep,hipx));
-						curvePositions.push_back(DirectPosition(x + xStep,lopx));
-						curvePositions.push_back(DirectPosition(x,lopx));
-						curvePositions.push_back(DirectPosition(x,hipx));
-
-						if (options.debug) {
-							path.clear();
-							path.str("");
-
-							x -= (xStep / 2);
-							path << std::fixed << std::setprecision(1);
-
-							path << "M" << x << "," << hipx
-								 << " L" << x + xStep << "," << hipx
-								 << " L" << x + xStep << "," << lopx
-								 << " L" << x << "," << lopx
-								 << " L" << x << "," << hipx;
-						}
-
-						break;
-					}
-
-					// Close the path
-					//
-					phase = eup;
-
-					continue;
-				}
-
-				if (phase == fwd)
-					phase = uprightdown(eGrp,iteg,lo,hi,false);
-				else
-					phase = downleftup(eGrp,iteg,lo,hi,true);
-
-				if ((phase == fwd) || (phase == bwd)) {
-					// Path covers multiple time instants
-					//
-					single = false;
-				}
-			}	// for iteg
+			scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,path,&visible,true,false,true);
 
 			// Create bezier curve and get curve points
 
 			if (options.debug)
 				texts[ZEROTOLERANCE + "PATH"] << "<path class=\"" << classDef
-											  << "\" id=\"" << "ZeroTolerance" << nGroups
+											  << "\" id=\"" << "ZeroToleranceB" << nGroups
 											  << "\" d=\""
 											  << path.str()
 											  << "\"/>\n";
@@ -4772,17 +4462,22 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 				setUnvisible = false;
 			}
 
-			// Output "nonground" area's label in nonmixed mode
-
 			if (nonGroundGrp) {
-				std::string & label = (egbeg->negativeTemp() ? negLabel : posLabel);
+				// Render "nonground" area's label to the center of each visible part of the area
+				//
+				std::string & label = (eGrp.begin()->negativeTemp() ? negLabel : posLabel);
 
 				if (!label.empty()) {
+					// x -coord of group's first time instant
+					//
+					const boost::posix_time::ptime & vt = eGrp.front().validTime();
+					double minX = axisManager->xOffset(vt);
+
 					std::vector<double> labelX,labelY;
 					std::vector<double>::const_iterator itx,ity;
 					int n;
 
-					getAreaLabelPos(bbCenterLabel,minx,xStep,_lopx,_hipx,labelX,labelY);
+					getAreaLabelPos(bbCenterLabel,minX,xStep,scaledLo,scaledHi,labelX,labelY);
 
 					// Note: only one label expected/rendered
 
@@ -4798,12 +4493,6 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 					}
 				}
 			}
-
-			// Remove group's elevations from the collection.
-
-			for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
-				if ((!(iteg->generated())) && iteg->topConnected() && iteg->bottomConnected())
-					iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
 		}
 
 		return;

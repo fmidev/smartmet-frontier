@@ -9,6 +9,7 @@
 
 #include "Options.h"
 #include "Path.h"
+#include "BezSeg.h"
 
 #include "smartmet/woml/FeatureVisitor.h"
 #include <smartmet/woml/Point.h>
@@ -392,6 +393,19 @@ namespace frontier
 							int nGroups,
 							double x,
 							double lopx,double hipx);
+	void render_cloudSymbols(const std::string confPath,
+							 const ElevGrp & eGrp,
+							 std::list<CloudGroup>::const_iterator itcg,
+							 int nGroups);
+	bool scaledCurvePositions(ElevGrp & eGrp,
+							  List<DirectPosition> & curvePositions,
+							  std::vector<double> & scaledLo,std::vector<double> & scaledHi,
+							  std::ostringstream & path,
+							  bool * isVisible = NULL,
+							  bool checkGround = false,
+							  bool nonGndFwd2Gnd = true,
+							  bool nonGndVdn2Gnd = false
+							 );
 	void render_timeserie(const woml::CloudLayers & cloudlayers);
 	void render_timeserie(const woml::Contrails & contrails);
 	void render_timeserie(const woml::Icing & icing);
