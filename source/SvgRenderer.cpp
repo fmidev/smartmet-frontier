@@ -49,6 +49,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <list>
 
 #include <cairo.h>
 
@@ -1426,6 +1427,7 @@ namespace frontier
   {
 	const char * typeMsg = " must contain a list of groups in parenthesis";
 	const char * condMsg = ": refix must be 'eq', 'le', 'lt', 'ge' or 'gt'";
+	const char * valMsg = ": value must be numeric or 'NaN'";
 
 	double ltCondValue = 0.0,gtCondValue = 0.0,eps = 0.00001;
 	int ltCondIdx = -1,gtCondIdx = -1,idx = -1;
@@ -1437,14 +1439,41 @@ namespace frontier
 			throw std::runtime_error(confPath + ".conditions" + typeMsg);
 
 		std::string refix(configValue<std::string>(conds,className,"refix"));
-		double condValue(configValue<double>(conds,className,"value"));
+		double condValue = 0.0;
+		bool eqNan = false,badNan = false;
+
+		// Check for equal to NaN condition.
+
+		try {
+			badNan = (boost::algorithm::to_lower_copy(lookup<std::string>(conds,confPath,"value")) != "nan");
+
+			if (badNan)
+				throw std::runtime_error(confPath + ".conditions" + valMsg);
+
+			if (!isnan(numericValue))
+				continue;
+
+			eqNan = true;
+		}
+		catch (std::runtime_error ex) {
+			if (badNan)
+				throw;
+
+			condValue = configValue<double>(conds,className,"value");
+		}
+		catch (...) {
+			throw;
+		}
 
 		if (refix == "eq") {
-			if (fabs(condValue - numericValue) <= eps) {
+			if (eqNan || (fabs(condValue - numericValue) <= eps)) {
 				ltCondIdx = gtCondIdx = i;
 				break;
 			}
 		}
+		else if (eqNan)
+			// Only eq match for NaN.
+			;
 		else if (refix == "le") {
 			if (
 				(
@@ -1674,11 +1703,11 @@ namespace frontier
 		  	  	  	  	     double * scale = NULL)
   {
 	if (pref.empty())
-		return upperLimit ? (lowerLimit->value() + ".." + upperLimit->value()) : lowerLimit->value();
+		return upperLimit ? (lowerLimit->value() + ".." + upperLimit->value()) : (isnan(lowerLimit->numericValue()) ? "" : lowerLimit->value());
 	else if (pref.find('%') == std::string::npos)
 		// Static/literal format
 		//
-		return pref;
+		return svgescapetext(pref,true);
 
 	std::ostringstream os;
 
@@ -1694,7 +1723,7 @@ namespace frontier
 		else
 			os << boost::format(pref) % (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue());
 
-		return os.str();
+		return svgescapetext(os.str(),true);
 	}
 	catch(std::exception & ex) {
 		throw std::runtime_error(confPath + ": '" + pref + "': " + ex.what());
@@ -2267,21 +2296,7 @@ namespace frontier
 					upopen = true;
 				}
 
-				// If nonGndFwd2Gnd is false (ZeroTolerance), go forward (directly) only if the current elevation is the first
-				// elevation in the group or it is "ground" (or below) elevation or it's bottom is connected or if the right
-				// side elevation is "nonground" elevation; otherwise going 'edn' and then backwards until reaching "ground"
-				// elevation (if any, or the first time instant of the forecast); then going 'vdn' and then forward (through
-				// the generated below 0 elevations), connecting to the top of the right side elevation
-
-				FWD = (
-					   nonGndFwd2Gnd ||
-					   (iteg == eGrp.begin()) ||
-					   (lo < nonZ) ||
-					   iteg->bottomConnected() ||
-					   (rlo >= nonZ)
-					  );
-
-				if (FWD && ((triteg == iteg) || riteg->bottomConnected()) && (!(riteg->topConnected())))
+				if (((triteg == iteg) /**/ || riteg->bottomConnected() /**/) && (!(riteg->topConnected())))
 					// Can go right
 					//
 					triteg = riteg;
@@ -2294,7 +2309,7 @@ namespace frontier
 	if (upopen && ((!(uiteg->topConnected())) || (triteg == iteg))) {
 		// Up
 		//
-		// Inform the right side elevation that the path has travelled on it's left side
+		// Inform the right side elevation that the path has travelled by it's left side
 		// (the right side elevation can not be travelled through upwards)
 
 		if (triteg != iteg)
@@ -2358,11 +2373,6 @@ namespace frontier
 
 					downopen = ((bclo <= dhi) && (bchi >= dlo));
 				}
-
-				// If nonGndVdn2Gnd is true (ZeroTolerance), can go down from "nonground" to generated below 0 elevation
-				//
-				if (!downopen)
-					downopen = (nonGndVdn2Gnd && (lo >= nonZ) && (dhi < nonZ));
 			}
 		}
 		else
@@ -2405,32 +2415,16 @@ namespace frontier
 						downopen = true;
 					}
 
-					// If nonGndVdn2Gnd is true (ZeroTolerance), go backward only if the current elevation is "ground" (or below)
-					// elevation or if the left side elevation is "nonground" elevation
-
-					BWD = (
-						   (!nonGndVdn2Gnd) ||
-						   (lo < nonZ) ||
-						   (llo >= nonZ)
-						  );
-
-					// If nonGndVdn2Gnd is false (not ZeroTolerance) or current elevation is ground elevation, select the lowest
-					// overlapping left side elevation if the path has not travelled on it's left side (otherwise the elevation
-					// can not be travelled through upwards); otherwise select the uppermost left side elevation
+					// Select the lowest overlapping left side elevation for which the path has not travelled by left side
+					// (otherwise the elevation can not be travelled through upwards)
 
 					if (
-						BWD &&
-						(
-						 (bliteg == iteg) || (!(bliteg->leftOpen())) ||
-						 (nonGndVdn2Gnd && (lo >= nonZ))
-						 ) &&
-						 (!(liteg->bottomConnected()))
+						((bliteg == iteg) || (!(bliteg->leftOpen()))) &&
+						(!(liteg->bottomConnected()))
 					   ) {
-						// Can, and if nonGndVdn2Gnd is true (ZeroTolerance), will go left
+						// Can go left
 						//
 						leftopen = (!(liteg->topConnected()));
-						downopen &= (!nonGndVdn2Gnd);
-
 						bliteg = liteg;
 					}
 				}
@@ -2845,9 +2839,20 @@ namespace frontier
 		// The cloud set is common for all groups; clear it
 
 		itcg->cloudSet().clear();
+
+		firstMember = cvm;
 	}
 	else if (std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category)) != itcg)
 		return false;
+
+	// Check if elevations belong to the same group
+
+//	GroupCategory groupCategory;
+//
+//	groupCategory.groupMember(true,firstMember);
+//
+//	if (!groupCategory.groupMember(false,cvm))
+//		return false;
 
 	// Add contained cloud type into the cloud set
 
@@ -2902,7 +2907,6 @@ namespace frontier
 
 	for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
 		iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
-
   }
 
   // ----------------------------------------------------------------------
@@ -2911,6 +2915,9 @@ namespace frontier
    *		lo range points for subsequent overlapping elevations.
    *
    *		Returs true if the curve encapsulates a single elevation only.
+   *
+   *		Note: The elevations included into the curve are deleted from
+   *			  the underlying woml object collection.
    */
   // ----------------------------------------------------------------------
 
@@ -2948,6 +2955,9 @@ namespace frontier
 		double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 		double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
+		if ((lo > 0.0) && (lo < nonZ))
+			lo = 0.0;
+
 		bool ground = (checkGround && (lo < nonZ));
 
 		if (isVisible && (hi >= nonZ))
@@ -2963,7 +2973,7 @@ namespace frontier
 		const boost::posix_time::ptime & vt = iteg->validTime();
 		double x = axisManager->xOffset(vt);
 
-		// Keep track of elevations to calculate the label position
+		// Keep track of elevations to calculate the label position(s)
 
 		trackAreaLabelPos(x,maxx,lopx,scaledLo,hipx,scaledHi);
 
@@ -2979,11 +2989,11 @@ cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
 		if (phase == fst) {
 			// First hi range point
 			//
-			// If the time instant of the first "ground" (zeroTolerance) elevation is not the forecast's first
-			// time instant, connect the hi range point to 0 at the previous time instant
+			// If time instant of the first "ground" (zeroTolerance) elevation is not forecast's first
+			// time instant, connect hi range point to 0 at the previous time instant
 			//
 #ifdef STEPS
-printf("> fst hi=%.0f %s\n",hi,cs.c_str());
+fprintf(stderr,"**** fst hi=%.0f %s\n",hi,cs.c_str());
 #endif
 			if (ground && (vt > bt)) {
 				curvePositions.push_back(DirectPosition(x - xStep,axisManager->axisHeight()));
@@ -3007,7 +3017,7 @@ printf("> fst hi=%.0f %s\n",hi,cs.c_str());
 			// Move forward thru intermediate point connecting to next elevation's hi range point
 			//
 #ifdef STEPS
-printf("> fwd hi=%.0f %s\n",hi,cs.c_str());
+fprintf(stderr,">>>> fwd hi=%.0f %s\n",hi,cs.c_str());
 #endif
 			double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
 
@@ -3024,7 +3034,7 @@ printf("> fwd hi=%.0f %s\n",hi,cs.c_str());
 			// Generate intermediate point half timestep forwards
 			//
 #ifdef STEPS
-printf("> vup lo=%.0f %s\n",lo,cs.c_str());
+fprintf(stderr,">>>> vup lo=%.0f %s\n",lo,cs.c_str());
 #endif
 			curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
 			curvePositions.push_back(DirectPosition(x,lopx));
@@ -3041,7 +3051,7 @@ printf("> vup lo=%.0f %s\n",lo,cs.c_str());
 			// Generate intermediate point half timestep backwards
 			//
 #ifdef STEPS
-printf("> vdn hi=%.0f %s\n",hi,cs.c_str());
+fprintf(stderr,">>>> vdn hi=%.0f %s\n",hi,cs.c_str());
 #endif
 			curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
 			curvePositions.push_back(DirectPosition(x,hipx));
@@ -3056,7 +3066,7 @@ printf("> vdn hi=%.0f %s\n",hi,cs.c_str());
 			// Move up connecting "nonground" (or non ZeroTolorence) elevation's lo range point to hi range point
 			//
 #ifdef STEPS
-printf("> eup hi=%.0f %s\n",hi,cs.c_str());
+fprintf(stderr,">>>> eup hi=%.0f %s\n",hi,cs.c_str());
 #endif
 			if (!ground) {
 				curvePositions.push_back(DirectPosition(x,hipx));
@@ -3077,11 +3087,11 @@ printf("> eup hi=%.0f %s\n",hi,cs.c_str());
 		else if (phase == edn) {
 			// Move down connecting elevation's hi range point to lo range point
 			//
-			// If the time instant of the last "ground" (zeroTolerance) elevation in the group is not the forecast's last
+			// If time instant of the last "ground" (zeroTolerance) elevation in the group is not forecast's last
 			// time instant, use 0 at the next time instant as intermediate point
 			//
 #ifdef STEPS
-printf("> edn lo=%.0f %s\n",lo,cs.c_str());
+fprintf(stderr,">>>> edn lo=%.0f %s\n",lo,cs.c_str());
 #endif
 			if (ground && (vt < et)) {
 				curvePositions.push_back(DirectPosition(x + xStep,axisManager->axisHeight()));
@@ -3104,7 +3114,7 @@ printf("> edn lo=%.0f %s\n",lo,cs.c_str());
 			// Move backward thru intermediate point connecting to previous elevation's lo range point
 			//
 #ifdef STEPS
-printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
+fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 #endif
 			double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
 
@@ -3165,8 +3175,10 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	// Remove group's elevations from the collection
 
 	for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
-		if ((!(iteg->generated())) && iteg->topConnected() && iteg->bottomConnected())
+		if ((!(iteg->isGenerated())) && iteg->topConnected() && iteg->bottomConnected()) {
 			iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+			iteg->isDeleted(true);
+		}
 
 	return single;
   }
@@ -3214,10 +3226,18 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	std::list<DirectPosition> curvePoints;
 	std::list<doubleArr> decoratorPoints;
 
+	// Set group number for the elevations
+
+//	setGroupNumbers(ts);
+
+	// Search and flag elevation holes
+
+	searchHoles(ts,&cloudGroupCategory);
+
 	for ( ; ; ) {
-		// Get group of overlapping elevations from the time serie
+		// Get all remaining elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,false,true,&cloudGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,true,true,&cloudGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
@@ -3227,8 +3247,9 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		// Cloud group for current elevation group
 
 		std::list<CloudGroup>::const_iterator itcg = cloudGroupCategory.currentGroup();
+		bool hole = (eGrp.front().isHole());
 
-		if (!(itcg->symbolType().empty())) {
+		if ((!hole) && !(itcg->symbolType().empty())) {
 			// Rendering the group as cloud symbols
 			//
 			render_cloudSymbols(confPath,eGrp,itcg,nGroups);
@@ -3258,7 +3279,7 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		BezierModel bm(curvePositions,false,tightness);
 		bm.getSteppedCurvePoints(itcg->baseStep(),itcg->maxRand(),itcg->maxRepeat(),curvePoints);
-		bm.decorateCurve(curvePoints,itcg->scaleHeightMin(),itcg->scaleHeightRandom(),itcg->controlMin(),itcg->controlRandom(),decoratorPoints);
+		bm.decorateCurve(curvePoints,(!hole),itcg->scaleHeightMin(),itcg->scaleHeightRandom(),itcg->controlMin(),itcg->controlRandom(),decoratorPoints);
 
 		// Render path
 
@@ -3287,29 +3308,31 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 								   << path.str()
 								   << "\"/>\n";
 
-		std::string label = itcg->label();
+		if (!hole) {
+			std::string label = itcg->label();
 
-		if (!label.empty()) {
-			// Render label to the center of each visible part of the cloud
-			//
-			// x -coord of group's first time instant
-			//
-			const boost::posix_time::ptime & vt = eGrp.front().validTime();
-			double minX = axisManager->xOffset(vt);
+			if (!label.empty()) {
+				// Render label to the center of each visible part of the cloud
+				//
+				// x -coord of group's first time instant
+				//
+				const boost::posix_time::ptime & vt = eGrp.front().validTime();
+				double minX = axisManager->xOffset(vt);
 
-			std::vector<double> labelX,labelY;
-			std::vector<double>::const_iterator itx,ity;
-			int n;
+				std::vector<double> labelX,labelY;
+				std::vector<double>::const_iterator itx,ity;
+				int n;
 
-			getAreaLabelPos(itcg->bbCenterLabel(),minX,xStep,scaledLo,scaledHi,labelX,labelY);
+				getAreaLabelPos(itcg->bbCenterLabel(),minX,xStep,scaledLo,scaledHi,labelX,labelY);
 
-			for (itx = labelX.begin(),ity = labelY.begin(),n = 0; (itx != labelX.end()); itx++, ity++, n++) {
-				texts[itcg->labelPlaceHolder()] << "<text class=\"" << itcg->textClassDef()
-												<< "\" id=\"" << "CloudLayersText" << nGroups << n
-												<< "\" text-anchor=\"middle"
-												<< "\" x=\"" << *itx
-												<< "\" y=\"" << *ity
-												<< "\">" << label << "</text>\n";
+				for (itx = labelX.begin(),ity = labelY.begin(),n = 0; (itx != labelX.end()); itx++, ity++, n++) {
+					texts[itcg->labelPlaceHolder()] << "<text class=\"" << itcg->textClassDef()
+													<< "\" id=\"" << "CloudLayersText" << nGroups << n
+													<< "\" text-anchor=\"middle"
+													<< "\" x=\"" << *itx
+													<< "\" y=\"" << *ity
+													<< "\">" << label << "</text>\n";
+				}
 			}
 		}
 
@@ -3333,27 +3356,32 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		  	  	  	  	  	  	  	  	  	  	  	 ElevGrp & eGrp,
 		  	  	  	  	  	  	  	  	  	  	  	 bool all,
 		  	  	  	  	  	  	  	  	  	  	  	 bool mixed,
-		  	  	  	  	  	  	  	  	  	  	  	 CategoryValueMeasureGroup * groupCategory)
+													 CategoryValueMeasureGroup * groupCategory)
   {
 	// Loop thru the time instants.
 	//
 	// If 'all' is false and 'mixed' is true the elevations (lo-hi ranges) are scanned/grouped in time instant order
-	// starting from topmost elevation grouping all subsequent overlapping "ground" (lo -range (near) 0) and "nonground"
-	// elevations. If 'groupCategory' is nonnull, category (cloud type for CloudLayers or magnitude for Icing) is taken into account.
-	// All elevations of the selected time instants are included into the group; the group may contain
+	// starting from topmost elevation grouping all subsequent overlapping "ground" (lo -range <= (or near) 0) and "nonground"
+	// elevations. All elevations of the selected time instants are included into the group; the group may contain
 	// logically nongroup (nonoverlapping) elevations too.
 	//
 	// If 'all' is false and 'mixed' is false the elevations (lo-hi ranges) are scanned/grouped in time instant order
-	// starting from topmost elevation grouping all subsequent overlapping "ground" (lo -range (near) 0) or "nonground"
+	// starting from topmost elevation grouping all subsequent overlapping "ground" (lo -range <= (or near) 0) or "nonground"
 	// elevations.
 	//
-	// If 'all' is true, returns all elevations.
+	// If 'all' is true and groupCategory is null, returns all elevations; otherwise category (cloud type for CloudLayers or
+	// magnitude for Icing) is taken into account.
+	//
+	// Note: This method does not work properly when 'all' is false and all overlapping elevations are not within the
+	//       starting elevation's lo/hi range (when all overlapping elevations do not directly overlap the starting elevation).
+	//       Current workaround is just to read all elevations for ZeroTolerance, CloudLayers, Contrails and Icing; when creating
+	//		 the curve path, only the overlapping elevations will be rendered.
 
 	std::list<woml::TimeSeriesSlot>::const_iterator tsbeg = ts.begin();
 	std::list<woml::TimeSeriesSlot>::const_iterator tsend = ts.end();
 	std::list<woml::TimeSeriesSlot>::const_iterator itts;
 
-	bool byCategory = (groupCategory != NULL),groundGrp = false,nonGroundGrp = false;
+	bool byCategory = (groupCategory != NULL),groundGrp = false,nonGroundGrp = false,hole = false;
 
 	if (byCategory)
 		// 'mixed' is ignored for CloudLayers and Icing; always true
@@ -3371,13 +3399,12 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 		//
 		const boost::posix_time::ptime & vt = itts->validTime();
 
-		if ((vt < bt) || (vt > et))
-		  {
+		if ((vt < bt) || (vt > et)) {
 			if (vt < bt)
 				continue;
 			else
 				break;
-		  }
+		}
 
 		bool overlap = false;	// Set if time instant had elevation added to the group
 		loLim = tsLo;
@@ -3391,6 +3418,11 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			std::list<woml::GeophysicalParameterValue>::iterator pvend = itpvs->get()->editableValues().end(),itpv;
 
 			for (itpv = itpvs->get()->editableValues().begin(); ((itpv != pvend) && (mixed || (!overlap))); itpv++) {
+				// Not mixing holes and nonholes
+				//
+				if ((eGrp.size() > 0) && (hole != ((itpv->getFlags() & ElevationGroupItem::b_isHole) ? true : false)))
+					continue;
+
 				const woml::Elevation & e = itpv->elevation();
 				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
 				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
@@ -3405,37 +3437,18 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 					const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
 					hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
-					if (byCategory) {
-						// Take category (cloud type or icing magnitude) into account
-						//
-						const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(itpv->value());
-
-						if (!cvm)
-							throw std::runtime_error("elevationGroup: CategoryValueMeasure values expected");
-
-						if (!(groupCategory->groupMember((eGrp.size() == 0),cvm))) {
-							if ((eGrp.size() == 0) && options.debug)
-								debugoutput << "Settings for "
-											<< cvm->category()
-											<< " not found\n";
-
-							continue;
-						}
-					}
-					else if ((!mixed) && (eGrp.size() > 0))
-					  {
-						if (groundGrp)
-						  {
+					if ((!mixed) && (eGrp.size() > 0)) {
+						if (groundGrp) {
 							if (!ground)
-							  continue;
-						  }
+								continue;
+						}
 						else if (ground || (hi < loLim))
-						  // Overlapping elevation does not exist
-						  //
-						  break;
+							// Overlapping elevation does not exist
+							//
+							break;
 						else if (lo > hiLim)
-						  continue;
-					  }
+							continue;
+					}
 
 					if ((eGrp.size() == 0) || (groundGrp && ground) || ((lo <= hiLim) && (hi >= loLim))) {
 						if (! overlap) {
@@ -3455,9 +3468,28 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 						}
 					}
 				}
+				else if (byCategory) {
+					// Take category (cloud type or icing magnitude) into account
+					//
+					const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(itpv->value());
 
-				if (eGrp.size() == 0)
+					if (!cvm)
+						throw std::runtime_error("elevationGroup: CategoryValueMeasure values expected");
+
+					if (!(groupCategory->groupMember((eGrp.size() == 0),cvm))) {
+						if ((eGrp.size() == 0) && options.debug)
+							debugoutput << "Settings for "
+										<< cvm->category()
+										<< " not found\n";
+
+						continue;
+					}
+				}
+
+				if (eGrp.size() == 0) {
 					groundGrp = ground;
+					hole = ((itpv->getFlags() & ElevationGroupItem::b_isHole) ? true : false);
+				}
 				else if (!ground)
 					nonGroundGrp = true;
 
@@ -3476,6 +3508,581 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 	}	// for itts
 
 	return ((groundGrp && nonGroundGrp) ? t_mixed : (groundGrp ? t_ground : t_nonground));
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Check if the hole (a gap between two vertically located elevations)
+   *		is closed or bounded by an elevation on the left side.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::checkLeftSide(ElevGrp & eGrp,elevationHole & hole,CategoryValueMeasureGroup * groupCategory)
+  {
+	std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin()),liteg(hole.aboveElev);
+	boost::posix_time::ptime vt = hole.aboveElev->validTime();
+
+	// Check if the left side of the hole is closed or bounded above.
+
+	for ( ; (liteg != egend); liteg++) {
+		int dh = (liteg->validTime() - vt).hours();
+
+		if (dh == -1) {
+			if (groupCategory) {
+				// Check that elevation belongs to the same category (cloud type for CloudLayers) as the hole
+				//
+				ElevGrp::iterator iteg = liteg.base();
+				iteg--;
+
+				if (!checkCategory(groupCategory,hole.aboveElev,iteg))
+					continue;
+			}
+
+			const woml::Elevation & e = liteg->Pv()->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+			if (hi < hole.hi)
+				continue;
+
+			if ((lo > 0.0) && (lo < axisManager->nonZeroElevation()))
+				lo = 0.0;
+
+			hole.leftAboveBounded = true;
+			hole.leftClosed = (lo <= hole.lo);
+
+			return;
+		}
+		else if (dh != 0)
+			return;
+	}
+
+	return;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Check if the hole (a gap between two vertically located elevations)
+   *		is closed by a (left side) closed hole(s) on the left side.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  bool SvgRenderer::checkLeftSideHoles(elevationHoles & holes,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
+  {
+	std::reverse_iterator<elevationHoles::iterator> ehend(holes.begin()),liteh(iteh);
+	boost::posix_time::ptime vt = iteh->aboveElev->validTime();
+
+	// Check if the holes on the left side (if any) are closed.
+
+	bool closed = false;
+
+	for ( ; (liteh != ehend); liteh++) {
+		int dh = (liteh->aboveElev->validTime() - vt).hours();
+
+		if (dh == -1) {
+			if (groupCategory) {
+				// Check that the holes belong to the same category (cloud type for CloudLayers)
+				//
+				if (!checkCategory(groupCategory,iteh->aboveElev,liteh->aboveElev))
+					continue;
+			}
+
+			if (liteh->hi < iteh->lo)
+				continue;
+			else if (liteh->lo > iteh->hi)
+				return closed;
+			else if (!(liteh->leftClosed))
+				return false;
+
+			closed = true;
+		}
+		else if (dh != 0)
+			return closed;
+	}
+
+	return closed;
+  }
+
+  // ----------------------------------------------------------------------
+   /*!
+    * \brief Check if the hole (a gap between two vertically located elevations)
+    *		is closed by an elevation on the right side.
+    *
+    */
+   // ----------------------------------------------------------------------
+
+  void SvgRenderer::checkRightSide(ElevGrp & eGrp,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
+  {
+	// Check if the right side of the hole is closed.
+
+	ElevGrp::iterator egend = eGrp.end(),riteg = iteh->belowElev;
+	boost::posix_time::ptime vt = riteg->validTime();
+
+	for (riteg++; (riteg != egend); riteg++) {
+		int dh = (riteg->validTime() - vt).hours();
+
+		if (dh == 1) {
+			if (groupCategory) {
+				// Check that elevation belongs to the same category (cloud type for CloudLayers) as the hole
+				//
+				if (!checkCategory(groupCategory,iteh->aboveElev,riteg))
+					continue;
+			}
+
+			const woml::Elevation & e = riteg->Pv()->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+			if (hi >= iteh->hi) {
+				iteh->rightAboveBounded = true;
+
+				if ((lo > 0.0) && (lo < axisManager->nonZeroElevation()))
+					lo = 0.0;
+
+				if (lo > iteh->lo)
+					continue;
+
+				iteh->rightClosed = true;
+			}
+
+			return;
+		}
+		else if (dh != 0)
+			return;
+	}
+
+	return;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Check if the hole (a gap between two vertically located elevations)
+   *		is closed by a both side closed hole(s) on the right side.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  bool SvgRenderer::checkRightSideHoles(elevationHoles & holes,elevationHoles::reverse_iterator iteh,CategoryValueMeasureGroup * groupCategory)
+  {
+	elevationHoles::iterator ehend(holes.end()),riteh = iteh.base();
+	boost::posix_time::ptime vt = iteh->aboveElev->validTime();
+
+	// Check if the holes on the right side (if any) are closed.
+
+	bool closed = false;
+
+	for ( ; (riteh != ehend); riteh++) {
+		int dh = (riteh->aboveElev->validTime() - vt).hours();
+
+		if (dh == 1) {
+			if (groupCategory) {
+				// Check that the holes belong to the same category (cloud type for CloudLayers)
+				//
+				if (!checkCategory(groupCategory,iteh->aboveElev,riteh->aboveElev))
+					continue;
+			}
+
+			if (riteh->lo > iteh->hi)
+				continue;
+			else if (riteh->hi < iteh->lo)
+				return closed;
+			else if (!(riteh->leftClosed && riteh->rightClosed))
+				return false;
+
+			closed = true;
+		}
+		else if (dh != 0)
+			return closed;
+	}
+
+	return closed;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Check if the hole (a gap between two vertically located elevations)
+   *		is closed by a both side closed hole(s) (if any) on both sides.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  bool SvgRenderer::checkBothSideHoles(elevationHoles & holes,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
+  {
+	std::reverse_iterator<elevationHoles::iterator> lehend(holes.begin()),liteh(iteh);
+	boost::posix_time::ptime vt = iteh->aboveElev->validTime();
+
+	// Check if the holes on the left side (if any) are closed.
+
+	bool closed = true;
+
+	for ( ; ((liteh != lehend) && closed); liteh++) {
+		int dh = (liteh->aboveElev->validTime() - vt).hours();
+
+		if (dh == -1) {
+			if (groupCategory) {
+				// Check that the holes belong to the same category (cloud type for CloudLayers)
+				//
+				if (!checkCategory(groupCategory,iteh->aboveElev,liteh->aboveElev))
+					continue;
+			}
+
+			if (liteh->hi < iteh->lo)
+				continue;
+			else if (liteh->lo > iteh->hi)
+				break;
+
+			closed = (liteh->leftClosed && liteh->rightClosed);
+		}
+		else if (dh != 0)
+			break;
+	}
+
+	// Check if the holes on the right side (if any) are closed.
+
+	elevationHoles::iterator rehend(holes.end()),riteh = iteh;
+
+	for (riteh++; ((riteh != rehend) && closed); riteh++) {
+		int dh = (riteh->aboveElev->validTime() - vt).hours();
+
+		if (dh == 1) {
+			if (groupCategory) {
+				// Check that the holes belong to the same category (cloud type for CloudLayers)
+				//
+				if (!checkCategory(groupCategory,iteh->aboveElev,riteh->aboveElev))
+					continue;
+			}
+
+			if (riteh->lo > iteh->hi)
+				continue;
+			else if (riteh->hi < iteh->lo)
+				break;
+
+			closed = (riteh->leftClosed && riteh->rightClosed);
+		}
+		else if (dh != 0)
+			break;
+	}
+
+	return closed;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Check which of the possible holes (gaps between two vertically
+   *		located elevations) are closed.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::checkHoles(ElevGrp & eGrp,elevationHoles & holes,CategoryValueMeasureGroup * groupCategory,bool setNegative)
+  {
+	// Check if the holes are closed by left side closed holes on the left side or by elevations on the right side.
+
+	elevationHoles::iterator iteh = holes.begin(),ehend = holes.end();
+
+	for ( ; (iteh != ehend); iteh++) {
+		if ((!(iteh->leftClosed)) && iteh->leftAboveBounded && checkLeftSideHoles(holes,iteh,groupCategory))
+			iteh->leftClosed = true;
+
+		if (iteh->leftClosed)
+			checkRightSide(eGrp,iteh,groupCategory);
+	}
+
+	// Check if the the holes are closed by both side closed holes on the right side.
+
+	elevationHoles::reverse_iterator riteh(holes.end()),rehend(holes.begin());
+
+	for ( ; (riteh != rehend); riteh++)
+		if (riteh->leftClosed && (!(riteh->rightClosed)) && riteh->rightAboveBounded && checkRightSideHoles(holes,riteh,groupCategory))
+			riteh->rightClosed = true;
+
+	// Check if all overlapping holes have both sides closed. Repeat until no "leaks" are found (all overlapping holes
+	// are set to open if needed), rolling the status changes (set to open) to neighbour holes one hole at a time.
+
+	bool reScan;
+
+	do {
+		reScan = false;
+
+		for (iteh = holes.begin(); (iteh != ehend); iteh++)
+			if ((iteh->leftClosed != iteh->rightClosed) || (iteh->leftClosed && (!checkBothSideHoles(holes,iteh,groupCategory)))) {
+				iteh->leftClosed = iteh->rightClosed = false;
+				reScan = true;
+			}
+	}
+	while (reScan);
+
+	// Combine the bounding elevations to the 'above' and store the hole to the 'below' elevations.
+	// Delete generated 'below' elevations for open holes.
+
+	ElevGrp::iterator aboveElev = eGrp.end(),holeElev = eGrp.end();
+	elevationHoles::iterator piteh = holes.end();
+
+	for (iteh = holes.begin(); (iteh != ehend); iteh++) {
+		if (!(iteh->leftClosed && iteh->rightClosed)) {
+			if (iteh->belowElev->isHole())
+				iteh->belowElev->Pvs()->get()->editableValues().erase(iteh->belowElev->Pv());
+
+			continue;
+		}
+
+		// Combine
+
+		if (iteh->aboveElev == holeElev) {
+			// Multiple holes, extending the bounding upmost elevation to cover this hole too
+			//
+			iteh->aboveElev = aboveElev;
+		}
+		else {
+			aboveElev = iteh->aboveElev;
+			piteh = iteh;
+		}
+
+		boost::optional<woml::NumericalValueRangeMeasure> joinedRng(woml::NumericalValueRangeMeasure(
+						woml::NumericalSingleValueMeasure(iteh->loLo,"",""),
+						woml::NumericalSingleValueMeasure(piteh->hiHi,"","")));
+		woml::Elevation jElev(joinedRng);
+		boost::optional<woml::Elevation> eJoined(jElev);
+
+		iteh->aboveElev->Pv()->elevation(*eJoined);
+		iteh->aboveElev->hasHole(true);
+
+		// Store the hole
+
+		boost::optional<woml::NumericalValueRangeMeasure> holeRng(woml::NumericalValueRangeMeasure(
+						woml::NumericalSingleValueMeasure(iteh->lo,"",""),
+						woml::NumericalSingleValueMeasure(iteh->hi,"","")));
+		woml::Elevation hElev(holeRng);
+		boost::optional<woml::Elevation> eHole(hElev);
+
+		(holeElev = iteh->belowElev)->Pv()->elevation(*eHole);
+		iteh->belowElev->isHole(true);
+
+		if (setNegative)
+			iteh->belowElev->isNegative(true);
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Generate a new elevation for storing a hole touching the ground
+   *		(there is no 'below' elevation to use).
+   *
+   *	    On return 'iteg' points to the elevation before the new elevation.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  void generateHoleElevation(ElevGrp & eGrp,ElevGrp::iterator & piteg,ElevGrp::iterator & iteg)
+  {
+	// Add new object to the underlying woml collection
+
+	const woml::CategoryValueMeasure * cvmA = dynamic_cast<const woml::CategoryValueMeasure *>(piteg->Pv()->value());
+
+	if (!cvmA)
+		throw std::runtime_error("generateHoleElevation: CategoryValueMeasure value expected");
+
+	woml::GeophysicalParameter p;
+	woml::CategoryValueMeasure * cvm = new woml::CategoryValueMeasure(cvmA->category(),cvmA->codebase());
+	boost::optional<woml::NumericalValueRangeMeasure> holeR(woml::NumericalValueRangeMeasure(
+					woml::NumericalSingleValueMeasure(0,"",""),
+					woml::NumericalSingleValueMeasure(0,"","")));
+	woml::Elevation holeE(holeR);
+	woml::GeophysicalParameterValue pv(p,cvm,holeE);
+
+	piteg->Pvs()->get()->editableValues().push_back(pv);
+
+	std::list<woml::GeophysicalParameterValue>::iterator itpv = piteg->Pvs()->get()->editableValues().end();
+	itpv--;
+
+	// Add new object to the elevation group. Flag it as a hole (already) to enable simple detection when finished
+	// searching holes (the woml object will be deleted if the hole is not closed)
+
+	iteg = eGrp.insert(iteg,ElevationGroupItem(piteg->validTime(),piteg->Pvs(),itpv));
+	iteg->isHole(true);
+	iteg->groupNumber(piteg->groupNumber());
+
+	// Set the item iterator to point to the elevation preceeding the new elevation.
+
+	iteg--;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Check if the elevations belong to the same category (cloud type
+   *		for CloudLayers).
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  bool SvgRenderer::checkCategory(CategoryValueMeasureGroup * groupCategory,ElevGrp::iterator & e1,ElevGrp::iterator & e2)
+  {
+	const woml::CategoryValueMeasure * cvm1 = dynamic_cast<const woml::CategoryValueMeasure *>(e1->Pv()->value());
+	const woml::CategoryValueMeasure * cvm2 = dynamic_cast<const woml::CategoryValueMeasure *>(e2->Pv()->value());
+
+	if ((!cvm1) || (!cvm2))
+		throw std::runtime_error("checkCategory: CategoryValueMeasure values expected");
+
+	if (!(groupCategory->groupMember(true,cvm1))) {
+		if (options.debug)
+			debugoutput << "Settings for "
+						<< cvm1->category()
+						<< " not found\n";
+
+		return false;
+	}
+
+	return groupCategory->groupMember(false,cvm2);
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Set group item scanning status and advance item iterator.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  void nextItem(ElevGrp::iterator & iteg,bool & scanned,bool & reScan)
+  {
+	if (scanned)
+		iteg->isScanned(true);
+	else
+		reScan = scanned = true;
+
+	iteg++;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Search elevation holes; areas closed by elevations on the left side,
+   * 		below (or by ground), above and on the right side.
+   *
+   *		The bounding above and below elevations are combined/stored to the 'above'
+   *		elevations covering/filling the gaps inbetween and the gaps/holes are
+   *		stored to the 'below' elevations. For holes touching ground new ('below')
+   *		elevations are generated to store the holes.
+   *
+   *	    Holes will be rendered separately, additionally based on group's type
+   *	    (cloud type for CloudLayers).
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot> & ts,CategoryValueMeasureGroup * groupCategory,bool setNegative)
+  {
+	// Get all elevations
+
+	const boost::posix_time::time_period & tp = axisManager->timePeriod();
+	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+
+	ElevGrp eGrp;
+	elevationGroup(ts,bt,et,eGrp,true);
+
+	// Search for holes. The elevations are scanned one category (cloud type for CloudLayers) at a time.
+
+	ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end();
+	ElevGrp::iterator iteg,piteg;
+	double nonZ = axisManager->nonZeroElevation(),lo = 0.0,plo = 0.0,hi = 0.0,phi = 0.0;
+	bool scanned = true,reScan;
+
+	elevationHoles holes;
+
+	do {
+		for (reScan = false, iteg = egbeg, piteg = egend; (iteg != egend); nextItem(iteg,scanned,reScan)) {
+			// No need to check the first and last time instants (holes would be "open" on the left or right side).
+			//
+			if (iteg->validTime() == tp.begin())
+				continue;
+			else if (iteg->validTime() == tp.end())
+				break;
+			else if (!(iteg->isScanned())) {
+				// Get elevation's lo and hi range values
+
+				const woml::Elevation & e = iteg->Pv()->elevation();
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+				lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+				hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+			}
+
+			if (piteg != egend) {
+				if (((iteg->validTime() - piteg->validTime()).hours() > 0) && (plo > nonZ)) {
+					// Generate a new elevation for the previous time instant to store the hole touching ground.
+					//
+					generateHoleElevation(eGrp,piteg,iteg);
+					scanned = false;
+
+					continue;
+				}
+				else if (iteg->isScanned())
+					continue;
+
+				if (iteg->validTime() == piteg->validTime()) {
+					// Check first that above and below elevation belong to the same category (cloud type for CloudLayers).
+					//
+					if ((!groupCategory) || checkCategory(groupCategory,piteg,iteg)) {
+						// For overlapping elevations only the first (having max hi value) is taken into account.
+						//
+						if (hi >= plo)
+							continue;
+
+						// Check if the hole is closed or bounded by an elevation on the left side. Store the hole.
+						//
+						elevationHole hole;
+
+						hole.aboveElev = piteg;
+						hole.belowElev = iteg;
+						hole.lo = hi;
+						hole.loLo = lo;
+						hole.hi = plo;
+						hole.hiHi = phi;
+
+						checkLeftSide(eGrp,hole,groupCategory);
+
+						holes.push_back(hole);
+					}
+					else if (groupCategory) {
+						// Category changes; rescan
+						//
+						scanned = false;
+						continue;
+					}
+				}
+			}
+
+			if (!(iteg->isScanned())) {
+				piteg = iteg;
+				plo = lo;
+				phi = hi;
+			}
+		}
+	}
+	while (reScan);
+
+	// Sort the holes order by validtime asc, hirange desc
+
+	if (holes.size() > 1)
+		holes.sort();
+
+	// Check which of the holes are closed (if any). For closed holes the bounding elevations are modified
+	// in the underlying woml object collection. For nonclosed holes the generated elevations (if any) are
+	// deleted.
+
+	checkHoles(eGrp,holes,groupCategory,setNegative);
   }
 
   // ----------------------------------------------------------------------
@@ -4109,183 +4716,273 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Group category membership detection (for elevation holes)
+   */
+  // ----------------------------------------------------------------------
+
+  GroupCategory::GroupCategory() : CategoryValueMeasureGroup()
+  {
+  }
+
+  bool GroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm)
+  {
+	// Store group or check if the given group matches
+
+	unsigned int group = cvm->groupNumber();
+
+	if (first)
+		itsGroupNumber = group;
+	else if (group != itsGroupNumber)
+		return false;
+
+	return true;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Zero tolerance group preprocessing
    */
   // ----------------------------------------------------------------------
 
   void SvgRenderer::checkZeroToleranceGroup(ElevGrp & eGrpIn,ElevGrp & eGrpOut,bool mixed)
   {
-	// Check for overlapping elevations within time instants; in mixed mode the inner elevation
-	// (below zero temp) splits outer (above zero temp) elevation into 2 pieces; in nonmixed
-	// mode the inner elevation is flagged negative
-	//
-	// In mixed mode below 0 elevation is generated forcing the curve path to go to the ground if
-	// the time instant does not have elevation with lo range (near) 0
-
-	// First check the need for generated below 0 elevations
+	// Generate below 0 elevation forcing the curve path to go to the ground if
+	// time instant does not have elevation with lo -range <= (or near) 0
 
 	double nonZ = axisManager->nonZeroElevation();
 
-	if (mixed) {
-		ElevGrp::reverse_iterator rbegiter(eGrpIn.end()),renditer(eGrpIn.begin()),riteg,priteg;
-		bool groundConnected = true;
+	ElevGrp::reverse_iterator rbegiter(eGrpIn.end()),renditer(eGrpIn.begin()),riteg,priteg;
+	bool groundConnected = true;
 
-		for (riteg = priteg = rbegiter; (riteg != renditer); riteg++) {
-			if ((riteg == rbegiter) || (riteg->validTime() != priteg->validTime())) {
-				const woml::Elevation & e = riteg->elevation();
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+	for (riteg = priteg = rbegiter; (riteg != renditer); riteg++) {
+		if ((riteg == rbegiter) || (riteg->validTime() != priteg->validTime())) {
+			const woml::Elevation & e = riteg->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
 
-				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 
-				groundConnected = (lo < nonZ);
-			}
-
-			// If ground connection was detected before, the condition will remain;
-			// the call below won't clear it even if called with false
-
-			riteg->groundConnected(groundConnected);
-
-			priteg = riteg;
-		}
-	}
-
-	// Outer loop is to rescan the data in mixed mode in case all the collected elevations would be invalid
-	// (partially overlapping within time instant)
-
-	if (mixed)
-		eGrpOut.clear();
-
-	for ( ; ((eGrpIn.size() > 0) && ((!mixed) || (eGrpOut.size() < 1))); ) {
-		ElevGrp::iterator egbeg = eGrpIn.begin(),egend = eGrpIn.end(),iteg,piteg,erriteg;
-		double lo = 0.0,plo = 0.0,hi = 0.0,phi = 0.0;
-
-		for (iteg = piteg = egbeg, erriteg = egend; ; iteg++) {
-			if (iteg != egend) {
-				// Get elevation's lo and hi range values
-				//
-				const woml::Elevation & e = iteg->Pv()->elevation();
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
-
-				lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
-				hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
-			}
-
-			if (iteg != egbeg)
-			  {
-				if ((iteg != egend) && iteg->validTime() == piteg->validTime())
-				  {
-					if ((lo < phi) && (hi > plo))
-					  {
-						if ((lo > plo) && (hi < phi))
-						  {
-							if (mixed)
-							  {
-								// Cut the outer elevation into 2 pieces; the upper part is stored into the outer
-								// and the lower part into the inner elevation
-								//
-								// Changes are made to the original "source" elevations too; otherwise if both of the
-								// parts would not be included into the same path (generated from this group), split
-								// information would be lost
-								//
-								// Upper part
-								//
-								boost::optional<woml::NumericalValueRangeMeasure> hiR(woml::NumericalValueRangeMeasure(
-														   woml::NumericalSingleValueMeasure(hi,"",""),
-														   woml::NumericalSingleValueMeasure(phi,"","")
-																												   ));
-								woml::Elevation hiE(hiR);
-								boost::optional<woml::Elevation> eHi(hiE);
-								
-								piteg->Pv()->elevation(*eHi);
-								eGrpOut.back().elevation(eHi);
-								
-								// Lower part
-								//
-								boost::optional<woml::NumericalValueRangeMeasure> loR(woml::NumericalValueRangeMeasure(
-								   woml::NumericalSingleValueMeasure(plo,"",""),
-								   woml::NumericalSingleValueMeasure(lo,"","")
-																			   ));
-								woml::Elevation loE(loR);
-								boost::optional<woml::Elevation> eLo(loE);
-
-								iteg->Pv()->elevation(*eLo);
-
-								// Set ground connection based on outer elevation; it was originally set based on inner elevation
-							  
-								piteg->groundConnected(plo < nonZ);
-								iteg->groundConnected(piteg->groundConnected());
-								
-								eGrpOut.push_back(*iteg);
-							  }
-							else
-							  iteg->negativeTemp(true);
-							
-							continue;
-						  }
-						else if (mixed)
-						  {
-							// Elevations partially overlap; mark them to be forgotten
-							//
-							eGrpOut.pop_back();
-							
-							if (erriteg == egend)
-							  erriteg = piteg;
-							
-							piteg->topConnected(true);
-							iteg->topConnected(true);
-							
-							continue;
-						  }
-					  }
-				  }
-				else if (mixed && (plo >= nonZ) && (!(piteg->groundConnected())))
-				{
-				  // Generate below 0 elevation forcing the curve path to go to the ground
-				  //
-				  eGrpOut.push_back(*piteg);
-				  
-				  boost::optional<woml::NumericalValueRangeMeasure> gR(woml::NumericalValueRangeMeasure(
-						woml::NumericalSingleValueMeasure(-1200,"",""),
-						woml::NumericalSingleValueMeasure(-1100,"","")
-					));
-
-				  woml::Elevation gE(gR);
-				  boost::optional<woml::Elevation> eG(gE);
-				  
-				  eGrpOut.back().elevation(eG);
-				  eGrpOut.back().generated(true);
-				}
-			  }
-
-			if (iteg == egend)
-			  break;
-
-			if (mixed)
-			  eGrpOut.push_back(*iteg);
-			
-			piteg = iteg;
-			plo = lo;
-			phi = hi;
+			groundConnected = (lo < nonZ);
 		}
 
-		if (!mixed)
-			return;
+		// If ground connection was detected before, the condition will remain;
+		// the call below won't clear it even if called with false
 
-		// Forget invalid (partially overlapping) elevations
+		riteg->isGroundConnected(groundConnected);
 
-		if (erriteg != egend)
-			for (iteg = egbeg; (iteg != eGrpIn.end()); )
-				if (iteg->topConnected()) {
-					iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
-					iteg = eGrpIn.erase(iteg);
-				}
-				else
-					iteg++;
+		priteg = riteg;
 	}
+
+	eGrpOut.clear();
+
+	ElevGrp::iterator egbeg = eGrpIn.begin(),egend = eGrpIn.end(),iteg,piteg;
+	double lo = 0.0,plo = 0.0,hi = 0.0,phi = 0.0;
+
+	for (iteg = piteg = egbeg; ; iteg++) {
+		if (iteg != egend) {
+			// Get elevation's lo and hi range values
+			//
+			const woml::Elevation & e = iteg->Pv()->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+		}
+
+		if (iteg != egbeg) {
+			if ((iteg != egend) && iteg->validTime() == piteg->validTime())
+				;
+			else if ((plo >= nonZ) && (!(piteg->isGroundConnected()))) {
+			  // Generate below 0 elevation forcing the curve path to go to the ground
+			  //
+			  eGrpOut.push_back(*piteg);
+
+			  boost::optional<woml::NumericalValueRangeMeasure> gR(woml::NumericalValueRangeMeasure(
+							  woml::NumericalSingleValueMeasure(-1200,"",""),
+							  woml::NumericalSingleValueMeasure(-1100,"","")));
+
+			  woml::Elevation gE(gR);
+			  boost::optional<woml::Elevation> eG(gE);
+
+			  eGrpOut.back().elevation(eG);
+			  eGrpOut.back().isGenerated(true);
+			}
+		  }
+
+		if (iteg == egend)
+			break;
+
+		eGrpOut.push_back(*iteg);
+
+		piteg = iteg;
+		plo = lo;
+		phi = hi;
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get smallest group number from overlapping left side elevations.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int groupNumber)
+  {
+	std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin()),liteg(iteg);
+	boost::posix_time::ptime vt = iteg->validTime();
+
+	const woml::Elevation & e = iteg->Pv()->elevation();
+	boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+	const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+	boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+	const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+	double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+	double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+	for ( ; (liteg != egend); liteg++) {
+		int dh = (liteg->validTime() - vt).hours();
+
+		if (dh == -1) {
+			const woml::Elevation & e = liteg->Pv()->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			double llo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			double lhi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+			if (lhi < lo)
+				continue;
+			else if (llo > hi)
+				break;
+
+			unsigned int leftGroupNumber = liteg->groupNumber();
+
+			if ((leftGroupNumber > 0) && (leftGroupNumber < groupNumber))
+				groupNumber = leftGroupNumber;
+		}
+		else if (dh != 0)
+			break;
+	}
+
+	return groupNumber;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get smallest group number from overlapping right side elevations.
+   *
+   */
+  // ----------------------------------------------------------------------
+
+  unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber)
+  {
+	ElevGrp::iterator egend = eGrp.end(),riteg = itegrev.base(),iteg = itegrev.base();
+	boost::posix_time::ptime vt = itegrev->validTime();
+
+	iteg--;
+
+	const woml::Elevation & e = iteg->Pv()->elevation();
+	boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+	const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+	boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+	const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+	double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+	double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+	for ( ; (riteg != egend); riteg++) {
+		int dh = (riteg->validTime() - vt).hours();
+
+		if (dh == 1) {
+			const woml::Elevation & e = riteg->Pv()->elevation();
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+			double rlo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+			double rhi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+			if (rlo > hi)
+				continue;
+			else if (rhi < lo)
+				break;
+
+			unsigned int rightGroupNumber = riteg->groupNumber();
+
+			if ((rightGroupNumber > 0) && (rightGroupNumber < groupNumber))
+				groupNumber = rightGroupNumber;
+		}
+		else if (dh != 0)
+			break;
+	}
+
+	return groupNumber;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Set elevation group numbers
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts)
+  {
+	unsigned int nextGroupNumber = 1;
+
+	const boost::posix_time::time_period & tp = axisManager->timePeriod();
+	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+
+	// Get all elevations
+
+	ElevGrp eGrp;
+	elevationGroup(ts,bt,et,eGrp,true);
+	bool reScan;
+
+	do
+	{
+		// For each elevation, set minimum group number from overlapping left and right side elevations (if any)
+		// until no changes are made
+
+		ElevGrp::iterator egend(eGrp.end()),iteg = eGrp.begin();
+		unsigned int groupNumber,currentGroupNumber;
+		reScan = false;
+
+		// Set smallest group number from overlapping elevations on the left side (if any)
+
+		for ( ; (iteg != egend); iteg++) {
+			currentGroupNumber = iteg->groupNumber();
+
+			groupNumber = getLeftSideGroupNumber(eGrp,iteg,((currentGroupNumber == 0) ? nextGroupNumber : currentGroupNumber));
+
+			if ((currentGroupNumber == 0) || (groupNumber < currentGroupNumber)) {
+				iteg->groupNumber(groupNumber);
+				reScan = true;
+
+				if (groupNumber == nextGroupNumber)
+					nextGroupNumber++;
+			}
+		}
+
+		// Get smallest group number from overlapping elevations on the right side (if any)
+
+		ElevGrp::reverse_iterator regend(eGrp.begin()),riteg(eGrp.end());
+
+		for (riteg++; (riteg != regend); riteg++) {
+			groupNumber = getRightSideGroupNumber(eGrp,riteg,currentGroupNumber = riteg->groupNumber());
+
+			if (groupNumber < currentGroupNumber) {
+				riteg->groupNumber(groupNumber);
+				reScan = true;
+			}
+		}
+    }
+	while (reScan);
   }
 
   // ----------------------------------------------------------------------
@@ -4323,19 +5020,14 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			//
 			tightness = -1.0;
 
-		// Grouping mode; if true (default: false) curve path can contain both "ground" and "nonground" elevations
-
-		bool mixed = configValue<bool>(specs,confPath,"mixed",NULL,s_optional,&isSet),bbCenterLabel = false;
-		std::string posLabel,negLabel,labelPlaceHolder;
-
-		if (!isSet)
-			mixed = false;
-
 		// Labels for positive (default: "+deg") and negative (default: "-deg") temperature areas.
 		// If empty label is given, no label.
 		//
 		// If bbcenterlabel is true (default: false), the label is positioned to the center of the area's bounding box;
 		// otherwise using 1 or 2 elevations in the middle of the area in x -direction
+
+		bool bbCenterLabel = false;
+		std::string posLabel,negLabel,labelPlaceHolder;
 
 		posLabel = boost::algorithm::trim_copy(configValue<std::string>(specs,confPath,"poslabel",NULL,s_optional,&isSet));
 		if (!isSet)
@@ -4368,46 +5060,46 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		// Elevation group and curve point data
 
-		ElevGrp eGrp0,eGrp;
-		ElevGrp & eGrpRef = (mixed ? eGrp0 : eGrp);
+		ElevGrp eGrpAll,eGrpGen;
+		ElevGrp & eGrp = eGrpGen;
 		int nGroups = 0;
 
 		List<DirectPosition> curvePositions;
 		std::list<DirectPosition> curvePoints;
 
-		if (!mixed) {
-			// In nonmixed mode first scan all elevations; for overlapping elevations within
-			// time instants the "inner" elevations are marked negative ("nonground" elevations
-			// are positive by default)
-
-			elevationGroup(ts,bt,et,eGrpRef,true);
-			checkZeroToleranceGroup(eGrpRef,eGrpRef,false);
-
-			eGrpRef.clear();
-		}
-
 		bool nonGroundGrp = false;
 
-		for ( ; ; ) {
-			// Get group of overlapping elevations from the time serie
-			//
-			nonGroundGrp = (elevationGroup(ts,bt,et,eGrpRef,false,mixed) == t_nonground);
+		// Set group number for the elevations
 
-			if (eGrpRef.size() == 0)
+//		setGroupNumbers(ts);
+
+		// Search and flag elevation holes
+
+//		GroupCategory groupCategory;
+
+		searchHoles(ts);
+
+		for ( ; ; ) {
+			// Get all remaining elevations from the time serie
+			//
+			nonGroundGrp = (elevationGroup(ts,bt,et,eGrpAll,true/*,true,&groupCategory*/) == t_nonground);
+
+			if (eGrpAll.size() == 0)
 				break;
 
 			nGroups++;
 
-			// If 'mixed', check for overlapping elevations within time instants; inner elevation (below zero temp) splits
-			// outer (above zero temp) elevation into 2 pieces.
-			//
-			// If a time instant does not have elevation with lo range (near) 0, below 0 elevation is generated
+			// If a time instant does not have elevation with lo -range <= (or near) 0, below 0 elevation is generated
 			// forcing the curve path to go to the ground
 
-			if (mixed)
-				checkZeroToleranceGroup(eGrp0,eGrp);
+			if (!(eGrpAll.front().isHole()))
+				checkZeroToleranceGroup(eGrpAll,eGrpGen);
+			else
+				eGrp = eGrpAll;
 
-			// Get curve positions for bezier creation.
+			std::string & label = (eGrp.begin()->isNegative() ? negLabel : posLabel);
+
+			// Get curve positions for overlapping elevations for bezier creation.
 			//
 			// The scaled lo/hi values for the elevations are set to scaledLo/scaledHi;
 			// they are used to calculate cloud label positions
@@ -4465,8 +5157,6 @@ printf("> bwd lo=%.0f %s\n",lo,cs.c_str());
 			if (nonGroundGrp) {
 				// Render "nonground" area's label to the center of each visible part of the area
 				//
-				std::string & label = (eGrp.begin()->negativeTemp() ? negLabel : posLabel);
-
 				if (!label.empty()) {
 					// x -coord of group's first time instant
 					//
@@ -5016,33 +5706,132 @@ ElevationGroupItem::ElevationGroupItem(boost::posix_time::ptime theValidTime,
 , itsLeftOpen(true)
 , itsBottomConnection()
 , itsGenerated(false)
+, itsDeleted(false)
 , itsElevation()
 { }
 
-void ElevationGroupItem::groundConnected(bool connected)
+const std::list<woml::GeophysicalParameterValue>::iterator & ElevationGroupItem::Pv() const
+{
+  if (isDeleted())
+	  throw std::runtime_error("Internal error: Pv() called for a deleted elevation");
+
+  return itsPv;
+}
+
+void ElevationGroupItem::isScanned(bool scanned)
+{
+  // We only need to set the bit
+
+  if (scanned)
+	Pv()->setFlags(b_scanned);
+}
+
+bool ElevationGroupItem::isScanned() const
+{
+  return ((Pv()->getFlags() & b_scanned) ? true : false);
+}
+
+void ElevationGroupItem::isGroundConnected(bool connected)
 {
   // We only need to set the bit
 
   if (connected)
-	itsPv->addFlags(b_groundConnected);
+	Pv()->setFlags(b_groundConnected);
 }
 
-bool ElevationGroupItem::groundConnected() const
+bool ElevationGroupItem::isGroundConnected() const
 {
-  return ((itsPv->getFlags() & b_groundConnected) ? true : false);
+  return ((Pv()->getFlags() & b_groundConnected) ? true : false);
 }
 
-void ElevationGroupItem::negativeTemp(bool negative)
+void ElevationGroupItem::isNegative(bool negative)
 {
   // We only need to set the bit
 
   if (negative)
-	itsPv->addFlags(b_negative);
+	Pv()->setFlags(b_negative);
 }
 
-bool ElevationGroupItem::negativeTemp() const
+bool ElevationGroupItem::isNegative() const
 {
-  return ((itsPv->getFlags() & b_negative) ? true : false);
+  return ((Pv()->getFlags() & b_negative) ? true : false);
+}
+
+void ElevationGroupItem::hasHole(bool hole)
+{
+  // We only need to set the bit
+
+  if (hole)
+	Pv()->setFlags(b_hasHole);
+}
+
+bool ElevationGroupItem::hasHole() const
+{
+  return ((Pv()->getFlags() & b_hasHole) ? true : false);
+}
+
+void ElevationGroupItem::isHole(bool hole)
+{
+  // We only need to set the bit
+
+  if (hole)
+	Pv()->setFlags(b_isHole);
+}
+
+bool ElevationGroupItem::isHole() const
+{
+  return ((Pv()->getFlags() & b_isHole) ? true : false);
+}
+
+void ElevationGroupItem::groupNumber(unsigned int group)
+{
+  woml::CategoryValueMeasure * cvm = dynamic_cast<woml::CategoryValueMeasure *>(Pv()->editableValue());
+
+  if (!cvm)
+	throw std::runtime_error("groupNumber: CategoryValueMeasure value expected");
+
+  cvm->groupNumber(group);
+}
+
+unsigned int ElevationGroupItem::groupNumber() const
+{
+  const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(Pv()->value());
+
+  if (!cvm)
+	throw std::runtime_error("groupNumber: CategoryValueMeasure value expected");
+
+  return cvm->groupNumber();
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief elevationHole operator <
+ *
+ */
+// ----------------------------------------------------------------------
+
+bool elevationHole::operator < (const elevationHole & theOther) const
+{
+  // Order by validtime asc, hirange desc
+
+  const boost::posix_time::ptime & vt1 = aboveElev->validTime(),& vt2 = theOther.aboveElev->validTime();
+
+  if (vt1 < vt2)
+	  return true;
+  else if (vt1 > vt2)
+	  return false;
+
+  const woml::Elevation & e1 = aboveElev->Pv()->elevation();
+  boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi1 = (e1.bounded() ? e1.upperLimit() : woml::NumericalSingleValueMeasure());
+  const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit1 = (e1.bounded() ? itsBoundedHi1 : e1.value());
+  double hi1 = ((!itsHiLimit1) ? 0.0 : itsHiLimit1->numericValue());
+
+  const woml::Elevation & e2 = theOther.aboveElev->Pv()->elevation();
+  boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi2 = (e2.bounded() ? e2.upperLimit() : woml::NumericalSingleValueMeasure());
+  const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit2 = (e2.bounded() ? itsBoundedHi2 : e2.value());
+  double hi2 = ((!itsHiLimit2) ? 0.0 : itsHiLimit2->numericValue());
+
+  return (hi1 > hi2);
 }
 
 // ----------------------------------------------------------------------

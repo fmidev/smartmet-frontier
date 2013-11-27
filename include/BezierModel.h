@@ -43,6 +43,7 @@ namespace frontier
 							  unsigned int maxRepeat,
 							  std::list<DirectPosition> & curvePoints);
 	void decorateCurve(std::list<DirectPosition> & curvePoints,
+					   bool negative,
 					   int scaleHeightMin,
 					   int scaleHeightRandom,
 					   int controlMin,

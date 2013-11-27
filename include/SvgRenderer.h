@@ -186,8 +186,13 @@ namespace frontier
   class CategoryValueMeasureGroup
   {
   public:
+	CategoryValueMeasureGroup() : firstMember(NULL) { }
+
 	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm) = 0;
 	virtual bool standalone() = 0;
+
+  protected:
+	const woml::CategoryValueMeasure * firstMember;
   };
 
   class CloudGroupCategory : public CategoryValueMeasureGroup
@@ -220,6 +225,18 @@ namespace frontier
 	std::string itsCategory;
   };
 
+  class GroupCategory : public CategoryValueMeasureGroup
+  {
+  public:
+	GroupCategory();
+
+	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm);
+	bool standalone() { return false; }
+
+  private:
+	unsigned int itsGroupNumber;
+  };
+
   class ElevationGroupItem
   {
   public:
@@ -229,7 +246,7 @@ namespace frontier
 
 	const boost::posix_time::ptime & validTime() const { return itsValidTime; }
 	const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator & Pvs() const { return itsPvs; }
-	const std::list<woml::GeophysicalParameterValue>::iterator & Pv() const { return itsPv; }
+	const std::list<woml::GeophysicalParameterValue>::iterator & Pv() const;
 	void topConnected(bool connected) { itsTopConnected = connected; }
 	bool topConnected() const { return itsTopConnected; }
 	void bottomConnected(bool connected) { itsBottomConnected = connected; }
@@ -238,16 +255,33 @@ namespace frontier
 	bool leftOpen() const { return itsLeftOpen; }
 	void bottomConnection(woml::Elevation theBottomConnection) { itsBottomConnection = theBottomConnection; }
 	const boost::optional<woml::Elevation> & bottomConnection() const { return itsBottomConnection; }
-	void groundConnected(bool connected);
-	bool groundConnected() const;
-	void negativeTemp(bool negative);
-	bool negativeTemp() const;
-	void generated(bool _generated) { itsGenerated = _generated; }
-	bool generated() const { return itsGenerated; }
+	void isScanned(bool scanned);
+	bool isScanned() const;
+	void isGroundConnected(bool connected);
+	bool isGroundConnected() const;
+	void isNegative(bool negative);
+	bool isNegative() const;
+	void hasHole(bool hole);
+	bool hasHole() const;
+	void isHole(bool hole);
+	bool isHole() const;
+	bool assHole() { /* K.W.H */ return (hasHole() && isHole()); }
+	void isGenerated(bool generated) { itsGenerated = generated; }
+	bool isGenerated() const { return itsGenerated; }
+	void isDeleted(bool deleted) { itsDeleted = deleted; }
+	bool isDeleted() const { return itsDeleted; }
+	void groupNumber(unsigned int group);
+	unsigned int groupNumber() const;
 	void elevation(boost::optional<woml::Elevation> & theElevation) { itsElevation = theElevation; }
-	const woml::Elevation & elevation() const { return (itsElevation ? *itsElevation : itsPv->elevation()); }
+	const woml::Elevation & elevation() const { return (itsElevation ? *itsElevation : Pv()->elevation()); }
 
-	enum elevationFlags { b_groundConnected = 1, b_negative = (1 << 1) };
+	enum elevationFlags {
+		b_scanned = 1,
+		b_groundConnected = (1 << 1),
+		b_negative = (1 << 2),
+		b_hasHole = (1 << 3),
+		b_isHole = (1 << 4)
+	};
 
   private:
 	boost::posix_time::ptime itsValidTime;
@@ -258,8 +292,37 @@ namespace frontier
 	bool itsLeftOpen;
 	boost::optional<woml::Elevation> itsBottomConnection;	// Rigth side elevation
 	bool itsGenerated;										// Set for generated (below 0) elevation
-	boost::optional<woml::Elevation> itsElevation;			// ZeroTolerance; part of the original elevation cut into 2 pieces or generated ground elevation
+	bool itsDeleted;										// Set when elevation is deleted from the underlying woml object collection
+	boost::optional<woml::Elevation> itsElevation;			// ZeroTolerance; generated below zero ground elevation
   };
+
+  typedef std::list<ElevationGroupItem> ElevGrp;
+
+  struct elevationHole {
+	  elevationHole()
+	  	: aboveElev()
+	    , belowElev()
+	    , leftClosed(false)
+	    , leftAboveBounded(false)
+	    , rightClosed(false)
+	    , rightAboveBounded(false)
+	  { }
+
+	  bool operator < (const elevationHole & theOther) const;
+
+	  ElevGrp::iterator aboveElev;							// Elevation above the hole
+	  ElevGrp::iterator belowElev;							// Elevation below the hole
+	  bool leftClosed;										// Set if the hole is closed by an elevation or by left side closed hole on the left side
+	  bool leftAboveBounded;								// Set if the hole is bounded by an elevation above on the left side
+	  bool rightClosed;										// Set if the hole is closed by an elevation or by right side closed hole on the right side
+	  bool rightAboveBounded;								// Set if the hole is bounded by an elevation above on the right side
+	  double lo;											// Lo range of the hole (hi range of the elevation below the hole)
+	  double loLo;											// Lo range of the elevation below the hole
+	  double hi;											// Hi range of the hole (lo range of the elevation above the hole)
+	  double hiHi;											// Hi range of the elevation above the hole
+  };
+
+  typedef std::list<elevationHole> elevationHoles;
 
   class SvgRenderer : public woml::FeatureVisitor
   {
@@ -369,7 +432,6 @@ namespace frontier
 					  double lat);
 
 	typedef enum { fst, fwd, vup, eup, bwd, vdn, edn, lst } Phase;
-	typedef std::list<ElevationGroupItem> ElevGrp;
 	typedef enum { t_ground, t_nonground, t_mixed } GroupType;
 	GroupType elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
 							 const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
@@ -377,6 +439,17 @@ namespace frontier
 							 bool all = false,
 							 bool mixed = true,
 							 CategoryValueMeasureGroup * groupCategory = NULL);
+	unsigned int getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int nextGroupNumber);
+	unsigned int getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber);
+	void setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts);
+	void checkLeftSide(ElevGrp & eGrp,elevationHole & hole,CategoryValueMeasureGroup * groupCategory = NULL);
+	bool checkLeftSideHoles(elevationHoles & holes,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
+	void checkRightSide(ElevGrp & eGrp,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
+	bool checkRightSideHoles(elevationHoles & holes,elevationHoles::reverse_iterator iteh,CategoryValueMeasureGroup * groupCategory = NULL);
+	bool checkBothSideHoles(elevationHoles & holes,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
+	void checkHoles(ElevGrp & eGrp,elevationHoles & holes,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
+	bool checkCategory(CategoryValueMeasureGroup * groupCategory,ElevGrp::iterator & e1,ElevGrp::iterator & e2);
+	void searchHoles(const std::list<woml::TimeSeriesSlot> & ts,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
 	Phase uprightdown(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndFwd2Gnd = true);
 	Phase downleftup(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndVdn2Gnd = false);
 
@@ -471,7 +544,6 @@ namespace frontier
 	int nwarmfronts;
 
   }; // class SvgRenderer
-
 
 } // namespace frontier
 

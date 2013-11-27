@@ -150,6 +150,7 @@ int BezierModel::getSteppedCurvePoints(unsigned int baseStep,					// Base distan
  // ======================================================================
 
 void BezierModel::decorateCurve(std::list<DirectPosition> & curvePoints,	// Bezier curve points
+								bool negative,								// Decorator point direction
 								int scaleHeightMin,							// Base curve distance (normal length) for the decorator points
 								int scaleHeightRandom,						// Max random distance added to the base
 								int controlMin,								// Base offset for the decorator points
@@ -174,7 +175,7 @@ void BezierModel::decorateCurve(std::list<DirectPosition> & curvePoints,	// Bezi
 		doubleArr normalScale = Vector2Dee::getScaledNormal(leftPosition,
 															basePosition,
 															rightPosition,
-															NEG,
+															negative ? NEG : POS,
 															scaleHeightMin + ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0))));
 
 		doubleArr control(basePosition[0] + normalScale[0] + controlMin + ((controlRandom + 1) * (rand() / (RAND_MAX + 1.0))),
