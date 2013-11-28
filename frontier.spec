@@ -1,20 +1,20 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 13.7.3
+Version: 13.11.28
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
 URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires: boost-devel >= 1.54
-BuildRequires: libsmartmet-macgyver >= 13.7.3
-BuildRequires: libsmartmet-tron >= 13.7.3
-BuildRequires: libsmartmet-woml >= 13.7.3
-BuildRequires: libxml++-devel >= 2.20.0-1
-Requires: libxml++ >= 2.30.0-1
-Requires: cairo >= 1.8.8-3.1
+BuildRequires: boost-devel >= 1.54.0
+BuildRequires: libsmartmet-macgyver >= 13.10.8
+BuildRequires: libsmartmet-tron >= 13.7.30
+BuildRequires: libsmartmet-woml >= 13.11.28
+BuildRequires: libxml++-devel >= 2.30.0
+Requires: libxml++ >= 2.30.0
+Requires: cairo >= 1.8.8
 Provides: frontier
 
 %description
@@ -51,12 +51,14 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
-* Upcoming:
-- LENTOSAA-688
-- LENTOSAA-706
-- LENTOSAA-753
-- LENTOSAA-754
-- LENTOSAA-687
+* Thu Nov 28 2013 Mikko Visa <mikko.visa@fmi.fi> - 13.11.28-1.fmi
+- modifications to support elevation hole handling (not complete)
+- code cleanup; using common method scaledCurvePositions() to get curve points for bezier creation
+- https://jira.fmi.fi:8443/LENTOSAA-688
+- https://jira.fmi.fi:8443/LENTOSAA-706
+- https://jira.fmi.fi:8443/LENTOSAA-753
+- https://jira.fmi.fi:8443/LENTOSAA-754
+- https://jira.fmi.fi:8443/LENTOSAA-687
 * Wed Jul  3 2013 Mika Heiskanen <mika.heiskanen@fmi.fi> 13.7.3-1.fmi
 - Update to boost 1.54
 * Wed Feb 27 2013 Mikko Visa <mikko.visa@fmi.fi> - 13.2.27-1.fmi
