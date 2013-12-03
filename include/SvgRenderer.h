@@ -186,13 +186,13 @@ namespace frontier
   class CategoryValueMeasureGroup
   {
   public:
-	CategoryValueMeasureGroup() : firstMember(NULL) { }
+	CategoryValueMeasureGroup() : itsFirstMember(NULL) { }
 
-	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm) = 0;
+	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL) = 0;
 	virtual bool standalone() = 0;
 
   protected:
-	const woml::CategoryValueMeasure * firstMember;
+	const woml::CategoryValueMeasure * itsFirstMember;
   };
 
   class CloudGroupCategory : public CategoryValueMeasureGroup
@@ -203,7 +203,7 @@ namespace frontier
 	std::list<CloudGroup> & cloudGroups() { return itsCloudGroups; }
 	std::list<CloudGroup>::const_iterator currentGroup() { return itcg; }
 
-	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm);
+	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
 	bool standalone() { return ((itsCloudGroups.size() > 0) && (*itcg).standalone()); }
 
   private:
@@ -218,7 +218,7 @@ namespace frontier
 
 	const std::string & category() { return itsCategory; }
 
-	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm);
+	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
 	bool standalone() { return false; }
 
   private:
@@ -230,11 +230,8 @@ namespace frontier
   public:
 	GroupCategory();
 
-	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm);
+	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
 	bool standalone() { return false; }
-
-  private:
-	unsigned int itsGroupNumber;
   };
 
   class ElevationGroupItem
@@ -323,6 +320,14 @@ namespace frontier
   };
 
   typedef std::list<elevationHole> elevationHoles;
+
+  struct WindArrowOffsets {
+	WindArrowOffsets() : horizontalOffsetPx(0) , verticalOffsetPx(0) , scale(0.0) { }
+
+	int horizontalOffsetPx;
+	int verticalOffsetPx;
+	double scale;
+  };
 
   class SvgRenderer : public woml::FeatureVisitor
   {

@@ -2824,9 +2824,14 @@ namespace frontier
   {
   }
 
-  bool CloudGroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm)
+  bool CloudGroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
   {
 	// Add first member to the cloud group or check if the given cloud type is compatible with the group
+
+	(void) cvm2;
+
+	if (!cvm)
+		throw std::runtime_error("CloudGroupCategory::groupMember: CategoryValueMeasure value expected");
 
 	std::string category(boost::algorithm::to_upper_copy(cvm->category()));
 
@@ -2840,19 +2845,19 @@ namespace frontier
 
 		itcg->cloudSet().clear();
 
-		firstMember = cvm;
+		itsFirstMember = cvm;
 	}
-	else if (std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category)) != itcg)
-		return false;
+	else {
+		if (std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category)) != itcg)
+			return false;
 
-	// Check if elevations belong to the same group
+		// Check if elevations overlap (belong to the same group)
 
-//	GroupCategory groupCategory;
+//		GroupCategory groupCategory;
 //
-//	groupCategory.groupMember(true,firstMember);
-//
-//	if (!groupCategory.groupMember(false,cvm))
-//		return false;
+//		if (!groupCategory.groupMember(false,itsFirstMember,cvm))
+//			return false;
+	}
 
 	// Add contained cloud type into the cloud set
 
@@ -3226,13 +3231,19 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	std::list<DirectPosition> curvePoints;
 	std::list<doubleArr> decoratorPoints;
 
-	// Set group number for the elevations
+	// Set unique group number for members of each overlapping group of elevations
 
+//if (options.test & 2) {
+//fprintf(stderr,"*** CLOUDS setGroupNumbers\n");
 //	setGroupNumbers(ts);
+//}
 
 	// Search and flag elevation holes
 
+//if (options.test & 1) {
+//fprintf(stderr,"*** CLOUDS searchHoles\n");
 	searchHoles(ts,&cloudGroupCategory);
+//}
 
 	for ( ; ; ) {
 		// Get all remaining elevations from the time serie
@@ -3473,9 +3484,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 					//
 					const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(itpv->value());
 
-					if (!cvm)
-						throw std::runtime_error("elevationGroup: CategoryValueMeasure values expected");
-
 					if (!(groupCategory->groupMember((eGrp.size() == 0),cvm))) {
 						if ((eGrp.size() == 0) && options.debug)
 							debugoutput << "Settings for "
@@ -3518,7 +3526,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  void SvgRenderer::checkLeftSide(ElevGrp & eGrp,elevationHole & hole,CategoryValueMeasureGroup * groupCategory)
+  void SvgRenderer::checkLeftSide(ElevGrp & eGrp,ElevationHole & hole,CategoryValueMeasureGroup * groupCategory)
   {
 	std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin()),liteg(hole.aboveElev);
 	boost::posix_time::ptime vt = hole.aboveElev->validTime();
@@ -3574,9 +3582,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  bool SvgRenderer::checkLeftSideHoles(elevationHoles & holes,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
+  bool SvgRenderer::checkLeftSideHoles(ElevationHoles & holes,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
   {
-	std::reverse_iterator<elevationHoles::iterator> ehend(holes.begin()),liteh(iteh);
+	std::reverse_iterator<ElevationHoles::iterator> ehend(holes.begin()),liteh(iteh);
 	boost::posix_time::ptime vt = iteh->aboveElev->validTime();
 
 	// Check if the holes on the left side (if any) are closed.
@@ -3618,7 +3626,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
     */
    // ----------------------------------------------------------------------
 
-  void SvgRenderer::checkRightSide(ElevGrp & eGrp,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
+  void SvgRenderer::checkRightSide(ElevGrp & eGrp,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
   {
 	// Check if the right side of the hole is closed.
 
@@ -3674,9 +3682,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  bool SvgRenderer::checkRightSideHoles(elevationHoles & holes,elevationHoles::reverse_iterator iteh,CategoryValueMeasureGroup * groupCategory)
+  bool SvgRenderer::checkRightSideHoles(ElevationHoles & holes,ElevationHoles::reverse_iterator iteh,CategoryValueMeasureGroup * groupCategory)
   {
-	elevationHoles::iterator ehend(holes.end()),riteh = iteh.base();
+	ElevationHoles::iterator ehend(holes.end()),riteh = iteh.base();
 	boost::posix_time::ptime vt = iteh->aboveElev->validTime();
 
 	// Check if the holes on the right side (if any) are closed.
@@ -3718,9 +3726,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  bool SvgRenderer::checkBothSideHoles(elevationHoles & holes,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
+  bool SvgRenderer::checkBothSideHoles(ElevationHoles & holes,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory)
   {
-	std::reverse_iterator<elevationHoles::iterator> lehend(holes.begin()),liteh(iteh);
+	std::reverse_iterator<ElevationHoles::iterator> lehend(holes.begin()),liteh(iteh);
 	boost::posix_time::ptime vt = iteh->aboveElev->validTime();
 
 	// Check if the holes on the left side (if any) are closed.
@@ -3751,7 +3759,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// Check if the holes on the right side (if any) are closed.
 
-	elevationHoles::iterator rehend(holes.end()),riteh = iteh;
+	ElevationHoles::iterator rehend(holes.end()),riteh = iteh;
 
 	for (riteh++; ((riteh != rehend) && closed); riteh++) {
 		int dh = (riteh->aboveElev->validTime() - vt).hours();
@@ -3786,11 +3794,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  void SvgRenderer::checkHoles(ElevGrp & eGrp,elevationHoles & holes,CategoryValueMeasureGroup * groupCategory,bool setNegative)
+  void SvgRenderer::checkHoles(ElevGrp & eGrp,ElevationHoles & holes,CategoryValueMeasureGroup * groupCategory,bool setNegative)
   {
 	// Check if the holes are closed by left side closed holes on the left side or by elevations on the right side.
 
-	elevationHoles::iterator iteh = holes.begin(),ehend = holes.end();
+	ElevationHoles::iterator iteh = holes.begin(),ehend = holes.end();
 
 	for ( ; (iteh != ehend); iteh++) {
 		if ((!(iteh->leftClosed)) && iteh->leftAboveBounded && checkLeftSideHoles(holes,iteh,groupCategory))
@@ -3802,7 +3810,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// Check if the the holes are closed by both side closed holes on the right side.
 
-	elevationHoles::reverse_iterator riteh(holes.end()),rehend(holes.begin());
+	ElevationHoles::reverse_iterator riteh(holes.end()),rehend(holes.begin());
 
 	for ( ; (riteh != rehend); riteh++)
 		if (riteh->leftClosed && (!(riteh->rightClosed)) && riteh->rightAboveBounded && checkRightSideHoles(holes,riteh,groupCategory))
@@ -3828,7 +3836,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	// Delete generated 'below' elevations for open holes.
 
 	ElevGrp::iterator aboveElev = eGrp.end(),holeElev = eGrp.end();
-	elevationHoles::iterator piteh = holes.end();
+	ElevationHoles::iterator piteh = holes.end();
 
 	for (iteh = holes.begin(); (iteh != ehend); iteh++) {
 		if (!(iteh->leftClosed && iteh->rightClosed)) {
@@ -3932,9 +3940,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const woml::CategoryValueMeasure * cvm1 = dynamic_cast<const woml::CategoryValueMeasure *>(e1->Pv()->value());
 	const woml::CategoryValueMeasure * cvm2 = dynamic_cast<const woml::CategoryValueMeasure *>(e2->Pv()->value());
 
-	if ((!cvm1) || (!cvm2))
-		throw std::runtime_error("checkCategory: CategoryValueMeasure values expected");
-
 	if (!(groupCategory->groupMember(true,cvm1))) {
 		if (options.debug)
 			debugoutput << "Settings for "
@@ -3996,7 +4001,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	double nonZ = axisManager->nonZeroElevation(),lo = 0.0,plo = 0.0,hi = 0.0,phi = 0.0;
 	bool scanned = true,reScan;
 
-	elevationHoles holes;
+	ElevationHoles holes;
 
 	do {
 		for (reScan = false, iteg = egbeg, piteg = egend; (iteg != egend); nextItem(iteg,scanned,reScan)) {
@@ -4042,7 +4047,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 						// Check if the hole is closed or bounded by an elevation on the left side. Store the hole.
 						//
-						elevationHole hole;
+						ElevationHole hole;
 
 						hole.aboveElev = piteg;
 						hole.belowElev = iteg;
@@ -4275,9 +4280,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
   {
   }
 
-  bool IcingCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm)
+  bool IcingCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
   {
 	// Store category or check if the given category matches
+
+	(void) cvm2;
+
+	if (!cvm)
+		throw std::runtime_error("IcingCategory::groupMember: CategoryValueMeasure value expected");
 
 	std::string category(boost::algorithm::to_upper_copy(cvm->category()));
 
@@ -4355,7 +4365,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
 			//
-			elevationGroup(ts,bt,et,eGrp,false,true,&icingCategory);
+			elevationGroup(ts,bt,et,eGrp,true,true,&icingCategory);
 
 			if (eGrp.size() == 0)
 				break;
@@ -4483,6 +4493,63 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Convert wind direction to radians.
+   */
+  // ----------------------------------------------------------------------
+
+  double windDirectionToRadians(double windDirection)
+  {
+	if (windDirection < 0.0)
+		windDirection = fabs(windDirection);
+
+	if (windDirection > 360.0) {
+		double n;
+		windDirection = (modf(windDirection / 360.0,&n) * windDirection);
+	}
+
+	// Wind direction 0 is from north, counting clockwise.
+
+	double wd;
+
+	if (windDirection <= 90.0)
+		wd = 90.0 - windDirection;
+	else if (windDirection <= 180.0)
+		wd = 360.0 - (windDirection - 90);
+	else if (windDirection <= 270.0)
+		wd = 270.0 - (windDirection - 180.0);
+	else
+		wd = 180.0 - (windDirection - 270.0);
+
+	return (wd / (180.0 / 3.141592653589793));
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Calculate wind symbol/arrows positions offset to position
+   *		the arrowhead to the elevation line.
+   */
+  // ----------------------------------------------------------------------
+
+  WindArrowOffsets calculateWindArrowOffsets(unsigned int arrowArmLength,double windDirection)
+  {
+	// Wind direction 0 is from north, counting clockwise.
+
+	WindArrowOffsets windArrowOffsets;
+
+	if (arrowArmLength == 0)
+		return windArrowOffsets;
+
+	if ((fabs(windDirection - 90.0) > 0.001) || (fabs(windDirection - 270.0) > 0.001))
+		windArrowOffsets.verticalOffsetPx = (int) floor(((arrowArmLength / 2.0) * sin(windDirectionToRadians(windDirection))) + 0.5);
+
+	if ((fabs(windDirection) > 0.001) || (fabs(windDirection - 180.0) > 0.001))
+		windArrowOffsets.horizontalOffsetPx = (int) floor(((arrowArmLength / 2.0) * cos(windDirectionToRadians(windDirection))) + 0.5);
+
+	return windArrowOffsets;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Wind rendering
    */
   // ----------------------------------------------------------------------
@@ -4496,9 +4563,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		const char * valtypeMsg = "render_winds: FlowDirectionMeasure values expected";
 		const char * directionMsg = "render_winds: wind speed: '";
 
-		std::string WINDBASE("WINDBASE");
+		std::string WINDBASEOUT("WINDBASE");
 		std::string WINDBASEHOUR("WINDBASEHOUR");
-		std::string WINDEXTRA("WINDEXTRA");
+		std::string WINDEXTRAOUT("WINDEXTRA");
 
 		const libconfig::Setting & specs = config.lookup(confPath);
 		if(!specs.isGroup())
@@ -4525,8 +4592,44 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		if (!isSet)
 			renderTop = true;
 
+		// Controls to render first wind time instant by using the x -coordinate of document's first time
+		// instant (-1-, the default), by using the x -coordinate of document's first time instant if there
+		// are winds for one time instant only (-2-) or by using the first wind time instant as is (-3-).
+		//
+		// usewindbase			true (or not set)
+		// 		autowindbase	false (or not set)		-1-
+		// 		autowindbase	true					-2-
+		//
+		// usewindbase			false					-3-
+
+		bool useWindBase = configValue<bool>(specs,confPath,"usewindbase",NULL,s_optional,&isSet);
+		if (!isSet)
+			useWindBase = true;
+
+		bool autoWindBase = configValue<bool>(specs,confPath,"autowindbase",NULL,s_optional,&isSet);
+		if (!isSet)
+			autoWindBase = false;
+
+		std::string WINDAUTO("WINDAUTO");
+		std::string WINDBASE(useWindBase ? (autoWindBase ? WINDAUTO : WINDBASEOUT) : WINDEXTRAOUT);
+		std::string WINDEXTRA((useWindBase && autoWindBase) ? WINDAUTO : WINDEXTRAOUT);
+		std::string WINDXPOS("--WINDXPOS--");
+
+		double firstXPos;
+
+		// Wind arrow arm length (in pixels) to calculate horizontal and vertical offsets to position the arrowheads to
+		// the elevation lines. Without adjustment the wind arrows are (assumed to be) centered to the elevation lines.
+
+		unsigned int arrowArmLength = configValue<unsigned int>(specs,confPath,"arrowarmlength",NULL,s_optional,&isSet);
+		if (!isSet)
+			arrowArmLength = 0;
+
+		std::list<WindArrowOffsets> windArrowOffsetsList;
+		WindArrowOffsets windArrowOffsets;
+
 		// Loop thru the (ascending) time serie
 
+		bool singleTime = true;
 		int nSymbols = 0;
 
 		const boost::posix_time::time_period & tp = axisManager->timePeriod();
@@ -4618,7 +4721,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						// Get scaled elevation
 						//
 						// Note: Winds seem to have heights like 3500.5m, thus sligthly exceeding the configured
-						//		 top elevation line 3500m etc; if needed allow some tolerance to prevent scaledElevation
+						//		 top elevation line 3500m etc; allow some tolerance to prevent scaledElevation
 						//		 ignoring the overflowing elevation
 
 						if (fabs(axisHeight - height) <= 1.0)
@@ -4629,20 +4732,39 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						if (y < 0)
 							continue;
 
+						// Get position offsets and adjust y -coordinate
+
+						windArrowOffsets = calculateWindArrowOffsets(arrowArmLength,wd);
+
+						y -= ((windArrowOffsets.scale = scale) * windArrowOffsets.verticalOffsetPx);
+
 						if (fstts == tsend)
 							fstts = itts;
 
 						if (itts == fstts) {
+							// In 'autoWindBase' mode x -coordinates of the first time instant will be set afterwards
+							//
+							std::string windXPos("0.0");
+
+							if ((useWindBase && autoWindBase) || (!useWindBase)) {
+								firstXPos = axisManager->xOffset(vt);
+
+								windXPos = (useWindBase ? WINDXPOS : boost::lexical_cast<std::string>(firstXPos + (scale * windArrowOffsets.horizontalOffsetPx)));
+
+								if (useWindBase)
+									windArrowOffsetsList.push_back(windArrowOffsets);
+							}
+
 							// Backgroud reference
 							//
 							if ((nSymbols == 0) && (!href.empty()))
-								texts[WINDBASE] << "<use transform=\"translate(0,0)\" xlink:href=\""
+								texts[WINDBASE] << "<use transform=\"translate(" << windXPos << ",0)\" xlink:href=\""
 												<< href
 												<< "\"/>\n";
 
 							// Wind symbol
 							//
-							texts[WINDBASE] << "<g transform=\"translate(0,"
+							texts[WINDBASE] << "<g transform=\"translate(" << windXPos << ","
 											<< std::fixed << std::setprecision(1) << y
 											<< ") scale("
 											<< std::fixed << std::setprecision(1) << scale
@@ -4684,6 +4806,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 												 << "\"/>\n</g>\n";
 
 								nSymbols++;
+
+								singleTime = false;
 							}
 						}
 					}
@@ -4691,10 +4815,32 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			}  // for parametervalueset
 		}  // for timeserie
 
-		// Time (hour) of earliest rendered wind values
+		if ((fstts != tsend) && useWindBase) {
+			if ((!autoWindBase) || singleTime) {
+				// Time (hour) of earliest rendered wind values
+				//
+				std::string windBaseHour = configValue<std::string>(specs,confPath,"windbasehour",NULL,s_optional,&isSet);
 
-		if (fstts != tsend)
-			texts[WINDBASEHOUR] << toFormattedString(fstts->validTime(),"HH",axisManager->utc()).CharPtr();
+				if (!windBaseHour.empty())
+					texts[WINDBASEHOUR] << boost::algorithm::replace_first_copy(windBaseHour,"%hour%",toFormattedString(fstts->validTime(),"HH",axisManager->utc()).CharPtr());
+			}
+
+			if (autoWindBase) {
+				// Set x -coordinates of the background and the symbols for the first time instant
+				//
+				std::list<WindArrowOffsets>::iterator ofend = windArrowOffsetsList.end(),itoff = windArrowOffsetsList.begin();
+				std::string textOut = texts[WINDAUTO].str();
+
+				boost::algorithm::replace_first(textOut,WINDXPOS,boost::lexical_cast<std::string>(singleTime ? 0.0 : firstXPos));
+
+				for ( ; (itoff != ofend); itoff++) {
+					double x = ((singleTime ? 0.0 : firstXPos) + (itoff->scale * itoff->horizontalOffsetPx));
+					boost::algorithm::replace_first(textOut,WINDXPOS,boost::lexical_cast<std::string>(x));
+				}
+
+				texts[singleTime ? WINDBASEOUT : WINDEXTRAOUT] << textOut;
+			}
+		}
 
 		return;
 	}
@@ -4716,7 +4862,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Group category membership detection (for elevation holes)
+   * \brief Elevation group membership detection (to check if elevations belong
+   *		to same group of overlapping elevations).
    */
   // ----------------------------------------------------------------------
 
@@ -4724,15 +4871,22 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
   {
   }
 
-  bool GroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm)
+  bool GroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
   {
-	// Store group or check if the given group matches
+	// Store first member of the group or check if group matches
 
-	unsigned int group = cvm->groupNumber();
+	if (!cvm)
+		throw std::runtime_error("GroupCategory::groupMember: CategoryValueMeasure value expected");
+	else if (cvm2) {
+		groupMember(true,cvm);
+
+		first = false;
+		cvm = cvm2;
+	}
 
 	if (first)
-		itsGroupNumber = group;
-	else if (group != itsGroupNumber)
+		itsFirstMember = cvm;
+	else if (cvm->groupNumber() != itsFirstMember->groupNumber())
 		return false;
 
 	return true;
@@ -4927,7 +5081,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Set elevation group numbers
+   * \brief Set unique group number for members of each overlapping group of elevations
    */
   // ----------------------------------------------------------------------
 
@@ -4946,11 +5100,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	do
 	{
-		// For each elevation, set minimum group number from overlapping left and right side elevations (if any)
-		// until no changes are made
+		// For each elevation, set minimum group number from overlapping left and right side elevations (if any).
+		// Repeat until no changes were made.
 
 		ElevGrp::iterator egend(eGrp.end()),iteg = eGrp.begin();
 		unsigned int groupNumber,currentGroupNumber;
+
 		reScan = false;
 
 		// Set smallest group number from overlapping elevations on the left side (if any)
@@ -5069,20 +5224,26 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		bool nonGroundGrp = false;
 
-		// Set group number for the elevations
+		// Set unique group number for members of each overlapping group of elevations
 
+//if (options.test & 2) {
+//fprintf(stderr,"*** ZERO setGroupNumbers\n");
 //		setGroupNumbers(ts);
+//}
 
 		// Search and flag elevation holes
 
 //		GroupCategory groupCategory;
 
+//if (options.test & 1) {
+//fprintf(stderr,"*** ZERO searchHoles\n");
 		searchHoles(ts);
+//}
 
 		for ( ; ; ) {
 			// Get all remaining elevations from the time serie
 			//
-			nonGroundGrp = (elevationGroup(ts,bt,et,eGrpAll,true/*,true,&groupCategory*/) == t_nonground);
+			nonGroundGrp = (elevationGroup(ts,bt,et,eGrpAll,true/*,true,(options.test & 2) ? &groupCategory : NULL*/) == t_nonground);
 
 			if (eGrpAll.size() == 0)
 				break;
@@ -5805,12 +5966,12 @@ unsigned int ElevationGroupItem::groupNumber() const
 
 // ----------------------------------------------------------------------
 /*!
- * \brief elevationHole operator <
+ * \brief ElevationHole operator <
  *
  */
 // ----------------------------------------------------------------------
 
-bool elevationHole::operator < (const elevationHole & theOther) const
+bool ElevationHole::operator < (const ElevationHole & theOther) const
 {
   // Order by validtime asc, hirange desc
 
