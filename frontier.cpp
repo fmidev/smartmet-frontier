@@ -7,6 +7,7 @@
 #include "ConfigTools.h"
 #include "Options.h"
 #include "SvgRenderer.h"
+#include "PreProcessor.h"
 
 #include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/newbase/NFmiAreaFactory.h>
@@ -48,16 +49,20 @@
  */
 // ----------------------------------------------------------------------
 
-std::string readfile(const std::string & filename)
+std::string readfile(const std::string & fileName,
+					 const std::string defineDirective = "#define",
+					 const std::string includeDirective = "#include",
+					 const std::string & includePathDefine = "INCLUDEPATH",
+					 const std::string includeFileExtension = "tpl")
 {
-  std::ifstream in(filename.c_str());
-  if(!in)
-	throw std::runtime_error("Unable to open '"+filename+"' for reading");
-  std::string ret;
-  size_t sz = boost::filesystem::file_size(filename);
-  ret.resize(sz);
-  in.read(&ret[0],sz);
-  return ret;
+  const bool stripPound = false,stripDoubleSlash = false;
+
+  PreProcessor processor(defineDirective,includeDirective,includePathDefine,includeFileExtension,stripPound,stripDoubleSlash);
+
+  if(!processor.ReadAndStripFile(fileName))
+	throw std::runtime_error("Preprocessor failed to read '"+fileName+"'");
+
+  return processor.GetString();
 }
 
 // ----------------------------------------------------------------------
