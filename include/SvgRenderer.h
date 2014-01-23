@@ -35,7 +35,7 @@ namespace frontier
   class Elevation
   {
   public:
-	Elevation(double theElevation,double theScale,int theScaledElevation,const std::string & theLLabel,const std::string & theRLabel);
+	Elevation(double theElevation,double theScale,int theScaledElevation,const std::string & theLLabel,const std::string & theRLabel,bool line = true);
 	Elevation(double theElevation);
 
 	bool operator < (const Elevation & theOther) const;
@@ -47,14 +47,18 @@ namespace frontier
 	const std::string & rLabel() const { return itsRLabel; }
 	void factor(double theFactor) { itsFactor = theFactor; }
 	double factor() const { return itsFactor; }
+	bool line() const { return renderLine; }
 
   private:
+	Elevation();
+
 	double itsElevation;
 	double itsScale;
 	int itsScaledElevation;
 	std::string itsLLabel;
 	std::string itsRLabel;
 	double itsFactor;		// Factor for linear interpolation between this and the next elevation
+	bool renderLine;		// If set, render the elevation line
   };
 
   class AxisManager
@@ -112,7 +116,7 @@ namespace frontier
 			   const std::string * theLabel,
 			   bool bbCenterLabel,
 			   const std::string & thePlaceHolder,
-			   const std::string & theTextPlaceHolder,
+			   const std::string & theLabelPlaceHolder,
 			   bool combined,
 			   unsigned int theBaseStep,
 			   unsigned int theMaxRand,
@@ -121,6 +125,8 @@ namespace frontier
 			   int theScaleHeightRandom,
 			   int theControlMin,
 			   int theControlRandom,
+			   double theVOffset,double theVSOffset,
+			   int theSOffset,int theEOffset,
 			   std::set<size_t> & theCloudSet,
 			   const libconfig::Setting * localScope,
 			   const libconfig::Setting * globalScope = NULL
@@ -147,12 +153,19 @@ namespace frontier
 	int controlMin() const { return itsControlMin; }
 	int controlRandom() const { return itsControlRandom; }
 
+	double vOffset() const { return itsVOffset; }
+	double vSOffset() const { return itsVSOffset; }
+	int sOffset() const { return itsSOffset; }
+	int eOffset() const { return itsEOffset; }
+
 	std::set<size_t> & cloudSet() const { return itsCloudSet; }
 
 	const libconfig::Setting * localScope() const { return itsLocalScope; }
 	const libconfig::Setting * globalScope() const { return itsGlobalScope; }
 
   private:
+	CloudGroup();
+
 	std::string itsClass;
 	std::string itsTextClass;
 	std::string itsCloudTypes;
@@ -173,6 +186,11 @@ namespace frontier
 	int itsControlMin;
 	int itsControlRandom;
 
+	double itsVOffset;
+	double itsVSOffset;
+	int itsSOffset;
+	int itsEOffset;
+
 	std::set<size_t> & itsCloudSet;				// Cloud types contained in the current cloud
 
 	const libconfig::Setting * itsLocalScope;	// Group's configuration block
@@ -183,11 +201,95 @@ namespace frontier
     bool operator () ( const CloudGroup & cloudGroup, const std::string & cloudType) const;
   };
 
+  class IcingGroup
+  {
+  public:
+	IcingGroup(const std::string & theClassDef,
+			   const std::string & theIcingTypes,
+			   const std::string * theSymbol,
+			   bool symbolOnly,
+			   const std::string * theLabel,
+			   bool bbCenterLabel,
+			   const std::string & thePlaceHolder,
+			   const std::string & theLabelPlaceHolder,
+			   bool combined,
+			   double theVOffset,double theVSOffset,
+			   int theSOffset,int theEOffset,
+			   std::set<size_t> & theIcingSet,
+			   const libconfig::Setting * localScope,
+			   const libconfig::Setting * globalScope = NULL
+			   );
+
+	const std::string & classDef() const { return itsClass; }
+	const std::string & textClassDef() const { return itsTextClass; }
+	const std::string & symbol() const { return itsSymbol; }
+	bool symbolOnly() const { return renderSymbolOnly; }
+	std::string label() const { return (hasLabel ? itsLabel : icingTypes()); }
+	bool bbCenterLabel() const { return bbCenterLabelPos; }
+	const std::string & placeHolder() const { return itsPlaceHolder; }
+	const std::string & labelPlaceHolder() const { return itsLabelPlaceHolder; }
+	bool standalone() const { return itsStandalone; }
+	bool contains(const std::string & theIcingType) const;
+	void addType(const std::string & type) const;
+	std::string icingTypes() const;
+
+	double vOffset() const { return itsVOffset; }
+	double vSOffset() const { return itsVSOffset; }
+	int sOffset() const { return itsSOffset; }
+	int eOffset() const { return itsEOffset; }
+
+	std::set<size_t> & icingSet() const { return itsIcingSet; }
+
+	const libconfig::Setting * localScope() const { return itsLocalScope; }
+	const libconfig::Setting * globalScope() const { return itsGlobalScope; }
+
+  private:
+	IcingGroup();
+
+	std::string itsClass;
+	std::string itsTextClass;
+	std::string itsIcingTypes;
+	std::string itsSymbol;
+	bool renderSymbolOnly;
+	std::string itsLabel;
+	bool hasLabel;
+	bool bbCenterLabelPos;
+	std::string itsPlaceHolder;
+	std::string itsLabelPlaceHolder;
+	bool itsStandalone;
+
+	unsigned int itsBaseStep;
+	unsigned int itsMaxRand;
+	unsigned int itsMaxRepeat;
+
+	int itsScaleHeightMin;
+	int itsScaleHeightRandom;
+	int itsControlMin;
+	int itsControlRandom;
+
+	double itsVOffset;
+	double itsVSOffset;
+	int itsSOffset;
+	int itsEOffset;
+
+	std::set<size_t> & itsIcingSet;				// Icing types contained in the current group
+
+	const libconfig::Setting * itsLocalScope;	// Group's configuration block
+	const libconfig::Setting * itsGlobalScope;	// Group's global configuration block (if any)
+  };
+
+  struct IcingType : public std::binary_function< IcingGroup, std::string, bool > {
+    bool operator () ( const IcingGroup & icingGroup, const std::string & icingType) const;
+  };
+
+  class SvgRenderer;
+
   class CategoryValueMeasureGroup
   {
   public:
 	CategoryValueMeasureGroup() : itsFirstMember(NULL) { }
 
+	virtual bool groupMember(const woml::CategoryValueMeasure * cvm) const = 0;
 	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL) = 0;
 	virtual bool standalone() = 0;
 
@@ -203,6 +305,7 @@ namespace frontier
 	std::list<CloudGroup> & cloudGroups() { return itsCloudGroups; }
 	std::list<CloudGroup>::const_iterator currentGroup() { return itcg; }
 
+	bool groupMember(const woml::CategoryValueMeasure * cvm) const;
 	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
 	bool standalone() { return ((itsCloudGroups.size() > 0) && (*itcg).standalone()); }
 
@@ -211,18 +314,21 @@ namespace frontier
 	std::list<CloudGroup>::const_iterator itcg;
   };
 
-  class IcingCategory : public CategoryValueMeasureGroup
+  class IcingGroupCategory : public CategoryValueMeasureGroup
   {
   public:
-	IcingCategory();
+	IcingGroupCategory();
 
-	const std::string & category() { return itsCategory; }
+	std::list<IcingGroup> & icingGroups() { return itsIcingGroups; }
+	std::list<IcingGroup>::const_iterator currentGroup() { return itig; }
 
+	bool groupMember(const woml::CategoryValueMeasure * cvm) const;
 	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
-	bool standalone() { return false; }
+	bool standalone() { return ((itsIcingGroups.size() > 0) && (*itig).standalone()); }
 
   private:
-	std::string itsCategory;
+	std::list<IcingGroup> itsIcingGroups;
+	std::list<IcingGroup>::const_iterator itig;
   };
 
   class GroupCategory : public CategoryValueMeasureGroup
@@ -230,6 +336,7 @@ namespace frontier
   public:
 	GroupCategory();
 
+	bool groupMember(const woml::CategoryValueMeasure * cvm) const { return true; }
 	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
 	bool standalone() { return false; }
   };
@@ -281,6 +388,8 @@ namespace frontier
 	};
 
   private:
+	ElevationGroupItem();
+
 	boost::posix_time::ptime itsValidTime;
 	std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator itsPvs;
 	std::list<woml::GeophysicalParameterValue>::iterator itsPv;
@@ -290,13 +399,13 @@ namespace frontier
 	boost::optional<woml::Elevation> itsBottomConnection;	// Rigth side elevation
 	bool itsGenerated;										// Set for generated (below 0) elevation
 	bool itsDeleted;										// Set when elevation is deleted from the underlying woml object collection
-	boost::optional<woml::Elevation> itsElevation;			// ZeroTolerance; generated below zero ground elevation
+	boost::optional<woml::Elevation> itsElevation;			// ZeroTolerance; generated below zero elevation
   };
 
   typedef std::list<ElevationGroupItem> ElevGrp;
 
-  struct elevationHole {
-	  elevationHole()
+  struct ElevationHole {
+	  ElevationHole()
 	  	: aboveElev()
 	    , belowElev()
 	    , leftClosed(false)
@@ -305,7 +414,7 @@ namespace frontier
 	    , rightAboveBounded(false)
 	  { }
 
-	  bool operator < (const elevationHole & theOther) const;
+	  bool operator < (const ElevationHole & theOther) const;
 
 	  ElevGrp::iterator aboveElev;							// Elevation above the hole
 	  ElevGrp::iterator belowElev;							// Elevation below the hole
@@ -319,7 +428,7 @@ namespace frontier
 	  double hiHi;											// Hi range of the elevation above the hole
   };
 
-  typedef std::list<elevationHole> elevationHoles;
+  typedef std::list<ElevationHole> ElevationHoles;
 
   struct WindArrowOffsets {
 	WindArrowOffsets() : horizontalOffsetPx(0) , verticalOffsetPx(0) , scale(0.0) { }
@@ -421,7 +530,7 @@ namespace frontier
 								const std::string & classNameExt,
 								const std::string & value,
 								double x,double y,
-								bool codeValue = true);
+								bool codeValue = true,bool mappedCode = false);
 	template <typename T> void render_aerodromeSymbols(const T & theFeature,
 												       const std::string & confPath);
 	void render_symbol(const std::string & path,
@@ -447,13 +556,14 @@ namespace frontier
 	unsigned int getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int nextGroupNumber);
 	unsigned int getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber);
 	void setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts);
-	void checkLeftSide(ElevGrp & eGrp,elevationHole & hole,CategoryValueMeasureGroup * groupCategory = NULL);
-	bool checkLeftSideHoles(elevationHoles & holes,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
-	void checkRightSide(ElevGrp & eGrp,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
-	bool checkRightSideHoles(elevationHoles & holes,elevationHoles::reverse_iterator iteh,CategoryValueMeasureGroup * groupCategory = NULL);
-	bool checkBothSideHoles(elevationHoles & holes,elevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
-	void checkHoles(ElevGrp & eGrp,elevationHoles & holes,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
-	bool checkCategory(CategoryValueMeasureGroup * groupCategory,ElevGrp::iterator & e1,ElevGrp::iterator & e2);
+	void checkLeftSide(ElevGrp & eGrp,ElevationHole & hole,CategoryValueMeasureGroup * groupCategory = NULL);
+	bool checkLeftSideHoles(ElevationHoles & holes,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
+	void checkRightSide(ElevGrp & eGrp,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
+	bool checkRightSideHoles(ElevationHoles & holes,ElevationHoles::reverse_iterator iteh,CategoryValueMeasureGroup * groupCategory = NULL);
+	bool checkBothSideHoles(ElevationHoles & holes,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
+	void checkHoles(ElevGrp & eGrp,ElevationHoles & holes,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
+	bool checkCategory(CategoryValueMeasureGroup * groupCategory,ElevGrp::iterator & e) const;
+	bool checkCategory(CategoryValueMeasureGroup * groupCategory,ElevGrp::iterator & e1,ElevGrp::iterator & e2) const;
 	void searchHoles(const std::list<woml::TimeSeriesSlot> & ts,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
 	Phase uprightdown(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndFwd2Gnd = true);
 	Phase downleftup(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndVdn2Gnd = false);
@@ -463,7 +573,7 @@ namespace frontier
 	void render_elevationAxis();
 	void render_timeAxis(const boost::posix_time::time_period & theTimePeriod);
 	const libconfig::Setting & cloudLayerConfig(const std::string & confPath,
-	  	  	  	  	  	  	  	  	  	  	  	double & tightness,
+												double & tightness,bool & borderCompensation,double & minLabelPosHeight,
 												std::list<CloudGroup> & cloudGroups,
 												std::set<size_t> & cloudSet);
 	void render_cloudSymbol(const std::string & confPath,
@@ -478,6 +588,10 @@ namespace frontier
 	bool scaledCurvePositions(ElevGrp & eGrp,
 							  List<DirectPosition> & curvePositions,
 							  std::vector<double> & scaledLo,std::vector<double> & scaledHi,
+							  std::vector<bool> & hasHole,
+							  double vOffset,double vSOffset,
+							  int sOffset,int eOffset,
+							  int scaleHeightMin,int scaleHeightRandom,
 							  std::ostringstream & path,
 							  bool * isVisible = NULL,
 							  bool checkGround = false,
@@ -486,6 +600,10 @@ namespace frontier
 							 );
 	void render_timeserie(const woml::CloudLayers & cloudlayers);
 	void render_timeserie(const woml::Contrails & contrails);
+	const libconfig::Setting & icingConfig(const std::string & confPath,
+										   double & tightness,double & minLabelPosHeight,
+										   std::list<IcingGroup> & icingGroups,
+										   std::set<size_t> & icingSet);
 	void render_timeserie(const woml::Icing & icing);
 	void render_timeserie(const woml::MigratoryBirds & migratorybirds);
 	void render_timeserie(const woml::SurfaceVisibility & surfacevisibility);
