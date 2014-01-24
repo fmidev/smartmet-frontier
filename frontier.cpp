@@ -476,13 +476,16 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
   std::string regionName((lnbeg != lnend) ? lnbeg->second : "");
   std::string regionId((ribeg != riend) ? ribeg->second : "");
 
+  std::string creator(analysis ? weather.analysis().creator() : weather.forecast().creator());
+
   renderer.render_header(validtime,
 		  	  	  	  	 (analysis ? weather.analysis().validTime() : weather.forecast().validTime()),
 					     (analysis ? weather.analysis().analysisTime() : weather.forecast().forecastTime()),
 					     (analysis ? weather.analysis().creationTime() : weather.forecast().creationTime()),
 					     (analysis ? weather.analysis().latestModificationTime() : weather.forecast().latestModificationTime()),
 					     regionName,
-					     regionId
+					     regionId,
+					     creator
 					    );
 
   // Render woml.

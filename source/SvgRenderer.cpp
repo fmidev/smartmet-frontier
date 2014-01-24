@@ -6164,12 +6164,16 @@ void SvgRenderer::render_header(boost::posix_time::ptime & validTime,
 								const boost::posix_time::ptime & creationTime,
 								const boost::optional<boost::posix_time::ptime> & modificationTime,
 								const std::string & regionName,
-								const std::string & regionId
+								const std::string & regionId,
+								const std::string & creator
 							   )
 {
   // Target region name and id
   render_header("regionName",boost::posix_time::ptime(),regionName);
   render_header("regionId",boost::posix_time::ptime(),regionId);
+
+  // Creator
+  render_header("creator",boost::posix_time::ptime(),creator);
 
   // Feature validtime
   render_header("validTime",validTime);

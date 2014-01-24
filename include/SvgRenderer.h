@@ -499,7 +499,8 @@ namespace frontier
 					   const boost::posix_time::ptime & creationTime,
 					   const boost::optional<boost::posix_time::ptime> & modificationTime,
 					   const std::string & regionName,
-					   const std::string & regionId
+					   const std::string & regionId,
+					   const std::string & creator
 					  );
 
 	std::string svg() const;
