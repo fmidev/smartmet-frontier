@@ -5046,6 +5046,154 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Turbulence rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::Turbulence & turbulence)
+  {
+	const std::string confPath("Turbulence");
+	const std::string TURBULENCE(boost::algorithm::to_upper_copy(confPath));
+
+	// Get icing groups from configuration.
+	//
+	// icingSet contains the icing types (their starting positions in the group's 'types' setting) in current group;
+	// if neither group's symbol nor label are given, label (comma separated list of types) is build using the order
+	// the types are defined in 'types' setting.
+	//
+	// The icing set is cleared and then set by all the groups; icing types contained are
+	// added to the set when collecting a group in elevationGroup()
+
+	IcingGroupCategory icingGroupCategory;
+	std::set<size_t> icingSet;
+
+	double tightness,minLabelPosHeight;
+
+	icingConfig(confPath,tightness,minLabelPosHeight,icingGroupCategory.icingGroups(),icingSet);
+
+	// Document's time period, icing time series and x -axis step (px)
+
+	const boost::posix_time::time_period & tp = axisManager->timePeriod();
+	const std::list<woml::TimeSeriesSlot> & ts = turbulence.timeseries();
+
+	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+	double xStep = axisManager->xStep();
+
+	const std::string symClass(boost::algorithm::to_upper_copy(confPath + turbulence.classNameExt()));
+
+	// Elevation group and curve point data
+
+	ElevGrp eGrp;
+	int nGroups = 0;
+
+	List<DirectPosition> curvePositions;
+	std::list<DirectPosition> curvePoints;
+
+	// Set unique group number for members of each overlapping group of elevations
+
+	setGroupNumbers(ts);
+
+	// Search and flag elevation holes
+
+	searchHoles(ts,&icingGroupCategory);
+
+	for ( ; ; ) {
+		// Get group of overlapping elevations from the time serie
+		//
+		elevationGroup(ts,bt,et,eGrp,true,true,&icingGroupCategory);
+
+		if (eGrp.size() == 0)
+			break;
+
+		nGroups++;
+
+		// Icing group for current elevation group
+
+		std::list<IcingGroup>::const_iterator itig = icingGroupCategory.currentGroup();
+
+		// Get curve positions for bezier creation.
+		//
+		// The scaled lo/hi values for the elevations are returned in scaledLo/scaledHi;
+		// they are used to calculate icing symbol (or label) positions
+
+		std::vector<double> scaledLo,scaledHi;
+		std::vector<bool> hasHole;
+		bool isHole = eGrp.front().isHole();
+
+		std::ostringstream path;
+		path << std::fixed << std::setprecision(3);
+
+		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itig->vOffset(),itig->vSOffset(),itig->sOffset(),itig->eOffset(),0,0,path);
+
+		if (!(single && itig->symbolOnly())) {
+			// Rendering the group as bezier curve
+			//
+			if (options.debug)
+				texts[TURBULENCE + "PATH"] << "<path class=\"" << itig->classDef()
+										   << "\" id=\"" << "TurbulenceB" << nGroups
+										   << "\" d=\""
+										   << path.str()
+										   << "\"/>\n";
+
+			// Create bezier curve and get curve points
+
+			BezierModel bm(curvePositions,false,tightness);
+			bm.getSteppedCurvePoints(0,0,0,curvePoints);
+
+			// Render path
+
+			std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
+
+			if (options.debug) {
+				path.clear();
+				path.str("");
+			}
+
+			for (itcp = cpbeg; (itcp != cpend); itcp++)
+				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY();
+
+			texts[TURBULENCE] << "<path class=\"" << itig->classDef()
+							  << "\" id=\"" << "Turbulence" << nGroups
+							  << "\" d=\""
+							  << path.str()
+							  << "\"/>\n";
+
+			curvePoints.clear();
+		}
+
+		curvePositions.clear();
+
+		// Render the single symbol or one symbol or label to the center of each visible part of the area.
+
+		if (!isHole) {
+			// x -coord of group's first time instant
+			//
+			const boost::posix_time::ptime & vt = eGrp.front().validTime();
+			double minX = axisManager->xOffset(vt);
+			int n;
+
+			std::vector<double> labelX,labelY;
+			std::vector<double>::const_iterator itx,ity;
+
+			getAreaLabelPos(itig->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,itig->sOffset(),itig->eOffset(),
+							scaledLo,scaledHi,hasHole,labelX,labelY);
+
+			for (itx = labelX.begin(),ity = labelY.begin(), n = 0; (itx != labelX.end()); itx++, ity++, n++)
+				if (!(itig->symbol().empty()))
+					render_aerodromeSymbol(confPath,symClass,turbulence.classNameExt(),itig->symbol(),*itx,*ity,true,true);
+				else
+					texts[itig->labelPlaceHolder()] << "<text class=\"" << itig->textClassDef()
+													<< "\" id=\"" << "IcingText" << nGroups << n
+													<< "\" text-anchor=\"middle"
+													<< "\" x=\"" << *itx
+													<< "\" y=\"" << *ity
+													<< "\">" << itig->label() << "</text>\n";
+		}
+	}	// for group
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Migratory birds rendering
    */
   // ----------------------------------------------------------------------
@@ -7010,6 +7158,19 @@ void SvgRenderer::visit(const woml::Icing & theFeature)
   if(options.debug)	std::cerr << "Visiting Icing" << std::endl;
 
   render_aerodrome<woml::Icing>(theFeature);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render turbulence
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::visit(const woml::Turbulence & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting Turbulence" << std::endl;
+
+  render_aerodrome<woml::Turbulence>(theFeature);
 }
 
 // ----------------------------------------------------------------------

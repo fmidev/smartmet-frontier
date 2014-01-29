@@ -482,6 +482,7 @@ namespace frontier
 	virtual void visit(const woml::CloudLayers & theFeature);
 	virtual void visit(const woml::Contrails & theFeature);
 	virtual void visit(const woml::Icing & theFeature);
+	virtual void visit(const woml::Turbulence & theFeature);
 	virtual void visit(const woml::MigratoryBirds & theFeature);
 	virtual void visit(const woml::SurfaceVisibility & theFeature);
 	virtual void visit(const woml::SurfaceWeather & theFeature);
@@ -606,6 +607,7 @@ namespace frontier
 										   std::list<IcingGroup> & icingGroups,
 										   std::set<size_t> & icingSet);
 	void render_timeserie(const woml::Icing & icing);
+	void render_timeserie(const woml::Turbulence & turbulence);
 	void render_timeserie(const woml::MigratoryBirds & migratorybirds);
 	void render_timeserie(const woml::SurfaceVisibility & surfacevisibility);
 	void render_timeserie(const woml::SurfaceWeather & surfaceweather);
