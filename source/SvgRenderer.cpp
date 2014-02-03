@@ -1920,7 +1920,7 @@ namespace frontier
 
 	ElevGrp eGrp;
 
-	bool ground = (elevationGroup(theFeature.timeseries(),bt,et,eGrp,true) == t_ground);
+	bool ground = (elevationGroup(theFeature.timeseries(),bt,et,eGrp) == t_ground);
 
 	if (eGrp.size() == 0)
 		return;
@@ -3036,6 +3036,33 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Group membership detection based on group number
+   */
+  // ----------------------------------------------------------------------
+
+  bool CategoryValueMeasureGroup::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
+  {
+	// Store first member of the group or check if group matches
+
+	if (!cvm)
+		throw std::runtime_error("CategoryValueMeasureGroup::groupMember: CategoryValueMeasure value expected");
+	else if (cvm2) {
+		groupMember(true,cvm);
+
+		first = false;
+		cvm = cvm2;
+	}
+
+	if (first)
+		itsFirstMember = cvm;
+	else if (cvm->groupNumber() != itsFirstMember->groupNumber())
+		return false;
+
+	return true;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Cloud group membership detection
    */
   // ----------------------------------------------------------------------
@@ -3080,14 +3107,12 @@ namespace frontier
 		itsFirstMember = cvm;
 	}
 	else {
-		if (std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category)) != itcg)
-			return false;
-
-		// Check if elevations overlap (belong to the same group)
-
-		GroupCategory groupCategory;
-
-		if (!groupCategory.groupMember(false,itsFirstMember,cvm))
+		// Check if elevations overlap (have the same group number) and have matching category
+		//
+		if (
+			(!CategoryValueMeasureGroup::groupMember(false,itsFirstMember,cvm)) ||
+			(std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category)) != itcg)
+		   )
 			return false;
 	}
 
@@ -3512,7 +3537,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,true,true,&cloudGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,false,&cloudGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
@@ -3637,41 +3662,23 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		  	  	  	  	  	  	  	  	  	  	  	 const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
 		  	  	  	  	  	  	  	  	  	  	  	 ElevGrp & eGrp,
 		  	  	  	  	  	  	  	  	  	  	  	 bool all,
-		  	  	  	  	  	  	  	  	  	  	  	 bool mixed,
-													 CategoryValueMeasureGroup * groupCategory)
+													 CategoryValueMeasureGroup * categoryGroup)
   {
-	// Loop thru the time instants.
+	// Collect group of elevations.
 	//
-	// If 'all' is false and 'mixed' is true the elevations (lo-hi ranges) are scanned/grouped in time instant order
-	// starting from topmost elevation grouping all subsequent overlapping "ground" (lo -range <= (or near) 0) and "nonground"
-	// elevations. All elevations of the selected time instants are included into the group; the group may contain
-	// logically nongroup (nonoverlapping) elevations too.
+	// If 'all' is true, all elevations are included into the group.
 	//
-	// If 'all' is false and 'mixed' is false the elevations (lo-hi ranges) are scanned/grouped in time instant order
-	// starting from topmost elevation grouping all subsequent overlapping "ground" (lo -range <= (or near) 0) or "nonground"
-	// elevations.
+	// Otherwise preset group number (set by setGroupNumbers()) and value category
+	// (if given; cloud type or magnitude for icing or turbulence) is taken into account.
 	//
-	// If 'all' is true and groupCategory is null, returns all elevations; otherwise category (cloud type for CloudLayers or
-	// magnitude for Icing) is taken into account.
-	//
-	// Note: This method does not work properly when 'all' is false and all overlapping elevations are not within the
-	//       starting elevation's lo/hi range (when all overlapping elevations do not directly overlap the starting elevation).
-	//       Current workaround is just to read all elevations for ZeroTolerance, CloudLayers and Icing; when creating
-	//		 the curve path, only the overlapping elevations will be rendered.
+
+	CategoryValueMeasureGroup overlappingGroup;
 
 	std::list<woml::TimeSeriesSlot>::const_iterator tsbeg = ts.begin();
 	std::list<woml::TimeSeriesSlot>::const_iterator tsend = ts.end();
 	std::list<woml::TimeSeriesSlot>::const_iterator itts;
 
-	bool byCategory = (groupCategory != NULL),groundGrp = false,nonGroundGrp = false,hole = false;
-
-	if (byCategory)
-		// 'mixed' is ignored for CloudLayers and Icing; always true
-		//
-		mixed = true;
-
-	double tsLo = 0.0,tsHi = 0.0;	// Min lo range and max hi range elevation value for previous time instant
-	double loLim,hiLim;				// Last lo and hi range value for "nonground" group
+	bool byCategory = (categoryGroup != NULL),groundGrp = false,nonGroundGrp = false,hole = false;
 	double nonZ = axisManager->nonZeroElevation();
 
 	eGrp.clear();
@@ -3688,18 +3695,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				break;
 		}
 
-		bool overlap = false;	// Set if time instant had elevation added to the group
-		loLim = tsLo;
-		hiLim = tsHi;
-
 		// Loop thru the parameter sets and their parameters
 
 		std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator pvsend = itts->values().end(),itpvs;
 
-		for (itpvs = itts->values().begin(); ((itpvs != pvsend) && (mixed || (!overlap))); itpvs++) {
+		for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++) {
 			std::list<woml::GeophysicalParameterValue>::iterator pvend = itpvs->get()->editableValues().end(),itpv;
 
-			for (itpv = itpvs->get()->editableValues().begin(); ((itpv != pvend) && (mixed || (!overlap))); itpv++) {
+			for (itpv = itpvs->get()->editableValues().begin(); (itpv != pvend); itpv++) {
 				// Not mixing holes and nonholes
 				//
 				if ((eGrp.size() > 0) && (hole != ((itpv->getFlags() & ElevationGroupItem::b_isHole) ? true : false)))
@@ -3708,54 +3711,17 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				const woml::Elevation & e = itpv->elevation();
 				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
 				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
-
 				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
-				double hi = 0.0;
 
 				bool ground = (lo < nonZ);
 
 				if (!all) {
-					boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-					const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
-					hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
-
-					if ((!mixed) && (eGrp.size() > 0)) {
-						if (groundGrp) {
-							if (!ground)
-								continue;
-						}
-						else if (ground || (hi < loLim))
-							// Overlapping elevation does not exist
-							//
-							break;
-						else if (lo > hiLim)
-							continue;
-					}
-
-					if ((eGrp.size() == 0) || (groundGrp && ground) || ((lo <= hiLim) && (hi >= loLim))) {
-						if (! overlap) {
-							tsLo = lo;
-							tsHi = hi;
-
-							overlap = true;
-
-							if (!mixed) {
-								loLim = lo;
-								hiLim = hi;
-							}
-						}
-						else {
-							if (lo < tsLo) tsLo = lo;
-							if (hi > tsHi) tsHi = hi;
-						}
-					}
-				}
-				else if (byCategory) {
-					// Take category (cloud type or icing magnitude) into account
+					// Check if group number and value category (cloud type or magnitude for icing or turbulence) matches.
 					//
 					const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(itpv->value());
+					CategoryValueMeasureGroup * group = (byCategory ? categoryGroup : &overlappingGroup);
 
-					if (!(groupCategory->groupMember((eGrp.size() == 0),cvm))) {
+					if (!(group->groupMember((eGrp.size() == 0),cvm))) {
 						if ((eGrp.size() == 0) && options.debug)
 							debugoutput << "Settings for "
 										<< cvm->category()
@@ -3774,16 +3740,10 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 				eGrp.push_back(ElevationGroupItem(vt,itpvs,itpv));
 
-				if (byCategory && groupCategory->standalone())
+				if (byCategory && categoryGroup->standalone())
 					return (groundGrp ? t_ground : t_nonground);
 			}	// for itpv
 		}	// for itpvs
-
-		// Continue to next time instant if getting all elevations or the group is empty
-		// or this time instant had elevation(s) included into the group
-
-		if ((!all) && (eGrp.size() > 0) && (!overlap))
-			break;
 	}	// for itts
 
 	return ((groundGrp && nonGroundGrp) ? t_mixed : (groundGrp ? t_ground : t_nonground));
@@ -4220,8 +4180,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Check if the elevation's category (cloud type for CloudLayers or
-   *		icing magnitude for Icing) is known.
+   * \brief Check if elevation's category (cloud type or magnitude for
+   *		icing or turbulence) is known.
    *
    */
   // ----------------------------------------------------------------------
@@ -4245,7 +4205,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
   // ----------------------------------------------------------------------
   /*!
    * \brief Check if the elevations belong to the same category (cloud type
-   *		for CloudLayers or icing magnitude for Icing).
+   *		or magnitude for icing or turbulence).
    *
    */
   // ----------------------------------------------------------------------
@@ -4295,7 +4255,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    *		elevations are generated to store the holes.
    *
    *	    Holes will be rendered separately, additionally based on group's type
-   *	    (cloud type for CloudLayers or icing magnitude for Icing).
+   *	    (cloud type or magnitude for icing or turbulence).
    */
   // ----------------------------------------------------------------------
 
@@ -4307,7 +4267,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
 	ElevGrp eGrp;
-	elevationGroup(ts,bt,et,eGrp,true);
+	elevationGroup(ts,bt,et,eGrp);
 
 	// Search for holes.
 
@@ -4329,7 +4289,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			}
 
 		if (reLoad) {
-			elevationGroup(ts,bt,et,eGrp,true);
+			elevationGroup(ts,bt,et,eGrp);
 
 			egbeg = eGrp.begin();
 			egend = eGrp.end();
@@ -4462,10 +4422,15 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		const std::string classDef = configValue<std::string>(specs,confPath,"class");
 
+		// Set unique group number for members of each overlapping group of elevations.
+		// Do not mix ground and nonground elevations.
+
+		setGroupNumbers(ts,false);
+
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
 			//
-			elevationGroup(ts,bt,et,eGrp,false,false);
+			elevationGroup(ts,bt,et,eGrp,false);
 
 			if (eGrp.size() == 0)
 				break;
@@ -4702,7 +4667,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			if(!group.isGroup())
 				throw std::runtime_error(confPath + listtypeMsg);
 
-			// Icing types
+			// Icing magnitudes
 
 			std::string icingTypes(boost::algorithm::to_upper_copy(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"types",NULL,s_optional))));
 
@@ -4779,7 +4744,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 			std::string symbol(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"symbol",NULL,s_optional)));
 
-			// Output label; if symbol is not defined, default label is the icing types concatenated with ',' as separator.
+			// Output label; if symbol is not defined, default label is the icing magnitudes concatenated with ',' as separator.
 			// If empty label is given, no label.
 
 			std::string label(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"label",NULL,s_optional,&isSet)));
@@ -4795,7 +4760,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			if (labelPlaceHolder.empty())
 				labelPlaceHolder = placeHolder + "TEXT";
 
-			// Standalone icing types (only one type in the group) have flag controlling whether the
+			// Standalone icing magnitudes (only one magnitude in the group) have flag controlling whether the
 			// group/icing is combined or not
 
 			bool combined = configValue<bool>(group,confPath,"combined",globalScope,s_optional,&isSet);
@@ -4844,7 +4809,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   bool IcingGroupCategory::groupMember(const woml::CategoryValueMeasure * cvm) const
   {
-	// Check if the given icing type is known
+	// Check if the given icing magnitude is known
 
 	if (!cvm)
 		throw std::runtime_error("IcingGroupCategory::groupMember: CategoryValueMeasure value expected");
@@ -4856,7 +4821,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   bool IcingGroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
   {
-	// Add first member to the icing group or check if the given icing type is compatible with the group
+	// Add first member to the icing group or check if the given icing magnitude is compatible with the group
 
 	(void) cvm2;
 
@@ -4878,18 +4843,16 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		itsFirstMember = cvm;
 	}
 	else {
-		if (std::find_if(itsIcingGroups.begin(),itsIcingGroups.end(),std::bind2nd(IcingType(),category)) != itig)
-			return false;
-
-		// Check if elevations overlap (belong to the same group)
-
-		GroupCategory groupCategory;
-
-		if (!groupCategory.groupMember(false,itsFirstMember,cvm))
+		// Check if elevations overlap (have the same group number) and have matching category
+		//
+		if (
+			(!CategoryValueMeasureGroup::groupMember(false,itsFirstMember,cvm)) ||
+			(std::find_if(itsIcingGroups.begin(),itsIcingGroups.end(),std::bind2nd(IcingType(),category)) != itig)
+		   )
 			return false;
 	}
 
-	// Add contained icing type into the icing set
+	// Add contained icing magnitude into the icing set
 
 	itig->addType(category);
 
@@ -4909,11 +4872,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// Get icing groups from configuration.
 	//
-	// icingSet contains the icing types (their starting positions in the group's 'types' setting) in current group;
+	// icingSet contains the icing magnitudes (their starting positions in the group's 'types' setting) in current group;
 	// if neither group's symbol nor label are given, label (comma separated list of types) is build using the order
 	// the types are defined in 'types' setting.
 	//
-	// The icing set is cleared and then set by all the groups; icing types contained are
+	// The icing set is cleared and then set by all the groups; icing magnitudes contained are
 	// added to the set when collecting a group in elevationGroup()
 
 	IcingGroupCategory icingGroupCategory;
@@ -4952,7 +4915,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,true,true,&icingGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,false,&icingGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
@@ -5057,11 +5020,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// Get icing groups from configuration.
 	//
-	// icingSet contains the icing types (their starting positions in the group's 'types' setting) in current group;
+	// icingSet contains the icing magnitudes (their starting positions in the group's 'types' setting) in current group;
 	// if neither group's symbol nor label are given, label (comma separated list of types) is build using the order
 	// the types are defined in 'types' setting.
 	//
-	// The icing set is cleared and then set by all the groups; icing types contained are
+	// The icing set is cleared and then set by all the groups; icing magnitudes contained are
 	// added to the set when collecting a group in elevationGroup()
 
 	IcingGroupCategory icingGroupCategory;
@@ -5100,7 +5063,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,true,true,&icingGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,false,&icingGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
@@ -5598,38 +5561,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Elevation group membership detection (to check if elevations belong
-   *		to same group of overlapping elevations).
-   */
-  // ----------------------------------------------------------------------
-
-  GroupCategory::GroupCategory() : CategoryValueMeasureGroup()
-  {
-  }
-
-  bool GroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
-  {
-	// Store first member of the group or check if group matches
-
-	if (!cvm)
-		throw std::runtime_error("GroupCategory::groupMember: CategoryValueMeasure value expected");
-	else if (cvm2) {
-		groupMember(true,cvm);
-
-		first = false;
-		cvm = cvm2;
-	}
-
-	if (first)
-		itsFirstMember = cvm;
-	else if (cvm->groupNumber() != itsFirstMember->groupNumber())
-		return false;
-
-	return true;
-  }
-
-  // ----------------------------------------------------------------------
-  /*!
    * \brief Zero tolerance group preprocessing
    */
   // ----------------------------------------------------------------------
@@ -5720,7 +5651,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int groupNumber)
+  unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int groupNumber,bool mixed)
   {
 	std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin()),liteg(iteg);
 	boost::posix_time::ptime vt = iteg->validTime();
@@ -5732,6 +5663,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
 	double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 	double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+	double nonZ = axisManager->nonZeroElevation();
 
 	for ( ; (liteg != egend); liteg++) {
 		int dh = (liteg->validTime() - vt).hours();
@@ -5746,7 +5678,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			double llo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 			double lhi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
-			if (lhi < lo)
+			// 'mixed' controls whether or not ground and nonground elevations are included into same group.
+
+			if ((lhi < lo) || ((!mixed) && ((lo < nonZ) != (llo < nonZ))))
 				continue;
 			else if (llo > hi)
 				break;
@@ -5770,7 +5704,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber)
+  unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber,bool mixed)
   {
 	ElevGrp::iterator egend = eGrp.end(),riteg = itegrev.base(),iteg = itegrev.base();
 	boost::posix_time::ptime vt = itegrev->validTime();
@@ -5784,6 +5718,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
 	double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 	double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+	double nonZ = axisManager->nonZeroElevation();
 
 	for ( ; (riteg != egend); riteg++) {
 		int dh = (riteg->validTime() - vt).hours();
@@ -5798,7 +5733,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			double rlo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 			double rhi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
-			if (rlo > hi)
+			// 'mixed' controls whether or not ground and nonground elevations are included into same group.
+
+			if ((rlo > hi) || ((!mixed) && ((lo < nonZ) != (rlo < nonZ))))
 				continue;
 			else if (rhi < lo)
 				break;
@@ -5821,7 +5758,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts)
+  void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts,bool mixed)
   {
 	unsigned int nextGroupNumber = 1;
 
@@ -5831,7 +5768,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	// Get all elevations
 
 	ElevGrp eGrp;
-	elevationGroup(ts,bt,et,eGrp,true);
+	elevationGroup(ts,bt,et,eGrp);
 	bool reScan;
 
 	do
@@ -5849,7 +5786,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		for ( ; (iteg != egend); iteg++) {
 			currentGroupNumber = iteg->groupNumber();
 
-			groupNumber = getLeftSideGroupNumber(eGrp,iteg,((currentGroupNumber == 0) ? nextGroupNumber : currentGroupNumber));
+			groupNumber = getLeftSideGroupNumber(eGrp,iteg,((currentGroupNumber == 0) ? nextGroupNumber : currentGroupNumber),mixed);
 
 			if ((currentGroupNumber == 0) || (groupNumber < currentGroupNumber)) {
 				iteg->groupNumber(groupNumber);
@@ -5865,7 +5802,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		ElevGrp::reverse_iterator regend(eGrp.begin()),riteg(eGrp.end());
 
 		for (riteg++; (riteg != regend); riteg++) {
-			groupNumber = getRightSideGroupNumber(eGrp,riteg,currentGroupNumber = riteg->groupNumber());
+			groupNumber = getRightSideGroupNumber(eGrp,riteg,currentGroupNumber = riteg->groupNumber(),mixed);
 
 			if (groupNumber < currentGroupNumber) {
 				riteg->groupNumber(groupNumber);
@@ -5994,11 +5931,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		List<DirectPosition> curvePositions;
 		std::list<DirectPosition> curvePoints;
 
-		bool nonGroundGrp = false;
-
 		// Set unique group number for members of each overlapping group of elevations
 
-		GroupCategory groupCategory;
 		setGroupNumbers(ts);
 
 		// Search and flag elevation holes
@@ -6008,7 +5942,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
 			//
-			nonGroundGrp = (elevationGroup(ts,bt,et,eGrpAll,true,true,&groupCategory) == t_nonground);
+			elevationGroup(ts,bt,et,eGrpAll,false);
 
 			if (eGrpAll.size() == 0)
 				break;
@@ -6933,7 +6867,7 @@ IcingGroup::IcingGroup(const std::string & theClass,
   itsClass = boost::algorithm::trim_copy(theClass);
 
   if (!itsClass.empty()) {
-	// Class names for icing type output
+	// Class names for icing magnitude output
 	//
 	std::vector<std::string> cl;
 	boost::algorithm::split(cl,itsClass,boost::is_any_of(" "));
@@ -6968,7 +6902,7 @@ IcingGroup::IcingGroup(const std::string & theClass,
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Check if group contains given icing type
+ * \brief Check if group contains given icing magnitude
  */
 // ----------------------------------------------------------------------
 
@@ -6982,7 +6916,7 @@ bool IcingGroup::contains(const std::string & theIcingType) const
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Add a icing type the icing group contains
+ * \brief Add a icing magnitude the icing group contains
  */
 // ----------------------------------------------------------------------
 
@@ -6998,7 +6932,7 @@ void IcingGroup::addType(const std::string & theIcingType) const
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Get the types the icing group contains
+ * \brief Get the magnitudes the icing group contains
  */
 // ----------------------------------------------------------------------
 

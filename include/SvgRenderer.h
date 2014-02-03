@@ -258,21 +258,12 @@ namespace frontier
 	std::string itsLabelPlaceHolder;
 	bool itsStandalone;
 
-	unsigned int itsBaseStep;
-	unsigned int itsMaxRand;
-	unsigned int itsMaxRepeat;
-
-	int itsScaleHeightMin;
-	int itsScaleHeightRandom;
-	int itsControlMin;
-	int itsControlRandom;
-
 	double itsVOffset;
 	double itsVSOffset;
 	int itsSOffset;
 	int itsEOffset;
 
-	std::set<size_t> & itsIcingSet;				// Icing types contained in the current group
+	std::set<size_t> & itsIcingSet;				// Icing magnitudes contained in the current group
 
 	const libconfig::Setting * itsLocalScope;	// Group's configuration block
 	const libconfig::Setting * itsGlobalScope;	// Group's global configuration block (if any)
@@ -282,16 +273,14 @@ namespace frontier
     bool operator () ( const IcingGroup & icingGroup, const std::string & icingType) const;
   };
 
-  class SvgRenderer;
-
   class CategoryValueMeasureGroup
   {
   public:
 	CategoryValueMeasureGroup() : itsFirstMember(NULL) { }
 
-	virtual bool groupMember(const woml::CategoryValueMeasure * cvm) const = 0;
-	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL) = 0;
-	virtual bool standalone() = 0;
+	virtual bool groupMember(const woml::CategoryValueMeasure * cvm) const { return true; }
+	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
+	virtual bool standalone() { return false; }
 
   protected:
 	const woml::CategoryValueMeasure * itsFirstMember;
@@ -329,16 +318,6 @@ namespace frontier
   private:
 	std::list<IcingGroup> itsIcingGroups;
 	std::list<IcingGroup>::const_iterator itig;
-  };
-
-  class GroupCategory : public CategoryValueMeasureGroup
-  {
-  public:
-	GroupCategory();
-
-	bool groupMember(const woml::CategoryValueMeasure * cvm) const { return true; }
-	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
-	bool standalone() { return false; }
   };
 
   class ElevationGroupItem
@@ -552,12 +531,11 @@ namespace frontier
 	GroupType elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
 							 const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
 							 ElevGrp & eGrp,
-							 bool all = false,
-							 bool mixed = true,
-							 CategoryValueMeasureGroup * groupCategory = NULL);
-	unsigned int getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int nextGroupNumber);
-	unsigned int getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber);
-	void setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts);
+							 bool all = true,
+							 CategoryValueMeasureGroup * categoryGroup = NULL);
+	unsigned int getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int nextGroupNumber,bool mixed = true);
+	unsigned int getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber,bool mixed = true);
+	void setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts,bool mixed = true);
 	void checkLeftSide(ElevGrp & eGrp,ElevationHole & hole,CategoryValueMeasureGroup * groupCategory = NULL);
 	bool checkLeftSideHoles(ElevationHoles & holes,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
 	void checkRightSide(ElevGrp & eGrp,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
