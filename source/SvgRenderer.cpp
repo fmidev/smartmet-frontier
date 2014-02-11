@@ -24,6 +24,7 @@
 
 #include <smartmet/woml/CloudArea.h>
 #include <smartmet/woml/SurfacePrecipitationArea.h>
+#include <smartmet/woml/ParameterValueSetArea.h>
 
 #include <smartmet/woml/InfoText.h>
 
@@ -773,9 +774,8 @@ namespace frontier
   void getFillPositions(NFmiFillAreas::const_iterator iter,
 		  	  	  	  	int symbolWidth,int symbolHeight,
 			  			float scale,
-			  			bool verticalRects,
 			  			NFmiFillPositions & fpos,
-			  			int & symCnt)
+			  			size_t & symCnt)
 
   {
 	// Fillrect and symbol bounding box dimensions
@@ -814,6 +814,106 @@ namespace frontier
 	for (h = 0, x = hoffset; (h < nh); h++, x += (bw + hoffset))
 		for (v = 0, y = voffset; (v < nv); v++, y += (bh + voffset), symCnt++)
 			fpos.push_back(Point(iter->first.x + x + symhoff[symCnt % shoCnt],iter->first.y + y + symvoff[symCnt % svoCnt]));
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Sort fill areas by top left corner
+   */
+  // ----------------------------------------------------------------------
+
+  bool sortFillAreas(const NFmiFillRect & area1,const NFmiFillRect & area2)
+  {
+	if (area1.first.x < area2.first.x)
+		return true;
+
+	return ((area1.first.x == area2.first.x) && (area1.first.y < area2.first.y));
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get area symbol position(s) within fill area(s).
+   */
+  // ----------------------------------------------------------------------
+
+  void getFillPositions(NFmiFillAreas & areas,int symbolWidth,int symbolHeight,size_t symbolCnt,float scale,NFmiFillPositions & fpos)
+  {
+	areas.sort(sortFillAreas);
+
+	// Symbol distance in x -direction and first x -position
+
+	double distance = (areas.back().second.x - areas.front().first.x) / (symbolCnt + 1);
+	double symX = distance - (symbolWidth / 2.0);
+	size_t n = 0;
+
+	for (NFmiFillAreas::const_iterator iter = areas.begin(); ((iter != areas.end()) && (n < symbolCnt)); iter++) {
+		if ((iter->first.x < symX) && (iter->second.x > symX)) {
+			n++;
+			symX += distance;
+
+			// Scan column's fill areas (covering the symbol x -position) backwards
+
+			NFmiFillAreas::const_iterator piter = iter,niter = iter,fiter = iter,liter = iter;
+			double minX = 999999.9,maxX = 0.0,minY = 999999.9,maxY = 0.0;
+
+			for ( ; ((piter == iter) || (piter->second.x >= iter->first.x)); piter--) {
+				if (piter->first.x < minX) minX = piter->first.x;
+				if (piter->second.x > maxX) maxX = piter->second.x;
+				if (piter->first.y < minY) minY = piter->first.y;
+				if (piter->second.y > maxY) maxY = piter->second.y;
+
+				if ((fiter = piter) == areas.begin())
+					break;
+			}
+
+			// Scan column's fill areas (covering the symbol x -position) forwards
+
+			for (++niter; ((niter != areas.end()) && (niter->first.x <= iter->second.x)); niter++) {
+				if (niter->first.x < minX) minX = niter->first.x;
+				if (niter->second.x > maxX) maxX = niter->second.x;
+				if (niter->first.y < minY) minY = niter->first.y;
+				if (niter->second.y > maxY) maxY = niter->second.y;
+
+				liter = niter;
+			}
+
+			// Position symbol to the center of the column and search for fill area covering the selected position.
+			//
+			// Note: The column might not be continuous. If fill area covering the center position does not exist, using
+			//		 the fill area nearest to the center.
+
+			double symX = minX + ((maxX - minX) / 2.0);
+			double symY = minY + ((maxY - minY) / 2.0);
+			double offset = -1.0;
+
+			for (niter = fiter,piter = iter; ; niter++) {
+				double x = niter->first.x + ((niter->second.x - niter->first.x) / 2.0);
+				double y = niter->first.y + ((niter->second.y - niter->first.y) / 2.0);
+				bool found = ((niter->first.x < symX) && (niter->second.x > symX) && (niter->first.y < symY) && (niter->second.y > symY));
+
+				if (!found) {
+					double xOff = (x - symX),yOff = (y - symY);
+					double off = sqrt((xOff * xOff) + (yOff * yOff));
+
+					if ((offset < 0) || (off < offset)) {
+						offset = off;
+						piter = niter;
+					}
+
+					if (niter == liter) {
+						x = piter->first.x + ((piter->second.x - piter->first.x) / 2.0);
+						y = piter->first.y + ((piter->second.y - piter->first.y) / 2.0);
+					}
+				}
+
+				if (found || (niter == liter))
+				{
+					fpos.push_back(Point(x,y));
+					break;
+				}
+			}
+		}
+	}
   }
 
   // ----------------------------------------------------------------------
@@ -1177,6 +1277,44 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Symbol mapping. Sets the mapped code into 'mappedCode' and
+   *		returns true if nonempty mapping exists.
+   */
+  // ----------------------------------------------------------------------
+
+  bool symbolMapping(const libconfig::Config & config,const std::string & confPath,const std::string & symCode,settings s_code,std::string & mappedCode,int specsIdx = -1)
+  {
+	const char * typeMsg = " must contain a group in curly brackets";
+
+	// Block index is given for ParameterValueSetArea
+
+	std::string symPath(confPath + ((specsIdx >= 0) ? (".[" + boost::lexical_cast<std::string>(specsIdx) + "]") : ""));
+
+	const libconfig::Setting & symbolSpecs = config.lookup(symPath);
+	if(!symbolSpecs.isGroup())
+		throw std::runtime_error(symPath + typeMsg);
+
+	// Symbol's <code>; code_<symCode> = <code>
+	//
+	// Note: libconfig does not support special characters in configuration keys; the code values
+	//		 have their +/- characters replaced with P_ and M_ (e.g. '+RA' is converted to 'P_RA')
+
+	mappedCode = boost::algorithm::trim_copy(symCode);
+	bool isSet = false;
+
+	if (!mappedCode.empty()) {
+		boost::algorithm::replace_all(mappedCode,"+","P_");
+		boost::algorithm::replace_all(mappedCode,"-","M_");
+		boost::algorithm::replace_all(mappedCode,"@","_");
+
+		mappedCode = configValue<std::string>(symbolSpecs,symPath,mappedCode,NULL,s_code,&isSet);
+	}
+
+	return (isSet && (!mappedCode.empty()));
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Surface rendering
    */
   // ----------------------------------------------------------------------
@@ -1184,7 +1322,8 @@ namespace frontier
   void SvgRenderer::render_surface(const Path & path,
 		  	  	  	  	  	  	   std::ostringstream & surfaces,
 		  	  	  	  	  	  	   const std::string & id,
-		  	  	  	  	  	  	   const std::string & surfaceName)		// cloudType (for CloudArea) or rainPhase (for SurfacePrecipitationArea)
+		  	  	  	  	  	  	   const std::string & surfaceName,		// cloudType (for CloudArea) or rainPhase (for SurfacePrecipitationArea)
+		  	  	  	  	  	  	   const std::list<std::string> * areaSymbols)
   {
 	const std::string confPath("Surface");
 
@@ -1253,7 +1392,7 @@ namespace frontier
 									throw std::runtime_error(confPath + ": minimum scale is 0.3");
 
 								// If autoscale is true (default: false) symbol is shrinken until
-								// at least one symbol can be placed on the surface
+								// at least one symbol or all areasymbols can be placed on the surface
 								bool isSet;
 								bool autoScale = configValue<bool>(specs,surfaceName,"autoscale",globalScope,s_optional,&isSet);
 								if (!isSet)
@@ -1274,10 +1413,26 @@ namespace frontier
 								if (!isSet)
 									showAreas = false;
 
+								// Get mapping for ParameterValueSetArea's symbols; code_<symCode> = <code>
+
+								std::list<std::string> fillSymbols;
+
+								if (areaSymbols) {
+									std::list<std::string>::const_iterator sym = areaSymbols->begin();
+									std::string code;
+
+									for ( ; (sym != areaSymbols->end()); sym++)
+										if (symbolMapping(config,confPath,"code_" + *sym,s_optional,code,surfIdx))
+											fillSymbols.push_back(code);
+
+									if (fillSymbols.size() < areaSymbols->size())
+										;
+								}
+
 								// Get fill areas.
 								//
-								// If none available and autoscale is set, retry with smaller symbol size
-								// down to half of the original size.
+								// If none available or not enough room for all area symbols, and autoscale is set,
+								// retry with smaller symbol size down to half of the original size.
 								//
 								NFmiFillMap fmap;
 								NFmiFillAreas areas;
@@ -1292,13 +1447,27 @@ namespace frontier
 								do {
 									ok = fmap.getFillAreas(w,h,width,height,scale,verticalRects,areas,false,scanUpDown);
 
-									if (! ok) {
-										width -= 2;
-										height -= 2;
+									if (ok && (fillSymbols.size() > 0)) {
+										// Check there is room for all area symbols
+										//
+										NFmiFillAreas::const_iterator iter;
+										NFmiFillPositions fpos;
+										size_t symCnt = 0;
+
+										for (iter = areas.begin(); ((iter != areas.end()) && (fpos.size() < fillSymbols.size())); iter++)
+											getFillPositions(iter,width,height,scale,fpos,symCnt);
+
+										ok = (fpos.size() >= fillSymbols.size());
 									}
 
+									if (!ok) {
+										width -= 2;
+										height -= 2;
+
+										areas.clear();
+									}
 								}
-								while ((! ok) && (width >= (_width / 2)) && (height >= (_height / 2)));
+								while (autoScale && (! ok) && (width >= (_width / 2)) && (height >= (_height / 2)));
 
 								// Get symbol positions withing the fill areas
 
@@ -1312,30 +1481,33 @@ namespace frontier
 								  "brown",
 								  "yellow"
 								};
-								int symCnt = 0,clrCnt = (sizeof(clrs) / sizeof(char *)),clrIdx = 0;
+								size_t symCnt = 0,clrCnt = (sizeof(clrs) / sizeof(char *)),clrIdx = 0;
 
-								NFmiFillAreas::const_iterator iter;
-								for (iter = areas.begin(); (iter != areas.end()); iter++) {
-									getFillPositions(iter,width,height,scale,verticalRects,fpos,symCnt);
+								if (!areaSymbols || (areas.size() < 2)) {
+									for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
+										getFillPositions(iter,width,height,scale,fpos,symCnt);
 
-									if (showAreas) {
-										// Draw fill area rects
-										//
-										surfaces << "<rect x=\""
-												 << iter->first.x
-												 << "\" y=\""
-												 << iter->first.y
-												 << "\" width=\""
-												 << iter->second.x - iter->first.x
-												 << "\" height=\""
-												 << iter->second.y - iter->first.y
-												 << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
-										clrIdx++;
+										if (showAreas) {
+											// Draw fill area rects
+											//
+											surfaces << "<rect x=\""
+													 << iter->first.x
+													 << "\" y=\""
+													 << iter->first.y
+													 << "\" width=\""
+													 << iter->second.x - iter->first.x
+													 << "\" height=\""
+													 << iter->second.y - iter->first.y
+													 << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
+											clrIdx++;
+										}
 									}
 								}
+								else if (fillSymbols.size() > 0)
+									getFillPositions(areas,width,height,fillSymbols.size(),scale,fpos);
 
 								// Render the symbols
-								render_symbol(confPath,surfaceName,"",0,0,&fpos);
+								render_symbol(confPath,surfaceName,"",0,0,&fpos,&fillSymbols);
 							}
 
 							if (type != "fill") {
@@ -1755,39 +1927,6 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Symbol mapping. Sets the mapped code into 'mappedCode' and
-   *		returns true if nonempty mapping exists.
-   */
-  // ----------------------------------------------------------------------
-
-  bool symbolMapping(const libconfig::Config & config,const std::string & confPath,const std::string & symCode,settings s_code,std::string & mappedCode)
-  {
-	const char * typeMsg = " must contain a group in curly brackets";
-
-	const libconfig::Setting & symbolSpecs = config.lookup(confPath);
-	if(!symbolSpecs.isGroup())
-		throw std::runtime_error(confPath + typeMsg);
-
-	// Symbol's <code>; code_<symCode> = <code>
-	//
-	// Note: libconfig does not support special characters in configuration keys; the code values
-	//		 have their +/- characters replaced with P_ and M_ (e.g. '+RA' is converted to 'P_RA')
-
-	mappedCode = boost::algorithm::trim_copy(symCode);
-	bool isSet = false;
-
-	if (!mappedCode.empty()) {
-		boost::algorithm::replace_all(mappedCode,"+","P_");
-		boost::algorithm::replace_all(mappedCode,"-","M_");
-
-		mappedCode = configValue<std::string>(symbolSpecs,confPath,mappedCode,NULL,s_code,&isSet);
-	}
-
-	return (isSet && (!mappedCode.empty()));
-  }
-
-  // ----------------------------------------------------------------------
-  /*!
    * \brief Aerodrome symbol rendering
    */
   // ----------------------------------------------------------------------
@@ -2047,7 +2186,8 @@ namespace frontier
 		  	  	  	  	  	  	  const std::string & symClass,
 		  	  	  	  	  	  	  const std::string & symCode,
 		  	  	  	  	  	  	  double lon,double lat,
-		  						  NFmiFillPositions * fpos)
+		  						  NFmiFillPositions * fpos,
+		  						  const std::list<std::string> * areaSymbols)
   {
 	// symCode is empty when called for PressureCenterType and StormType derived objects
 	// (AntiCyclone, Antimesocyclone, ..., ConvectiveStorm, Storm) or for surface filling
@@ -2145,20 +2285,24 @@ namespace frontier
 
 				// Symbol code. May contain folder too; [<folder>/]<code>
 				//
+				// Note: For ParameterValueSetArea the symbols are already mapped (code_<symCode> = <code>)
+
 				std::string folder;
 				std::string code;
 
-				try {
-					code = getFolderAndSymbol(config,scope,confPath,symClass,_symCode,s_code,validtime,folder);
-				}
-				catch (SettingIdNotFoundException & ex) {
-					// Symbol code not found
-					//
-					// Clear _hasLocaleGlobals to indicate the settings have been scanned upto current block and
-					// there no use do enter here again unless new locale global block(s) or current block is met
-					//
-					_hasLocaleGlobals = false;
-					continue;
+				if (!areaSymbols) {
+					try {
+						code = getFolderAndSymbol(config,scope,confPath,symClass,_symCode,s_code,validtime,folder);
+					}
+					catch (SettingIdNotFoundException & ex) {
+						// Symbol code not found
+						//
+						// Clear _hasLocaleGlobals to indicate the settings have been scanned upto current block and
+						// there's no use to enter here again unless new locale global block(s) or current block is met
+						//
+						_hasLocaleGlobals = false;
+						continue;
+					}
 				}
 
 				// Symbol type; (fill, fill+mask ==>) svg, img or font
@@ -2195,8 +2339,10 @@ namespace frontier
 
 					std::string uri = configValue<std::string>(scope,symClass,"url");
 
-					boost::algorithm::replace_all(uri,"%folder%",folder);
-					boost::algorithm::replace_all(uri,"%symbol%",code + "." + type);
+					if (!areaSymbols) {
+						boost::algorithm::replace_all(uri,"%folder%",folder);
+						boost::algorithm::replace_all(uri,"%symbol%",code + "." + type);
+					}
 
 					std::ostringstream wh;
 					if (hasWidth)
@@ -2214,15 +2360,38 @@ namespace frontier
 									 << "\"" << wh.str() << "/>\n";
 					else {
 						NFmiFillPositions::const_iterator piter;
+						std::list<std::string>::const_iterator siter = areaSymbols->begin();
 
 						for (piter = fpos->begin(); (piter != fpos->end()); piter++)
-							pointsymbols << "<image xlink:href=\""
-										 << svgescape(uri)
-										 << "\" x=\""
-										 << std::fixed << std::setprecision(1) << (piter->x - (width/2))
-										 << "\" y=\""
-										 << std::fixed << std::setprecision(1) << (piter->y - (height/2))
-										 << "\"" << wh.str() << "/>\n";
+							if (areaSymbols) {
+								if (siter == areaSymbols->end())
+									siter = areaSymbols->begin();
+
+								if (siter != areaSymbols->end()) {
+									std::string u(uri);
+
+									boost::algorithm::replace_all(u,"%folder%",folder);
+									boost::algorithm::replace_all(u,"%symbol%",*siter + "." + type);
+
+									pointsymbols << "<image xlink:href=\""
+												 << svgescape(u)
+												 << "\" x=\""
+												 << std::fixed << std::setprecision(1) << (piter->x - (width/2))
+												 << "\" y=\""
+												 << std::fixed << std::setprecision(1) << (piter->y - (height/2))
+												 << "\"" << wh.str() << "/>\n";
+
+									siter++;
+								}
+							}
+							else
+								pointsymbols << "<image xlink:href=\""
+											 << svgescape(uri)
+											 << "\" x=\""
+											 << std::fixed << std::setprecision(1) << (piter->x - (width/2))
+											 << "\" y=\""
+											 << std::fixed << std::setprecision(1) << (piter->y - (height/2))
+											 << "\"" << wh.str() << "/>\n";
 					}
 
 					return;
@@ -7357,6 +7526,60 @@ SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
   path.transform(proj);
 
   render_surface(path,precipitationareas,id,theFeature.rainPhaseName());
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get area's symbols
+ */
+// ----------------------------------------------------------------------
+
+void getAreaSymbols(const woml::ParameterValueSetArea & theFeature,std::list<std::string> & symbols)
+{
+  const boost::shared_ptr<woml::GeophysicalParameterValueSet> & parameters = theFeature.parameters();
+
+  std::list<woml::GeophysicalParameterValue>::iterator pvend = parameters->editableValues().end(),itpv;
+
+  for (itpv = parameters->editableValues().begin(); (itpv != pvend); itpv++) {
+	const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(itpv->value());
+
+	if (cvm) {
+		std::string symbol = boost::algorithm::trim_copy(cvm->category());
+
+		if (!symbol.empty())
+			symbols.push_back(symbol);
+	}
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render a ParameterValueSetArea
+ */
+// ----------------------------------------------------------------------
+
+void
+SvgRenderer::visit(const woml::ParameterValueSetArea & theFeature)
+{
+  if(options.debug)	std::cerr << "Visiting ParameterValueSetArea" << std::endl;
+
+  ++nprecipitationareas;
+  std::string id = "precipitation" + boost::lexical_cast<std::string>(nprecipitationareas);
+
+  const woml::CubicSplineSurface surface = theFeature.controlSurface();
+
+  Path path = PathFactory::create(surface);
+
+  PathProjector proj(area);
+  path.transform(proj);
+
+  // Get the area symbol(s)
+
+  std::list<std::string> areaSymbols;
+
+  getAreaSymbols(theFeature,areaSymbols);
+
+  render_surface(path,precipitationareas,id,"ParameterValueSetArea",&areaSymbols);
 }
 
 // ----------------------------------------------------------------------

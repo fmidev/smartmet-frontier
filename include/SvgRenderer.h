@@ -437,6 +437,7 @@ namespace frontier
     virtual void visit(const woml::PointMeteorologicalSymbol & theFeature);
     virtual void visit(const woml::Ridge & theFeature);
     virtual void visit(const woml::SurfacePrecipitationArea & theFeature);
+    virtual void visit(const woml::ParameterValueSetArea & theFeature);
     virtual void visit(const woml::Trough & theFeature);
     virtual void visit(const woml::UpperTrough & theFeature);
     virtual void visit(const woml::WarmAdvection & theFeature);
@@ -505,7 +506,8 @@ namespace frontier
 	void render_surface(const Path & path,
 						std::ostringstream & surfaces,
 						const std::string & id,
-						const std::string & surfaceName);
+						const std::string & surfaceName,
+						const std::list<std::string> * areaSymbols = NULL);
 	void render_aerodromeSymbol(const std::string & confPath,
 								const std::string & symClass,
 								const std::string & classNameExt,
@@ -518,7 +520,8 @@ namespace frontier
 					   const std::string & symClass,
 					   const std::string & symCode,
 					   double lon,double lat,
-					   NFmiFillPositions * fpos = NULL);
+					   NFmiFillPositions * fpos = NULL,
+					   const std::list<std::string> * areaSymbols = NULL);
 	void render_value(const std::string & path,
 					  const std::string & symClass,
 					  const woml::NumericalSingleValueMeasure * lowerLimit,
