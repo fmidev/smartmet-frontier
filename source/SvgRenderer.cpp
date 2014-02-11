@@ -843,7 +843,7 @@ namespace frontier
 	// Symbol distance in x -direction and first x -position
 
 	double distance = (areas.back().second.x - areas.front().first.x) / (symbolCnt + 1);
-	double symX = distance - (symbolWidth / 2.0);
+	double symX = areas.front().first.x + distance;
 	size_t n = 0;
 
 	for (NFmiFillAreas::const_iterator iter = areas.begin(); ((iter != areas.end()) && (n < symbolCnt)); iter++) {
@@ -1392,7 +1392,7 @@ namespace frontier
 									throw std::runtime_error(confPath + ": minimum scale is 0.3");
 
 								// If autoscale is true (default: false) symbol is shrinken until
-								// at least one symbol or all areasymbols can be placed on the surface
+								// at least one symbol or all area symbols can be placed on the surface
 								bool isSet;
 								bool autoScale = configValue<bool>(specs,surfaceName,"autoscale",globalScope,s_optional,&isSet);
 								if (!isSet)
@@ -1507,7 +1507,7 @@ namespace frontier
 									getFillPositions(areas,width,height,fillSymbols.size(),scale,fpos);
 
 								// Render the symbols
-								render_symbol(confPath,surfaceName,"",0,0,&fpos,&fillSymbols);
+								render_symbol(confPath,surfaceName,"",0,0,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
 							}
 
 							if (type != "fill") {
@@ -2360,7 +2360,10 @@ namespace frontier
 									 << "\"" << wh.str() << "/>\n";
 					else {
 						NFmiFillPositions::const_iterator piter;
-						std::list<std::string>::const_iterator siter = areaSymbols->begin();
+						std::list<std::string>::const_iterator siter;
+
+						if (areaSymbols)
+							siter = areaSymbols->begin();
 
 						for (piter = fpos->begin(); (piter != fpos->end()); piter++)
 							if (areaSymbols) {
