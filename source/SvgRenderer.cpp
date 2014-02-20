@@ -832,6 +832,43 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Split fill areas wider than twice the symbol width
+   */
+  // ----------------------------------------------------------------------
+
+  void splitFillAreas(NFmiFillAreas & areas,int symbolWidth,float scale)
+  {
+	NFmiFillAreas::iterator iter = areas.begin();
+	float scaledWidth = scale * symbolWidth;
+	bool splitted = false;
+
+	for ( ; (iter != areas.end()); iter++) {
+		if ((iter->second.x - iter->first.x) > (2 * scaledWidth)) {
+			splitted = true;
+
+			float xEnd = iter->second.x;
+			float x1 = iter->second.x = iter->first.x + floor(scaledWidth + 0.5);
+
+			do {
+				float x2 = x1 + floor(scaledWidth + 0.5);
+
+				if ((x2 + floor(scaledWidth + 0.5)) > xEnd)
+					x2 = xEnd;
+
+				areas.push_back(std::make_pair(Point(x1,iter->first.y),Point(x2,iter->second.y)));
+
+				x1 = x2;
+			}
+			while (x1 < xEnd);
+		}
+	}
+
+	if (splitted)
+		areas.sort(sortFillAreas);
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Get area symbol position(s) within fill area(s).
    */
   // ----------------------------------------------------------------------
