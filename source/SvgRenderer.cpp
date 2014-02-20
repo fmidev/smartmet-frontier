@@ -840,79 +840,25 @@ namespace frontier
   {
 	areas.sort(sortFillAreas);
 
-	// Symbol distance in x -direction and first x -position
+	if (symbolCnt > areas.size())
+		splitFillAreas(areas,symbolWidth,scale);
 
-	double distance = (areas.back().second.x - areas.front().first.x) / (symbolCnt + 1);
-	double symX = areas.front().first.x + distance;
-	size_t n = 0;
+	size_t step = ((symbolCnt < areas.size()) ? (areas.size() / (symbolCnt + 1)) : 1);
 
-	for (NFmiFillAreas::const_iterator iter = areas.begin(); ((iter != areas.end()) && (n < symbolCnt)); iter++) {
-		if ((iter->first.x < symX) && (iter->second.x > symX)) {
-			n++;
-			symX += distance;
+	NFmiFillAreas::const_iterator iter = areas.begin();
 
-			// Scan column's fill areas (covering the symbol x -position) backwards
+	for (size_t n = 1; ((iter != areas.end()) && (symbolCnt > 0)); iter++) {
+		if (n >= step) {
+			double x = iter->first.x + ((iter->second.x - iter->first.x) / 2.0);
+			double y = iter->first.y + ((iter->second.y - iter->first.y) / 2.0);
 
-			NFmiFillAreas::const_iterator piter = iter,niter = iter,fiter = iter,liter = iter;
-			double minX = 999999.9,maxX = 0.0,minY = 999999.9,maxY = 0.0;
+			fpos.push_back(Point(x,y));
+			symbolCnt--;
 
-			for ( ; ((piter == iter) || (piter->second.x >= iter->first.x)); piter--) {
-				if (piter->first.x < minX) minX = piter->first.x;
-				if (piter->second.x > maxX) maxX = piter->second.x;
-				if (piter->first.y < minY) minY = piter->first.y;
-				if (piter->second.y > maxY) maxY = piter->second.y;
-
-				if ((fiter = piter) == areas.begin())
-					break;
-			}
-
-			// Scan column's fill areas (covering the symbol x -position) forwards
-
-			for (++niter; ((niter != areas.end()) && (niter->first.x <= iter->second.x)); niter++) {
-				if (niter->first.x < minX) minX = niter->first.x;
-				if (niter->second.x > maxX) maxX = niter->second.x;
-				if (niter->first.y < minY) minY = niter->first.y;
-				if (niter->second.y > maxY) maxY = niter->second.y;
-
-				liter = niter;
-			}
-
-			// Position symbol to the center of the column and search for fill area covering the selected position.
-			//
-			// Note: The column might not be continuous. If fill area covering the center position does not exist, using
-			//		 the fill area nearest to the center.
-
-			double symX = minX + ((maxX - minX) / 2.0);
-			double symY = minY + ((maxY - minY) / 2.0);
-			double offset = -1.0;
-
-			for (niter = fiter,piter = iter; ; niter++) {
-				double x = niter->first.x + ((niter->second.x - niter->first.x) / 2.0);
-				double y = niter->first.y + ((niter->second.y - niter->first.y) / 2.0);
-				bool found = ((niter->first.x < symX) && (niter->second.x > symX) && (niter->first.y < symY) && (niter->second.y > symY));
-
-				if (!found) {
-					double xOff = (x - symX),yOff = (y - symY);
-					double off = sqrt((xOff * xOff) + (yOff * yOff));
-
-					if ((offset < 0) || (off < offset)) {
-						offset = off;
-						piter = niter;
-					}
-
-					if (niter == liter) {
-						x = piter->first.x + ((piter->second.x - piter->first.x) / 2.0);
-						y = piter->first.y + ((piter->second.y - piter->first.y) / 2.0);
-					}
-				}
-
-				if (found || (niter == liter))
-				{
-					fpos.push_back(Point(x,y));
-					break;
-				}
-			}
+			n = 0;
 		}
+
+		n++;
 	}
   }
 
@@ -1282,7 +1228,13 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  bool symbolMapping(const libconfig::Config & config,const std::string & confPath,const std::string & symCode,settings s_code,std::string & mappedCode,int specsIdx = -1)
+  bool symbolMapping(const libconfig::Config & config,
+		  	  	  	 const std::string & confPath,
+		  	  	  	 const std::string & symCode,
+		  	  	  	 settings s_code,
+		  	  	  	 std::string & mappedCode,
+		  	  	  	 const libconfig::Setting * globalScope = NULL,
+		  	  	  	 int specsIdx = -1)
   {
 	const char * typeMsg = " must contain a group in curly brackets";
 
@@ -1307,7 +1259,7 @@ namespace frontier
 		boost::algorithm::replace_all(mappedCode,"-","M_");
 		boost::algorithm::replace_all(mappedCode,"@","_");
 
-		mappedCode = configValue<std::string>(symbolSpecs,symPath,mappedCode,NULL,s_code,&isSet);
+		mappedCode = configValue<std::string>(symbolSpecs,symPath,mappedCode,globalScope,s_code,&isSet);
 	}
 
 	return (isSet && (!mappedCode.empty()));
@@ -1362,7 +1314,7 @@ namespace frontier
 					if ((type == "pattern") || (type == "glyph") || filled || masked) {
 						// Class and style
 						//
-						std::string classDef((masked || (type == "glyph")) ? configValue<std::string>(specs,surfaceName,"class",globalScope) : "");
+						std::string classDef((type != "pattern") ? configValue<std::string>(specs,surfaceName,"class",globalScope) : "");
 						std::string style((type != "fill") ? configValue<std::string>(specs,surfaceName,"style",globalScope) : "");
 
 						if (type == "pattern")
@@ -1422,7 +1374,7 @@ namespace frontier
 									std::string code;
 
 									for ( ; (sym != areaSymbols->end()); sym++)
-										if (symbolMapping(config,confPath,"code_" + *sym,s_optional,code,surfIdx))
+										if (symbolMapping(config,confPath,"code_" + *sym,s_optional,code,globalScope,surfIdx))
 											fillSymbols.push_back(code);
 
 									if (fillSymbols.size() < areaSymbols->size())
@@ -1503,66 +1455,81 @@ namespace frontier
 										}
 									}
 								}
-								else if (fillSymbols.size() > 0)
+								else if (fillSymbols.size() > 0) {
 									getFillPositions(areas,width,height,fillSymbols.size(),scale,fpos);
+
+									if (showAreas)
+										// Draw fill area rects
+										//
+										for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
+											surfaces << "<rect x=\""
+													 << iter->first.x
+													 << "\" y=\""
+													 << iter->first.y
+													 << "\" width=\""
+													 << iter->second.x - iter->first.x
+													 << "\" height=\""
+													 << iter->second.y - iter->first.y
+													 << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
+											clrIdx++;
+									}
+								}
 
 								// Render the symbols
 								render_symbol(confPath,surfaceName,"",0,0,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
 							}
 
-							if (type != "fill") {
-								surfaces << "<use class=\""
-										 << classDef
-										 << "\" xlink:href=\"#"
-										 << pathId;
+							surfaces << "<use class=\""
+									 << classDef
+									 << "\" xlink:href=\"#"
+									 << pathId << (filled ? "\"/>\n": "");
 
-								if (masked) {
-									std::string maskId(pathId + "mask");
+							if (masked) {
+								std::string maskId(pathId + "mask");
 
-									masks << "<mask id=\""
-										  << maskId
-										  << "\" maskUnits=\"userSpaceOnUse\">\n"
-										  << "<use xlink:href=\"#"
-										  << pathId
-										  << "\" class=\""
-										  << style
-										  << "\"/>\n</mask>\n";
+								masks << "<mask id=\""
+									  << maskId
+									  << "\" maskUnits=\"userSpaceOnUse\">\n"
+									  << "<use xlink:href=\"#"
+									  << pathId
+									  << "\" class=\""
+									  << style
+									  << "\"/>\n</mask>\n";
 
-									surfaces << "\" mask=\"url(#"
-											 << maskId
-											 << ")\"/>\n";
+								surfaces << "\" mask=\"url(#"
+										 << maskId
+										 << ")\"/>\n";
+							}
+							else if (!filled) {
+								// glyph
+								std::string _glyph("U");
+								double textlength = static_cast<double>(_glyph.size());
+								double len = path.length();
+								double fontsize = getCssSize(".cloudborderglyph","font-size");
+								double spacing = 0.0;
+
+								int CosmologicalConstant = 2;
+								int nglyphs = CosmologicalConstant * static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
+
+								if((textlength > 0) && (nglyphs > 0))
+								{
+									std::string glyph(_glyph.size() * nglyphs,' ');
+									std::string spaces(_glyph.size(),' ');
+									boost::replace_all(glyph,spaces,_glyph);
+
+									surfaces << "\"/>\n<text>\n"
+											 << "<textPath class=\""
+											 << style
+											 << "\" xlink:href=\"#"
+											 << pathId
+											 << "\">\n"
+											 << glyph
+											 << "\n</textPath>"
+//											 << "<!-- len=" << len << " textlength=" << textlength << " fontsize=" << fontsize << " -->"
+											 << "\n</text>\n";
 								}
-								else {
-									// glyph
-									std::string _glyph("U");
-									double textlength = static_cast<double>(_glyph.size());
-									double len = path.length();
-									double fontsize = getCssSize(".cloudborderglyph","font-size");
-									double spacing = 0.0;
-
-									int CosmologicalConstant = 2;
-									int nglyphs = CosmologicalConstant * static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
-
-									if((textlength > 0) && (nglyphs > 0))
-									{
-										std::string glyph(_glyph.size() * nglyphs,' ');
-										std::string spaces(_glyph.size(),' ');
-										boost::replace_all(glyph,spaces,_glyph);
-
-										surfaces << "\"/>\n<text>\n"
-												 << "<textPath class=\""
-												 << style
-												 << "\" xlink:href=\"#"
-												 << pathId
-												 << "\">\n"
-												 << glyph
-												 << "\n</textPath>"
-//												 << "<!-- len=" << len << " textlength=" << textlength << " fontsize=" << fontsize << " -->"
-												 << "\n</text>\n";
-									}
-									else
-										surfaces << "\"/>\n";
-								}
+								else
+									surfaces << "\"/>\n";
 							}
 						}
 
@@ -1854,7 +1821,7 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   std::string getFolderAndSymbol(const libconfig::Config & config,
-		  	  	  	  	  	  	 std::list<const libconfig::Setting *> & scope,
+		  	  	  	  	  	  	 std::list<const libconfig::Setting *> * scope,
 		  	  	  	  	  	  	 const std::string & confPath,
 		  	  	  	  	  	  	 const std::string & symClass,
 		  	  	  	  	  	  	 const std::string & symCode,
@@ -1866,7 +1833,7 @@ namespace frontier
 
 	// Search for the code truncating the scope to have the matching block as the last block
 
-	std::string code = configValue<std::string,int>(scope,symClass,symCode,s_code,NULL,true);
+	std::string code = (scope ? configValue<std::string,int>(*scope,symClass,symCode,s_code,NULL,true) : symCode);
 
 	std::vector<std::string> cols;
 	boost::split(cols,code,boost::is_any_of("/"));
@@ -1880,7 +1847,7 @@ namespace frontier
 	if ((cols.size() > 2) || (cols[0] == "") || (cols[codeIdx] == ""))
 		throw std::runtime_error(confPath + ": '" + code + "'" + codeMsg);
 
-	folder = ((codeIdx == 1) ? cols[0] : "");
+	folder = ((codeIdx == 1) ? cols[0] : (scope ? "" : folder));
 
 	return cols[codeIdx];
   }
@@ -2284,15 +2251,13 @@ namespace frontier
 				}
 
 				// Symbol code. May contain folder too; [<folder>/]<code>
-				//
-				// Note: For ParameterValueSetArea the symbols are already mapped (code_<symCode> = <code>)
 
 				std::string folder;
 				std::string code;
 
 				if (!areaSymbols) {
 					try {
-						code = getFolderAndSymbol(config,scope,confPath,symClass,_symCode,s_code,validtime,folder);
+						code = getFolderAndSymbol(config,&scope,confPath,symClass,_symCode,s_code,validtime,folder);
 					}
 					catch (SettingIdNotFoundException & ex) {
 						// Symbol code not found
@@ -2373,8 +2338,13 @@ namespace frontier
 								if (siter != areaSymbols->end()) {
 									std::string u(uri);
 
-									boost::algorithm::replace_all(u,"%folder%",folder);
-									boost::algorithm::replace_all(u,"%symbol%",*siter + "." + type);
+									// Symbol code may contain folder too; [<folder>/]<code>
+
+									std::string symFolder(folder);
+									code = getFolderAndSymbol(config,NULL,symClass,symClass,*siter,s_code,validtime,symFolder);
+
+									boost::algorithm::replace_all(u,"%folder%",symFolder);
+									boost::algorithm::replace_all(u,"%symbol%",code + "." + type);
 
 									pointsymbols << "<image xlink:href=\""
 												 << svgescape(u)
@@ -7582,7 +7552,7 @@ SvgRenderer::visit(const woml::ParameterValueSetArea & theFeature)
 
   getAreaSymbols(theFeature,areaSymbols);
 
-  render_surface(path,precipitationareas,id,"ParameterValueSetArea",&areaSymbols);
+  render_surface(path,precipitationareas,id,theFeature.parameters()->values().front().parameter().name(),&areaSymbols);
 }
 
 // ----------------------------------------------------------------------
