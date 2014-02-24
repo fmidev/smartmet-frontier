@@ -504,7 +504,7 @@ namespace frontier
 					 const std::string & textName,
 					 const std::string & text);
 	void render_surface(const Path & path,
-						std::ostringstream & surfaces,
+						std::ostringstream & surfaceOutput,
 						const std::string & id,
 						const std::string & surfaceName,
 						const std::list<std::string> * areaSymbols = NULL);
@@ -517,13 +517,15 @@ namespace frontier
 	template <typename T> void render_aerodromeSymbols(const T & theFeature,
 												       const std::string & confPath);
 	void render_symbol(const std::string & path,
+					   std::ostringstream & symOutput,
 					   const std::string & symClass,
 					   const std::string & symCode,
 					   double lon,double lat,
 					   NFmiFillPositions * fpos = NULL,
 					   const std::list<std::string> * areaSymbols = NULL);
 	void render_value(const std::string & path,
-					  const std::string & symClass,
+					  std::ostringstream & valOutput,
+					  const std::string & valClass,
 					  const woml::NumericalSingleValueMeasure * lowerLimit,
 					  const woml::NumericalSingleValueMeasure * upperLimit,
 					  double lon,
