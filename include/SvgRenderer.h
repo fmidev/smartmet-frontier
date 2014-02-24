@@ -535,6 +535,7 @@ namespace frontier
 							 const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
 							 ElevGrp & eGrp,
 							 bool all = true,
+							 bool join = true,
 							 CategoryValueMeasureGroup * categoryGroup = NULL);
 	unsigned int getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int nextGroupNumber,bool mixed = true);
 	unsigned int getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber,bool mixed = true);

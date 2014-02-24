@@ -3716,7 +3716,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,false,&cloudGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,false,true,&cloudGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
@@ -3832,6 +3832,65 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Join vertically overlapping elevations
+   */
+  // ----------------------------------------------------------------------
+
+  bool joinElevations(ElevGrp & eGrp)
+  {
+	ElevGrp::iterator egend(eGrp.end()),iteg = eGrp.begin(),piteg;
+	double plo = 0.0,phi = 0.0;
+	bool joined = false;
+
+	for (piteg = iteg; (iteg != egend); ) {
+		if (iteg->isDeleted()) {
+			iteg = eGrp.erase(iteg);
+			continue;
+		}
+
+		const woml::Elevation & e = iteg->Pv()->elevation();
+		boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+		const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+		boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+		const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+		double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+		double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+		int dh = ((piteg != iteg) ? (piteg->validTime() - iteg->validTime()).hours() : 1);
+
+		if ((dh == 0) && (plo < hi)) {
+			// Elevations overlap vertically; store the joined range to the upper and erase the lower elevation
+			//
+			lo = std::min(plo,lo);
+			hi = phi;
+
+			boost::optional<woml::NumericalValueRangeMeasure> joinedRng(woml::NumericalValueRangeMeasure(
+							woml::NumericalSingleValueMeasure(lo,"",""),
+							woml::NumericalSingleValueMeasure(hi,"","")));
+			woml::Elevation jElev(joinedRng);
+			boost::optional<woml::Elevation> eJoined(jElev);
+
+			piteg->Pv()->elevation(*eJoined);
+
+			iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+			iteg = eGrp.erase(iteg);
+
+			joined = true;
+		}
+		else {
+			piteg = iteg;
+			iteg++;
+		}
+
+		plo = lo;
+		phi = hi;
+	}
+
+	return joined;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Get group of elevations from a time serie.
    * 		Returns group's type.
    */
@@ -3841,6 +3900,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		  	  	  	  	  	  	  	  	  	  	  	 const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
 		  	  	  	  	  	  	  	  	  	  	  	 ElevGrp & eGrp,
 		  	  	  	  	  	  	  	  	  	  	  	 bool all,
+		  	  	  	  	  	  	  	  	  	  	  	 bool join,
 													 CategoryValueMeasureGroup * categoryGroup)
   {
 	// Collect group of elevations.
@@ -3850,6 +3910,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	// Otherwise preset group number (set by setGroupNumbers()) and value category
 	// (if given; cloud type or magnitude for icing or turbulence) is taken into account.
 	//
+	// If 'join' is true, vertically overlapping elevations are joined.
 
 	CategoryValueMeasureGroup overlappingGroup;
 
@@ -3920,10 +3981,21 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				eGrp.push_back(ElevationGroupItem(vt,itpvs,itpv));
 
 				if (byCategory && categoryGroup->standalone())
+					// Note: Vertical overlapping is currently not checked for standalone group category; should load
+					//		 all elevations for the time instant, join and return the first elevation if required
+					//
 					return (groundGrp ? t_ground : t_nonground);
 			}	// for itpv
 		}	// for itpvs
 	}	// for itts
+
+	// Join vertically overlapping elevations.
+	//
+	// Note: If nonground and ground elevations are joined, the group type returned might be logically wrong
+	//		 ('mixed' instead of 'ground'); currently this is not an issue.
+
+	if (join)
+		joinElevations(eGrp);
 
 	return ((groundGrp && nonGroundGrp) ? t_mixed : (groundGrp ? t_ground : t_nonground));
   }
@@ -4468,7 +4540,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			}
 
 		if (reLoad) {
-			elevationGroup(ts,bt,et,eGrp);
+			elevationGroup(ts,bt,et,eGrp,true,false);
 
 			egbeg = eGrp.begin();
 			egend = eGrp.end();
@@ -4609,7 +4681,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
 			//
-			elevationGroup(ts,bt,et,eGrp,false);
+			elevationGroup(ts,bt,et,eGrp,false,true);
 
 			if (eGrp.size() == 0)
 				break;
@@ -5094,7 +5166,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,false,&icingGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,false,true,&icingGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
@@ -5242,7 +5314,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,false,&icingGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,false,true,&icingGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
@@ -5933,7 +6005,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Set unique group number for members of each overlapping group of elevations
+   * \brief Set unique group number for members of each horizontally overlapping group of elevations
    */
   // ----------------------------------------------------------------------
 
@@ -6121,7 +6193,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
 			//
-			elevationGroup(ts,bt,et,eGrpAll,false);
+			elevationGroup(ts,bt,et,eGrpAll,false,true);
 
 			if (eGrpAll.size() == 0)
 				break;
