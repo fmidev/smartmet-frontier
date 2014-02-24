@@ -1309,10 +1309,10 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   void SvgRenderer::render_surface(const Path & path,
-		  	  	  	  	  	  	   std::ostringstream & surfaces,
+		  	  	  	  	  	  	   std::ostringstream & surfaceOutput,
 		  	  	  	  	  	  	   const std::string & id,
-		  	  	  	  	  	  	   const std::string & surfaceName,		// cloudType (for CloudArea) or rainPhase (for SurfacePrecipitationArea)
-		  	  	  	  	  	  	   const std::list<std::string> * areaSymbols)
+		  	  	  	  	  	  	   const std::string & surfaceName,				// cloudType (for CloudArea), rainPhase (for SurfacePrecipitationArea or area type for ParameterValueSetArea)
+		  	  	  	  	  	  	   const std::list<std::string> * areaSymbols)	// Symbols to be placed into ParameterValueSetArea
   {
 	const std::string confPath("Surface");
 
@@ -1353,6 +1353,11 @@ namespace frontier
 						//
 						std::string classDef((type != "pattern") ? configValue<std::string>(specs,surfaceName,"class",globalScope) : "");
 						std::string style((type != "fill") ? configValue<std::string>(specs,surfaceName,"style",globalScope) : "");
+
+						// Output placeholder; by default output to passed stream
+
+						std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(specs,surfaceName,"output",globalScope,s_optional)));
+						std::ostringstream & surfaces = (placeHolder.empty() ? surfaceOutput : texts[placeHolder]);
 
 						if (type == "pattern")
 							surfaces << "<g id=\""
@@ -1513,7 +1518,7 @@ namespace frontier
 								}
 
 								// Render the symbols
-								render_symbol(confPath,surfaceName,"",0,0,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
+								render_symbol(confPath,pointsymbols,surfaceName,"",0,0,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
 							}
 
 							surfaces << "<use class=\""
@@ -2187,6 +2192,7 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   void SvgRenderer::render_symbol(const std::string & confPath,
+		  	  	  	  	  	  	  std::ostringstream & symOutput,
 		  	  	  	  	  	  	  const std::string & symClass,
 		  	  	  	  	  	  	  const std::string & symCode,
 		  	  	  	  	  	  	  double lon,double lat,
@@ -2327,6 +2333,11 @@ namespace frontier
 						yoffset = 0;
 				}
 
+				// Output placeholder; by default output to passed stream
+
+				std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(scope,symClass,"output",s_optional)));
+				std::ostringstream & symbols = (placeHolder.empty() ? symOutput : texts[placeHolder]);
+
 				if ((type == "svg") || (type == "img")) {
 					// Some settings are required for svg but optional for img
 					//
@@ -2353,13 +2364,13 @@ namespace frontier
 						wh << " height=\"" << std::fixed << std::setprecision(0) << height << "px\"";
 
 					if (!fpos)
-						pointsymbols << "<image xlink:href=\""
-									 << svgescape(uri)
-									 << "\" x=\""
-									 << std::fixed << std::setprecision(1) << ((lon-width/2) - xoffset)
-									 << "\" y=\""
-									 << std::fixed << std::setprecision(1) << ((lat-height/2) + yoffset)
-									 << "\"" << wh.str() << "/>\n";
+						symbols << "<image xlink:href=\""
+								<< svgescape(uri)
+								<< "\" x=\""
+								<< std::fixed << std::setprecision(1) << ((lon-width/2) - xoffset)
+								<< "\" y=\""
+								<< std::fixed << std::setprecision(1) << ((lat-height/2) + yoffset)
+								<< "\"" << wh.str() << "/>\n";
 					else {
 						NFmiFillPositions::const_iterator piter;
 						std::list<std::string>::const_iterator siter;
@@ -2383,25 +2394,25 @@ namespace frontier
 									boost::algorithm::replace_all(u,"%folder%",symFolder);
 									boost::algorithm::replace_all(u,"%symbol%",code + "." + type);
 
-									pointsymbols << "<image xlink:href=\""
-												 << svgescape(u)
-												 << "\" x=\""
-												 << std::fixed << std::setprecision(1) << (piter->x - (width/2))
-												 << "\" y=\""
-												 << std::fixed << std::setprecision(1) << (piter->y - (height/2))
-												 << "\"" << wh.str() << "/>\n";
+									symbols << "<image xlink:href=\""
+											<< svgescape(u)
+											<< "\" x=\""
+											<< std::fixed << std::setprecision(1) << (piter->x - (width/2))
+											<< "\" y=\""
+											<< std::fixed << std::setprecision(1) << (piter->y - (height/2))
+											<< "\"" << wh.str() << "/>\n";
 
 									siter++;
 								}
 							}
 							else
-								pointsymbols << "<image xlink:href=\""
-											 << svgescape(uri)
-											 << "\" x=\""
-											 << std::fixed << std::setprecision(1) << (piter->x - (width/2))
-											 << "\" y=\""
-											 << std::fixed << std::setprecision(1) << (piter->y - (height/2))
-											 << "\"" << wh.str() << "/>\n";
+								symbols << "<image xlink:href=\""
+										<< svgescape(uri)
+										<< "\" x=\""
+										<< std::fixed << std::setprecision(1) << (piter->x - (width/2))
+										<< "\" y=\""
+										<< std::fixed << std::setprecision(1) << (piter->y - (height/2))
+										<< "\"" << wh.str() << "/>\n";
 					}
 
 					return;
@@ -2419,30 +2430,30 @@ namespace frontier
 					std::string id = "symbol" + boost::lexical_cast<std::string>(npointsymbols);
 
 					if (!fpos)
-						pointsymbols << "<text class=\""
-									 << class1
-									 << class2
-									 << "\" id=\""
-									 << id
-									 << "\" x=\""
-									 << std::fixed << std::setprecision(1) << (lon - xoffset)
-									 << "\" y=\""
-									 << std::fixed << std::setprecision(1) << (lat + yoffset)
-									 << "\">&#" << code << ";</text>\n";
+						symbols << "<text class=\""
+								<< class1
+								<< class2
+								<< "\" id=\""
+								<< id
+								<< "\" x=\""
+								<< std::fixed << std::setprecision(1) << (lon - xoffset)
+								<< "\" y=\""
+								<< std::fixed << std::setprecision(1) << (lat + yoffset)
+								<< "\">&#" << code << ";</text>\n";
 					else {
 						NFmiFillPositions::const_iterator piter;
 
 						for (piter = fpos->begin(); (piter != fpos->end()); piter++)
-							pointsymbols << "<text class=\""
-										 << class1
-										 << class2
-										 << "\" id=\""
-										 << id
-										 << "\" x=\""
-										 << std::fixed << std::setprecision(1) << piter->x
-										 << "\" y=\""
-										 << std::fixed << std::setprecision(1) << piter->y
-										 << "\">&#" << code << ";</text>\n";
+							symbols << "<text class=\""
+									<< class1
+									<< class2
+									<< "\" id=\""
+									<< id
+									<< "\" x=\""
+									<< std::fixed << std::setprecision(1) << piter->x
+									<< "\" y=\""
+									<< std::fixed << std::setprecision(1) << piter->y
+									<< "\">&#" << code << ";</text>\n";
 					}
 
 					return;
@@ -6318,6 +6329,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
   // ----------------------------------------------------------------------
 
   void SvgRenderer::render_value(const std::string & confPath,
+		  	  	  	  	  	  	 std::ostringstream & valOutput,
 		  	  	  	  	  	  	 const std::string & valClass,
 		  	  	  	  	  	  	 const woml::NumericalSingleValueMeasure * lowerLimit,
 		  	  	  	  	  	  	 const woml::NumericalSingleValueMeasure * upperLimit,
@@ -6377,6 +6389,10 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 							? matchingCondition(config,confPath,valClass,"",i,lowerLimit->numericValue())
 							: NULL;
 
+						// Output placeholder; by default output to passed stream
+
+						std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(specs,valClass,"output",globalScope,s_optional)));
+
 						if (condSpecs) {
 							// Class from the condition or from the parent/parameter block
 							//
@@ -6390,27 +6406,33 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 							std::string chref = configValue<std::string>(*condSpecs,valClass,"href" + vtype,NULL,s_optional,&isSet);
 							if (isSet)
 								href = chref;
+
+							std::string ph = configValue<std::string>(*condSpecs,valClass,"output",NULL,s_optional,&isSet);
+							if (isSet)
+								placeHolder = ph;
 						}
 
-						pointvalues << "<g class=\""
-									<< classDef
-									<< "\">\n";
+						std::ostringstream & values = (placeHolder.empty() ? valOutput : texts[placeHolder]);
+
+						values << "<g class=\""
+							   << classDef
+							   << "\">\n";
 
 						if (href.empty())
-							pointvalues << "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
-										<< "\" text-anchor=\"middle\" x=\"" << std::fixed << std::setprecision(1) << lon
-										<< "\" y=\"" << std::fixed << std::setprecision(1) << lat
-										<< "\">" << formattedValue(lowerLimit,upperLimit,confPath,pref) << "</text>\n";
+							values << "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
+								   << "\" text-anchor=\"middle\" x=\"" << std::fixed << std::setprecision(1) << lon
+								   << "\" y=\"" << std::fixed << std::setprecision(1) << lat
+								   << "\">" << formattedValue(lowerLimit,upperLimit,confPath,pref) << "</text>\n";
 						else
-							pointvalues << "<g transform=\"translate("
-										<< std::fixed << std::setprecision(1) << lon << " "
-										<< std::fixed << std::setprecision(1) << lat << ")\">\n"
-										<< "<use xlink:href=\"#" << href << "\"/>\n"
-										<< "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
-										<< "\" text-anchor=\"middle\">" << formattedValue(lowerLimit,upperLimit,confPath,pref) << "</text>\n"
-										<< "</g>\n";
+							values << "<g transform=\"translate("
+								   << std::fixed << std::setprecision(1) << lon << " "
+								   << std::fixed << std::setprecision(1) << lat << ")\">\n"
+								   << "<use xlink:href=\"#" << href << "\"/>\n"
+								   << "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
+								   << "\" text-anchor=\"middle\">" << formattedValue(lowerLimit,upperLimit,confPath,pref) << "</text>\n"
+								   << "</g>\n";
 
-						pointvalues << "</g>\n";
+						values << "</g>\n";
 
 						return;
 					}
@@ -7471,14 +7493,14 @@ void SvgRenderer::visit(const woml::ParameterValueSetPoint & theFeature)
 
 		if (fdm)
 			// FlowDirectionMeasure (wind direction) is visualized as symbol
-			render_symbol("ParameterValueSetPoint",theValue.parameter().name(),fdm->value(),theFeature.point()->lon(),theFeature.point()->lat());
+			render_symbol("ParameterValueSetPoint",pointsymbols,theValue.parameter().name(),fdm->value(),theFeature.point()->lon(),theFeature.point()->lat());
 		else {
 			const woml::NumericalSingleValueMeasure * svm = dynamic_cast<const woml::NumericalSingleValueMeasure *>(theValue.value());
 			const woml::NumericalValueRangeMeasure * vrm = dynamic_cast<const woml::NumericalValueRangeMeasure *>(theValue.value());
 
 			if (svm || vrm)
 				// NumericalSingleValueMeasure and NumericalValueRangeMeasure are visualized as value
-				render_value("ParameterValueSetPoint",theValue.parameter().name(),svm ? svm : &(vrm->lowerLimit()),svm ? NULL : &(vrm->upperLimit()),theFeature.point()->lon(),theFeature.point()->lat());
+				render_value("ParameterValueSetPoint",pointvalues,theValue.parameter().name(),svm ? svm : &(vrm->lowerLimit()),svm ? NULL : &(vrm->upperLimit()),theFeature.point()->lon(),theFeature.point()->lat());
 		}
 	}
 }
@@ -7517,7 +7539,7 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
   std::string symClass = PointMeteorologicalSymbolDefinition(theFeature,symCode);
 
   // Render the symbol
-  render_symbol("pointMeteorologicalSymbol",symClass,symCode,theFeature.point()->lon(),theFeature.point()->lat());
+  render_symbol("pointMeteorologicalSymbol",pointsymbols,symClass,symCode,theFeature.point()->lon(),theFeature.point()->lat());
 }
 
 // ----------------------------------------------------------------------
@@ -7530,7 +7552,7 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 void SvgRenderer::visit(const c & theFeature) \
 { \
   if(options.debug)	std::cerr << "Visiting " << theFeature.className() << std::endl; \
-  render_symbol("pointMeteorologicalSymbol",theFeature.className(),"",theFeature.point()->lon(),theFeature.point()->lat()); \
+  render_symbol("pointMeteorologicalSymbol",pointsymbols,theFeature.className(),"",theFeature.point()->lon(),theFeature.point()->lat()); \
 }
 
 RenderPressureCenterTypeDerivedClass(woml::AntiCyclone)
