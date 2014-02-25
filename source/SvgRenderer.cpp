@@ -1374,6 +1374,28 @@ namespace frontier
 								  << pathId
 								  << "\" d=\"" << path.svg() << "\"/>\n";
 
+							surfaces << "<use class=\""
+									 << classDef
+									 << "\" xlink:href=\"#"
+									 << pathId << ((filled && (!masked)) ? "\"/>\n": "");
+
+							if (masked) {
+								std::string maskId(pathId + "mask");
+
+								masks << "<mask id=\""
+									  << maskId
+									  << "\" maskUnits=\"userSpaceOnUse\">\n"
+									  << "<use xlink:href=\"#"
+									  << pathId
+									  << "\" class=\""
+									  << style
+									  << "\"/>\n</mask>\n";
+
+								surfaces << "\" mask=\"url(#"
+										 << maskId
+										 << ")\"/>\n";
+							}
+
 							if (filled) {
 								// Fill symbol width and height and scale factor for bounding box for
 								// calculating suitable symbol positions
@@ -1520,29 +1542,7 @@ namespace frontier
 								// Render the symbols
 								render_symbol(confPath,pointsymbols,surfaceName,"",0,0,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
 							}
-
-							surfaces << "<use class=\""
-									 << classDef
-									 << "\" xlink:href=\"#"
-									 << pathId << (filled ? "\"/>\n": "");
-
-							if (masked) {
-								std::string maskId(pathId + "mask");
-
-								masks << "<mask id=\""
-									  << maskId
-									  << "\" maskUnits=\"userSpaceOnUse\">\n"
-									  << "<use xlink:href=\"#"
-									  << pathId
-									  << "\" class=\""
-									  << style
-									  << "\"/>\n</mask>\n";
-
-								surfaces << "\" mask=\"url(#"
-										 << maskId
-										 << ")\"/>\n";
-							}
-							else if (!filled) {
+							else if (!masked) {
 								// glyph
 								std::string _glyph("U");
 								double textlength = static_cast<double>(_glyph.size());
@@ -2333,9 +2333,9 @@ namespace frontier
 						yoffset = 0;
 				}
 
-				// Output placeholder; by default output to passed stream
+				// Output placeholder; by default output to passed stream. The setting is ignored for ParameterValueSetArea.
 
-				std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(scope,symClass,"output",s_optional)));
+				std::string placeHolder(areaSymbols ? "" : boost::algorithm::trim_copy(configValue<std::string>(scope,symClass,"output",s_optional)));
 				std::ostringstream & symbols = (placeHolder.empty() ? symOutput : texts[placeHolder]);
 
 				if ((type == "svg") || (type == "img")) {
