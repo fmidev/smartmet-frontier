@@ -1540,7 +1540,7 @@ namespace frontier
 								}
 
 								// Render the symbols
-								render_symbol(confPath,pointsymbols,surfaceName,"",0,0,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
+								render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
 							}
 							else if (!masked) {
 								// glyph
@@ -2196,6 +2196,7 @@ namespace frontier
 		  	  	  	  	  	  	  const std::string & symClass,
 		  	  	  	  	  	  	  const std::string & symCode,
 		  	  	  	  	  	  	  double lon,double lat,
+		  	  	  	  	  	  	  const woml::NumericalSingleValueMeasure * svm,
 		  						  NFmiFillPositions * fpos,
 		  						  const std::list<std::string> * areaSymbols)
   {
@@ -2278,9 +2279,11 @@ namespace frontier
 						else
 							hasLocaleGlobals = _hasLocaleGlobals = true;
 
-						// Search for conditional settings based on the documents validTime (it's time value)
+						// Search for conditional settings based on the documents validTime (it's time value) or given measurement value
 
-						const libconfig::Setting * condSpecs = matchingCondition(config,confPath,symClass,_symCode,symbolIdx,validtime);
+						const libconfig::Setting * condSpecs = svm
+							? matchingCondition(config,confPath,symClass,"",symbolIdx,svm->numericValue())
+							: matchingCondition(config,confPath,symClass,_symCode,symbolIdx,validtime);
 
 						if (condSpecs)
 							scope.push_back(condSpecs);
@@ -6334,7 +6337,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		  	  	  	  	  	  	 const woml::NumericalSingleValueMeasure * lowerLimit,
 		  	  	  	  	  	  	 const woml::NumericalSingleValueMeasure * upperLimit,
 		  	  	  	  	  	  	 double lon,
-		  	  	  	  	  	  	 double lat)
+		  	  	  	  	  	  	 double lat,
+		  	  	  	  	  	  	 bool asValue)
   {
 	// Find the pixel coordinate
 	PathProjector proj(area);
@@ -6368,8 +6372,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 					// Missing settings from globals when available
 					libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &valSpecs[globalsIdx] : NULL);
 
-					// Value type; value (the default) or svg
-					std::string type = configValue<std::string>(specs,valClass,"type",globalScope,s_optional);
+					// Value type; value (the default) or svg.
+					//
+					// Note: When rendering (wind symbol with) wind speed asValue is true; block's 'type' setting
+					// (for the symbol; svg) is ignored
+					std::string type = (asValue ? "value" : configValue<std::string>(specs,valClass,"type",globalScope,s_optional));
 
 					if (type.empty() || (type == "value")) {
 						// Class, format and reference for background class
@@ -6383,22 +6390,37 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						std::string pref(configValue<std::string>(specs,valClass,"pref" + vtype,globalScope,s_optional));
 						std::string href(configValue<std::string>(specs,valClass,"href" + vtype,globalScope,s_optional));
 
+						// Output placeholder; by default output to passed stream
+
+						std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(specs,valClass,"output",globalScope,s_optional)));
+
+						// Offsets for placing the value (used for wind speed to position the value to the center or to the border
+						// of the wind symbol)
+
+						int xoffset = 0,yoffset = 0;
+						bool isSet;
+
+						if (asValue) {
+							xoffset = static_cast<int>(floor(configValue<float,int>(specs,valClass,"xoffset",globalScope,s_optional,&isSet)));
+							if (!isSet)
+								xoffset = 0;
+
+							yoffset = static_cast<int>(floor(configValue<float,int>(specs,valClass,"yoffset",globalScope,s_optional,&isSet)));
+							if (!isSet)
+								yoffset = 0;
+						}
+
 						// For single value, search for matching condition with nearest comparison value
 
 						const libconfig::Setting * condSpecs = (! upperLimit)
 							? matchingCondition(config,confPath,valClass,"",i,lowerLimit->numericValue())
 							: NULL;
 
-						// Output placeholder; by default output to passed stream
-
-						std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(specs,valClass,"output",globalScope,s_optional)));
-
 						if (condSpecs) {
 							// Class from the condition or from the parent/parameter block
 							//
 							classDef = configValue<std::string>(*condSpecs,valClass,"class",&specs);
 
-							bool isSet;
 							std::string cpref = configValue<std::string>(*condSpecs,valClass,"pref" + vtype,NULL,s_optional,&isSet);
 							if (isSet)
 								pref = cpref;
@@ -6410,7 +6432,22 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 							std::string ph = configValue<std::string>(*condSpecs,valClass,"output",NULL,s_optional,&isSet);
 							if (isSet)
 								placeHolder = ph;
+
+							if (asValue) {
+								int cxoffset = 0,cyoffset = 0;
+
+								cxoffset = static_cast<int>(floor(configValue<float,int>(*condSpecs,valClass,"xoffset",NULL,s_optional,&isSet)));
+								if (isSet)
+									xoffset = cxoffset;
+
+								cyoffset = static_cast<int>(floor(configValue<float,int>(*condSpecs,valClass,"yoffset",NULL,s_optional,&isSet)));
+								if (isSet)
+									yoffset = cyoffset;
+							}
 						}
+
+						lon += xoffset;
+						lat += yoffset;
 
 						std::ostringstream & values = (placeHolder.empty() ? valOutput : texts[placeHolder]);
 
@@ -7485,23 +7522,44 @@ void SvgRenderer::visit(const woml::ParameterValueSetPoint & theFeature)
 {
 	if(options.debug)	std::cerr << "Visiting ParameterValueSetPoint" << std::endl;
 
-	woml::GeophysicalParameterValueSet * params = theFeature.parameters().get();
+	// Wind with speed consists of two GeophysicalParameterValue; FlowDirectionMeasure and NumericalSingleValueMeasure.
+	// Pass the value to symbol rendering so value based conditional settings can be used.
 
-	if (!(params->values().empty())) {
-		woml::GeophysicalParameterValue theValue = params->values().front();
-		const woml::FlowDirectionMeasure * fdm = dynamic_cast<const woml::FlowDirectionMeasure *>(theValue.value());
+	const woml::GeophysicalParameterValueSet * params = theFeature.parameters().get();
+	const woml::FlowDirectionMeasure * fdm = NULL;
+	const woml::NumericalSingleValueMeasure * svm = NULL;
+	woml::GeophysicalParameterValueList::const_iterator itvfdm = params->values().end(),itvsvm = params->values().end();
+	woml::GeophysicalParameterValueList::const_iterator itv;
 
-		if (fdm)
-			// FlowDirectionMeasure (wind direction) is visualized as symbol
-			render_symbol("ParameterValueSetPoint",pointsymbols,theValue.parameter().name(),fdm->value(),theFeature.point()->lon(),theFeature.point()->lat());
-		else {
-			const woml::NumericalSingleValueMeasure * svm = dynamic_cast<const woml::NumericalSingleValueMeasure *>(theValue.value());
-			const woml::NumericalValueRangeMeasure * vrm = dynamic_cast<const woml::NumericalValueRangeMeasure *>(theValue.value());
+	for (itv = params->values().begin(); ((itv != params->values().end()) && (!(fdm && svm))); itv++) {
+		const woml::GeophysicalParameterValue & theValue = *itv;
 
-			if (svm || vrm)
-				// NumericalSingleValueMeasure and NumericalValueRangeMeasure are visualized as value
-				render_value("ParameterValueSetPoint",pointvalues,theValue.parameter().name(),svm ? svm : &(vrm->lowerLimit()),svm ? NULL : &(vrm->upperLimit()),theFeature.point()->lon(),theFeature.point()->lat());
+		if (!fdm) {
+			fdm = dynamic_cast<const woml::FlowDirectionMeasure *>(theValue.value());
+			itvfdm = itv;
 		}
+
+		if (!svm) {
+			svm = dynamic_cast<const woml::NumericalSingleValueMeasure *>(theValue.value());
+			itvsvm = itv;
+		}
+	}
+
+	if (fdm) {
+		const woml::GeophysicalParameterValue & theValue = *itvfdm;
+		render_symbol("ParameterValueSetPoint",pointsymbols,theValue.parameter().name(),fdm->value(),theFeature.point()->lon(),theFeature.point()->lat(),svm);
+	}
+
+	if (svm) {
+		const woml::GeophysicalParameterValue & theValue = *itvsvm;
+		render_value("ParameterValueSetPoint",pointvalues,theValue.parameter().name(),svm,NULL,theFeature.point()->lon(),theFeature.point()->lat(),fdm ? true : false);
+	}
+	else {
+		const woml::GeophysicalParameterValue & theValue = params->values().front();
+		const woml::NumericalValueRangeMeasure * vrm = dynamic_cast<const woml::NumericalValueRangeMeasure *>(theValue.value());
+
+		if (vrm)
+			render_value("ParameterValueSetPoint",pointvalues,theValue.parameter().name(),&(vrm->lowerLimit()),&(vrm->upperLimit()),theFeature.point()->lon(),theFeature.point()->lat());
 	}
 }
 

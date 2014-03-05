@@ -521,6 +521,7 @@ namespace frontier
 					   const std::string & symClass,
 					   const std::string & symCode,
 					   double lon,double lat,
+					   const woml::NumericalSingleValueMeasure * svm = NULL,
 					   NFmiFillPositions * fpos = NULL,
 					   const std::list<std::string> * areaSymbols = NULL);
 	void render_value(const std::string & path,
@@ -529,7 +530,8 @@ namespace frontier
 					  const woml::NumericalSingleValueMeasure * lowerLimit,
 					  const woml::NumericalSingleValueMeasure * upperLimit,
 					  double lon,
-					  double lat);
+					  double lat,
+					  bool asValue = false);
 
 	typedef enum { fst, fwd, vup, eup, bwd, vdn, edn, lst } Phase;
 	typedef enum { t_ground, t_nonground, t_mixed } GroupType;
