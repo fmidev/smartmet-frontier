@@ -6446,6 +6446,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 							}
 						}
 
+						// Wind speed is not rendered if format is empty (used to supress zero values)
+
+						if (asValue && href.empty())
+							return;
+
 						lon += xoffset;
 						lat += yoffset;
 
