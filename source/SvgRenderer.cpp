@@ -6414,11 +6414,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						bool isSet;
 
 						if (asValue) {
-							xoffset = static_cast<int>(floor(configValue<float,int>(specs,valClass,"xoffset",globalScope,s_optional,&isSet)));
+							xoffset = static_cast<int>(floor(configValue<float,int>(specs,valClass,"vxoffset",globalScope,s_optional,&isSet)));
 							if (!isSet)
 								xoffset = 0;
 
-							yoffset = static_cast<int>(floor(configValue<float,int>(specs,valClass,"yoffset",globalScope,s_optional,&isSet)));
+							yoffset = static_cast<int>(floor(configValue<float,int>(specs,valClass,"vyoffset",globalScope,s_optional,&isSet)));
 							if (!isSet)
 								yoffset = 0;
 						}
@@ -6449,11 +6449,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 							if (asValue) {
 								int cxoffset = 0,cyoffset = 0;
 
-								cxoffset = static_cast<int>(floor(configValue<float,int>(*condSpecs,valClass,"xoffset",NULL,s_optional,&isSet)));
+								cxoffset = static_cast<int>(floor(configValue<float,int>(*condSpecs,valClass,"vxoffset",NULL,s_optional,&isSet)));
 								if (isSet)
 									xoffset = cxoffset;
 
-								cyoffset = static_cast<int>(floor(configValue<float,int>(*condSpecs,valClass,"yoffset",NULL,s_optional,&isSet)));
+								cyoffset = static_cast<int>(floor(configValue<float,int>(*condSpecs,valClass,"vyoffset",NULL,s_optional,&isSet)));
 								if (isSet)
 									yoffset = cyoffset;
 							}
