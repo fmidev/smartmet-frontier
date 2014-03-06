@@ -6464,7 +6464,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						if (asValue && pref.empty())
 							return;
 
-						lon += xoffset;
+						lon -= xoffset;
 						lat += yoffset;
 
 						std::ostringstream & values = (placeHolder.empty() ? valOutput : texts[placeHolder]);
