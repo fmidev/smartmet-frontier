@@ -1869,13 +1869,23 @@ namespace frontier
 		  	  	  	  	  	  	 const std::string & symCode,
 		  	  	  	  	  	  	 settings s_code,
 		  	  	  	  	  	  	 const boost::posix_time::ptime & dateTimeValue,
-		  	  	  	  	  	  	 std::string & folder)
+		  	  	  	  	  	  	 std::string & folder,
+		  	  	  	  	  	  	 bool commonCode = false)
   {
 	const char * codeMsg = ": symbol code: [<folder>/]<code> expected";
 
 	// Search for the code truncating the scope to have the matching block as the last block
+	//
+	// If commonCode is set, using primarily plain 'code' key instead given symCode (containing code_<symCode>);
+	// used currently to conditionally map all wind symbols to 'calm' if wind speed is nan
 
-	std::string code = (scope ? configValue<std::string,int>(*scope,symClass,symCode,s_code,NULL,true) : symCode);
+	std::string code;
+
+	if (scope && commonCode)
+		code = configValue<std::string,int>(*scope,symClass,"code",s_optional,NULL,true);
+
+	if (code.empty())
+		code = (scope ? configValue<std::string,int>(*scope,symClass,symCode,s_code,NULL,true) : symCode);
 
 	std::vector<std::string> cols;
 	boost::split(cols,code,boost::is_any_of("/"));
@@ -2303,7 +2313,10 @@ namespace frontier
 
 				if (!areaSymbols) {
 					try {
-						code = getFolderAndSymbol(config,&scope,confPath,symClass,_symCode,s_code,validtime,folder);
+						// Note: When rendering wind symbol with wind speed, using primarily 'code' key for
+						//		 symbol mapping (used conditionally to map all wind symbols to 'calm' if speed is nan)
+						//
+						code = getFolderAndSymbol(config,&scope,confPath,symClass,_symCode,s_code,validtime,folder,svm ? true : false);
 					}
 					catch (SettingIdNotFoundException & ex) {
 						// Symbol code not found
@@ -6448,7 +6461,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 						// Wind speed is not rendered if format is empty (used to supress zero values)
 
-						if (asValue && href.empty())
+						if (asValue && pref.empty())
 							return;
 
 						lon += xoffset;
