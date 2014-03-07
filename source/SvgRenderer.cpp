@@ -4728,7 +4728,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 				double prevX = -xStep,prevVal = -1;
 				size_t visibleCnt = 0;
-				bool segmentVisible = false;
+				bool segmentVisible = false,prevAbove = false;
 
 				for (iteg = prevIteg = eGrp.begin(); (iteg != egend); ) {
 					// Get elevation's lo and hi range values
@@ -4757,11 +4757,16 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 					if (((val <= 0) || prevMissing) && (visibleCnt > 0)) {
 						// Continue ending path segment half timestep forwards.
-						// Connect the hi range point to the lo range point.
 						//
 						path << " L" << (prevX + (xStep / 2)) << "," << prevVal;
 
-						if (rng == 1) {
+						if (above)
+							// And then to the top of y -axis at this time instant.
+							//
+							path << " L" << (prevX + xStep) << ",0";
+						else if (rng == 1) {
+							// Connect the hi range point to the lo range point.
+							//
 							const woml::Elevation & e = prevIteg->Pv()->elevation();
 							boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
 							const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
@@ -4777,11 +4782,17 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						//
 						if (prevMissing) {
 							// Start new path segment half timestep backwards.
-							// Connect the lo range point to the hi range point.
 							//
 							path << " M" << (x - (xStep / 2)) << "," << val;
 
-							if (rng == 0)
+							if (prevAbove)
+								// Connect to the top of y -axis at previous time instant.
+								//
+								path << " L" << prevX << ",0"
+									 << " M" << (x - (xStep / 2)) << "," << val;
+							else if (rng == 0)
+								// Connect the lo range point to the hi range point.
+								//
 								path << " L" << (x - (xStep / 2)) << "," << axisManager->scaledElevation(hi)
 									 << " M" << (x - (xStep / 2)) << "," << val;
 
@@ -4805,6 +4816,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 					prevX = x;
 					prevVal = val;
+					prevAbove = above;
 
 					iteg++;
 
