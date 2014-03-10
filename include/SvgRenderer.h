@@ -502,7 +502,8 @@ namespace frontier
 					   const std::string & confPath = "Header");
 	void render_text(const std::string & confPath,
 					 const std::string & textName,
-					 const std::string & text);
+					 const std::string & text,
+					 int startX = 0,int startY = 0,bool centerToStartX = false);
 	void render_surface(const Path & path,
 						std::ostringstream & surfaceOutput,
 						const std::string & id,
@@ -521,6 +522,7 @@ namespace frontier
 					   const std::string & symClass,
 					   const std::string & symCode,
 					   double lon,double lat,
+					   const woml::Feature * feature = NULL,
 					   const woml::NumericalSingleValueMeasure * svm = NULL,
 					   NFmiFillPositions * fpos = NULL,
 					   const std::list<std::string> * areaSymbols = NULL);

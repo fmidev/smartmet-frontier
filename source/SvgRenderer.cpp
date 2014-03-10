@@ -1062,7 +1062,8 @@ namespace frontier
 
   void SvgRenderer::render_text(const std::string & confPath,
 		  	  	  	  	  	    const std::string & textName,
-		  	  	  	  	  	    const std::string & text)
+		  	  	  	  	  	    const std::string & text,
+		  	  	  	  	  	    int startX,int startY,bool centerToStartX)
   {
 	try {
 		const char * typeMsg = " must contain a list of groups in parenthesis";
@@ -1173,11 +1174,11 @@ namespace frontier
 				else
 					weight = "normal";
 
-				// Max width, height and x/y margin
-				unsigned int maxWidth = configValue<unsigned int>(scope,textName,"width");
+				// Max width, height, x/y margin and x/y offsets
+				unsigned int maxWidth = configValue<unsigned int>(scope,textName,"textwidth");
 
 				bool isSet;
-				unsigned int maxHeight = configValue<unsigned int>(scope,textName,"height",s_optional,&isSet);
+				unsigned int maxHeight = configValue<unsigned int>(scope,textName,"textheight",s_optional,&isSet);
 				if (! isSet)
 					maxHeight = 0;
 
@@ -1189,6 +1190,14 @@ namespace frontier
 					maxWidth = 20;
 				if ((maxHeight != 0) && (maxHeight <= 20))
 					maxHeight = 20;
+
+				unsigned int xOffset = configValue<unsigned int>(scope,textName,"txoffset",s_optional,&isSet);
+				if (! isSet)
+					xOffset = 0;
+
+				unsigned int yOffset = configValue<unsigned int>(scope,textName,"tyoffset",s_optional,&isSet);
+				if (! isSet)
+					yOffset = 0;
 
 				// Split the text into lines using given max. width and height
 
@@ -1217,18 +1226,21 @@ namespace frontier
 				texts[TEXTAREAtextName].str("");
 				texts[TEXTAREAtextName].clear();
 
-				texts[TEXTAREAtextName] << " x=\"0\" y=\"0\""
+				int x = startX - xOffset - (centerToStartX ? ((textWidth / 2) + margin) : 0);
+				int y = startY + yOffset;
+
+				texts[TEXTAREAtextName] << " x=\"" << x << "\" y=\"" << y << "\""
 										<< " width=\"" << (2 * margin) + textWidth
 										<< "\" height=\"" << (2 * margin) + textHeight
 										<< "\" ";
 
-				// Store the text. Final position (transformation) is (supposed to be) defined in the template
+				// Store the text
 
 				std::list<std::string>::const_iterator it = textLines.begin();
 
-				for (int y = (margin + maxLineHeight); (it != textLines.end()); it++, y += maxLineHeight)
+				for (x += margin,y += (margin + maxLineHeight); (it != textLines.end()); it++, y += maxLineHeight)
 					texts[TEXTtextName] << "<text class=\"" << textClass
-										<< "\" x=\"" << margin
+										<< "\" x=\"" << x
 										<< "\" y=\"" << y
 										<< "\">" << svgescapetext(*it) << "</text>\n";
 
@@ -1540,7 +1552,7 @@ namespace frontier
 								}
 
 								// Render the symbols
-								render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
+								render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
 							}
 							else if (!masked) {
 								// glyph
@@ -2206,6 +2218,7 @@ namespace frontier
 		  	  	  	  	  	  	  const std::string & symClass,
 		  	  	  	  	  	  	  const std::string & symCode,
 		  	  	  	  	  	  	  double lon,double lat,
+		  	  	  	  	  	  	  const woml::Feature * feature,
 		  	  	  	  	  	  	  const woml::NumericalSingleValueMeasure * svm,
 		  						  NFmiFillPositions * fpos,
 		  						  const std::list<std::string> * areaSymbols)
@@ -2430,8 +2443,6 @@ namespace frontier
 										<< std::fixed << std::setprecision(1) << (piter->y - (height/2))
 										<< "\"" << wh.str() << "/>\n";
 					}
-
-					return;
 				}
 				else if (type == "font") {
 					// Use last of the given classes for symbol specific class reference
@@ -2471,11 +2482,18 @@ namespace frontier
 									<< std::fixed << std::setprecision(1) << piter->y
 									<< "\">&#" << code << ";</text>\n";
 					}
-
-					return;
 				}
 				else
 					throw std::runtime_error(confPath + ": '" + type + "'" + symTypeMsg);
+
+				if (feature) {
+					// Render feature's infotext
+					//
+					const std::string & infoText = feature->text(options.locale);
+					render_text(confPath,symClass,(infoText != options.locale) ? NFmiStringTools::UrlDecode(infoText) : "",lon,lat,true);
+				}
+
+				return;
 			}  // if
 		}	// for
 
@@ -7577,7 +7595,7 @@ void SvgRenderer::visit(const woml::ParameterValueSetPoint & theFeature)
 
 	if (fdm) {
 		const woml::GeophysicalParameterValue & theValue = *itvfdm;
-		render_symbol("ParameterValueSetPoint",pointsymbols,theValue.parameter().name(),fdm->value(),theFeature.point()->lon(),theFeature.point()->lat(),svm);
+		render_symbol("ParameterValueSetPoint",pointsymbols,theValue.parameter().name(),fdm->value(),theFeature.point()->lon(),theFeature.point()->lat(),&theFeature,svm);
 	}
 
 	if (svm) {
@@ -7627,7 +7645,7 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
   std::string symClass = PointMeteorologicalSymbolDefinition(theFeature,symCode);
 
   // Render the symbol
-  render_symbol("pointMeteorologicalSymbol",pointsymbols,symClass,symCode,theFeature.point()->lon(),theFeature.point()->lat());
+  render_symbol("pointMeteorologicalSymbol",pointsymbols,symClass,symCode,theFeature.point()->lon(),theFeature.point()->lat(),&theFeature);
 }
 
 // ----------------------------------------------------------------------
@@ -7640,7 +7658,7 @@ SvgRenderer::visit(const woml::PointMeteorologicalSymbol & theFeature)
 void SvgRenderer::visit(const c & theFeature) \
 { \
   if(options.debug)	std::cerr << "Visiting " << theFeature.className() << std::endl; \
-  render_symbol("pointMeteorologicalSymbol",pointsymbols,theFeature.className(),"",theFeature.point()->lon(),theFeature.point()->lat()); \
+  render_symbol("pointMeteorologicalSymbol",pointsymbols,theFeature.className(),"",theFeature.point()->lon(),theFeature.point()->lat(),&theFeature); \
 }
 
 RenderPressureCenterTypeDerivedClass(woml::AntiCyclone)
