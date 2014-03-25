@@ -1842,6 +1842,59 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Utility function for getting conditional settings based on string value.
+   * 		Returns the configuration group/block on success or NULL on not found.
+   */
+  // ----------------------------------------------------------------------
+
+  const libconfig::Setting * matchingCondition(const libconfig::Config & config,
+		  	  	  	  	  	  	  	  	  	   const libconfig::Setting & condSpecs,
+		  	  	  	  	  	  	  	  	  	   const std::string & confPath,
+		  	  	  	  	  	  	  	  	  	   const std::string & className,
+		  	  	  	  	  	  	  	  	  	   int specsIdx,
+		  	  	  	  	  	  	  	  	  	   const std::string & parameter,
+		  	  	  	  	  	  	  	  	  	   const std::string & stringValue)
+  {
+	const char * typeMsg = " must contain a list of groups in parenthesis";
+	const char * condMsg = ": refix must be 'eq'";
+	const char * valMsg = ": string value expected";
+
+	std::string s(boost::algorithm::to_lower_copy(stringValue));
+
+	int i;
+
+	for(i=0; i<condSpecs.getLength(); i++)
+	{
+		const libconfig::Setting & conds = condSpecs[i];
+		if(!conds.isGroup())
+			throw std::runtime_error(confPath + ".conditions" + typeMsg);
+
+		std::string refix("eq"/*configValue<std::string>(conds,className,"refix")*/),condValue;
+
+		if (refix == "eq") {
+			try {
+				condValue = boost::algorithm::to_lower_copy(lookup<std::string>(conds,confPath,"value"));
+			}
+			catch (...) {
+				throw std::runtime_error(confPath + ".conditions" + valMsg);
+			}
+
+			if (condValue == s) {
+				break;
+			}
+		}
+		else
+			throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
+	}
+
+	if (i<condSpecs.getLength())
+		return &(condSpecs[i]);
+
+	return NULL;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Utility function for getting conditional settings
    */
   // ----------------------------------------------------------------------
@@ -2116,20 +2169,60 @@ namespace frontier
 			//
 			double x = axisManager->xOffset(iteg->validTime()),y = 0.0;
 
+			// Category/magnitude or visibility (meters)
+
+			const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(iteg->Pv()->value());
+			const woml::NumericalSingleValueMeasure * nsv = (cvm ? NULL : dynamic_cast<const woml::NumericalSingleValueMeasure *>(iteg->Pv()->value()));
+
+			if ((!cvm) && (!nsv))
+				throw std::runtime_error("render_aerodromeSymbol: " + confPath + ": CategoryValueMeasure or NumericalSingleValueMeasure values expected");
+
 			if (!ground) {
-				const woml::Elevation & e = iteg->Pv()->elevation();
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
-				boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-				const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+				// Note: For "nonground" elevations (MigratoryBirds) checking for conditional y -position based on the value (category);
+				//		 used to position migration type (text 'morning', 'arctic' etc. as symbol) relatively to the bird symbol or to
+				//		 fixed y -position (above or below the x -axis)
+				//
+				const libconfig::Setting * condSpecs = NULL;
+				int yPos = 0;
 
-				double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
-				double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+				if (cvm) {
+					condSpecs = matchingCondition(config,confPath,confPath,"",-1,cvm->value());
 
-				y = axisManager->scaledElevation(lo + ((hi - lo) / 2));
+					if (condSpecs) {
+						yPos = configValue<int>(*condSpecs,confPath,"ypos");
 
-				if (y < 0)
-					continue;
+						bool isSet;
+						bool absolute = configValue<bool>(*condSpecs,confPath,"absolute",NULL,s_optional,&isSet);
+
+						if ((!isSet) || absolute) {
+							// svg y -axis grows downwards; use axis height to transfrom the y -coordinate
+							//
+							yPos = axisManager->axisHeight() - yPos;
+						}
+						else
+							// Position is relative; clear condSpecs to use the elevation
+							//
+							condSpecs = NULL;
+					}
+				}
+
+				if (!condSpecs) {
+					const woml::Elevation & e = iteg->Pv()->elevation();
+					boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+					const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
+					boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
+					const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
+
+					double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
+					double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
+
+					y = axisManager->scaledElevation(lo + ((hi - lo) / 2));
+
+					if (y < 0)
+						continue;
+				}
+
+				y += yPos;
 
 				// Move first and last time instant's symbols to keep them better withing the area
 
@@ -2152,14 +2245,6 @@ namespace frontier
 						x -= eOffset;
 				}
 			}
-
-			// Category/magnitude or visibility (meters)
-
-			const woml::CategoryValueMeasure * cvm = dynamic_cast<const woml::CategoryValueMeasure *>(iteg->Pv()->value());
-			const woml::NumericalSingleValueMeasure * nsv = (cvm ? NULL : dynamic_cast<const woml::NumericalSingleValueMeasure *>(iteg->Pv()->value()));
-
-			if ((!cvm) && (!nsv))
-				throw std::runtime_error("render_aerodromeSymbol: " + confPath + ": CategoryValueMeasure or NumericalSingleValueMeasure values expected");
 
 			// Render the symbol or visibility value
 
@@ -6701,7 +6786,7 @@ std::string SvgRenderer::svg() const
 
   // Clear all remaining placeholders
 
-  boost::regex pl("--[[:upper:]*[:lower:]*[:digit:]]*--");
+  boost::regex pl("--[[:upper:]*[:lower:]*[:digit:]*[@]*]*--");
 
   return boost::regex_replace(ret,pl,"");
 
