@@ -45,11 +45,14 @@ bool PreProcessor::ReadAndStripFile(const std::string & theFileName)
   if (!ReadFile(theFileName))
 	  return false;
 
-  SetDefine(itsDefineDirective);
+  SetDefine(itsDefineDirective,true);
 
   SetIncluding(itsIncludeDirective,getDefinedValue(itsIncludePathDefine),itsIncludeFileExtension);
 
-  return Strip();
+  if (Strip())
+	  return ReplaceAll();
+
+  return false;
 }
 
 // ----------------------------------------------------------------------
