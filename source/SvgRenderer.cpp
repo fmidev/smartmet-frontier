@@ -1060,10 +1060,12 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void SvgRenderer::render_text(const std::string & confPath,
+  void SvgRenderer::render_text(Texts & texts,
+		  	  	  	  	  	    const std::string & confPath,
 		  	  	  	  	  	    const std::string & textName,
 		  	  	  	  	  	    const std::string & text,
-		  	  	  	  	  	    int startX,int startY,bool centerToStartX)
+		  	  	  	  	  	    int & xPosW,int & yPosH,	// I: text's starting x/y pos O: text's width/height
+		  	  	  	  	  	    bool centerToStartX)
   {
 	try {
 		const char * typeMsg = " must contain a list of groups in parenthesis";
@@ -1077,6 +1079,9 @@ namespace frontier
 		// Set initial textarea rect in case no output is generated
 
 		texts[TEXTAREAtextName] << " x=\"0\" y=\"0\" width=\"0\" height=\"0\"";
+
+		int startX = xPosW,startY = yPosH;
+		xPosW = yPosH = 0;
 
 		if (text.empty())
 			return;
@@ -1230,9 +1235,7 @@ namespace frontier
 				int y = startY + yOffset;
 
 				texts[TEXTAREAtextName] << " x=\"" << x << "\" y=\"" << y << "\""
-										<< " width=\"" << (2 * margin) + textWidth
-										<< "\" height=\"" << (2 * margin) + textHeight
-										<< "\" ";
+										<< " width=\"" << (xPosW = ((2 * margin) + textWidth));
 
 				// Store the text
 
@@ -1243,6 +1246,8 @@ namespace frontier
 										<< "\" x=\"" << x
 										<< "\" y=\"" << y
 										<< "\">" << svgescapetext(*it) << "</text>\n";
+
+				texts[TEXTAREAtextName] << "\" height=\"" << (yPosH = y) << "\" ";
 
 				return;
 			}  // if
@@ -1324,6 +1329,7 @@ namespace frontier
 		  	  	  	  	  	  	   std::ostringstream & surfaceOutput,
 		  	  	  	  	  	  	   const std::string & id,
 		  	  	  	  	  	  	   const std::string & surfaceName,				// cloudType (for CloudArea), rainPhase (for SurfacePrecipitationArea or area type for ParameterValueSetArea)
+		  	  	  	  	  	  	   const woml::Feature * feature,				// For area's infotext rendering
 		  	  	  	  	  	  	   const std::list<std::string> * areaSymbols)	// Symbols to be placed into ParameterValueSetArea
   {
 	const std::string confPath("Surface");
@@ -1455,6 +1461,35 @@ namespace frontier
 
 									if (fillSymbols.size() < areaSymbols->size())
 										;
+								}
+
+								// Render feature's infotext
+
+								const std::string & infoText = (feature ? feature->text(options.locale) : "");
+
+								if ((!infoText.empty()) && (infoText != options.locale)) {
+									// Render feature's infotext. The text is rendered starting from coordinate (0,0) and
+									// output position is selected afterwards using the text area size. The final position
+									// is set as trasformation offsets to the selected position.
+									//
+									Texts textOutput;
+									int width = 0;
+									int height = 0;
+									render_text(textOutput,confPath,confPath,NFmiStringTools::UrlDecode(infoText),width,height,true);
+
+									NFmiFillMap fmap;
+									NFmiFillAreas areas;
+									path.length(&fmap);
+
+									int w = static_cast<int>(std::floor(0.5+area->Width()));
+									int h = static_cast<int>(std::floor(0.5+area->Height()));
+
+									if (fmap.getFillAreas(w,h,width,height,scale,verticalRects,areas,false,scanUpDown)) {
+										// Select text position and set transformation offset
+//										int x = areas.front().first.x,y = areas.front().first.y;
+
+										;
+									}
 								}
 
 								// Get fill areas.
@@ -2575,7 +2610,8 @@ namespace frontier
 					// Render feature's infotext
 					//
 					const std::string & infoText = feature->text(options.locale);
-					render_text(confPath,symClass,(infoText != options.locale) ? NFmiStringTools::UrlDecode(infoText) : "",lon,lat,true);
+					int x = lon,y = lat;
+					render_text(texts,confPath,symClass,(infoText != options.locale) ? NFmiStringTools::UrlDecode(infoText) : "",x,y,true);
 				}
 
 				return;
@@ -3002,10 +3038,18 @@ namespace frontier
 			if (!isSet)
 			   controlRandom = 4;
 
-			// Relative offset for intermediate curve points (controls how much the ends of the area
-			// are extended horizontally)
+			// Relative offset for intermediate curve points on both sides of the elevation's hi/lo range point
 
 			double xStep = axisManager->xStep();
+
+			double xOffset = configValue<double>(group,confPath,"xoffset",globalScope,s_optional,&isSet);
+			if (!isSet)
+				xOffset = 0.0;
+			else
+				xOffset *= xStep;
+
+			// Relative offset for intermediate curve points (controls how much the ends of the area
+			// are extended horizontally)
 
 			double vOffset = configValue<double>(group,confPath,"voffset",globalScope,s_optional,&isSet);
 			if (!isSet)
@@ -3049,6 +3093,7 @@ namespace frontier
 											 scaleHeightRandom,
 											 controlMin,
 											 controlRandom,
+											 xOffset,
 											 vOffset,vSOffset,
 											 sOffset,eOffset,
 											 cloudSet,
@@ -3497,10 +3542,24 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
+  void addCurvePosition(const char * msg,List<DirectPosition> & curvePositions,double x,double y,double xOffset = 0.0)
+  {
+	// If offset is given, add points on both sides too (to control the curve shape on corners)
+
+	if (fabs(xOffset) >= 1.0)
+		curvePositions.push_back(DirectPosition(x - xOffset,y));
+
+	curvePositions.push_back(DirectPosition(x,y));
+
+	if (fabs(xOffset) >= 1.0)
+		curvePositions.push_back(DirectPosition(x + xOffset,y));
+  }
+
   bool SvgRenderer::scaledCurvePositions(ElevGrp & eGrp,
 		  	  	  	  	  	  	  	     List<DirectPosition> & curvePositions,
 		  	  	  	  	  	  	  	     std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 		  	  	  	  	  	  	  	     std::vector<bool> & hasHole,
+		  	  	  	  	  	  	  	     double xOffset,
 		  	  	  	  	  	  	  	     double vOffset,double vSOffset,
 		  	  	  	  	  	  	  	     int sOffset,int eOffset,
 		  	  	  	  	  	  	  	     int scaleHeightMin,int scaleHeightRandom,
@@ -3524,6 +3583,11 @@ namespace frontier
 	double xStep = axisManager->xStep(),nonZ = axisManager->nonZeroElevation();
 
 	srand(time(NULL));
+
+	// Offset for additional points generated on both sides of the elevation's lo/hi range points can't exceed
+	// half of the timestep width (an intermediate point is always generated halfway of subsequent elevations)
+
+	xOffset = ((xOffset < 0.0) ? 0.0 : std::min(xOffset,(xStep / 2)));
 
 	for (iteg = egbeg, phase = fst; (iteg != egend); ) {
 		// Get elevation's lo and hi range values
@@ -3594,7 +3658,7 @@ fprintf(stderr,"**** fst hi=%.0f %s\n",hi,cs.c_str());
 				single = false;
 			}
 
-			curvePositions.push_back(DirectPosition(x,hipx));
+			addCurvePosition("fst",curvePositions,x,hipx,xOffset);
 			iteg->topConnected(true);
 
 			if (options.debug) {
@@ -3616,7 +3680,7 @@ fprintf(stderr,">>>> fwd hi=%.0f %s\n",hi,cs.c_str());
 			double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
 
 			curvePositions.push_back(DirectPosition(x - (xStep / 2),ipx));
-			curvePositions.push_back(DirectPosition(x,hipx));
+			addCurvePosition("fwd",curvePositions,x,hipx,xOffset);
 			iteg->topConnected(true);
 
 			if (options.debug)
@@ -3668,7 +3732,7 @@ fprintf(stderr,">>>> eup hi=%.0f %s\n",hi,cs.c_str());
 				double offset = (((vt == bt) && (vOffset > sOffset)) ? sOffset : vOffset);
 
 				curvePositions.push_back(DirectPosition(x - offset,lopx - ((lopx - hipx) / 2)));
-				curvePositions.push_back(DirectPosition(x,hipx));
+				addCurvePosition("eup",curvePositions,x,hipx,xOffset);
 
 				if (options.debug)
 					path << (((vt != bt) && (vt != et)) ? " L" : " M") << x << "," << hipx;
@@ -3704,7 +3768,7 @@ fprintf(stderr,">>>> edn lo=%.0f %s\n",lo,cs.c_str());
 				curvePositions.push_back(DirectPosition(x + offset,lopx - ((lopx - hipx) / 2)));
 			}
 
-			curvePositions.push_back(DirectPosition(x,lopx));
+			addCurvePosition("edn",curvePositions,x,lopx,-xOffset);
 			iteg->bottomConnected(true);
 
 			if (options.debug) {
@@ -3725,7 +3789,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
 
 			curvePositions.push_back(DirectPosition(x + (xStep / 2),ipx));
-			curvePositions.push_back(DirectPosition(x,lopx));
+			addCurvePosition("bwd",curvePositions,x,lopx,-xOffset);
 			iteg->bottomConnected(true);
 
 			if (options.debug)
@@ -3881,7 +3945,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->vOffset(),itcg->vSOffset(),itcg->sOffset(),itcg->eOffset(),scaleHeightMin,scaleHeightRandom,path);
+		scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->xOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->sOffset(),itcg->eOffset(),scaleHeightMin,scaleHeightRandom,path);
 
 		if (options.debug)
 			texts[itcg->placeHolder() + "PATH"] << "<path class=\"" << itcg->classDef()
@@ -5101,10 +5165,18 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			if (!isSet)
 				symbolOnly = false;
 
-			// Relative offset for intermediate curve points (controls how much the ends of the area
-			// are extended horizontally)
+			// Relative offset for intermediate curve points on both sides of the elevation's hi/lo range point
 
 			double xStep = axisManager->xStep();
+
+			double xOffset = configValue<double>(group,confPath,"xoffset",globalScope,s_optional,&isSet);
+			if (!isSet)
+				xOffset = 0.0;
+			else
+				xOffset *= xStep;
+
+			// Relative offset for intermediate curve points (controls how much the ends of the area
+			// are extended horizontally)
 
 			double vOffset = configValue<double>(group,confPath,"voffset",globalScope,s_optional,&isSet);
 			if (!isSet)
@@ -5169,6 +5241,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 											 placeHolder,
 											 labelPlaceHolder,
 											 combined,
+											 xOffset,
 											 vOffset,vSOffset,
 											 sOffset,eOffset,
 											 icingSet,
@@ -5331,7 +5404,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itig->vOffset(),itig->vSOffset(),itig->sOffset(),itig->eOffset(),0,0,path);
+		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itig->xOffset(),itig->vOffset(),itig->vSOffset(),itig->sOffset(),itig->eOffset(),0,0,path);
 
 		if (!(single && itig->symbolOnly())) {
 			// Rendering the group as bezier curve
@@ -5479,7 +5552,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itig->vOffset(),itig->vSOffset(),itig->sOffset(),itig->eOffset(),0,0,path);
+		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itig->xOffset(),itig->vOffset(),itig->vSOffset(),itig->sOffset(),itig->eOffset(),0,0,path);
 
 		if (!(single && itig->symbolOnly())) {
 			// Rendering the group as bezier curve
@@ -6274,6 +6347,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			//
 			tightness = -1.0;
 
+		// Relative offset for intermediate curve points on both sides of the elevation's hi/lo range point
+
+		double xOffset = configValue<double>(specs,confPath,"xoffset",NULL,s_optional,&isSet);
+		if (!isSet)
+			xOffset = 0.0;
+		else
+			xOffset *= xStep;
+
 		// Relative offset for intermediate curve points (controls how much the ends of the area
 		// are extended horizontally)
 
@@ -6363,7 +6444,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			std::ostringstream path;
 			path << std::fixed << std::setprecision(3);
 
-			scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,vOffset,vSOffset,sOffset,eOffset,0,0,path,&visible,true,false,true);
+			scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,xOffset,vOffset,vSOffset,sOffset,eOffset,0,0,path,&visible,true,false,true);
 
 			// Create bezier curve and get curve points
 
@@ -7166,6 +7247,7 @@ CloudGroup::CloudGroup(const std::string & theClass,
 					   int theScaleHeightRandom,
 					   int theControlMin,
 					   int theControlRandom,
+					   double theXOffset,
 					   double theVOffset,double theVSOffset,
 					   int theSOffset,int theEOffset,
 					   std::set<size_t> & theCloudSet,
@@ -7209,6 +7291,7 @@ CloudGroup::CloudGroup(const std::string & theClass,
   itsControlMin = theControlMin;
   itsControlRandom = theControlRandom;
 
+  itsXOffset = theXOffset;
   itsVOffset = theVOffset;
   itsVSOffset = theVSOffset;
   itsSOffset = theSOffset;
@@ -7300,6 +7383,7 @@ IcingGroup::IcingGroup(const std::string & theClass,
 					   const std::string & thePlaceHolder,
 					   const std::string & theLabelPlaceHolder,
 					   bool combined,
+					   double theXOffset,
 					   double theVOffset,double theVSOffset,
 					   int theSOffset,int theEOffset,
 					   std::set<size_t> & theIcingSet,
@@ -7334,6 +7418,7 @@ IcingGroup::IcingGroup(const std::string & theClass,
   itsPlaceHolder = thePlaceHolder;
   itsLabelPlaceHolder = theLabelPlaceHolder;
 
+  itsXOffset = theXOffset;
   itsVOffset = theVOffset;
   itsVSOffset = theVSOffset;
   itsSOffset = theSOffset;
@@ -7431,7 +7516,7 @@ SvgRenderer::visit(const woml::CloudArea & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  render_surface(path,cloudareas,id,theFeature.cloudTypeName());
+  render_surface(path,cloudareas,id,theFeature.cloudTypeName(),&theFeature);
 }
 
 // ----------------------------------------------------------------------
@@ -7564,8 +7649,9 @@ SvgRenderer::visit(const woml::InfoText & theFeature)
   // If no text for the locale, render empty text to overwrite the template placeholders
 
   const std::string & text = theFeature.text(options.locale);
+  int x = 0,y = 0;
 
-  render_text("Text",theFeature.name(),(text != options.locale) ? NFmiStringTools::UrlDecode(text) : "");
+  render_text(texts,"Text",theFeature.name(),(text != options.locale) ? NFmiStringTools::UrlDecode(text) : "",x,y);
 }
 
 // ----------------------------------------------------------------------
@@ -7820,7 +7906,7 @@ SvgRenderer::visit(const woml::SurfacePrecipitationArea & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  render_surface(path,precipitationareas,id,theFeature.rainPhaseName());
+  render_surface(path,precipitationareas,id,theFeature.rainPhaseName(),&theFeature);
 }
 
 // ----------------------------------------------------------------------
@@ -7874,7 +7960,7 @@ SvgRenderer::visit(const woml::ParameterValueSetArea & theFeature)
 
   getAreaSymbols(theFeature,areaSymbols);
 
-  render_surface(path,precipitationareas,id,theFeature.parameters()->values().front().parameter().name(),&areaSymbols);
+  render_surface(path,precipitationareas,id,theFeature.parameters()->values().front().parameter().name(),&theFeature,&areaSymbols);
 }
 
 // ----------------------------------------------------------------------

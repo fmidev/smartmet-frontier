@@ -125,6 +125,7 @@ namespace frontier
 			   int theScaleHeightRandom,
 			   int theControlMin,
 			   int theControlRandom,
+			   double theXOffset,
 			   double theVOffset,double theVSOffset,
 			   int theSOffset,int theEOffset,
 			   std::set<size_t> & theCloudSet,
@@ -153,6 +154,7 @@ namespace frontier
 	int controlMin() const { return itsControlMin; }
 	int controlRandom() const { return itsControlRandom; }
 
+	double xOffset() const { return itsXOffset; }
 	double vOffset() const { return itsVOffset; }
 	double vSOffset() const { return itsVSOffset; }
 	int sOffset() const { return itsSOffset; }
@@ -186,6 +188,7 @@ namespace frontier
 	int itsControlMin;
 	int itsControlRandom;
 
+	double itsXOffset;
 	double itsVOffset;
 	double itsVSOffset;
 	int itsSOffset;
@@ -213,6 +216,7 @@ namespace frontier
 			   const std::string & thePlaceHolder,
 			   const std::string & theLabelPlaceHolder,
 			   bool combined,
+			   double theXOffset,
 			   double theVOffset,double theVSOffset,
 			   int theSOffset,int theEOffset,
 			   std::set<size_t> & theIcingSet,
@@ -233,6 +237,7 @@ namespace frontier
 	void addType(const std::string & type) const;
 	std::string icingTypes() const;
 
+	double xOffset() const { return itsXOffset; }
 	double vOffset() const { return itsVOffset; }
 	double vSOffset() const { return itsVSOffset; }
 	int sOffset() const { return itsSOffset; }
@@ -258,6 +263,7 @@ namespace frontier
 	std::string itsLabelPlaceHolder;
 	bool itsStandalone;
 
+	double itsXOffset;
 	double itsVOffset;
 	double itsVSOffset;
 	int itsSOffset;
@@ -417,6 +423,8 @@ namespace frontier
 	double scale;
   };
 
+  typedef boost::ptr_map<std::string,std::ostringstream> Texts;
+
   class SvgRenderer : public woml::FeatureVisitor
   {
   public:
@@ -500,14 +508,17 @@ namespace frontier
 					   const boost::posix_time::ptime & datetime,
 					   const std::string & text = "",
 					   const std::string & confPath = "Header");
-	void render_text(const std::string & confPath,
+	void render_text(Texts & texts,
+					 const std::string & confPath,
 					 const std::string & textName,
 					 const std::string & text,
-					 int startX = 0,int startY = 0,bool centerToStartX = false);
+					 int & xPosW,int & yPosH,	// I: text's starting x/y pos O: text's width/height
+					 bool centerToStartX = false);
 	void render_surface(const Path & path,
 						std::ostringstream & surfaceOutput,
 						const std::string & id,
 						const std::string & surfaceName,
+						const woml::Feature * feature = NULL,
 						const std::list<std::string> * areaSymbols = NULL);
 	void render_aerodromeSymbol(const std::string & confPath,
 								const std::string & symClass,
@@ -579,6 +590,7 @@ namespace frontier
 							  List<DirectPosition> & curvePositions,
 							  std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 							  std::vector<bool> & hasHole,
+							  double xOffset,
 							  double vOffset,double vSOffset,
 							  int sOffset,int eOffset,
 							  int scaleHeightMin,int scaleHeightRandom,
@@ -636,7 +648,6 @@ namespace frontier
 	std::ostringstream & debugoutput;
 
 	// For text and various stuff
-	typedef boost::ptr_map<std::string,std::ostringstream> Texts;
 	Texts texts;
 
 	typedef boost::ptr_map<std::string,std::ostringstream> Contours;
