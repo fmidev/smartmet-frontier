@@ -2183,10 +2183,6 @@ namespace frontier
 	if (eGrp.size() == 0)
 		return;
 
-	// Class
-
-	std::string symClass(boost::algorithm::to_upper_copy(confPath + theFeature.classNameExt()));
-
 	// Render the symbols
 
 	try {
@@ -2197,6 +2193,10 @@ namespace frontier
 			throw std::runtime_error(confPath + grouptypeMsg);
 
 		ElevGrp::const_iterator egend = eGrp.end(),iteg;
+		const std::string FEATURE(boost::algorithm::to_upper_copy(confPath));
+		const std::string classDef = (ground ? "" : configValue<std::string>(specs,confPath,"class"));
+		const std::string symClass(boost::algorithm::to_upper_copy(confPath + theFeature.classNameExt()));
+		bool visible = false,aboveTop = false;
 
 		for (iteg = eGrp.begin(); (iteg != egend); iteg++) {
 			// Note: Using the lo-hi range average value for "nonground" elevations (MigratoryBirds) and
@@ -2215,7 +2215,10 @@ namespace frontier
 			if (!ground) {
 				// Note: For "nonground" elevations (MigratoryBirds) checking for conditional y -position based on the value (category);
 				//		 used to position migration type (text 'morning', 'arctic' etc. as symbol) relatively to the bird symbol or to
-				//		 fixed y -position (above or below the x -axis)
+				//		 fixed y -position (above or below the x -axis).
+				//
+				//		 Conditions are expected to exist only for the texts, not for the actual bird symbols;
+				//		 visibility related flags are not set if condition exists.
 				//
 				const libconfig::Setting * condSpecs = NULL;
 				int yPos = 0;
@@ -2230,7 +2233,7 @@ namespace frontier
 						bool absolute = configValue<bool>(*condSpecs,confPath,"absolute",NULL,s_optional,&isSet);
 
 						if ((!isSet) || absolute) {
-							// svg y -axis grows downwards; use axis height to transfrom the y -coordinate
+							// svg y -axis grows downwards; use axis height to transform the y -coordinate
 							//
 							yPos = axisManager->axisHeight() - yPos;
 						}
@@ -2251,13 +2254,21 @@ namespace frontier
 					double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 					double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
-					y = axisManager->scaledElevation(lo + ((hi - lo) / 2));
+					bool above = false;
+					y = axisManager->scaledElevation(lo + ((hi - lo) / 2),&above);
 
-					if (y < 0)
+					if (y < 0) {
+						if (above)
+							aboveTop = true;
+
 						continue;
+					}
 				}
 
 				y += yPos;
+
+				if ((!condSpecs) && ((y > 0) && (y < axisManager->axisHeight())))
+					visible = true;
 
 				// Move first and last time instant's symbols to keep them better withing the area
 
@@ -2309,6 +2320,30 @@ namespace frontier
 
 				render_aerodromeSymbol(confPath,symClass,theFeature.classNameExt(),formattedValue(nsv,NULL,confPath,pref,&scale),x,y,false);
 			}
+		}
+
+		// Visibility information for "nonground" data (MigratoryBirds)
+
+		if (!ground) {
+			if (!visible) {
+				if (!aboveTop) {
+					// Show the fixed template text "No xxx"
+					//
+					const std::string NOFEATURE(FEATURE + "NO" + FEATURE);
+					texts[NOFEATURE] << classDef << "Visible";
+				}
+				else {
+					// Show the fixed template text "xxx are located in the upper"
+					//
+					const std::string FEATUREUPPER(FEATURE + "INTHEUPPER");
+					texts[FEATUREUPPER] << classDef << "Visible";
+				}
+			}
+
+			// Show the xxx legend (even if no xxx exists or are visible)
+
+			const std::string FEATUREVISIBLE(FEATURE + "VISIBLE");
+			texts[FEATUREVISIBLE] << classDef << "Visible";
 		}
 	}
 	catch (libconfig::ConfigException & ex) {
@@ -3542,7 +3577,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void addCurvePosition(const char * msg,List<DirectPosition> & curvePositions,double x,double y,double xOffset = 0.0)
+  void addCurvePosition(List<DirectPosition> & curvePositions,double x,double y,double xOffset = 0.0)
   {
 	// If offset is given, add points on both sides too (to control the curve shape on corners)
 
@@ -3658,7 +3693,7 @@ fprintf(stderr,"**** fst hi=%.0f %s\n",hi,cs.c_str());
 				single = false;
 			}
 
-			addCurvePosition("fst",curvePositions,x,hipx,xOffset);
+			addCurvePosition(curvePositions,x,hipx,xOffset);
 			iteg->topConnected(true);
 
 			if (options.debug) {
@@ -3680,7 +3715,7 @@ fprintf(stderr,">>>> fwd hi=%.0f %s\n",hi,cs.c_str());
 			double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
 
 			curvePositions.push_back(DirectPosition(x - (xStep / 2),ipx));
-			addCurvePosition("fwd",curvePositions,x,hipx,xOffset);
+			addCurvePosition(curvePositions,x,hipx,xOffset);
 			iteg->topConnected(true);
 
 			if (options.debug)
@@ -3732,7 +3767,7 @@ fprintf(stderr,">>>> eup hi=%.0f %s\n",hi,cs.c_str());
 				double offset = (((vt == bt) && (vOffset > sOffset)) ? sOffset : vOffset);
 
 				curvePositions.push_back(DirectPosition(x - offset,lopx - ((lopx - hipx) / 2)));
-				addCurvePosition("eup",curvePositions,x,hipx,xOffset);
+				addCurvePosition(curvePositions,x,hipx,xOffset);
 
 				if (options.debug)
 					path << (((vt != bt) && (vt != et)) ? " L" : " M") << x << "," << hipx;
@@ -3768,7 +3803,7 @@ fprintf(stderr,">>>> edn lo=%.0f %s\n",lo,cs.c_str());
 				curvePositions.push_back(DirectPosition(x + offset,lopx - ((lopx - hipx) / 2)));
 			}
 
-			addCurvePosition("edn",curvePositions,x,lopx,-xOffset);
+			addCurvePosition(curvePositions,x,lopx,-xOffset);
 			iteg->bottomConnected(true);
 
 			if (options.debug) {
@@ -3789,7 +3824,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
 
 			curvePositions.push_back(DirectPosition(x + (xStep / 2),ipx));
-			addCurvePosition("bwd",curvePositions,x,lopx,-xOffset);
+			addCurvePosition(curvePositions,x,lopx,-xOffset);
 			iteg->bottomConnected(true);
 
 			if (options.debug)
