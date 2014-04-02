@@ -2167,7 +2167,8 @@ namespace frontier
 
   template <typename T>
   void SvgRenderer::render_aerodromeSymbols(const T & theFeature,
-		  	  	  	  	  	  	  	  	    const std::string & confPath)
+		  	  	  	  	  	  	  	  	    const std::string & confPath,
+		  	  	  	  	  	  	  	  	    bool setVisibility)
   {
 	// Document's time period
 
@@ -2180,8 +2181,14 @@ namespace frontier
 
 	bool ground = (elevationGroup(theFeature.timeseries(),bt,et,eGrp) == t_ground);
 
-	if (eGrp.size() == 0)
-		return;
+	// Do not return on empty group if rendering visibility information too (MigratoryBirds)
+
+	if (eGrp.size() == 0) {
+		if (setVisibility)
+			ground = false;
+		else
+			return;
+	}
 
 	// Render the symbols
 
@@ -4882,7 +4889,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		ElevGrp eGrp;
 		double xStep = axisManager->xStep();
 		const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
-		bool visible = false,aboveTop = false;
+		bool visible = false,hiVisible = false,aboveTop = false;
 		int nGroups = 0;
 
 		const char * typeMsg = " must contain a group in curly brackets";
@@ -5044,6 +5051,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 										 << "\"/>\n";
 
 						visible = true;
+
+						if (rng == 1)
+							hiVisible = true;
 					}
 				}	// for iteg
 			}	// for rng
@@ -5053,6 +5063,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			for (iteg = eGrp.begin(); (iteg != eGrp.end()); iteg++)
 				iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
 		}	// for group
+
+		// Visibility information
 
 		if (!visible) {
 			if (!aboveTop) {
@@ -5067,6 +5079,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				const std::string CONTRAILSUPPER(CONTRAILS + "INTHEUPPER");
 				texts[CONTRAILSUPPER] << classDef << "Visible";
 			}
+		}
+		else if (!hiVisible) {
+			// Show the fixed template text "condensation trails" (the hi trail is not visible)
+			//
+			const std::string NOCONTRAILS(CONTRAILS + "CONDENSATIONS");
+			texts[NOCONTRAILS] << classDef << "Visible";
 		}
 
 		// Show the "condensation trails" legend (even if no condesation trails exists or are visible)
@@ -5519,21 +5537,21 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const std::string confPath("Turbulence");
 	const std::string TURBULENCE(boost::algorithm::to_upper_copy(confPath));
 
-	// Get icing groups from configuration.
+	// Get turbulence groups from configuration.
 	//
-	// icingSet contains the icing magnitudes (their starting positions in the group's 'types' setting) in current group;
+	// turbulenceSet contains the turbulence magnitudes (their starting positions in the group's 'types' setting) in current group;
 	// if neither group's symbol nor label are given, label (comma separated list of types) is build using the order
 	// the types are defined in 'types' setting.
 	//
-	// The icing set is cleared and then set by all the groups; icing magnitudes contained are
-	// added to the set when collecting a group in elevationGroup()
+	// The turbulence set is cleared and then set by all the groups; turbulence magnitudes contained are
+	// added to the set when collecting a group in elevationGroup().
 
-	IcingGroupCategory icingGroupCategory;
-	std::set<size_t> icingSet;
+	IcingGroupCategory turbulenceGroupCategory;
+	std::set<size_t> turbulenceSet;
 
 	double tightness,minLabelPosHeight;
 
-	icingConfig(confPath,tightness,minLabelPosHeight,icingGroupCategory.icingGroups(),icingSet);
+	icingConfig(confPath,tightness,minLabelPosHeight,turbulenceGroupCategory.icingGroups(),turbulenceSet);
 
 	// Document's time period, icing time series and x -axis step (px)
 
@@ -5541,13 +5559,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const std::list<woml::TimeSeriesSlot> & ts = turbulence.timeseries();
 
 	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-	double xStep = axisManager->xStep();
+	double xStep = axisManager->xStep(),axisHeight = axisManager->axisHeight(),y;
 
 	const std::string symClass(boost::algorithm::to_upper_copy(confPath + turbulence.classNameExt()));
 
 	// Elevation group and curve point data
 
 	ElevGrp eGrp;
+	bool visible = false,aboveTop = false;
 	int nGroups = 0;
 
 	List<DirectPosition> curvePositions;
@@ -5559,21 +5578,21 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// Search and flag elevation holes
 
-	searchHoles(ts,&icingGroupCategory);
+	searchHoles(ts,&turbulenceGroupCategory);
 
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,false,true,&icingGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,false,true,&turbulenceGroupCategory);
 
 		if (eGrp.size() == 0)
 			break;
 
 		nGroups++;
 
-		// Icing group for current elevation group
+		// Turbulence group for current elevation group
 
-		std::list<IcingGroup>::const_iterator itig = icingGroupCategory.currentGroup();
+		std::list<IcingGroup>::const_iterator ittg = turbulenceGroupCategory.currentGroup();
 
 		// Get curve positions for bezier creation.
 		//
@@ -5587,13 +5606,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itig->xOffset(),itig->vOffset(),itig->vSOffset(),itig->sOffset(),itig->eOffset(),0,0,path);
+		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,ittg->xOffset(),ittg->vOffset(),ittg->vSOffset(),ittg->sOffset(),ittg->eOffset(),0,0,path);
+		bool asSymbol = (single && ittg->symbolOnly());
 
-		if (!(single && itig->symbolOnly())) {
+		if (!asSymbol) {
 			// Rendering the group as bezier curve
 			//
 			if (options.debug)
-				texts[TURBULENCE + "PATH"] << "<path class=\"" << itig->classDef()
+				texts[TURBULENCE + "PATH"] << "<path class=\"" << ittg->classDef()
 										   << "\" id=\"" << "TurbulenceB" << nGroups
 										   << "\" d=\""
 										   << path.str()
@@ -5613,10 +5633,18 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				path.str("");
 			}
 
-			for (itcp = cpbeg; (itcp != cpend); itcp++)
-				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY();
+			for (itcp = cpbeg; (itcp != cpend); itcp++) {
+				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << (y = itcp->getY());
 
-			texts[TURBULENCE] << "<path class=\"" << itig->classDef()
+				if (!isHole) {
+					if ((y > 0) && (y < axisHeight))
+						visible = true;
+					else if (y < 0)
+						aboveTop = true;
+				}
+			}
+
+			texts[TURBULENCE] << "<path class=\"" << ittg->classDef()
 							  << "\" id=\"" << "Turbulence" << nGroups
 							  << "\" d=\""
 							  << path.str()
@@ -5639,21 +5667,57 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			std::vector<double> labelX,labelY;
 			std::vector<double>::const_iterator itx,ity;
 
-			getAreaLabelPos(itig->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,itig->sOffset(),itig->eOffset(),
+			getAreaLabelPos(ittg->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,ittg->sOffset(),ittg->eOffset(),
 							scaledLo,scaledHi,hasHole,labelX,labelY);
 
 			for (itx = labelX.begin(),ity = labelY.begin(), n = 0; (itx != labelX.end()); itx++, ity++, n++)
-				if (!(itig->symbol().empty()))
-					render_aerodromeSymbol(confPath,symClass,turbulence.classNameExt(),itig->symbol(),*itx,*ity,true,true);
+				if (!(ittg->symbol().empty())) {
+					render_aerodromeSymbol(confPath,symClass,turbulence.classNameExt(),ittg->symbol(),*itx,(y = *ity),true,true);
+
+					if (asSymbol) {
+						// The symbol should be visible, checking anyway
+						//
+						if ((y > 0) && (y < axisHeight))
+							visible = true;
+						else if (y < 0)
+							aboveTop = true;
+					}
+				}
 				else
-					texts[itig->labelPlaceHolder()] << "<text class=\"" << itig->textClassDef()
-													<< "\" id=\"" << "IcingText" << nGroups << n
+					texts[ittg->labelPlaceHolder()] << "<text class=\"" << ittg->textClassDef()
+													<< "\" id=\"" << "TurbulenceText" << nGroups << n
 													<< "\" text-anchor=\"middle"
 													<< "\" x=\"" << *itx
 													<< "\" y=\"" << *ity
-													<< "\">" << itig->label() << "</text>\n";
+													<< "\">" << ittg->label() << "</text>\n";
 		}
 	}	// for group
+
+	// Visibility information
+
+	const std::string & classDef = ((turbulenceGroupCategory.icingGroups().begin() != turbulenceGroupCategory.icingGroups().end())
+								   ? turbulenceGroupCategory.icingGroups().front().classDef()
+								   : "");
+
+	if (!visible) {
+		if (!aboveTop) {
+			// Show the fixed template text "No turbulence"
+			//
+			const std::string NOTURBULENCE(TURBULENCE + "NO" + TURBULENCE);
+			texts[NOTURBULENCE] << classDef << "Visible";
+		}
+		else {
+			// Show the fixed template text "Turbulence is located in the upper"
+			//
+			const std::string TURBULENCEUPPER(TURBULENCE + "INTHEUPPER");
+			texts[TURBULENCEUPPER] << classDef << "Visible";
+		}
+	}
+
+	// Show the "turbulence" legend (even if no turbulence exists or is visible)
+
+	const std::string TURBULENCEVISIBLE(TURBULENCE + "VISIBLE");
+	texts[TURBULENCEVISIBLE] << classDef << "Visible";
   }
 
   // ----------------------------------------------------------------------
@@ -5664,7 +5728,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   void SvgRenderer::render_timeserie(const woml::MigratoryBirds & migratorybirds)
   {
-	render_aerodromeSymbols<woml::MigratoryBirds>(migratorybirds,"MigratoryBirds");
+	render_aerodromeSymbols<woml::MigratoryBirds>(migratorybirds,"MigratoryBirds",true);
   }
 
   // ----------------------------------------------------------------------

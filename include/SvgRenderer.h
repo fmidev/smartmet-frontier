@@ -527,7 +527,8 @@ namespace frontier
 								double x,double y,
 								bool codeValue = true,bool mappedCode = false);
 	template <typename T> void render_aerodromeSymbols(const T & theFeature,
-												       const std::string & confPath);
+												       const std::string & confPath,
+												       bool setVisibility = false);
 	void render_symbol(const std::string & path,
 					   std::ostringstream & symOutput,
 					   const std::string & symClass,
