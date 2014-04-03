@@ -3459,46 +3459,49 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Cloud group membership detection
+   * \brief Group membership detection
    */
   // ----------------------------------------------------------------------
 
-  CloudGroupCategory::CloudGroupCategory() : CategoryValueMeasureGroup()
+  template <typename T>
+  GroupCategory<T>::GroupCategory() : CategoryValueMeasureGroup()
   {
   }
 
-  bool CloudGroupCategory::groupMember(const woml::CategoryValueMeasure * cvm) const
+  template <typename T>
+  bool GroupCategory<T>::groupMember(const woml::CategoryValueMeasure * cvm) const
   {
-	// Check if the given cloud type is known
+	// Check if the given member type is known
 
 	if (!cvm)
-		throw std::runtime_error("CloudGroupCategory::groupMember: CategoryValueMeasure value expected");
+		throw std::runtime_error("GroupCategory::groupMember: CategoryValueMeasure value expected");
 
 	std::string category(boost::algorithm::to_upper_copy(cvm->category()));
 
-	return (std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category)) != itsCloudGroups.end());
+	return (std::find_if(itsGroups.begin(),itsGroups.end(),std::bind2nd(MemberType(),category)) != itsGroups.end());
   }
 
-  bool CloudGroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
+  template <typename T>
+  bool GroupCategory<T>::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
   {
-	// Add first member to the cloud group or check if the given cloud type is compatible with the group
+	// Add first member to the group or check if the given member type is compatible with the group
 
 	(void) cvm2;
 
 	if (!cvm)
-		throw std::runtime_error("CloudGroupCategory::groupMember: CategoryValueMeasure value expected");
+		throw std::runtime_error("GroupCategory::groupMember: CategoryValueMeasure value expected");
 
 	std::string category(boost::algorithm::to_upper_copy(cvm->category()));
 
 	if (first) {
-		itcg = std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category));
+		itcg = std::find_if(itsGroups.begin(),itsGroups.end(),std::bind2nd(MemberType(),category));
 
-		if (itcg == itsCloudGroups.end())
-			throw std::runtime_error("CloudGroupCategory::groupMember: unknown category '" + category + "'");
+		if (itcg == itsGroups.end())
+			throw std::runtime_error("GroupCategory::groupMember: unknown category '" + category + "'");
 
-		// The cloud set is common for all groups; clear it
+		// The member set is common for all groups; clear it
 
-		itcg->cloudSet().clear();
+		itcg->memberSet().clear();
 
 		itsFirstMember = cvm;
 	}
@@ -3507,12 +3510,12 @@ namespace frontier
 		//
 		if (
 			(!CategoryValueMeasureGroup::groupMember(false,itsFirstMember,cvm)) ||
-			(std::find_if(itsCloudGroups.begin(),itsCloudGroups.end(),std::bind2nd(CloudType(),category)) != itcg)
+			(std::find_if(itsGroups.begin(),itsGroups.end(),std::bind2nd(MemberType(),category)) != itcg)
 		   )
 			return false;
 	}
 
-	// Add contained cloud type into the cloud set
+	// Add contained member type into the member set
 
 	itcg->addType(category);
 
@@ -3922,7 +3925,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	std::set<size_t> cloudSet;
 
-	cloudLayerConfig(confPath,tightness,borderCompensation,minLabelPosHeight,cloudGroupCategory.cloudGroups(),cloudSet);
+	cloudLayerConfig(confPath,tightness,borderCompensation,minLabelPosHeight,cloudGroupCategory.groups(),cloudSet);
 
 	// Document's time period, cloud layer time series and x -axis step (px)
 
@@ -5114,22 +5117,23 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Loads icing configuration
+   * \brief Loads group configuration
    */
   // ----------------------------------------------------------------------
 
-  const libconfig::Setting & SvgRenderer::icingConfig(const std::string & _confPath,
+  template <typename T>
+  const libconfig::Setting & SvgRenderer::groupConfig(const std::string & groupConfPath,
 		  	  	  	  	  	  	  	  	  	  	  	  double & tightness,double & minLabelPosHeight,
-		  	  	  	  	  	  	  	  	  	  	  	  std::list<IcingGroup> & icingGroups,
-		  	  	  	  	  	  	  	  	  	  	  	  std::set<size_t> & icingSet)
+		  	  	  	  	  	  	  	  	  	  	  	  std::list<T> & groups,
+		  	  	  	  	  	  	  	  	  	  	  	  std::set<size_t> & memberSet)
   {
-	std::string confPath(_confPath);
+	std::string confPath(groupConfPath);
 
 	try {
 		const char * grouptypeMsg = " must contain a group in curly brackets";
 		const char * listtypeMsg = " must contain a list of groups in parenthesis";
 
-		std::string ICING(boost::algorithm::to_upper_copy(confPath));
+		std::string FEATURE(boost::algorithm::to_upper_copy(confPath));
 
 		// Class
 
@@ -5156,14 +5160,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		if (!isSet)
 			minLabelPosHeight = 40.0;
 
-		// If bbcenterlabel is true (default: false), icing symbol is positioned to the center of the area's bounding box;
+		// If bbcenterlabel is true (default: false), group's symbol is positioned to the center of the area's bounding box;
 		// otherwise using 1 or 2 elevations in the middle of the area in x -direction
 
 		bool bbCenterLabel = configValue<bool>(specs,confPath,"bbcenterlabel",NULL,s_optional,&isSet);
 		if (!isSet)
 			bbCenterLabel = false;
 
-		// Icing groups
+		// Grouping
 
 		confPath += ".groups";
 
@@ -5177,13 +5181,13 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			if(!group.isGroup())
 				throw std::runtime_error(confPath + listtypeMsg);
 
-			// Icing magnitudes
+			// Types (icing or turbulence magnitudes)
 
-			std::string icingTypes(boost::algorithm::to_upper_copy(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"types",NULL,s_optional))));
+			std::string types(boost::algorithm::to_upper_copy(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"types",NULL,s_optional))));
 
-			if (!icingTypes.empty()) {
+			if (!types.empty()) {
 				std::vector<std::string> it;
-				boost::algorithm::split(it,icingTypes,boost::is_any_of(","));
+				boost::algorithm::split(it,types,boost::is_any_of(","));
 
 				if (it.size() > 1) {
 					std::ostringstream its;
@@ -5197,11 +5201,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						}
 					}
 
-					icingTypes = its.str();
+					types = its.str();
 				}
 			}
 
-			if (icingTypes.empty()) {
+			if (types.empty()) {
 				// Global settings have no type(s)
 				//
 				globalsIdx = i;
@@ -5262,45 +5266,44 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 			std::string symbol(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"symbol",NULL,s_optional)));
 
-			// Output label; if symbol is not defined, default label is the icing magnitudes concatenated with ',' as separator.
+			// Output label; if symbol is not defined, default label is the types concatenated with ',' as separator.
 			// If empty label is given, no label.
 
 			std::string label(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"label",NULL,s_optional,&isSet)));
 			bool hasLabel = isSet;
 
-			// Output placeholders; default label placeholder is the icing placeholder + "TEXT"
+			// Output placeholders; default label placeholder is the group placeholder + "TEXT"
 
 			std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"output",globalScope,s_optional)));
 			if (placeHolder.empty())
-				placeHolder = ICING;
+				placeHolder = FEATURE;
 
 			std::string labelPlaceHolder(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"labeloutput",globalScope,s_optional)));
 			if (labelPlaceHolder.empty())
 				labelPlaceHolder = placeHolder + "TEXT";
 
-			// Standalone icing magnitudes (only one magnitude in the group) have flag controlling whether the
-			// group/icing is combined or not
+			// Standalone types (only one type in the group) have flag controlling whether the group is combined or not
 
 			bool combined = configValue<bool>(group,confPath,"combined",globalScope,s_optional,&isSet);
 			if (!isSet)
 				combined = true;
 
-			icingGroups.push_back(IcingGroup(classDef,
-											 icingTypes,
-											 (!symbol.empty()) ? &symbol : NULL,
-											 symbolOnly,
-											 hasLabel ? &label : NULL,
-											 bbCenterLabel,
-											 placeHolder,
-											 labelPlaceHolder,
-											 combined,
-											 xOffset,
-											 vOffset,vSOffset,
-											 sOffset,eOffset,
-											 icingSet,
-											 &group,
-											 globalScope
-											));
+			groups.push_back(T(classDef,
+							   types,
+							   (!symbol.empty()) ? &symbol : NULL,
+							   symbolOnly,
+							   hasLabel ? &label : NULL,
+							   bbCenterLabel,
+							   placeHolder,
+							   labelPlaceHolder,
+							   combined,
+							   xOffset,
+							   vOffset,vSOffset,
+							   sOffset,eOffset,
+							   memberSet,
+							   &group,
+							   globalScope
+							));
 		}
 
 		return specs;
@@ -5318,250 +5321,41 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Icing category membership detection
+   * \brief Timeserie group rendering (Icing or Turbulence)
    */
   // ----------------------------------------------------------------------
 
-  IcingGroupCategory::IcingGroupCategory() : CategoryValueMeasureGroup()
+  template <typename GroupCategoryT,typename GroupTypeT>
+  void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot> & ts,
+		  	  	  	  	  	  	  	 const std::string & confPath,
+		  	  	  	  	  	  	  	 const std::string & classNameExt)
   {
-  }
+	const std::string FEATURE(boost::algorithm::to_upper_copy(confPath));
 
-  bool IcingGroupCategory::groupMember(const woml::CategoryValueMeasure * cvm) const
-  {
-	// Check if the given icing magnitude is known
-
-	if (!cvm)
-		throw std::runtime_error("IcingGroupCategory::groupMember: CategoryValueMeasure value expected");
-
-	std::string category(boost::algorithm::to_upper_copy(cvm->category()));
-
-	return (std::find_if(itsIcingGroups.begin(),itsIcingGroups.end(),std::bind2nd(IcingType(),category)) != itsIcingGroups.end());
-  }
-
-  bool IcingGroupCategory::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
-  {
-	// Add first member to the icing group or check if the given icing magnitude is compatible with the group
-
-	(void) cvm2;
-
-	if (!cvm)
-		throw std::runtime_error("IcingGroupCategory::groupMember: CategoryValueMeasure value expected");
-
-	std::string category(boost::algorithm::to_upper_copy(cvm->category()));
-
-	if (first) {
-		itig = std::find_if(itsIcingGroups.begin(),itsIcingGroups.end(),std::bind2nd(IcingType(),category));
-
-		if (itig == itsIcingGroups.end())
-			throw std::runtime_error("IcingGroupCategory::groupMember: unknown category '" + category + "'");
-
-		// The icing set is common for all groups; clear it
-
-		itig->icingSet().clear();
-
-		itsFirstMember = cvm;
-	}
-	else {
-		// Check if elevations overlap (have the same group number) and have matching category
-		//
-		if (
-			(!CategoryValueMeasureGroup::groupMember(false,itsFirstMember,cvm)) ||
-			(std::find_if(itsIcingGroups.begin(),itsIcingGroups.end(),std::bind2nd(IcingType(),category)) != itig)
-		   )
-			return false;
-	}
-
-	// Add contained icing magnitude into the icing set
-
-	itig->addType(category);
-
-	return true;
-  }
-
-  // ----------------------------------------------------------------------
-  /*!
-   * \brief Icing rendering
-   */
-  // ----------------------------------------------------------------------
-
-  void SvgRenderer::render_timeserie(const woml::Icing & icing)
-  {
-	const std::string confPath("Icing");
-	const std::string ICING(boost::algorithm::to_upper_copy(confPath));
-
-	// Get icing groups from configuration.
+	// Get groups from configuration.
 	//
-	// icingSet contains the icing magnitudes (their starting positions in the group's 'types' setting) in current group;
-	// if neither group's symbol nor label are given, label (comma separated list of types) is build using the order
+	// Member set contains the types (icing or turbulence magnitudes; their starting positions in the group's 'types' setting)
+	// in current group; if neither group's symbol nor label is given, label (comma separated list of types) is build using the order
 	// the types are defined in 'types' setting.
 	//
-	// The icing set is cleared and then set by all the groups; icing magnitudes contained are
-	// added to the set when collecting a group in elevationGroup()
+	// The member set is cleared and then set by all the groups; types contained are added to the set when collecting a group
+	// in elevationGroup().
 
-	IcingGroupCategory icingGroupCategory;
-	std::set<size_t> icingSet;
+	GroupCategoryT groupCategory;
+	std::set<size_t> memberSet;
 
 	double tightness,minLabelPosHeight;
 
-	icingConfig(confPath,tightness,minLabelPosHeight,icingGroupCategory.icingGroups(),icingSet);
+	groupConfig<GroupTypeT>(confPath,tightness,minLabelPosHeight,groupCategory.groups(),memberSet);
 
-	// Document's time period, icing time series and x -axis step (px)
-
-	const boost::posix_time::time_period & tp = axisManager->timePeriod();
-	const std::list<woml::TimeSeriesSlot> & ts = icing.timeseries();
-
-	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-	double xStep = axisManager->xStep();
-
-	const std::string symClass(boost::algorithm::to_upper_copy(confPath + icing.classNameExt()));
-
-	// Elevation group and curve point data
-
-	ElevGrp eGrp;
-	int nGroups = 0;
-
-	List<DirectPosition> curvePositions;
-	std::list<DirectPosition> curvePoints;
-
-	// Set unique group number for members of each overlapping group of elevations
-
-	setGroupNumbers(ts);
-
-	// Search and flag elevation holes
-
-	searchHoles(ts,&icingGroupCategory);
-
-	for ( ; ; ) {
-		// Get group of overlapping elevations from the time serie
-		//
-		elevationGroup(ts,bt,et,eGrp,false,true,&icingGroupCategory);
-
-		if (eGrp.size() == 0)
-			break;
-
-		nGroups++;
-
-		// Icing group for current elevation group
-
-		std::list<IcingGroup>::const_iterator itig = icingGroupCategory.currentGroup();
-
-		// Get curve positions for bezier creation.
-		//
-		// The scaled lo/hi values for the elevations are returned in scaledLo/scaledHi;
-		// they are used to calculate icing symbol (or label) positions
-
-		std::vector<double> scaledLo,scaledHi;
-		std::vector<bool> hasHole;
-		bool isHole = eGrp.front().isHole();
-
-		std::ostringstream path;
-		path << std::fixed << std::setprecision(3);
-
-		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itig->xOffset(),itig->vOffset(),itig->vSOffset(),itig->sOffset(),itig->eOffset(),0,0,path);
-
-		if (!(single && itig->symbolOnly())) {
-			// Rendering the group as bezier curve
-			//
-			if (options.debug)
-				texts[ICING + "PATH"] << "<path class=\"" << itig->classDef()
-									  << "\" id=\"" << "IcingB" << nGroups
-									  << "\" d=\""
-									  << path.str()
-									  << "\"/>\n";
-
-			// Create bezier curve and get curve points
-
-			BezierModel bm(curvePositions,false,tightness);
-			bm.getSteppedCurvePoints(0,0,0,curvePoints);
-
-			// Render path
-
-			std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
-
-			if (options.debug) {
-				path.clear();
-				path.str("");
-			}
-
-			for (itcp = cpbeg; (itcp != cpend); itcp++)
-				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY();
-
-			texts[ICING] << "<path class=\"" << itig->classDef()
-						 << "\" id=\"" << "Icing" << nGroups
-						 << "\" d=\""
-						 << path.str()
-						 << "\"/>\n";
-
-			curvePoints.clear();
-		}
-
-		curvePositions.clear();
-
-		// Render the single symbol or one symbol or label to the center of each visible part of the area.
-
-		if (!isHole) {
-			// x -coord of group's first time instant
-			//
-			const boost::posix_time::ptime & vt = eGrp.front().validTime();
-			double minX = axisManager->xOffset(vt);
-			int n;
-
-			std::vector<double> labelX,labelY;
-			std::vector<double>::const_iterator itx,ity;
-
-			getAreaLabelPos(itig->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,itig->sOffset(),itig->eOffset(),
-							scaledLo,scaledHi,hasHole,labelX,labelY);
-
-			for (itx = labelX.begin(),ity = labelY.begin(), n = 0; (itx != labelX.end()); itx++, ity++, n++)
-				if (!(itig->symbol().empty()))
-					render_aerodromeSymbol(confPath,symClass,icing.classNameExt(),itig->symbol(),*itx,*ity,true,true);
-				else
-					texts[itig->labelPlaceHolder()] << "<text class=\"" << itig->textClassDef()
-													<< "\" id=\"" << "IcingText" << nGroups << n
-													<< "\" text-anchor=\"middle"
-													<< "\" x=\"" << *itx
-													<< "\" y=\"" << *ity
-													<< "\">" << itig->label() << "</text>\n";
-		}
-	}	// for group
-  }
-
-  // ----------------------------------------------------------------------
-  /*!
-   * \brief Turbulence rendering
-   */
-  // ----------------------------------------------------------------------
-
-  void SvgRenderer::render_timeserie(const woml::Turbulence & turbulence)
-  {
-	const std::string confPath("Turbulence");
-	const std::string TURBULENCE(boost::algorithm::to_upper_copy(confPath));
-
-	// Get turbulence groups from configuration.
-	//
-	// turbulenceSet contains the turbulence magnitudes (their starting positions in the group's 'types' setting) in current group;
-	// if neither group's symbol nor label are given, label (comma separated list of types) is build using the order
-	// the types are defined in 'types' setting.
-	//
-	// The turbulence set is cleared and then set by all the groups; turbulence magnitudes contained are
-	// added to the set when collecting a group in elevationGroup().
-
-	IcingGroupCategory turbulenceGroupCategory;
-	std::set<size_t> turbulenceSet;
-
-	double tightness,minLabelPosHeight;
-
-	icingConfig(confPath,tightness,minLabelPosHeight,turbulenceGroupCategory.icingGroups(),turbulenceSet);
-
-	// Document's time period, icing time series and x -axis step (px)
+	// Document's time period, x -axis step and y -axis height (px)
 
 	const boost::posix_time::time_period & tp = axisManager->timePeriod();
-	const std::list<woml::TimeSeriesSlot> & ts = turbulence.timeseries();
 
 	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 	double xStep = axisManager->xStep(),axisHeight = axisManager->axisHeight(),y;
 
-	const std::string symClass(boost::algorithm::to_upper_copy(confPath + turbulence.classNameExt()));
+	const std::string symClass(boost::algorithm::to_upper_copy(confPath + classNameExt));
 
 	// Elevation group and curve point data
 
@@ -5578,26 +5372,26 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// Search and flag elevation holes
 
-	searchHoles(ts,&turbulenceGroupCategory);
+	searchHoles(ts,&groupCategory);
 
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,false,true,&turbulenceGroupCategory);
+		elevationGroup(ts,bt,et,eGrp,false,true,&groupCategory);
 
 		if (eGrp.size() == 0)
 			break;
 
 		nGroups++;
 
-		// Turbulence group for current elevation group
+		// Configuration group for current elevation group
 
-		std::list<IcingGroup>::const_iterator ittg = turbulenceGroupCategory.currentGroup();
+		typename std::list<GroupTypeT>::const_iterator itcg = groupCategory.currentGroup();
 
 		// Get curve positions for bezier creation.
 		//
 		// The scaled lo/hi values for the elevations are returned in scaledLo/scaledHi;
-		// they are used to calculate icing symbol (or label) positions
+		// they are used to calculate symbol (or label) positions
 
 		std::vector<double> scaledLo,scaledHi;
 		std::vector<bool> hasHole;
@@ -5606,18 +5400,18 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,ittg->xOffset(),ittg->vOffset(),ittg->vSOffset(),ittg->sOffset(),ittg->eOffset(),0,0,path);
-		bool asSymbol = (single && ittg->symbolOnly());
+		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->xOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->sOffset(),itcg->eOffset(),0,0,path);
+		bool asSymbol = (single && itcg->symbolOnly());
 
 		if (!asSymbol) {
 			// Rendering the group as bezier curve
 			//
 			if (options.debug)
-				texts[TURBULENCE + "PATH"] << "<path class=\"" << ittg->classDef()
-										   << "\" id=\"" << "TurbulenceB" << nGroups
-										   << "\" d=\""
-										   << path.str()
-										   << "\"/>\n";
+				texts[FEATURE + "PATH"] << "<path class=\"" << itcg->classDef()
+										<< "\" id=\"" << FEATURE << "B" << nGroups
+										<< "\" d=\""
+										<< path.str()
+										<< "\"/>\n";
 
 			// Create bezier curve and get curve points
 
@@ -5644,11 +5438,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				}
 			}
 
-			texts[TURBULENCE] << "<path class=\"" << ittg->classDef()
-							  << "\" id=\"" << "Turbulence" << nGroups
-							  << "\" d=\""
-							  << path.str()
-							  << "\"/>\n";
+			texts[FEATURE] << "<path class=\"" << itcg->classDef()
+						   << "\" id=\"" << FEATURE << nGroups
+						   << "\" d=\""
+						   << path.str()
+						   << "\"/>\n";
 
 			curvePoints.clear();
 		}
@@ -5667,12 +5461,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			std::vector<double> labelX,labelY;
 			std::vector<double>::const_iterator itx,ity;
 
-			getAreaLabelPos(ittg->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,ittg->sOffset(),ittg->eOffset(),
+			getAreaLabelPos(itcg->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,itcg->sOffset(),itcg->eOffset(),
 							scaledLo,scaledHi,hasHole,labelX,labelY);
 
 			for (itx = labelX.begin(),ity = labelY.begin(), n = 0; (itx != labelX.end()); itx++, ity++, n++)
-				if (!(ittg->symbol().empty())) {
-					render_aerodromeSymbol(confPath,symClass,turbulence.classNameExt(),ittg->symbol(),*itx,(y = *ity),true,true);
+				if (!(itcg->symbol().empty())) {
+					render_aerodromeSymbol(confPath,symClass,classNameExt,itcg->symbol(),*itx,(y = *ity),true,true);
 
 					if (asSymbol) {
 						// The symbol should be visible, checking anyway
@@ -5684,40 +5478,62 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 					}
 				}
 				else
-					texts[ittg->labelPlaceHolder()] << "<text class=\"" << ittg->textClassDef()
-													<< "\" id=\"" << "TurbulenceText" << nGroups << n
+					texts[itcg->labelPlaceHolder()] << "<text class=\"" << itcg->textClassDef()
+													<< "\" id=\"" << FEATURE << "Text" << nGroups << n
 													<< "\" text-anchor=\"middle"
 													<< "\" x=\"" << *itx
 													<< "\" y=\"" << *ity
-													<< "\">" << ittg->label() << "</text>\n";
+													<< "\">" << itcg->label() << "</text>\n";
 		}
 	}	// for group
 
-	// Visibility information
+	// Visibility information. Class is taken from the first group.
 
-	const std::string & classDef = ((turbulenceGroupCategory.icingGroups().begin() != turbulenceGroupCategory.icingGroups().end())
-								   ? turbulenceGroupCategory.icingGroups().front().classDef()
+	const std::string & classDef = ((groupCategory.groups().begin() != groupCategory.groups().end())
+								   ? groupCategory.groups().front().classDef()
 								   : "");
 
 	if (!visible) {
 		if (!aboveTop) {
-			// Show the fixed template text "No turbulence"
+			// Show the fixed template text "No xxx"
 			//
-			const std::string NOTURBULENCE(TURBULENCE + "NO" + TURBULENCE);
-			texts[NOTURBULENCE] << classDef << "Visible";
+			const std::string NOFEATURE(FEATURE + "NO" + FEATURE);
+			texts[NOFEATURE] << classDef << "Visible";
 		}
 		else {
-			// Show the fixed template text "Turbulence is located in the upper"
+			// Show the fixed template text "xxx is located in the upper"
 			//
-			const std::string TURBULENCEUPPER(TURBULENCE + "INTHEUPPER");
-			texts[TURBULENCEUPPER] << classDef << "Visible";
+			const std::string FEATUREUPPER(FEATURE + "INTHEUPPER");
+			texts[FEATUREUPPER] << classDef << "Visible";
 		}
 	}
 
-	// Show the "turbulence" legend (even if no turbulence exists or is visible)
+	// Show the "xxx" legend (even if no data exists or is visible)
 
-	const std::string TURBULENCEVISIBLE(TURBULENCE + "VISIBLE");
-	texts[TURBULENCEVISIBLE] << classDef << "Visible";
+	const std::string FEATUREVISIBLE(FEATURE + "VISIBLE");
+	texts[FEATUREVISIBLE] << classDef << "Visible";
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Icing rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::Icing & icing)
+  {
+	render_timeserie<IcingGroupCategory,IcingGroup>(icing.timeseries(),"Icing",icing.classNameExt());
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Turbulence rendering
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::render_timeserie(const woml::Turbulence & turbulence)
+  {
+	render_timeserie<TurbulenceGroupCategory,TurbulenceGroup>(turbulence.timeseries(),"Turbulence",turbulence.classNameExt());
   }
 
   // ----------------------------------------------------------------------
@@ -7327,6 +7143,63 @@ bool ElevationHole::operator < (const ElevationHole & theOther) const
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief ConfigGroup
+ */
+// ----------------------------------------------------------------------
+
+ConfigGroup::ConfigGroup(const std::string & theClassDef,
+						 const std::string & theMemberTypes,
+						 const std::string * theLabel,
+						 bool bbCenterLabel,
+						 const std::string & thePlaceHolder,
+						 const std::string & theLabelPlaceHolder,
+						 bool combined,
+						 double theXOffset,
+						 double theVOffset,double theVSOffset,
+						 int theSOffset,int theEOffset,
+						 std::set<size_t> & theMemberSet,
+						 const libconfig::Setting * theLocalScope,
+						 const libconfig::Setting * theGlobalScope)
+  : itsMemberSet(theMemberSet)
+{
+  itsClass = boost::algorithm::trim_copy(theClassDef);
+
+  if (!itsClass.empty()) {
+	// Class names for member type (cloud type or icing or turbulence magnitude) output
+	//
+	std::vector<std::string> cl;
+	boost::algorithm::split(cl,itsClass,boost::is_any_of(" "));
+
+	std::ostringstream cls;
+
+	for (unsigned int i = 0,n = 0; (i < cl.size()); i++) {
+		cls << (n ? " " : "") << cl[i] << "Text";
+		n++;
+	}
+
+	itsTextClass = cls.str();
+  }
+
+  itsStandalone = (((theMemberTypes.find(",") == std::string::npos)) && (!combined));
+  itsMemberTypes = (itsStandalone ? theMemberTypes : ("," + theMemberTypes + ","));
+  itsLabel = theLabel ? *theLabel : "";
+  hasLabel = theLabel ? true : false;
+  bbCenterLabelPos = bbCenterLabel;
+  itsPlaceHolder = thePlaceHolder;
+  itsLabelPlaceHolder = theLabelPlaceHolder;
+
+  itsXOffset = theXOffset;
+  itsVOffset = theVOffset;
+  itsVSOffset = theVSOffset;
+  itsSOffset = theSOffset;
+  itsEOffset = theEOffset;
+
+  itsLocalScope = theLocalScope;
+  itsGlobalScope = theGlobalScope;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief CloudGroup
  */
 // ----------------------------------------------------------------------
@@ -7352,34 +7225,23 @@ CloudGroup::CloudGroup(const std::string & theClass,
 					   std::set<size_t> & theCloudSet,
 					   const libconfig::Setting * theLocalScope,
 					   const libconfig::Setting * theGlobalScope)
-  : itsCloudSet(theCloudSet)
+
+  : ConfigGroup(theClass,
+		  	    theCloudTypes,
+		  	    theLabel,
+		  	    bbCenterLabel,
+		  	    thePlaceHolder,
+		  	    theLabelPlaceHolder,
+		  	    combined,
+		  	    theXOffset,
+		  	    theVOffset,theVSOffset,
+		  	    theSOffset,theEOffset,
+		  	    theCloudSet,
+		  	    theLocalScope,
+		  	    theGlobalScope
+			   )
 {
-  itsClass = boost::algorithm::trim_copy(theClass);
-
-  if (!itsClass.empty()) {
-	// Class names for cloud type output
-	//
-	std::vector<std::string> cl;
-	boost::algorithm::split(cl,itsClass,boost::is_any_of(" "));
-
-	std::ostringstream cls;
-
-	for (unsigned int i = 0,n = 0; (i < cl.size()); i++) {
-		cls << (n ? " " : "") << cl[i] << "Text";
-		n++;
-	}
-
-	itsTextClass = cls.str();
-  }
-
-  itsStandalone = (((theCloudTypes.find(",") == std::string::npos)) && (!combined));
-  itsCloudTypes = (itsStandalone ? theCloudTypes : ("," + theCloudTypes + ","));
-  itsSymbolType = (itsStandalone ? theSymbolType : "");
-  itsLabel = theLabel ? *theLabel : "";
-  hasLabel = theLabel ? true : false;
-  bbCenterLabelPos = bbCenterLabel;
-  itsPlaceHolder = thePlaceHolder;
-  itsLabelPlaceHolder = theLabelPlaceHolder;
+  itsSymbolType = (standalone() ? theSymbolType : "");
 
   itsBaseStep = theBaseStep;
   itsMaxRand = theMaxRand;
@@ -7389,68 +7251,59 @@ CloudGroup::CloudGroup(const std::string & theClass,
   itsScaleHeightRandom = theScaleHeightRandom;
   itsControlMin = theControlMin;
   itsControlRandom = theControlRandom;
-
-  itsXOffset = theXOffset;
-  itsVOffset = theVOffset;
-  itsVSOffset = theVSOffset;
-  itsSOffset = theSOffset;
-  itsEOffset = theEOffset;
-
-  itsLocalScope = theLocalScope;
-  itsGlobalScope = theGlobalScope;
 }
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Check if group contains given cloud type
+ * \brief Check if group contains given member type
  */
 // ----------------------------------------------------------------------
 
-bool CloudGroup::contains(const std::string & theCloudType) const
+bool ConfigGroup::contains(const std::string & theMemberType) const
 {
   if (itsStandalone)
-	  return (itsCloudTypes == theCloudType);
+	  return (itsMemberTypes == theMemberType);
   else
-	  return (itsCloudTypes.find("," + theCloudType + ",") != std::string::npos);
+	  return (itsMemberTypes.find("," + theMemberType + ",") != std::string::npos);
 }
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Add a cloud type the cloud contains
+ * \brief Add a member type the group contains
  */
 // ----------------------------------------------------------------------
 
-void CloudGroup::addType(const std::string & theCloudType) const
+void ConfigGroup::addType(const std::string & theMemberType) const
 {
   if (!itsStandalone) {
-	  size_t pos = itsCloudTypes.find("," + theCloudType + ",");
+	  size_t pos = itsMemberTypes.find("," + theMemberType + ",");
 
 	  if (pos != std::string::npos)
-		  itsCloudSet.insert(pos + 1);
+		  itsMemberSet.insert(pos + 1);
   }
 }
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Get the types the cloud contains
+ * \brief Get the types the group contains
  */
 // ----------------------------------------------------------------------
 
-std::string CloudGroup::cloudTypes() const
+std::string ConfigGroup::memberTypes() const
 {
   if (itsStandalone)
-	  return itsCloudTypes;
+	  return itsMemberTypes;
 
-  std::set<size_t>::iterator setbeg = itsCloudSet.begin(),setend = itsCloudSet.end(),it;
-  std::ostringstream cts;
+  std::set<size_t>::iterator setbeg = itsMemberSet.begin(),setend = itsMemberSet.end(),it;
+  std::ostringstream mts;
   std::string types;
 
   for (it = setbeg; (it != setend); it++) {
-	std::string s(itsCloudTypes.substr(*it,itsCloudTypes.find(',',*it)));
-	cts << ((it != setbeg) ? "\t" : "") << s;
+	std::string s(itsMemberTypes.substr(*it,itsMemberTypes.find(',',*it)));
+	mts << ((it != setbeg) ? "\t" : "") << s;
   }
 
-  types = cts.str();
+  types = mts.str();
   boost::algorithm::replace_all(types,",","");
   boost::algorithm::replace_all(types,"\t",",");
 
@@ -7459,12 +7312,12 @@ std::string CloudGroup::cloudTypes() const
 
 // ----------------------------------------------------------------------
 /*!
- * \brief CloudType
+ * \brief Check if group contains given type
  */
 // ----------------------------------------------------------------------
 
-bool CloudType::operator ()(const CloudGroup & cloudGroup, const std::string & cloudType) const {
-  return cloudGroup.contains(cloudType);
+bool MemberType::operator ()(const ConfigGroup & configGroup, const std::string & memberType) const {
+  return configGroup.contains(memberType);
 }
 
 // ----------------------------------------------------------------------
@@ -7488,110 +7341,23 @@ IcingGroup::IcingGroup(const std::string & theClass,
 					   std::set<size_t> & theIcingSet,
 					   const libconfig::Setting * theLocalScope,
 					   const libconfig::Setting * theGlobalScope)
-  : itsIcingSet(theIcingSet)
+  : ConfigGroup(theClass,
+		  	    theIcingTypes,
+		  	    theLabel,
+		  	    bbCenterLabel,
+		  	    thePlaceHolder,
+		  	    theLabelPlaceHolder,
+		  	    combined,
+		  	    theXOffset,
+		  	    theVOffset,theVSOffset,
+		  	    theSOffset,theEOffset,
+		  	    theIcingSet,
+		  	    theLocalScope,
+		  	    theGlobalScope
+			   )
 {
-  itsClass = boost::algorithm::trim_copy(theClass);
-
-  if (!itsClass.empty()) {
-	// Class names for icing magnitude output
-	//
-	std::vector<std::string> cl;
-	boost::algorithm::split(cl,itsClass,boost::is_any_of(" "));
-
-	std::ostringstream cls;
-
-	for (unsigned int i = 0,n = 0; (i < cl.size()); i++) {
-		cls << (n ? " " : "") << cl[i] << "Text";
-		n++;
-	}
-
-	itsTextClass = cls.str();
-  }
-
-  itsStandalone = (((theIcingTypes.find(",") == std::string::npos)) && (!combined));
-  itsIcingTypes = (itsStandalone ? theIcingTypes : ("," + theIcingTypes + ","));
   itsSymbol = (theSymbol ? *theSymbol : "");
   renderSymbolOnly = symbolOnly;
-  itsLabel = theLabel ? *theLabel : "";
-  hasLabel = theLabel ? true : false;
-  itsPlaceHolder = thePlaceHolder;
-  itsLabelPlaceHolder = theLabelPlaceHolder;
-
-  itsXOffset = theXOffset;
-  itsVOffset = theVOffset;
-  itsVSOffset = theVSOffset;
-  itsSOffset = theSOffset;
-  itsEOffset = theEOffset;
-
-  itsLocalScope = theLocalScope;
-  itsGlobalScope = theGlobalScope;
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Check if group contains given icing magnitude
- */
-// ----------------------------------------------------------------------
-
-bool IcingGroup::contains(const std::string & theIcingType) const
-{
-  if (itsStandalone)
-	  return (itsIcingTypes == theIcingType);
-  else
-	  return (itsIcingTypes.find("," + theIcingType + ",") != std::string::npos);
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Add a icing magnitude the icing group contains
- */
-// ----------------------------------------------------------------------
-
-void IcingGroup::addType(const std::string & theIcingType) const
-{
-  if (!itsStandalone) {
-	  size_t pos = itsIcingTypes.find("," + theIcingType + ",");
-
-	  if (pos != std::string::npos)
-		  itsIcingSet.insert(pos + 1);
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Get the magnitudes the icing group contains
- */
-// ----------------------------------------------------------------------
-
-std::string IcingGroup::icingTypes() const
-{
-  if (itsStandalone)
-	  return itsIcingTypes;
-
-  std::set<size_t>::iterator setbeg = itsIcingSet.begin(),setend = itsIcingSet.end(),it;
-  std::ostringstream its;
-  std::string types;
-
-  for (it = setbeg; (it != setend); it++) {
-	std::string s(itsIcingTypes.substr(*it,itsIcingTypes.find(',',*it)));
-	its << ((it != setbeg) ? "\t" : "") << s;
-  }
-
-  types = its.str();
-  boost::algorithm::replace_all(types,",","");
-  boost::algorithm::replace_all(types,"\t",",");
-
-  return types;
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief IcingType
- */
-// ----------------------------------------------------------------------
-
-bool IcingType::operator ()(const IcingGroup & icingGroup, const std::string & icingType) const {
-  return icingGroup.contains(icingType);
 }
 
 // ----------------------------------------------------------------------

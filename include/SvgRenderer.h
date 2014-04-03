@@ -107,7 +107,76 @@ namespace frontier
 	std::list<Elevation> itsElevations;
   };
 
-  class CloudGroup
+  class ConfigGroup
+  {
+  public:
+	ConfigGroup(const std::string & theClassDef,
+			    const std::string & theMemberTypes,
+			    const std::string * theLabel,
+			    bool bbCenterLabel,
+			    const std::string & thePlaceHolder,
+			    const std::string & theLabelPlaceHolder,
+			    bool combined,
+			    double theXOffset,
+			    double theVOffset,double theVSOffset,
+			    int theSOffset,int theEOffset,
+			    std::set<size_t> & theMemberSet,
+			    const libconfig::Setting * localScope,
+			    const libconfig::Setting * globalScope = NULL
+			   );
+
+	const std::string & classDef() const { return itsClass; }
+	const std::string & textClassDef() const { return itsTextClass; }
+	std::string label() const { return (hasLabel ? itsLabel : memberTypes()); }
+	bool bbCenterLabel() const { return bbCenterLabelPos; }
+	const std::string & placeHolder() const { return itsPlaceHolder; }
+	const std::string & labelPlaceHolder() const { return itsLabelPlaceHolder; }
+	bool standalone() const { return itsStandalone; }
+	bool contains(const std::string & theMemberType) const;
+	void addType(const std::string & type) const;
+	std::string memberTypes() const;
+
+	double xOffset() const { return itsXOffset; }
+	double vOffset() const { return itsVOffset; }
+	double vSOffset() const { return itsVSOffset; }
+	int sOffset() const { return itsSOffset; }
+	int eOffset() const { return itsEOffset; }
+
+	std::set<size_t> & memberSet() const { return itsMemberSet; }
+
+	const libconfig::Setting * localScope() const { return itsLocalScope; }
+	const libconfig::Setting * globalScope() const { return itsGlobalScope; }
+
+  private:
+	ConfigGroup();
+
+	std::string itsClass;
+	std::string itsTextClass;
+	std::string itsMemberTypes;
+	std::string itsLabel;
+	bool hasLabel;
+	bool bbCenterLabelPos;
+	std::string itsPlaceHolder;
+	std::string itsLabelPlaceHolder;
+	bool itsStandalone;
+
+	double itsXOffset;
+	double itsVOffset;
+	double itsVSOffset;
+	int itsSOffset;
+	int itsEOffset;
+
+	std::set<size_t> & itsMemberSet;			// Types contained in the current group
+
+	const libconfig::Setting * itsLocalScope;	// Group's configuration block
+	const libconfig::Setting * itsGlobalScope;	// Group's global configuration block (if any)
+  };
+
+  struct MemberType : public std::binary_function< ConfigGroup, std::string, bool > {
+    bool operator () ( const ConfigGroup & configGroup, const std::string & memberType) const;
+  };
+
+  class CloudGroup : public ConfigGroup
   {
   public:
 	CloudGroup(const std::string & theClassDef,
@@ -131,19 +200,9 @@ namespace frontier
 			   std::set<size_t> & theCloudSet,
 			   const libconfig::Setting * localScope,
 			   const libconfig::Setting * globalScope = NULL
-			   );
+			  );
 
-	const std::string & classDef() const { return itsClass; }
-	const std::string & textClassDef() const { return itsTextClass; }
 	const std::string & symbolType() const { return itsSymbolType; }
-	std::string label() const { return (hasLabel ? itsLabel : cloudTypes()); }
-	bool bbCenterLabel() const { return bbCenterLabelPos; }
-	const std::string & placeHolder() const { return itsPlaceHolder; }
-	const std::string & labelPlaceHolder() const { return itsLabelPlaceHolder; }
-	bool standalone() const { return itsStandalone; }
-	bool contains(const std::string & theCloudType) const;
-	void addType(const std::string & type) const;
-	std::string cloudTypes() const;
 
 	unsigned int baseStep() const { return itsBaseStep; }
 	unsigned int maxRand() const { return itsMaxRand; }
@@ -154,30 +213,10 @@ namespace frontier
 	int controlMin() const { return itsControlMin; }
 	int controlRandom() const { return itsControlRandom; }
 
-	double xOffset() const { return itsXOffset; }
-	double vOffset() const { return itsVOffset; }
-	double vSOffset() const { return itsVSOffset; }
-	int sOffset() const { return itsSOffset; }
-	int eOffset() const { return itsEOffset; }
-
-	std::set<size_t> & cloudSet() const { return itsCloudSet; }
-
-	const libconfig::Setting * localScope() const { return itsLocalScope; }
-	const libconfig::Setting * globalScope() const { return itsGlobalScope; }
-
   private:
 	CloudGroup();
 
-	std::string itsClass;
-	std::string itsTextClass;
-	std::string itsCloudTypes;
 	std::string itsSymbolType;
-	std::string itsLabel;
-	bool hasLabel;
-	bool bbCenterLabelPos;
-	std::string itsPlaceHolder;
-	std::string itsLabelPlaceHolder;
-	bool itsStandalone;
 
 	unsigned int itsBaseStep;
 	unsigned int itsMaxRand;
@@ -187,24 +226,9 @@ namespace frontier
 	int itsScaleHeightRandom;
 	int itsControlMin;
 	int itsControlRandom;
-
-	double itsXOffset;
-	double itsVOffset;
-	double itsVSOffset;
-	int itsSOffset;
-	int itsEOffset;
-
-	std::set<size_t> & itsCloudSet;				// Cloud types contained in the current cloud
-
-	const libconfig::Setting * itsLocalScope;	// Group's configuration block
-	const libconfig::Setting * itsGlobalScope;	// Group's global configuration block (if any)
   };
 
-  struct CloudType : public std::binary_function< CloudGroup, std::string, bool > {
-    bool operator () ( const CloudGroup & cloudGroup, const std::string & cloudType) const;
-  };
-
-  class IcingGroup
+  class IcingGroup : public ConfigGroup
   {
   public:
 	IcingGroup(const std::string & theClassDef,
@@ -222,62 +246,19 @@ namespace frontier
 			   std::set<size_t> & theIcingSet,
 			   const libconfig::Setting * localScope,
 			   const libconfig::Setting * globalScope = NULL
-			   );
+			  );
 
-	const std::string & classDef() const { return itsClass; }
-	const std::string & textClassDef() const { return itsTextClass; }
 	const std::string & symbol() const { return itsSymbol; }
 	bool symbolOnly() const { return renderSymbolOnly; }
-	std::string label() const { return (hasLabel ? itsLabel : icingTypes()); }
-	bool bbCenterLabel() const { return bbCenterLabelPos; }
-	const std::string & placeHolder() const { return itsPlaceHolder; }
-	const std::string & labelPlaceHolder() const { return itsLabelPlaceHolder; }
-	bool standalone() const { return itsStandalone; }
-	bool contains(const std::string & theIcingType) const;
-	void addType(const std::string & type) const;
-	std::string icingTypes() const;
-
-	double xOffset() const { return itsXOffset; }
-	double vOffset() const { return itsVOffset; }
-	double vSOffset() const { return itsVSOffset; }
-	int sOffset() const { return itsSOffset; }
-	int eOffset() const { return itsEOffset; }
-
-	std::set<size_t> & icingSet() const { return itsIcingSet; }
-
-	const libconfig::Setting * localScope() const { return itsLocalScope; }
-	const libconfig::Setting * globalScope() const { return itsGlobalScope; }
 
   private:
 	IcingGroup();
 
-	std::string itsClass;
-	std::string itsTextClass;
-	std::string itsIcingTypes;
 	std::string itsSymbol;
 	bool renderSymbolOnly;
-	std::string itsLabel;
-	bool hasLabel;
-	bool bbCenterLabelPos;
-	std::string itsPlaceHolder;
-	std::string itsLabelPlaceHolder;
-	bool itsStandalone;
-
-	double itsXOffset;
-	double itsVOffset;
-	double itsVSOffset;
-	int itsSOffset;
-	int itsEOffset;
-
-	std::set<size_t> & itsIcingSet;				// Icing magnitudes contained in the current group
-
-	const libconfig::Setting * itsLocalScope;	// Group's configuration block
-	const libconfig::Setting * itsGlobalScope;	// Group's global configuration block (if any)
   };
 
-  struct IcingType : public std::binary_function< IcingGroup, std::string, bool > {
-    bool operator () ( const IcingGroup & icingGroup, const std::string & icingType) const;
-  };
+  typedef IcingGroup TurbulenceGroup;
 
   class CategoryValueMeasureGroup
   {
@@ -292,39 +273,27 @@ namespace frontier
 	const woml::CategoryValueMeasure * itsFirstMember;
   };
 
-  class CloudGroupCategory : public CategoryValueMeasureGroup
+  template <typename T>
+  class GroupCategory : public CategoryValueMeasureGroup
   {
   public:
-	CloudGroupCategory();
+	GroupCategory();
 
-	std::list<CloudGroup> & cloudGroups() { return itsCloudGroups; }
-	std::list<CloudGroup>::const_iterator currentGroup() { return itcg; }
+	typename std::list<T> & groups() { return itsGroups; }
+	typename std::list<T>::const_iterator currentGroup() { return itcg; }
 
 	bool groupMember(const woml::CategoryValueMeasure * cvm) const;
 	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
-	bool standalone() { return ((itsCloudGroups.size() > 0) && (*itcg).standalone()); }
+	bool standalone() { return ((itsGroups.size() > 0) && (*itcg).standalone()); }
 
   private:
-	std::list<CloudGroup> itsCloudGroups;
-	std::list<CloudGroup>::const_iterator itcg;
+	typename std::list<T> itsGroups;
+	typename std::list<T>::const_iterator itcg;
   };
 
-  class IcingGroupCategory : public CategoryValueMeasureGroup
-  {
-  public:
-	IcingGroupCategory();
-
-	std::list<IcingGroup> & icingGroups() { return itsIcingGroups; }
-	std::list<IcingGroup>::const_iterator currentGroup() { return itig; }
-
-	bool groupMember(const woml::CategoryValueMeasure * cvm) const;
-	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
-	bool standalone() { return ((itsIcingGroups.size() > 0) && (*itig).standalone()); }
-
-  private:
-	std::list<IcingGroup> itsIcingGroups;
-	std::list<IcingGroup>::const_iterator itig;
-  };
+  typedef GroupCategory<CloudGroup> CloudGroupCategory;
+  typedef GroupCategory<IcingGroup> IcingGroupCategory;
+  typedef GroupCategory<TurbulenceGroup> TurbulenceGroupCategory;
 
   class ElevationGroupItem
   {
@@ -603,10 +572,13 @@ namespace frontier
 							 );
 	void render_timeserie(const woml::CloudLayers & cloudlayers);
 	void render_timeserie(const woml::Contrails & contrails);
-	const libconfig::Setting & icingConfig(const std::string & confPath,
-										   double & tightness,double & minLabelPosHeight,
-										   std::list<IcingGroup> & icingGroups,
-										   std::set<size_t> & icingSet);
+	template <typename T> const libconfig::Setting & groupConfig(const std::string & groupConfPath,
+																 double & tightness,double & minLabelPosHeight,
+																 std::list<T> & groups,
+																 std::set<size_t> & memberSet);
+	template <typename GroupCategoryT,typename GroupTypeT> void render_timeserie(const std::list<woml::TimeSeriesSlot> & ts,
+																				 const std::string & confPath,
+																				 const std::string & classNameExt);
 	void render_timeserie(const woml::Icing & icing);
 	void render_timeserie(const woml::Turbulence & turbulence);
 	void render_timeserie(const woml::MigratoryBirds & migratorybirds);
