@@ -5321,7 +5321,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Timeserie group rendering (Icing or Turbulence)
+   * \brief Timeserie group rendering (for Icing and Turbulence)
    */
   // ----------------------------------------------------------------------
 
@@ -5407,7 +5407,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			// Rendering the group as bezier curve
 			//
 			if (options.debug)
-				texts[FEATURE + "PATH"] << "<path class=\"" << itcg->classDef()
+				texts[FEATURE + "PATH"] << "<path class=\"" << itcg->classDef() << "Visible"
 										<< "\" id=\"" << FEATURE << "B" << nGroups
 										<< "\" d=\""
 										<< path.str()
@@ -5438,7 +5438,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				}
 			}
 
-			texts[FEATURE] << "<path class=\"" << itcg->classDef()
+			texts[FEATURE] << "<path class=\"" << itcg->classDef() << "Visible"
 						   << "\" id=\"" << FEATURE << nGroups
 						   << "\" d=\""
 						   << path.str()
