@@ -3587,12 +3587,18 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void addCurvePosition(List<DirectPosition> & curvePositions,double x,double y,double xOffset = 0.0)
+  void addCurvePosition(List<DirectPosition> & curvePositions,double x,double y,double xOffset = 0.0,bool leftOnly = false)
   {
-	// If offset is given, add points on both sides too (to control the curve shape on corners)
+	// Add curve point and if offset is given, add points on both sides too (to control the curve shape on corners)
+	// if leftOnly is false; if leftOnly is true, add only the left side point (going up to the left side hi range point
+	// when closing the path to the starting top left corner)
 
-	if (fabs(xOffset) >= 1.0)
+	if (fabs(xOffset) >= 1.0) {
 		curvePositions.push_back(DirectPosition(x - xOffset,y));
+
+		if (leftOnly)
+			return;
+	}
 
 	curvePositions.push_back(DirectPosition(x,y));
 
@@ -3777,7 +3783,7 @@ fprintf(stderr,">>>> eup hi=%.0f %s\n",hi,cs.c_str());
 				double offset = (((vt == bt) && (vOffset > sOffset)) ? sOffset : vOffset);
 
 				curvePositions.push_back(DirectPosition(x - offset,lopx - ((lopx - hipx) / 2)));
-				addCurvePosition(curvePositions,x,hipx,xOffset);
+				addCurvePosition(curvePositions,x,hipx,xOffset,iteg->topConnected());
 
 				if (options.debug)
 					path << (((vt != bt) && (vt != et)) ? " L" : " M") << x << "," << hipx;
@@ -4259,7 +4265,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		if (dh == -1) {
 			if (groupCategory) {
-				// Check that elevation belongs to the same category (cloud type or icing magnitude) as the hole
+				// Check that elevation belongs to the same category (cloud type or icing/turbulence magnitude) as the hole
 				//
 				ElevGrp::iterator iteg = liteg.base();
 				iteg--;
@@ -4317,7 +4323,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		if (dh == -1) {
 			if (groupCategory) {
-				// Check that the holes belong to the same category (cloud type or icing magnitude)
+				// Check that the holes belong to the same category (cloud type or icing/turbulence magnitude)
 				//
 				if (!checkCategory(groupCategory,iteh->aboveElev,liteh->aboveElev))
 					continue;
@@ -4359,7 +4365,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		if (dh == 1) {
 			if (groupCategory) {
-				// Check that elevation belongs to the same category (cloud type or icing magnitude) as the hole
+				// Check that elevation belongs to the same category (cloud type or icing/turbulence magnitude) as the hole
 				//
 				if (!checkCategory(groupCategory,iteh->aboveElev,riteg))
 					continue;
@@ -4417,7 +4423,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		if (dh == 1) {
 			if (groupCategory) {
-				// Check that the holes belong to the same category (cloud type or icing magnitude)
+				// Check that the holes belong to the same category (cloud type or icing/turbulence magnitude)
 				//
 				if (!checkCategory(groupCategory,iteh->aboveElev,riteh->aboveElev))
 					continue;
@@ -4461,7 +4467,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		if (dh == -1) {
 			if (groupCategory) {
-				// Check that the holes belong to the same category (cloud type or icing magnitude)
+				// Check that the holes belong to the same category (cloud type or icing/turbulence magnitude)
 				//
 				if (!checkCategory(groupCategory,iteh->aboveElev,liteh->aboveElev))
 					continue;
@@ -4487,7 +4493,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		if (dh == 1) {
 			if (groupCategory) {
-				// Check that the holes belong to the same category (cloud type or icing magnitude)
+				// Check that the holes belong to the same category (cloud type or icing/turbulence magnitude)
 				//
 				if (!checkCategory(groupCategory,iteh->aboveElev,riteh->aboveElev))
 					continue;
@@ -4751,13 +4757,18 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   void SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot> & ts,CategoryValueMeasureGroup * groupCategory,bool setNegative)
   {
-	// Get all elevations
+	// Get all elevations.
+	//
+	// Note: 'join' controls whether vertically overlapping elevations are joined or not. It must be passed in as false here
+	//		 because some features have additional grouping factor (cloud type for CloudLayers and magnitude for Icing and
+	//		 Turbulence), and joining can only be made after each overlapping subgroup of elevations having matching/configured
+	//		 type/magnitude have first been extracted.
 
 	const boost::posix_time::time_period & tp = axisManager->timePeriod();
 	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
 	ElevGrp eGrp;
-	elevationGroup(ts,bt,et,eGrp);
+	elevationGroup(ts,bt,et,eGrp,true,false);
 
 	// Search for holes.
 
@@ -4765,7 +4776,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	ElevGrp::iterator iteg,piteg;
 
 	if (groupCategory) {
-		// For categorized data the elevations are scanned one category (cloud type or icing magnitude) at a time.
+		// For categorized data the elevations are scanned one category (cloud type or icing/turbulence magnitude) at a time.
 		// Elevations with unknown category are first removed from the underlying woml object collection.
 		//
 		bool reLoad = false;
@@ -4825,7 +4836,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 					continue;
 
 				if (iteg->validTime() == piteg->validTime()) {
-					// Check first that above and below elevation belong to the same category (cloud type or icing magnitude).
+					// Check first that above and below elevation belong to the same category (cloud type or icing/turbulence magnitude).
 					//
 					if ((!groupCategory) || checkCategory(groupCategory,piteg,iteg)) {
 						// For overlapping elevations only the first (having max hi value) is taken into account.
@@ -6146,10 +6157,15 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const boost::posix_time::time_period & tp = axisManager->timePeriod();
 	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
-	// Get all elevations
+	// Get all elevations.
+	//
+	// Note: 'join' controls whether vertically overlapping elevations are joined or not. It must be passed in as false here
+	//		 because some features have additional grouping factor (cloud type for CloudLayers and magnitude for Icing and
+	//		 Turbulence), and joining can only be made after each overlapping subgroup of elevations having matching/configured
+	//		 type/magnitude have first been extracted.
 
 	ElevGrp eGrp;
-	elevationGroup(ts,bt,et,eGrp);
+	elevationGroup(ts,bt,et,eGrp,true,false);
 	bool reScan;
 
 	do
