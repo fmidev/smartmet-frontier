@@ -840,12 +840,9 @@ namespace frontier
   {
 	NFmiFillAreas::iterator iter = areas.begin();
 	float scaledWidth = scale * symbolWidth;
-	bool splitted = false;
 
 	for ( ; (iter != areas.end()); iter++) {
 		if ((iter->second.x - iter->first.x) > (2 * scaledWidth)) {
-			splitted = true;
-
 			float xEnd = iter->second.x;
 			float x1 = iter->second.x = iter->first.x + floor(scaledWidth + 0.5);
 
@@ -862,9 +859,161 @@ namespace frontier
 			while (x1 < xEnd);
 		}
 	}
+  }
 
-	if (splitted)
-		areas.sort(sortFillAreas);
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get column or row step for selecting fill area(s).
+   *
+   *		Returns first step and sets looping step to 'stepN'.
+   */
+  // ----------------------------------------------------------------------
+
+  size_t getStep(size_t symbolCnt,size_t nColsOrRows,size_t & stepN)
+  {
+	size_t step1;
+
+	if (symbolCnt > 1) {
+		stepN = (nColsOrRows / symbolCnt);
+
+		if ((symbolCnt != 2) && (nColsOrRows % 2) && (((symbolCnt * (stepN + 1)) - 1) == nColsOrRows)) {
+			// Even spaced from end to end
+			//
+			step1 = 1;
+			stepN++;
+		}
+		else {
+			// Adjust first step by the starting/ending offsets
+			//
+			size_t sOff = (stepN - 1),eOff = (nColsOrRows - (symbolCnt * stepN));
+
+			step1 = ((eOff <= sOff) ? (stepN - ((sOff - eOff) / 2)) : (stepN + ((eOff - sOff) / 2)));
+
+			if ((symbolCnt == 2) && (nColsOrRows % 2))
+				// Same offset for both ends for 2 symbols
+				//
+				stepN = (nColsOrRows - sOff) - step1;
+		}
+	}
+	else
+		step1 = stepN = ((nColsOrRows / 2) + (nColsOrRows % 2));
+
+	return step1;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get area symbol position(s) within fill area(s).
+   */
+  // ----------------------------------------------------------------------
+
+  bool sortColumnFillAreasAsc(const NFmiFillRect & r1,const NFmiFillRect & r2) { return (r1.first.y < r2.first.y); }
+  bool sortColumnFillAreasDesc(const NFmiFillRect & r1,const NFmiFillRect & r2) { return (r1.first.y > r2.first.y); }
+
+  struct Column
+  {
+	Column(NFmiFillAreas::const_iterator fstArea,size_t n,bool sortAsc = true)
+	{
+		NFmiFillAreas::const_iterator lstArea = fstArea;
+		advance(lstArea,n);
+		fillAreas.insert(fillAreas.end(),fstArea,lstArea);
+		if (n > 1)
+			fillAreas.sort(sortAsc ? sortColumnFillAreasAsc : sortColumnFillAreasDesc);
+	}
+	NFmiFillAreas::const_iterator areas() const { return fillAreas.begin(); }
+	size_t nRows() const { return fillAreas.size(); }
+
+  private:
+	NFmiFillAreas fillAreas;
+  };
+
+  void getFillPositions(NFmiFillAreas & areas,size_t symbolCnt,NFmiFillPositions & fpos)
+  {
+	// Extract fill area "columns", groups of subsequent fill areas having starting x -coordinate less than or
+	// equal to the center x -coordinate of group's first fill area.
+
+	NFmiFillAreas::const_iterator iArea = areas.begin(),iFirstColArea;
+	std::vector<Column> columns;
+	double colX = 0.0;
+	size_t n = 0;
+	bool sortAsc = true;
+
+	for (iFirstColArea = iArea; (iArea != areas.end()); iArea++)
+		if ((iFirstColArea == iArea) || (iArea->first.x > colX)) {
+			if (iFirstColArea != iArea) {
+				columns.push_back(Column(iFirstColArea,n,sortAsc));
+				sortAsc = (!sortAsc);
+			}
+
+			colX = iArea->first.x + ((iArea->second.x - iArea->first.x) / 2);
+			iFirstColArea = iArea;
+			n = 1;
+		}
+		else
+			n++;
+
+	columns.push_back(Column(iFirstColArea,n));
+
+	// Get fill positions within the columns
+
+	size_t nAreasLeft = areas.size(),nSymbolsLeft = symbolCnt,nColsLeft = columns.size(),colStepN = 1,colStep = 1,col;
+
+	if (symbolCnt < nColsLeft)
+		// There are more columns than symbols, stepping over some columns
+		//
+		colStep = getStep(symbolCnt,nColsLeft,colStepN);
+
+	for (std::vector<Column>::const_iterator iCol = columns.begin(); ((iCol != columns.end()) && (nSymbolsLeft > 0)); iCol++, nColsLeft--) {
+		// Step over columns
+		//
+		for (n = 1; ((iCol != columns.end()) && (n < colStep)); iCol++, nColsLeft--, n++)
+			nAreasLeft -= iCol->nRows();
+
+		colStep = colStepN;
+
+		if (iCol == columns.end())
+			// Should not get here
+			//
+			break;
+
+		size_t nColSymbols = (nSymbolsLeft / nColsLeft),rowStepN = 1,rowStep = 1,row;
+
+		if ((nColSymbols * nColsLeft) < nSymbolsLeft)
+			nColSymbols++;
+
+		nAreasLeft -= iCol->nRows();
+
+		if (nAreasLeft < (nSymbolsLeft - nColSymbols))
+			// There would not be enough fill areas in the rest of the columns; place more symbols into
+			// this column
+			//
+			nColSymbols = nSymbolsLeft - nAreasLeft;
+
+		if (nColSymbols < iCol->nRows())
+			// There are more fill areas than symbols; stepping over some fill areas
+			//
+			rowStep = getStep(nColSymbols,iCol->nRows(),rowStepN);
+
+		for (iArea = iCol->areas(),col = 0,row = 0,n = 1; ((col < iCol->nRows()) && (nColSymbols > 0) && (nSymbolsLeft > 0)); col++, iArea++) {
+			if (n >= rowStep) {
+				double x = iArea->first.x + ((iArea->second.x - iArea->first.x) / 2.0);
+				double y = iArea->first.y + ((iArea->second.y - iArea->first.y) / 2.0);
+
+				fpos.push_back(Point(x,y));
+
+				nColSymbols--;
+				nSymbolsLeft--;
+				n = 0;
+
+				rowStep = rowStepN;
+			}
+
+			n++;
+		}
+	}
+
+	if (nSymbolsLeft > 0)
+		throw std::runtime_error("getFillPositions: unexpected end of columns");
   }
 
   // ----------------------------------------------------------------------
@@ -875,28 +1024,69 @@ namespace frontier
 
   void getFillPositions(NFmiFillAreas & areas,int symbolWidth,int symbolHeight,size_t symbolCnt,float scale,NFmiFillPositions & fpos)
   {
+	// Fill areas might have room for multiple symbols; split them to hold a single symbol
+
+	splitFillAreas(areas,symbolWidth,scale);
+
+	// Sort the fill areas by top left corner
+
 	areas.sort(sortFillAreas);
 
-	if (symbolCnt > areas.size())
-		splitFillAreas(areas,symbolWidth,scale);
+	if (symbolCnt < areas.size()) {
+		// There are more fill areas than symbols, stepping over some fill areas
+		//
+		getFillPositions(areas,symbolCnt,fpos);
+		return;
+	}
 
-	size_t step = ((symbolCnt < areas.size()) ? (areas.size() / (symbolCnt + 1)) : 1);
+	// Populate every fill area with at most 4 fill symbols
 
-	NFmiFillAreas::const_iterator iter = areas.begin();
+	if (symbolCnt > (4 * areas.size()))
+		throw std::runtime_error("getFillPositions: too many symbols");
 
-	for (size_t n = 1; ((iter != areas.end()) && (symbolCnt > 0)); iter++) {
-		if (n >= step) {
-			double x = iter->first.x + ((iter->second.x - iter->first.x) / 2.0);
-			double y = iter->first.y + ((iter->second.y - iter->first.y) / 2.0);
+	size_t nAreasLeft = areas.size(),nSymbolsLeft = symbolCnt,symIndex = 4,maxAreaSymbols;
 
-			fpos.push_back(Point(x,y));
-			symbolCnt--;
+	for (NFmiFillAreas::const_iterator iter = areas.begin(); ((iter != areas.end()) && (nSymbolsLeft > 0)); nSymbolsLeft--) {
+		double xOff,yOff;
 
-			n = 0;
+		maxAreaSymbols = ((nSymbolsLeft - 1) / nAreasLeft) + 1;
+
+		if ((maxAreaSymbols == 1) && (symIndex == 4)) {
+			xOff = yOff = 2.0;				// Center of the area
+		}
+		else {
+			if (symIndex == 4)
+				xOff = yOff = 4.0;			// Upper left quarter of the area
+			else if (symIndex == 3)
+				xOff = yOff = (4.0 / 3.0);	// Lower right quarter of the area
+			else if (symIndex == 2) {
+				xOff = (4.0 / 3.0);			// Upper right quarter of the area
+				yOff = 4;
+			}
+			else {
+				xOff = 4;					// Lower left quarter of the area
+				yOff = (4.0 / 3.0);
+			}
+
+			symIndex--;
+
+			if (symIndex <= (4 - maxAreaSymbols))
+				symIndex = 4;
 		}
 
-		n++;
+		double x = iter->first.x + ((iter->second.x - iter->first.x) / xOff);
+		double y = iter->first.y + ((iter->second.y - iter->first.y) / yOff);
+
+		fpos.push_back(Point(x,y));
+
+		if ((maxAreaSymbols == 1) || (symIndex == 4)) {
+			iter++;
+			nAreasLeft--;
+		}
 	}
+
+	if (nSymbolsLeft > 0)
+		throw std::runtime_error("getFillPositions: unexpected end of fill areas");
   }
 
   // ----------------------------------------------------------------------
@@ -1330,7 +1520,7 @@ namespace frontier
 		  	  	  	  	  	  	   const std::string & id,
 		  	  	  	  	  	  	   const std::string & surfaceName,				// cloudType (for CloudArea), rainPhase (for SurfacePrecipitationArea or area type for ParameterValueSetArea)
 		  	  	  	  	  	  	   const woml::Feature * feature,				// For area's infotext rendering
-		  	  	  	  	  	  	   const std::list<std::string> * areaSymbols)	// Symbols to be placed into ParameterValueSetArea
+		  	  	  	  	  	  	   const std::list<std::string> * areaSymbols)	// Symbols to be placed into ParameterValueSetArea (warning area's symbols)
   {
 	const std::string confPath("Surface");
 
@@ -1470,7 +1660,7 @@ namespace frontier
 								if ((!infoText.empty()) && (infoText != options.locale)) {
 									// Render feature's infotext. The text is rendered starting from coordinate (0,0) and
 									// output position is selected afterwards using the text area size. The final position
-									// is set as trasformation offsets to the selected position.
+									// is set as transformation offsets to the selected position.
 									//
 									Texts textOutput;
 									int width = 0;
@@ -1485,10 +1675,10 @@ namespace frontier
 									int h = static_cast<int>(std::floor(0.5+area->Height()));
 
 									if (fmap.getFillAreas(w,h,width,height,scale,verticalRects,areas,false,scanUpDown)) {
-										// Select text position and set transformation offset
-//										int x = areas.front().first.x,y = areas.front().first.y;
-
-										;
+										// Select text position and set transformation offsets
+										//
+										for (Texts::const_iterator it = textOutput.begin(); (it != textOutput.end()); it++)
+											texts[it->first] << it->second->str();
 									}
 								}
 
@@ -1499,22 +1689,24 @@ namespace frontier
 								//
 								NFmiFillMap fmap;
 								NFmiFillAreas areas;
+								NFmiFillPositions fpos;
 								path.length(&fmap);
 
 								int w = static_cast<int>(std::floor(0.5+area->Width()));
 								int h = static_cast<int>(std::floor(0.5+area->Height()));
 								int width = _width;
 								int height = _height;
+								bool ok = false;
 
-								bool ok;
 								do {
+									areas.clear();
+
 									ok = fmap.getFillAreas(w,h,width,height,scale,verticalRects,areas,false,scanUpDown);
 
 									if (ok && (fillSymbols.size() > 0)) {
 										// Check there is room for all area symbols
 										//
 										NFmiFillAreas::const_iterator iter;
-										NFmiFillPositions fpos;
 										size_t symCnt = 0;
 
 										for (iter = areas.begin(); ((iter != areas.end()) && (fpos.size() < fillSymbols.size())); iter++)
@@ -1526,15 +1718,22 @@ namespace frontier
 									if (!ok) {
 										width -= 2;
 										height -= 2;
-
-										areas.clear();
 									}
 								}
 								while (autoScale && (! ok) && (width >= (_width / 2)) && (height >= (_height / 2)));
 
-								// Get symbol positions withing the fill areas
+								if (!ok) {
+									// For warning areas fit max 4 symbols per fill area
+									//
+									if (fillSymbols.size() == 0)
+										areas.clear();
+									else if ((4 * fpos.size()) < fillSymbols.size())
+										throw std::runtime_error("render_surface: too many symbols");
+								}
 
-								NFmiFillPositions fpos;
+								fpos.clear();
+
+								// Get symbol positions withing the fill areas
 
 								const char *clrs[] =
 								{ "red",
@@ -1597,7 +1796,7 @@ namespace frontier
 								double fontsize = getCssSize(".cloudborderglyph","font-size");
 								double spacing = 0.0;
 
-								int CosmologicalConstant = 2;
+								const int CosmologicalConstant = 2;
 								int nglyphs = CosmologicalConstant * static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
 
 								if((textlength > 0) && (nglyphs > 0))
