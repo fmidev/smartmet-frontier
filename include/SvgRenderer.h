@@ -481,8 +481,13 @@ namespace frontier
 					 const std::string & confPath,
 					 const std::string & textName,
 					 const std::string & text,
-					 int & xPosW,int & yPosH,	// I: text's starting x/y pos O: text's width/height
-					 bool centerToStartX = false);
+					 int & xPosW,int & yPosH,				// I: text's starting x/y pos O: text's width/height
+					 bool centerToStartX = false,
+					 const std::string & TEXTPOSid = "",
+					 int * maxTextWidth = NULL,				// I
+					 int * fontSize = NULL,					// I
+					 int * tXOffset = NULL,					// I/O: area text's border x -offset
+					 int * tYOffset = NULL);				// I/O: area text's border y -offset
 	void render_surface(const Path & path,
 						std::ostringstream & surfaceOutput,
 						const std::string & id,
@@ -587,6 +592,13 @@ namespace frontier
 	void render_timeserie(const woml::Winds & winds);
 	void checkZeroToleranceGroup(ElevGrp & eGrpIn,ElevGrp & eGrpOut,bool mixed = true);
 	void render_timeserie(const woml::ZeroTolerance & zerotolerance);
+	void setTextPosition(const Path & path,
+						 const std::string & TEXTPOSid,
+						 std::string & textPosition,
+						 const NFmiFillRect & infoTextRect,
+						 int areaWidth,int areaHeight,
+						 int textWidth,int textHeight,
+						 int tXOffset,int tYOffset);
 
 	const Options & options;
 	const libconfig::Config & config;

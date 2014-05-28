@@ -771,13 +771,22 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void getFillPositions(NFmiFillAreas::const_iterator iter,
+  bool getFillPositions(NFmiFillAreas::const_iterator iter,
 		  	  	  	  	int symbolWidth,int symbolHeight,
 			  			float scale,
+			  			const NFmiFillRect & reservedArea,
 			  			NFmiFillPositions & fpos,
 			  			size_t & symCnt)
 
   {
+	// Check if the area is reserved (overlaps reserved area)
+
+	if (
+		(iter->first.x <= reservedArea.second.x) && (iter->second.x >= reservedArea.first.x) &&
+		(iter->first.y <= reservedArea.second.y) && (iter->second.y >= reservedArea.first.y)
+	   )
+		return false;
+
 	// Fillrect and symbol bounding box dimensions
 
 	float width = (iter->second.x - iter->first.x);
@@ -814,6 +823,8 @@ namespace frontier
 	for (h = 0, x = hoffset; (h < nh); h++, x += (bw + hoffset))
 		for (v = 0, y = voffset; (v < nv); v++, y += (bh + voffset), symCnt++)
 			fpos.push_back(Point(iter->first.x + x + symhoff[symCnt % shoCnt],iter->first.y + y + symvoff[symCnt % svoCnt]));
+
+	return true;
   }
 
   // ----------------------------------------------------------------------
@@ -863,7 +874,7 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Get column or row step for selecting fill area(s).
+   * \brief Get column or row step for selecting fill areas.
    *
    *		Returns first step and sets looping step to 'stepN'.
    */
@@ -903,12 +914,12 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Get area symbol position(s) within fill area(s).
+   * \brief Fill area column handling.
    */
   // ----------------------------------------------------------------------
 
-  bool sortColumnFillAreasAsc(const NFmiFillRect & r1,const NFmiFillRect & r2) { return (r1.first.y < r2.first.y); }
-  bool sortColumnFillAreasDesc(const NFmiFillRect & r1,const NFmiFillRect & r2) { return (r1.first.y > r2.first.y); }
+  bool sortFillAreaColumnAsc(const NFmiFillRect & r1,const NFmiFillRect & r2) { return (r1.first.y < r2.first.y); }
+  bool sortFillAreaColumnDesc(const NFmiFillRect & r1,const NFmiFillRect & r2) { return (r1.first.y > r2.first.y); }
 
   struct Column
   {
@@ -918,7 +929,7 @@ namespace frontier
 		advance(lstArea,n);
 		fillAreas.insert(fillAreas.end(),fstArea,lstArea);
 		if (n > 1)
-			fillAreas.sort(sortAsc ? sortColumnFillAreasAsc : sortColumnFillAreasDesc);
+			fillAreas.sort(sortAsc ? sortFillAreaColumnAsc : sortFillAreaColumnDesc);
 	}
 	NFmiFillAreas::const_iterator areas() const { return fillAreas.begin(); }
 	size_t nRows() const { return fillAreas.size(); }
@@ -927,13 +938,15 @@ namespace frontier
 	NFmiFillAreas fillAreas;
   };
 
-  void getFillPositions(NFmiFillAreas & areas,size_t symbolCnt,NFmiFillPositions & fpos)
+  typedef std::vector<Column> FillAreaColumns;
+
+  FillAreaColumns getFillAreaColumns(const NFmiFillAreas & areas)
   {
 	// Extract fill area "columns", groups of subsequent fill areas having starting x -coordinate less than or
 	// equal to the center x -coordinate of group's first fill area.
 
 	NFmiFillAreas::const_iterator iArea = areas.begin(),iFirstColArea;
-	std::vector<Column> columns;
+	FillAreaColumns columns;
 	double colX = 0.0;
 	size_t n = 0;
 	bool sortAsc = true;
@@ -954,16 +967,32 @@ namespace frontier
 
 	columns.push_back(Column(iFirstColArea,n));
 
+	return columns;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get area symbol positions within fill areas.
+   */
+  // ----------------------------------------------------------------------
+
+  void getFillPositions(NFmiFillAreas & areas,size_t symbolCnt,NFmiFillPositions & fpos)
+  {
+	// Extract fill area "columns", groups of fill areas having starting x -coordinate greater than or equal to
+	// the starting x -coordinate and less than or equal to the center x -coordinate of group's first fill area.
+
+	FillAreaColumns columns = getFillAreaColumns(areas);
+
 	// Get fill positions within the columns
 
-	size_t nAreasLeft = areas.size(),nSymbolsLeft = symbolCnt,nColsLeft = columns.size(),colStepN = 1,colStep = 1,col;
+	size_t nAreasLeft = areas.size(),nSymbolsLeft = symbolCnt,nColsLeft = columns.size(),colStepN = 1,colStep = 1,col,n;
 
 	if (symbolCnt < nColsLeft)
 		// There are more columns than symbols, stepping over some columns
 		//
 		colStep = getStep(symbolCnt,nColsLeft,colStepN);
 
-	for (std::vector<Column>::const_iterator iCol = columns.begin(); ((iCol != columns.end()) && (nSymbolsLeft > 0)); iCol++, nColsLeft--) {
+	for (FillAreaColumns::const_iterator iCol = columns.begin(); ((iCol != columns.end()) && (nSymbolsLeft > 0)); iCol++, nColsLeft--) {
 		// Step over columns
 		//
 		for (n = 1; ((iCol != columns.end()) && (n < colStep)); iCol++, nColsLeft--, n++)
@@ -994,7 +1023,9 @@ namespace frontier
 			//
 			rowStep = getStep(nColSymbols,iCol->nRows(),rowStepN);
 
-		for (iArea = iCol->areas(),col = 0,row = 0,n = 1; ((col < iCol->nRows()) && (nColSymbols > 0) && (nSymbolsLeft > 0)); col++, iArea++) {
+		NFmiFillAreas::const_iterator iArea = iCol->areas();
+
+		for (col = 0,row = 0,n = 1; ((col < iCol->nRows()) && (nColSymbols > 0) && (nSymbolsLeft > 0)); col++, iArea++) {
 			if (n >= rowStep) {
 				double x = iArea->first.x + ((iArea->second.x - iArea->first.x) / 2.0);
 				double y = iArea->first.y + ((iArea->second.y - iArea->first.y) / 2.0);
@@ -1018,11 +1049,11 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Get area symbol position(s) within fill area(s).
+   * \brief Get area symbol positions within fill areas.
    */
   // ----------------------------------------------------------------------
 
-  void getFillPositions(NFmiFillAreas & areas,int symbolWidth,int symbolHeight,size_t symbolCnt,float scale,NFmiFillPositions & fpos)
+  void getFillPositions(NFmiFillAreas & areas,int symbolWidth,int symbolHeight,size_t symbolCnt,float scale,const NFmiFillRect & reservedArea,NFmiFillPositions & fpos)
   {
 	// Fill areas might have room for multiple symbols; split them to hold a single symbol
 
@@ -1031,6 +1062,18 @@ namespace frontier
 	// Sort the fill areas by top left corner
 
 	areas.sort(sortFillAreas);
+
+	// Erase reserved areas (areas which overlap reserved area)
+
+	if (reservedArea.second.x > reservedArea.first.x)
+		for (NFmiFillAreas::iterator iter = areas.begin(); (iter != areas.end()); )
+			if (
+				(iter->first.x <= reservedArea.second.x) && (iter->second.x >= reservedArea.first.x) &&
+				(iter->first.y <= reservedArea.second.y) && (iter->second.y >= reservedArea.first.y)
+			   )
+				iter = areas.erase(iter);
+			else
+				iter++;
 
 	if (symbolCnt < areas.size()) {
 		// There are more fill areas than symbols, stepping over some fill areas
@@ -1049,7 +1092,7 @@ namespace frontier
 	for (NFmiFillAreas::const_iterator iter = areas.begin(); ((iter != areas.end()) && (nSymbolsLeft > 0)); nSymbolsLeft--) {
 		double xOff,yOff;
 
-		maxAreaSymbols = ((nSymbolsLeft - 1) / nAreasLeft) + 1;
+		maxAreaSymbols = ((nSymbolsLeft - 1 + (4 - symIndex)) / nAreasLeft) + 1;
 
 		if ((maxAreaSymbols == 1) && (symIndex == 4)) {
 			xOff = yOff = 2.0;				// Center of the area
@@ -1087,6 +1130,43 @@ namespace frontier
 
 	if (nSymbolsLeft > 0)
 		throw std::runtime_error("getFillPositions: unexpected end of fill areas");
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get center fill area rect.
+   */
+  // ----------------------------------------------------------------------
+
+  NFmiFillRect getCenterFillAreaRect(NFmiFillAreas & areas,double width,double scale)
+  {
+	if (areas.size() < 1)
+		throw std::runtime_error("getCenterFillAreaRect: no fill areas");
+
+	// Get the center column
+
+	splitFillAreas(areas,width,scale);
+
+	areas.sort(sortFillAreas);
+
+	FillAreaColumns columns = getFillAreaColumns(areas);
+	FillAreaColumns::const_iterator iCol = columns.begin();
+	size_t colStepN;
+	size_t colStep = getStep(1,columns.size(),colStepN);
+
+	if (colStep > 1)
+		advance(iCol,colStep - 1);
+
+	// Get the center row
+
+	NFmiFillAreas::const_iterator iArea = iCol->areas();
+	size_t rowStepN;
+	size_t rowStep = getStep(1,iCol->nRows(),rowStepN);
+
+	if (rowStep > 1)
+		advance(iArea,rowStep - 1);
+
+	return *iArea;
   }
 
   // ----------------------------------------------------------------------
@@ -1132,8 +1212,7 @@ namespace frontier
 	size_t l,textlc = inputLines.size();
 
 	cairo_text_extents_t extents;
-	std::ostringstream line;
-	std::string word;
+	std::string line,word;
 
 // for regenerate with smaller fontsize {
 //
@@ -1144,17 +1223,28 @@ namespace frontier
 	for (l = 0; (l < textlc); l++) {
 		// Next line
 		//
-		std::vector<std::string> words;
-		boost::split(words,inputLines[l],boost::is_any_of(" \t"));
-
 		cairo_text_extents(cr,inputLines[l].c_str(),&extents);
+
 		unsigned int lineHeight = static_cast<unsigned int>(ceil(extents.height));
 
 		if (lineHeight > maxLineHeight)
 			maxLineHeight = lineHeight;
 
+		unsigned int lineWidth = static_cast<unsigned int>(ceil(extents.width));
+
+		if (lineWidth < maxWidth) {
+			outputLines.push_back(inputLines[l]);
+
+			if (lineWidth > maxLineWidth)
+				maxLineWidth = lineWidth;
+
+			continue;
+		}
+
+		std::vector<std::string> words;
+		boost::split(words,inputLines[l],boost::is_any_of(" \t"));
+
 		size_t w,linewc = 0,textwc = words.size(),pos = std::string::npos;
-		double lineWidth = 0;
 		bool fits;
 
 		for (w = 0; (w < textwc); ) {
@@ -1162,29 +1252,29 @@ namespace frontier
 			// Add a space in front of it if not the first word of the line
 			//
 			word = std::string((linewc > 0) ? " " : "") + words[w];
-			cairo_text_extents(cr,word.c_str(),&extents);
 
-			if (! (fits = (ceil(lineWidth + extents.x_advance) < maxWidth))) {
+			cairo_text_extents(cr,(line + word).c_str(),&extents);
+
+			if (! (fits = (ceil(extents.width) < maxWidth))) {
 				// Goes too wide, try cutting to first comma or period
 				//
 				pos = word.find_first_of(",.");
 
 				if (pos != std::string::npos) {
 					std::string cutted = word.substr(0,pos + 1);
-					cairo_text_extents(cr,cutted.c_str(),&extents);
+					cairo_text_extents(cr,(line + cutted).c_str(),&extents);
 
-					if ((fits = (ceil(lineWidth + extents.x_advance) < maxWidth)))
+					if ((fits = (ceil(extents.width) < maxWidth)))
 						word = cutted;
 				}
 			}
 
 			if (fits) {
-				line << word;
-
-				lineWidth += extents.x_advance;
+				line += word;
 				linewc++;
+				lineWidth = static_cast<unsigned int>(ceil(extents.width));
 
-				if ((fits = (pos == std::string::npos))) {
+				if (pos == std::string::npos) {
 					// Word was not cutted; next word
 					//
 					w++;
@@ -1197,27 +1287,21 @@ namespace frontier
 					//
 					words[w].erase(0,pos + 1);
 			}
-
-			if (linewc > 0) {
-				unsigned int width = static_cast<unsigned int>(ceil(lineWidth));
-
-				if (width > maxLineWidth)
-					maxLineWidth = width;
-			}
-			else {
+			else if (linewc == 0) {
 				// A single word exceeding the max line width
 				//
-				line << word;
+				lineWidth = static_cast<unsigned int>(ceil(extents.width));
 				w++;
 			}
 
-			// Store the line; maximum line width or end of line reached
+			// Maximum line width or end of line reached
 
-			outputLines.push_back(line.str());
+			outputLines.push_back((linewc == 0) ? word : line);
 
-			line.str("");
+			if (lineWidth > maxLineWidth)
+				maxLineWidth = lineWidth;
+
 			line.clear();
-			lineWidth = 0;
 			linewc = 0;
 
 			pos = std::string::npos;
@@ -1254,8 +1338,13 @@ namespace frontier
 		  	  	  	  	  	    const std::string & confPath,
 		  	  	  	  	  	    const std::string & textName,
 		  	  	  	  	  	    const std::string & text,
-		  	  	  	  	  	    int & xPosW,int & yPosH,	// I: text's starting x/y pos O: text's width/height
-		  	  	  	  	  	    bool centerToStartX)
+		  	  	  	  	  	    int & xPosW,int & yPosH,		// I: text's starting x/y pos O: text's width/height
+		  	  	  	  	  	    bool centerToStartX,
+		  	  	  	  	  	    const std::string & TEXTPOSid,
+		  	  	  	  	  	    int * maxTextWidth,				// I
+		  	  	  	  	  	    int * fontSize,					// I
+		  	  	  	  	  	    int * tXOffset,					// I/O: area text's border x -offset
+		  	  	  	  	  	    int * tYOffset)					// I/O: area text's border y -offset
   {
 	try {
 		const char * typeMsg = " must contain a list of groups in parenthesis";
@@ -1343,7 +1432,7 @@ namespace frontier
 				std::string font = configValue<std::string>(scope,textName,"font-family");
 
 				// Font size
-				unsigned int fontsize = configValue<unsigned int>(scope,textName,"font-size");
+				int fSize = (fontSize && (*fontSize > 0)) ? *fontSize : configValue<unsigned int>(scope,textName,"font-size");
 
 				// Font style
 				cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
@@ -1370,7 +1459,12 @@ namespace frontier
 					weight = "normal";
 
 				// Max width, height, x/y margin and x/y offsets
-				unsigned int maxWidth = configValue<unsigned int>(scope,textName,"textwidth");
+				//
+				// For area text (when tXOffset and tYOffset are passed in as nonnull) the offsets are used later
+				// when setting the final text position.
+				//
+				// Note: If the passed offsets (or font size) are nonzero, they were set in the text and won't be overridden by config settings.
+				unsigned int maxWidth = ((maxTextWidth && (*maxTextWidth > 0)) ? *maxTextWidth : configValue<unsigned int>(scope,textName,"textwidth"));
 
 				bool isSet;
 				unsigned int maxHeight = configValue<unsigned int>(scope,textName,"textheight",s_optional,&isSet);
@@ -1386,13 +1480,21 @@ namespace frontier
 				if ((maxHeight != 0) && (maxHeight <= 20))
 					maxHeight = 20;
 
-				unsigned int xOffset = configValue<unsigned int>(scope,textName,"txoffset",s_optional,&isSet);
-				if (! isSet)
-					xOffset = 0;
+				int xOffset = configValue<int>(scope,textName,"txoffset",s_optional,&isSet);
+				if ((! isSet) || tXOffset) {
+					if (isSet && (*tXOffset == 0))
+						*tXOffset = xOffset;
 
-				unsigned int yOffset = configValue<unsigned int>(scope,textName,"tyoffset",s_optional,&isSet);
-				if (! isSet)
+					xOffset = 0;
+				}
+
+				int yOffset = configValue<int>(scope,textName,"tyoffset",s_optional,&isSet);
+				if ((! isSet) || tYOffset) {
+					if (isSet && (*tYOffset == 0))
+						*tYOffset = yOffset;
+
 					yOffset = 0;
+				}
 
 				// Split the text into lines using given max. width and height
 
@@ -1400,7 +1502,7 @@ namespace frontier
 				unsigned int textWidth,textHeight,maxLineHeight;
 
 				getTextLines(text,
-						  	 font,fontsize,slant,_weight,
+						  	 font,fSize,slant,_weight,
 						  	 maxWidth,maxHeight,
 							 textLines,
 							 textWidth,textHeight,maxLineHeight);
@@ -1411,7 +1513,7 @@ namespace frontier
 
 				texts[TEXTCLASStextName] << "." << textClass
 										 << " {\nfont-family: " << font
-										 << ";\nfont-size: " << fontsize
+										 << ";\nfont-size: " << fSize
 										 << ";\nfont-weight : " << weight
 										 << ";\nfont-style : " << style
 										 << ";\n}\n";
@@ -1431,11 +1533,18 @@ namespace frontier
 
 				std::list<std::string>::const_iterator it = textLines.begin();
 
-				for (x += margin,y += (margin + maxLineHeight); (it != textLines.end()); it++, y += maxLineHeight)
+				for (x += margin,y += (margin + maxLineHeight); (it != textLines.end()); it++, y += maxLineHeight) {
+					if ((!TEXTPOSid.empty()) && (it == textLines.begin()))
+						texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--)\">\n";
+
 					texts[TEXTtextName] << "<text class=\"" << textClass
 										<< "\" x=\"" << x
 										<< "\" y=\"" << y
 										<< "\">" << svgescapetext(*it) << "</text>\n";
+				}
+
+				if (!TEXTPOSid.empty())
+					texts[TEXTtextName] << "</g>\n";
 
 				texts[TEXTAREAtextName] << "\" height=\"" << (yPosH = y) << "\" ";
 
@@ -1507,6 +1616,140 @@ namespace frontier
 	}
 
 	return (isSet && (!mappedCode.empty()));
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get infotext settings.
+   */
+  // ----------------------------------------------------------------------
+
+  void textSettings(std::string & infoText,std::string & textPosition,int & maxTextWidth,int & fontSize,int & tXOffset,int & tYOffset)
+  {
+	// The infotext can start with text position (<area> (or shortly <a>), <top> etc.), max text width (<width=n>),
+	// font size (<fontsize=n>) and x/y offset (<x/yoffset=n>) settings.
+
+	const char * settings[] = {
+		// long name		short name
+		"<area>",			"<a>",
+		"<top>",			"<t>",
+		"<topleft>",		"<tl>",
+		"<topright>",		"<tr>",
+		"<left>",			"<l>",
+		"<right>",			"<r>",
+		"<bottom>",			"<b>",
+		"<bottomleft>",		"<bl>",
+		"<bottomright>",	"<br>",
+		"<width=",			"<w=",		// unsigned
+		"<fontsize=",		"<f=",		// unsigned
+		"<xoffset=",		"<x=",
+		"<yoffset=",		"<y=",
+		NULL
+	};
+
+	size_t n = 0;
+
+	for (const char ** s = settings, ** ps = NULL; *s; )
+		if (infoText.find(*s) == 0) {
+			// Get the setting and erase it from the text. Just give up on invalid setting (e.g. <width=z20>, <width=> etc.)
+			//
+			size_t pos = infoText.find(">");
+
+			if (pos == std::string::npos)
+				return;
+
+			if (*(*s + strlen(*s) - 1) == '=')
+			{
+				size_t pos2 = strlen(*s);
+				const char * p = infoText.c_str() + pos2;
+				const char * numSet = "-0123456789";
+				const char * p2 = p + strspn(p,numSet + (((*(*s + 1) == 'w') || (*(*s + 1) == 'f')) ? 1 : 0));
+
+				if ((*p2 != '>') || (*(p2 - 1) == '=') || (*(p2 - 1) == '-'))
+					return;
+
+				int & setting = ((*(*s + 1) == 'w') ? maxTextWidth : ((*(*s + 1) == 'f') ? fontSize : ((*(*s + 1) == 'x') ? tXOffset : tYOffset)));
+
+				setting = atoi(infoText.substr(pos2,pos - pos2).c_str());
+			}
+			else {
+				const char * p = (n % 2 ? *ps : *s);					// "<a>" --> "<area>" etc.
+				textPosition = std::string(p).substr(1,strlen(p) - 2);	// "<area>" --> "area" etc.
+			}
+
+			infoText.erase(0,pos + 1);
+			boost::algorithm::trim(infoText);
+
+			s = settings;
+			ps = NULL;
+			n = 0;
+		}
+		else {
+			ps = s;
+			s++;
+			n++;
+		}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Set infotext position.
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::setTextPosition(const Path & path,
+		  	  	  	  	  	  	  	const std::string & TEXTPOSid,
+		  	  	  	  	  	  	  	std::string & textPosition,
+		  	  	  	  	  	  	  	const NFmiFillRect & infoTextRect,
+									int areaWidth,int areaHeight,
+		  	  	  	  	  	  	  	int textWidth,int textHeight,
+		  	  	  	  	  	  	  	int tXOffset,int tYOffset)
+  {
+	if (textPosition == "area") {
+		texts[TEXTPOSid] << infoTextRect.first.x << "," << infoTextRect.first.y;
+		return;
+	}
+
+	Path::BBox bbox = path.getBBox();
+	double bboxWidth = bbox.trX - bbox.blX,bboxHeight = bbox.trY - bbox.blY,x,y;
+	y = bbox.blY; bbox.blY = bbox.trY; bbox.trY = y;
+
+	if (textPosition.empty())
+		// Default is top
+		//
+		textPosition = "top";
+
+	if (
+		(textPosition == "top") || (textPosition == "bottom") ||
+		(textPosition == "topleft") || (textPosition == "topright") ||
+		(textPosition == "bottomleft") || (textPosition == "bottomright")
+	   )
+	{
+		if ((textPosition == "top") || (textPosition == "bottom"))
+			x = bbox.blX + (bboxWidth / 2) - (textWidth / 2) + tXOffset;
+		else
+			x = ((((textPosition == "topleft") || (textPosition == "bottomleft")) ? bbox.blX : bbox.trX) - (textWidth / 2)) + tXOffset;
+
+		y = ((textPosition.find("top") == 0) ? (bbox.trY - textHeight - tYOffset) : (bbox.blY + tYOffset));
+	}
+	else if ((textPosition == "left") || (textPosition == "right")) {
+		x = ((textPosition == "left") ? (bbox.blX - textWidth - tXOffset) : (bbox.trX + tXOffset));
+		y = bbox.trY + (bboxHeight / 2) - (textHeight / 2);
+	}
+	else
+		throw std::runtime_error("invalid text position: '" + textPosition + "'; use top[left|right], bottom[left|right], left or right");
+
+	if (x < tXOffset)
+		x = tXOffset;
+	else if ((x + textWidth + tXOffset) > areaWidth)
+		x = areaWidth - textWidth - tXOffset;
+
+	if (y < tYOffset)
+		y = tYOffset;
+	else if ((y + textHeight + tYOffset) > areaHeight)
+		y = areaHeight - textHeight - tYOffset;
+
+	texts[TEXTPOSid] << std::fixed << std::setprecision(1) << x << "," << y;
   }
 
   // ----------------------------------------------------------------------
@@ -1653,36 +1896,49 @@ namespace frontier
 										;
 								}
 
-								// Render feature's infotext
-
+								NFmiFillRect infoTextRect(std::make_pair(Point(1,1),Point(0,0)));
 								const std::string & infoText = (feature ? feature->text(options.locale) : "");
+								std::string TEXTPOSid("Z0TEXTPOS" + id),textPosition;
+								int areaWidth = static_cast<int>(std::floor(0.5+area->Width()));
+								int areaHeight = static_cast<int>(std::floor(0.5+area->Height()));
+								int textWidth = 0,textHeight = 0,maxTextWidth = 0,fontSize = 0,tXOffset = 0,tYOffset = 0;
 
 								if ((!infoText.empty()) && (infoText != options.locale)) {
 									// Render feature's infotext. The text is rendered starting from coordinate (0,0) and
-									// output position is selected afterwards using the text area size. The final position
-									// is set as transformation offsets to the selected position.
+									// final position is selected afterwards. The final position is set as transformation
+									// offsets to the selected position.
 									//
-									Texts textOutput;
-									int width = 0;
-									int height = 0;
-									render_text(textOutput,confPath,confPath,NFmiStringTools::UrlDecode(infoText),width,height,true);
+									// Note: The key for position must sort after the key for the text (the key/text
+									//		 containing the position key must be handled/outputted prior the position key/text);
+									//		 therefore the position key starts with "Z0"
+									//
+									std::string textOut(boost::algorithm::trim_copy(infoText));
 
-									NFmiFillMap fmap;
-									NFmiFillAreas areas;
-									path.length(&fmap);
+									textPosition = configValue<std::string>(specs,surfaceName,"textposition",globalScope,s_optional);
 
-									int w = static_cast<int>(std::floor(0.5+area->Width()));
-									int h = static_cast<int>(std::floor(0.5+area->Height()));
+									// The text can start with position, fontsize and x/y offset settings overriding the configured values.
 
-									if (fmap.getFillAreas(w,h,width,height,scale,verticalRects,areas,false,scanUpDown)) {
-										// Select text position and set transformation offsets
+									textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
+
+									render_text(texts,confPath,confPath,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+
+									if (textPosition == "area") {
+										// Get text position within the area
 										//
-										for (Texts::const_iterator it = textOutput.begin(); (it != textOutput.end()); it++)
-											texts[it->first] << it->second->str();
+										NFmiFillMap fmap;
+										NFmiFillAreas areas;
+										path.length(&fmap);
+
+										if (fmap.getFillAreas(areaWidth,areaHeight,textWidth,textHeight,1.0,verticalRects,areas,false,scanUpDown))
+											infoTextRect = getCenterFillAreaRect(areas,textWidth,1.0);
+										else
+											// No room within the area, using the defaut location
+											//
+											textPosition.clear();
 									}
 								}
 
-								// Get fill areas.
+								// Get symbol fill areas.
 								//
 								// If none available or not enough room for all area symbols, and autoscale is set,
 								// retry with smaller symbol size down to half of the original size.
@@ -1692,46 +1948,70 @@ namespace frontier
 								NFmiFillPositions fpos;
 								path.length(&fmap);
 
-								int w = static_cast<int>(std::floor(0.5+area->Width()));
-								int h = static_cast<int>(std::floor(0.5+area->Height()));
 								int width = _width;
 								int height = _height;
-								bool ok = false;
+								bool noTextRetry = false,ok = false;
 
 								do {
 									areas.clear();
 
-									ok = fmap.getFillAreas(w,h,width,height,scale,verticalRects,areas,false,scanUpDown);
+									ok = fmap.getFillAreas(areaWidth,areaHeight,width,height,scale,verticalRects,areas,true,scanUpDown);
 
 									if (ok && (fillSymbols.size() > 0)) {
-										// Check there is room for all area symbols
+										// Check there is room for all area symbols. Erase fill areas overlapping the area
+										// reserved for info text.
 										//
-										NFmiFillAreas::const_iterator iter;
+										NFmiFillAreas::iterator iter;
 										size_t symCnt = 0;
 
-										for (iter = areas.begin(); ((iter != areas.end()) && (fpos.size() < fillSymbols.size())); iter++)
-											getFillPositions(iter,width,height,scale,fpos,symCnt);
+										for (iter = areas.begin(), fpos.clear(); ((iter != areas.end()) && (fpos.size() < fillSymbols.size())); )
+											if (getFillPositions(iter,width,height,scale,infoTextRect,fpos,symCnt))
+												iter++;
+											else
+												iter = areas.erase(iter);
 
 										ok = (fpos.size() >= fillSymbols.size());
 									}
 
 									if (!ok) {
-										width -= 2;
-										height -= 2;
+										// Render infotext within the area only when all symbols fit in.
+										//
+										int nw = width - 2,nh = height - 2;
+
+										noTextRetry = false;
+
+										if (((nw >= (_width / 2)) && (nh >= (_height / 2))) || (textPosition != "area")) {
+											width = nw;
+											height = nh;
+										}
+										else {
+											textPosition.clear();
+											infoTextRect = std::make_pair(Point(0,0),Point(0,0));
+
+											width = _width;
+											height = _height;
+
+											noTextRetry = true;
+										}
 									}
 								}
-								while (autoScale && (! ok) && (width >= (_width / 2)) && (height >= (_height / 2)));
+								while ((autoScale || noTextRetry) && (! ok) && (width >= (_width / 2)) && (height >= (_height / 2)));
 
 								if (!ok) {
 									// For warning areas fit max 4 symbols per fill area
 									//
 									if (fillSymbols.size() == 0)
 										areas.clear();
-									else if ((4 * fpos.size()) < fillSymbols.size())
+									else if ((!autoScale) || ((4 * fpos.size()) < fillSymbols.size()))
 										throw std::runtime_error("render_surface: too many symbols");
 								}
 
 								fpos.clear();
+
+								// Set final infotext position
+
+								if (!infoText.empty())
+									setTextPosition(path,TEXTPOSid,textPosition,infoTextRect,areaWidth,areaHeight,textWidth,textHeight,tXOffset,tYOffset);
 
 								// Get symbol positions withing the fill areas
 
@@ -1747,7 +2027,7 @@ namespace frontier
 
 								if (!areaSymbols || (areas.size() < 2)) {
 									for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
-										getFillPositions(iter,width,height,scale,fpos,symCnt);
+										getFillPositions(iter,width,height,scale,infoTextRect,fpos,symCnt);
 
 										if (showAreas) {
 											// Draw fill area rects
@@ -1766,7 +2046,7 @@ namespace frontier
 									}
 								}
 								else if (fillSymbols.size() > 0) {
-									getFillPositions(areas,width,height,fillSymbols.size(),scale,fpos);
+									getFillPositions(areas,width,height,fillSymbols.size(),scale,infoTextRect,fpos);
 
 									if (showAreas)
 										// Draw fill area rects
@@ -8025,7 +8305,7 @@ SvgRenderer::visit(const woml::ParameterValueSetArea & theFeature)
   if(options.debug)	std::cerr << "Visiting ParameterValueSetArea" << std::endl;
 
   ++nprecipitationareas;
-  std::string id = "precipitation" + boost::lexical_cast<std::string>(nprecipitationareas);
+  std::string id = "paramvalsetarea" + boost::lexical_cast<std::string>(nprecipitationareas);
 
   const woml::CubicSplineSurface surface = theFeature.controlSurface();
 

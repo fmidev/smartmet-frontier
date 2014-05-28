@@ -259,4 +259,54 @@ namespace frontier
 	  }
   }
 
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get path's bounding box.
+   */
+  // ----------------------------------------------------------------------
+
+  void Path::walk(size_t i,BBox & bbox,double x,double y) const
+  {
+	if (i == 1) {
+		bbox.blX = bbox.trX = x;
+		bbox.blY = bbox.trY = y;
+	}
+	else {
+		if (x < bbox.blX) bbox.blX = x;
+		else if (x > bbox.trX) bbox.trX = x;
+
+		if (y < bbox.blY) bbox.blY = y;
+		else if (y > bbox.trY) bbox.trY = y;
+	}
+  }
+
+  Path::BBox Path::getBBox() const
+  {
+	BBox bbox;
+
+	for(PathData::size_type i=0; i<pathdata.size(); )
+	  {
+		PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+
+		switch(cmd)
+		  {
+		  case ClosePath:
+			break;
+		  case MoveTo:
+		  case LineTo:
+			walk((size_t) i,bbox,pathdata[i],pathdata[i+1]);
+			i += 2;
+			break;
+		  case CurveTo:
+			walk((size_t) i,bbox,pathdata[i],pathdata[i+1]);
+			walk((size_t) i,bbox,pathdata[i+2],pathdata[i+3]);
+			walk((size_t) i,bbox,pathdata[i+4],pathdata[i+5]);
+			i += 6;
+			break;
+		  }
+	  }
+
+	return bbox;
+  }
+
 } // namespace frontier
