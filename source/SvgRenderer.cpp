@@ -1351,8 +1351,7 @@ namespace frontier
 		const char * styleMsg = ": slant must be 'normal', 'italic' or 'oblique'";
 		const char * weightMsg = ": weight must be 'normal' or 'bold'";
 
-		// Note: 'textName' contains unique component id for area infotexts (instead of "longInfo" for document's single 'longinfo' text);
-		//		 using confPath ("Surface") to generate fixed placeholder names.
+		// Note: 'textName' contains area type for area infotexts; using confPath ("Surface") to generate fixed placeholder names
 
 		std::string TEXTCLASStextName("TEXTCLASS" + (TEXTPOSid.empty() ? textName : confPath));
 		std::string TEXTAREAtextName("TEXTAREA" + (TEXTPOSid.empty() ? textName : confPath));
@@ -1511,8 +1510,10 @@ namespace frontier
 							 textWidth,textHeight,maxLineHeight);
 
 				// Store the css class definition
+				//
+				// Note: Generating css class for each area infotext; the settings can differ
 
-				std::string textClass("text"+ textName);
+				std::string textClass("text" + (TEXTPOSid.empty() ? textName : TEXTPOSid.substr(TEXTPOSid.find("_") + 1)));
 
 				texts[TEXTCLASStextName] << "." << textClass
 										 << " {\nfont-family: " << font
@@ -1901,7 +1902,7 @@ namespace frontier
 
 								NFmiFillRect infoTextRect(std::make_pair(Point(1,1),Point(0,0)));
 								const std::string & infoText = (feature ? feature->text(options.locale) : "");
-								std::string TEXTPOSid("Z0TEXTPOS" + id),textPosition;
+								std::string TEXTPOSid("Z0TEXTPOS_" + id),textPosition;
 								int areaWidth = static_cast<int>(std::floor(0.5+area->Width()));
 								int areaHeight = static_cast<int>(std::floor(0.5+area->Height()));
 								int textWidth = 0,textHeight = 0,maxTextWidth = 0,fontSize = 0,tXOffset = 0,tYOffset = 0;
@@ -1923,7 +1924,7 @@ namespace frontier
 
 									textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
 
-									render_text(texts,confPath,id + "text",NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+									render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
 
 									if (textPosition == "area") {
 										// Get text position within the area
