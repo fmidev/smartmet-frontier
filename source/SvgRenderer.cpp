@@ -1351,9 +1351,12 @@ namespace frontier
 		const char * styleMsg = ": slant must be 'normal', 'italic' or 'oblique'";
 		const char * weightMsg = ": weight must be 'normal' or 'bold'";
 
-		std::string TEXTCLASStextName("TEXTCLASS" + textName);
-		std::string TEXTAREAtextName("TEXTAREA" + textName);
-		std::string TEXTtextName("TEXT" + textName);
+		// Note: 'textName' contains unique component id for area infotexts (instead of "longInfo" for document's single 'longinfo' text);
+		//		 using confPath ("Surface") to generate fixed placeholder names.
+
+		std::string TEXTCLASStextName("TEXTCLASS" + (TEXTPOSid.empty() ? textName : confPath));
+		std::string TEXTAREAtextName("TEXTAREA" + (TEXTPOSid.empty() ? textName : confPath));
+		std::string TEXTtextName("TEXT" + (TEXTPOSid.empty() ? textName : confPath));
 
 		// Set initial textarea rect in case no output is generated
 
@@ -1920,7 +1923,7 @@ namespace frontier
 
 									textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
 
-									render_text(texts,confPath,confPath,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+									render_text(texts,confPath,id + "text",NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
 
 									if (textPosition == "area") {
 										// Get text position within the area
