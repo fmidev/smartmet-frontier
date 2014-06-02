@@ -1339,6 +1339,7 @@ namespace frontier
 		  	  	  	  	  	    const std::string & textName,
 		  	  	  	  	  	    const std::string & text,
 		  	  	  	  	  	    int & xPosW,int & yPosH,		// I: text's starting x/y pos O: text's width/height
+		  	  	  	  	  	    bool setTextArea,
 		  	  	  	  	  	    bool centerToStartX,
 		  	  	  	  	  	    const std::string & TEXTPOSid,
 		  	  	  	  	  	    int * maxTextWidth,				// I
@@ -1354,12 +1355,15 @@ namespace frontier
 		// Note: 'textName' contains area type for area infotexts; using confPath ("Surface") to generate fixed placeholder names
 
 		std::string TEXTCLASStextName("TEXTCLASS" + (TEXTPOSid.empty() ? textName : confPath));
-		std::string TEXTAREAtextName("TEXTAREA" + (TEXTPOSid.empty() ? textName : confPath));
 		std::string TEXTtextName("TEXT" + (TEXTPOSid.empty() ? textName : confPath));
+		std::string TEXTAREAtextName;
 
-		// Set initial textarea rect in case no output is generated
-
-		texts[TEXTAREAtextName] << " x=\"0\" y=\"0\" width=\"0\" height=\"0\"";
+		if (setTextArea) {
+			// Set initial textarea rect in case no output is generated
+			//
+			TEXTAREAtextName = "TEXTAREA" + textName;
+			texts[TEXTAREAtextName] << " x=\"0\" y=\"0\" width=\"0\" height=\"0\"";
+		}
 
 		int startX = xPosW,startY = yPosH;
 		xPosW = yPosH = 0;
@@ -1509,6 +1513,8 @@ namespace frontier
 							 textLines,
 							 textWidth,textHeight,maxLineHeight);
 
+				xPosW = (2 * margin) + textWidth;
+
 				// Store the css class definition
 				//
 				// Note: Generating css class for each area infotext; the settings can differ
@@ -1522,16 +1528,17 @@ namespace frontier
 										 << ";\nfont-style : " << style
 										 << ";\n}\n";
 
-				// Store geometry for text border
-
-				texts[TEXTAREAtextName].str("");
-				texts[TEXTAREAtextName].clear();
-
 				int x = startX - xOffset - (centerToStartX ? ((textWidth / 2) + margin) : 0);
 				int y = startY + yOffset;
 
-				texts[TEXTAREAtextName] << " x=\"" << x << "\" y=\"" << y << "\""
-										<< " width=\"" << (xPosW = ((2 * margin) + textWidth));
+				if (setTextArea) {
+					// Store geometry for text border
+					//
+					texts[TEXTAREAtextName].str("");
+					texts[TEXTAREAtextName].clear();
+
+					texts[TEXTAREAtextName] << " x=\"" << x << "\" y=\"" << y << "\" width=\"" << xPosW;
+				}
 
 				// Store the text
 
@@ -1547,10 +1554,12 @@ namespace frontier
 										<< "\">" << svgescapetext(*it) << "</text>\n";
 				}
 
+				yPosH = y;
+
 				if (!TEXTPOSid.empty())
 					texts[TEXTtextName] << "</g>\n";
-
-				texts[TEXTAREAtextName] << "\" height=\"" << (yPosH = y) << "\" ";
+				else if (setTextArea)
+					texts[TEXTAREAtextName] << "\" height=\"" << yPosH << "\" ";
 
 				return;
 			}  // if
@@ -1924,7 +1933,7 @@ namespace frontier
 
 									textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
 
-									render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+									render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
 
 									if (textPosition == "area") {
 										// Get text position within the area
@@ -3136,7 +3145,7 @@ namespace frontier
 					//
 					const std::string & infoText = feature->text(options.locale);
 					int x = lon,y = lat;
-					render_text(texts,confPath,symClass,(infoText != options.locale) ? NFmiStringTools::UrlDecode(infoText) : "",x,y,true);
+					render_text(texts,confPath,symClass,(infoText != options.locale) ? NFmiStringTools::UrlDecode(infoText) : "",x,y,false,true);
 				}
 
 				return;
@@ -8105,7 +8114,7 @@ void SvgRenderer::visit(const woml::ParameterValueSetPoint & theFeature)
 {
 	if(options.debug)	std::cerr << "Visiting ParameterValueSetPoint" << std::endl;
 
-	// Wind with speed consists of two GeophysicalParameterValue; FlowDirectionMeasure and NumericalSingleValueMeasure.
+	// Wind with speed consists of two GeophysicalParameterValues; FlowDirectionMeasure and NumericalSingleValueMeasure.
 	// Pass the value to symbol rendering so value based conditional settings can be used.
 
 	const woml::GeophysicalParameterValueSet * params = theFeature.parameters().get();

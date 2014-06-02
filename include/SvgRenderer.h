@@ -482,6 +482,7 @@ namespace frontier
 					 const std::string & textName,
 					 const std::string & text,
 					 int & xPosW,int & yPosH,				// I: text's starting x/y pos O: text's width/height
+					 bool setTextArea = true,
 					 bool centerToStartX = false,
 					 const std::string & TEXTPOSid = "",
 					 int * maxTextWidth = NULL,				// I
