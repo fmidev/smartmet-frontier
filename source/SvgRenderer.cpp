@@ -702,7 +702,7 @@ namespace frontier
 					bool localeMatch = (locale == options.locale);
 
 					if (localeMatch || (locale == "")) {
-						scope.push_back(&hdrSpecs[i]);
+						scope.push_back(&specs);
 
 						// Currently no locale settings are required
 						//
@@ -1385,7 +1385,7 @@ namespace frontier
 		// as the last element). The list is processed in reverse order when searching.
 		//
 		// Current block or locale global block is needed for rendering.
-		//
+
 		std::list<const libconfig::Setting *> scope;
 		bool nameMatch,noName;
 		bool hasLocaleGlobals = false;
@@ -1424,7 +1424,7 @@ namespace frontier
 					bool localeMatch = (locale == options.locale);
 
 					if (localeMatch || (locale == "")) {
-						scope.push_back(&textSpecs[i]);
+						scope.push_back(&specs);
 
 						if ((nameMatch && (locale == "")) || (noName && localeMatch))
 							hasLocaleGlobals = true;
@@ -1599,19 +1599,8 @@ namespace frontier
 		  	  	  	 const std::string & symCode,
 		  	  	  	 settings s_code,
 		  	  	  	 std::string & mappedCode,
-		  	  	  	 const libconfig::Setting * globalScope = NULL,
-		  	  	  	 int specsIdx = -1)
+		  	  	  	 std::list<const libconfig::Setting *> * scope = NULL)
   {
-	const char * typeMsg = " must contain a group in curly brackets";
-
-	// Block index is given for ParameterValueSetArea
-
-	std::string symPath(confPath + ((specsIdx >= 0) ? (".[" + boost::lexical_cast<std::string>(specsIdx) + "]") : ""));
-
-	const libconfig::Setting & symbolSpecs = config.lookup(symPath);
-	if(!symbolSpecs.isGroup())
-		throw std::runtime_error(symPath + typeMsg);
-
 	// Symbol's <code>; code_<symCode> = <code>
 	//
 	// Note: libconfig does not support special characters in configuration keys; the code values
@@ -1621,11 +1610,20 @@ namespace frontier
 	bool isSet = false;
 
 	if (!mappedCode.empty()) {
+		const char * typeMsg = " must contain a group in curly brackets";
+
+		const libconfig::Setting & symbolSpecs = (scope ? *(scope->front()) : config.lookup(confPath));
+
+		if(!symbolSpecs.isGroup())
+			throw std::runtime_error(confPath + typeMsg);
+
 		boost::algorithm::replace_all(mappedCode,"+","P_");
 		boost::algorithm::replace_all(mappedCode,"-","M_");
 		boost::algorithm::replace_all(mappedCode,"@","_");
 
-		mappedCode = configValue<std::string>(symbolSpecs,symPath,mappedCode,globalScope,s_code,&isSet);
+		mappedCode = scope
+			? configValue<std::string>(*scope,confPath,mappedCode,s_code,&isSet)
+			: configValue<std::string>(symbolSpecs,confPath,mappedCode,NULL,s_code,&isSet);
 	}
 
 	return (isSet && (!mappedCode.empty()));
@@ -1790,344 +1788,366 @@ namespace frontier
 
 		settings s_name((settings) (s_base + 0));
 
-		int surfIdx = -1;
-		int globalsIdx = -1;
+		// Configuration blocks to search values for the settings; global blocks (blocks with no name)
+		// and the current block with matching name.
+		//
+		// The blocks are stored to the list in the order of appearance (and having current block
+		// as the last element). The list is processed in reverse order when searching.
+		//
+		// Current block or global block is needed for rendering.
 
-		for(int i=0; i<surfSpecs.getLength(); ++i)
+		std::list<const libconfig::Setting *> scope;
+		bool nameMatch,noName;
+
+		int surfIdx = -1;
+		int lastIdx = surfSpecs.getLength() - 1;
+
+		for(int i=0; i<=lastIdx; ++i)
 		{
 			const libconfig::Setting & specs = surfSpecs[i];
 			if(!specs.isGroup())
 				throw std::runtime_error(confPath + typeMsg);
 
 			try {
-				if (lookup<std::string>(specs,confPath,"name",s_name) == surfaceName) {
-					surfIdx = i;
-
-					// Missing settings from globals when available
-					libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &surfSpecs[globalsIdx] : NULL);
-
-					// Surface type; pattern, mask, glyph or svg
-
-					std::string type = configValue<std::string>(specs,surfaceName,"type",globalScope);
-					bool filled = ((type == "fill") || (type == "fill+mask"));
-					bool masked = ((type == "mask") || (type == "fill+mask"));
-
-					if ((type == "pattern") || (type == "glyph") || filled || masked) {
-						// Class and style
-						//
-						std::string classDef((type != "pattern") ? configValue<std::string>(specs,surfaceName,"class",globalScope) : "");
-						std::string style((type != "fill") ? configValue<std::string>(specs,surfaceName,"style",globalScope) : "");
-
-						// Output placeholder; by default output to passed stream
-
-						std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(specs,surfaceName,"output",globalScope,s_optional)));
-						std::ostringstream & surfaces = (placeHolder.empty() ? surfaceOutput : texts[placeHolder]);
-
-						if (type == "pattern")
-							surfaces << "<g id=\""
-									 << id
-									 << "\">\n"
-									 << "<path style=\""
-									 << style
-									 << "\" d=\"" << path.svg() << "\"/>\n"
-									 << "</g>\n";
-						else {
-							std::string pathId(id + type);
-
-							paths << "<path id=\""
-								  << pathId
-								  << "\" d=\"" << path.svg() << "\"/>\n";
-
-							surfaces << "<use class=\""
-									 << classDef
-									 << "\" xlink:href=\"#"
-									 << pathId << ((filled && (!masked)) ? "\"/>\n": "");
-
-							if (masked) {
-								std::string maskId(pathId + "mask");
-
-								masks << "<mask id=\""
-									  << maskId
-									  << "\" maskUnits=\"userSpaceOnUse\">\n"
-									  << "<use xlink:href=\"#"
-									  << pathId
-									  << "\" class=\""
-									  << style
-									  << "\"/>\n</mask>\n";
-
-								surfaces << "\" mask=\"url(#"
-										 << maskId
-										 << ")\"/>\n";
-							}
-
-							if (filled) {
-								// Fill symbol width and height and scale factor for bounding box for
-								// calculating suitable symbol positions
-								//
-								int _width = configValue<int>(specs,surfaceName,"width",globalScope);
-								int _height = configValue<int>(specs,surfaceName,"height",globalScope);
-								float scale = configValue<float>(specs,surfaceName,"scale",globalScope);
-
-								if (scale < 0.3)
-									throw std::runtime_error(confPath + ": minimum scale is 0.3");
-
-								// If autoscale is true (default: false) symbol is shrinken until
-								// at least one symbol or all area symbols can be placed on the surface
-								bool isSet;
-								bool autoScale = configValue<bool>(specs,surfaceName,"autoscale",globalScope,s_optional,&isSet);
-								if (!isSet)
-									autoScale = false;
-
-								// If mode is 'vertical' (default: horizontal) the symbols are placed using y -axis as the
-								// primary axis (using maximum vertical fillrects instead of maximum horizontal fillrects)
-								std::string mode = configValue<std::string>(specs,surfaceName,"mode",globalScope,s_optional);
-								bool verticalRects = (mode == "vertical");
-
-								// If direction is 'both' (default: up) iterating vertically over the surface y-coordinates
-								// from both directions; otherwise from bottom up
-								std::string direction = configValue<std::string>(specs,surfaceName,"direction",globalScope,s_optional);
-								bool scanUpDown = (direction == "both");
-
-								// If showareas is true (default: false) output the fill area bounding boxes too
-								bool showAreas = configValue<bool>(specs,surfaceName,"showareas",globalScope,s_optional,&isSet);
-								if (!isSet)
-									showAreas = false;
-
-								// Get mapping for ParameterValueSetArea's symbols; code_<symCode> = <code>
-
-								std::list<std::string> fillSymbols;
-
-								if (areaSymbols) {
-									std::list<std::string>::const_iterator sym = areaSymbols->begin();
-									std::string code;
-
-									for ( ; (sym != areaSymbols->end()); sym++)
-										if (symbolMapping(config,confPath,"code_" + *sym,s_optional,code,globalScope,surfIdx))
-											fillSymbols.push_back(code);
-
-									if (fillSymbols.size() < areaSymbols->size())
-										;
-								}
-
-								NFmiFillRect infoTextRect(std::make_pair(Point(1,1),Point(0,0)));
-								const std::string & infoText = (feature ? feature->text(options.locale) : "");
-								std::string TEXTPOSid("Z0TEXTPOS_" + id),textPosition;
-								int areaWidth = static_cast<int>(std::floor(0.5+area->Width()));
-								int areaHeight = static_cast<int>(std::floor(0.5+area->Height()));
-								int textWidth = 0,textHeight = 0,maxTextWidth = 0,fontSize = 0,tXOffset = 0,tYOffset = 0;
-
-								if ((!infoText.empty()) && (infoText != options.locale)) {
-									// Render feature's infotext. The text is rendered starting from coordinate (0,0) and
-									// final position is selected afterwards. The final position is set as transformation
-									// offsets to the selected position.
-									//
-									// Note: The key for position must sort after the key for the text (the key/text
-									//		 containing the position key must be handled/outputted prior the position key/text);
-									//		 therefore the position key starts with "Z0"
-									//
-									std::string textOut(boost::algorithm::trim_copy(infoText));
-
-									textPosition = configValue<std::string>(specs,surfaceName,"textposition",globalScope,s_optional);
-
-									// The text can start with position, fontsize and x/y offset settings overriding the configured values.
-
-									textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
-
-									render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
-
-									if (textPosition == "area") {
-										// Get text position within the area
-										//
-										NFmiFillMap fmap;
-										NFmiFillAreas areas;
-										path.length(&fmap);
-
-										if (fmap.getFillAreas(areaWidth,areaHeight,textWidth,textHeight,1.0,verticalRects,areas,false,scanUpDown))
-											infoTextRect = getCenterFillAreaRect(areas,textWidth,1.0);
-										else
-											// No room within the area, using the defaut location
-											//
-											textPosition.clear();
-									}
-								}
-
-								// Get symbol fill areas.
-								//
-								// If none available or not enough room for all area symbols, and autoscale is set,
-								// retry with smaller symbol size down to half of the original size.
-								//
-								NFmiFillMap fmap;
-								NFmiFillAreas areas;
-								NFmiFillPositions fpos;
-								path.length(&fmap);
-
-								int width = _width;
-								int height = _height;
-								bool noTextRetry = false,ok = false;
-
-								do {
-									areas.clear();
-
-									ok = fmap.getFillAreas(areaWidth,areaHeight,width,height,scale,verticalRects,areas,true,scanUpDown);
-
-									if (ok && (fillSymbols.size() > 0)) {
-										// Check there is room for all area symbols. Erase fill areas overlapping the area
-										// reserved for info text.
-										//
-										NFmiFillAreas::iterator iter;
-										size_t symCnt = 0;
-
-										for (iter = areas.begin(), fpos.clear(); ((iter != areas.end()) && (fpos.size() < fillSymbols.size())); )
-											if (getFillPositions(iter,width,height,scale,infoTextRect,fpos,symCnt))
-												iter++;
-											else
-												iter = areas.erase(iter);
-
-										ok = (fpos.size() >= fillSymbols.size());
-									}
-
-									if (!ok) {
-										// Render infotext within the area only when all symbols fit in.
-										//
-										int nw = width - 2,nh = height - 2;
-
-										noTextRetry = false;
-
-										if (((nw >= (_width / 2)) && (nh >= (_height / 2))) || (textPosition != "area")) {
-											width = nw;
-											height = nh;
-										}
-										else {
-											textPosition.clear();
-											infoTextRect = std::make_pair(Point(0,0),Point(0,0));
-
-											width = _width;
-											height = _height;
-
-											noTextRetry = true;
-										}
-									}
-								}
-								while ((autoScale || noTextRetry) && (! ok) && (width >= (_width / 2)) && (height >= (_height / 2)));
-
-								if (!ok) {
-									// For warning areas fit max 4 symbols per fill area
-									//
-									if (fillSymbols.size() == 0)
-										areas.clear();
-									else if ((!autoScale) || ((4 * fpos.size()) < fillSymbols.size()))
-										throw std::runtime_error("render_surface: too many symbols");
-								}
-
-								fpos.clear();
-
-								// Set final infotext position
-
-								if (!infoText.empty())
-									setTextPosition(path,TEXTPOSid,textPosition,infoTextRect,areaWidth,areaHeight,textWidth,textHeight,tXOffset,tYOffset);
-
-								// Get symbol positions withing the fill areas
-
-								const char *clrs[] =
-								{ "red",
-								  "blue",
-								  "green",
-								  "orange",
-								  "brown",
-								  "yellow"
-								};
-								size_t symCnt = 0,clrCnt = (sizeof(clrs) / sizeof(char *)),clrIdx = 0;
-
-								if (!areaSymbols || (areas.size() < 2)) {
-									for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
-										getFillPositions(iter,width,height,scale,infoTextRect,fpos,symCnt);
-
-										if (showAreas) {
-											// Draw fill area rects
-											//
-											surfaces << "<rect x=\""
-													 << iter->first.x
-													 << "\" y=\""
-													 << iter->first.y
-													 << "\" width=\""
-													 << iter->second.x - iter->first.x
-													 << "\" height=\""
-													 << iter->second.y - iter->first.y
-													 << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
-											clrIdx++;
-										}
-									}
-								}
-								else if (fillSymbols.size() > 0) {
-									getFillPositions(areas,width,height,fillSymbols.size(),scale,infoTextRect,fpos);
-
-									if (showAreas)
-										// Draw fill area rects
-										//
-										for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
-											surfaces << "<rect x=\""
-													 << iter->first.x
-													 << "\" y=\""
-													 << iter->first.y
-													 << "\" width=\""
-													 << iter->second.x - iter->first.x
-													 << "\" height=\""
-													 << iter->second.y - iter->first.y
-													 << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
-											clrIdx++;
-									}
-								}
-
-								// Render the symbols
-								render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
-							}
-							else if (!masked) {
-								// glyph
-								std::string _glyph("U");
-								double textlength = static_cast<double>(_glyph.size());
-								double len = path.length();
-								double fontsize = getCssSize(".cloudborderglyph","font-size");
-								double spacing = 0.0;
-
-								const int CosmologicalConstant = 2;
-								int nglyphs = CosmologicalConstant * static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
-
-								if((textlength > 0) && (nglyphs > 0))
-								{
-									std::string glyph(_glyph.size() * nglyphs,' ');
-									std::string spaces(_glyph.size(),' ');
-									boost::replace_all(glyph,spaces,_glyph);
-
-									surfaces << "\"/>\n<text>\n"
-											 << "<textPath class=\""
-											 << style
-											 << "\" xlink:href=\"#"
-											 << pathId
-											 << "\">\n"
-											 << glyph
-											 << "\n</textPath>"
-//											 << "<!-- len=" << len << " textlength=" << textlength << " fontsize=" << fontsize << " -->"
-											 << "\n</text>\n";
-								}
-								else
-									surfaces << "\"/>\n";
-							}
-						}
-
-						return;
-					}
-					else if (type == "svg") {
-						throw std::runtime_error(confPath + " type 'svg' not implemented yet");
-					}
-					else
-						throw std::runtime_error(confPath + ": '" + type + "'" + surfTypeMsg);
-				}
+				noName = false;
+				nameMatch = (lookup<std::string>(specs,confPath,"name",s_name) == surfaceName);
 			}
 			catch (SettingIdNotFoundException & ex) {
-				if (ex.id() == s_name)
-					// Global settings have no name
+				// Global settings have no name
+				//
+				noName = true;
+				nameMatch = false;
+			}
+
+			// Enter the block on matching name, and for globals and last config entry
+			// to load/use the globals
+			//
+			if (nameMatch || noName || ((i == lastIdx) && (!scope.empty()))) {
+				if (nameMatch || noName) {
+					if (nameMatch)
+						surfIdx = i;
+
+					scope.push_back(&specs);
+
+					if (noName && (i < lastIdx))
+						continue;
+				}
+
+				// Surface type; pattern, mask, glyph or svg
+
+				std::string type = configValue<std::string>(scope,surfaceName,"type");
+				bool filled = ((type == "fill") || (type == "fill+mask"));
+				bool masked = ((type == "mask") || (type == "fill+mask"));
+
+				if ((type == "pattern") || (type == "glyph") || filled || masked) {
+					// Class and style
 					//
-					globalsIdx = i;
+					std::string classDef((type != "pattern") ? configValue<std::string>(scope,surfaceName,"class") : "");
+					std::string style((type != "fill") ? configValue<std::string>(scope,surfaceName,"style") : "");
+
+					// Output placeholder; by default output to passed stream
+
+					std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(scope,surfaceName,"output",s_optional)));
+					std::ostringstream & surfaces = (placeHolder.empty() ? surfaceOutput : texts[placeHolder]);
+
+					if (type == "pattern")
+						surfaces << "<g id=\""
+								 << id
+								 << "\">\n"
+								 << "<path style=\""
+								 << style
+								 << "\" d=\"" << path.svg() << "\"/>\n"
+								 << "</g>\n";
+					else {
+						std::string pathId(id + type);
+
+						paths << "<path id=\""
+							  << pathId
+							  << "\" d=\"" << path.svg() << "\"/>\n";
+
+						surfaces << "<use class=\""
+								 << classDef
+								 << "\" xlink:href=\"#"
+								 << pathId << ((filled && (!masked)) ? "\"/>\n": "");
+
+						if (masked) {
+							std::string maskId(pathId + "mask");
+
+							masks << "<mask id=\""
+								  << maskId
+								  << "\" maskUnits=\"userSpaceOnUse\">\n"
+								  << "<use xlink:href=\"#"
+								  << pathId
+								  << "\" class=\""
+								  << style
+								  << "\"/>\n</mask>\n";
+
+							surfaces << "\" mask=\"url(#"
+									 << maskId
+									 << ")\"/>\n";
+						}
+
+						if (filled) {
+							// Fill symbol width and height and scale factor for bounding box for
+							// calculating suitable symbol positions
+							//
+							int _width = configValue<int>(scope,surfaceName,"width");
+							int _height = configValue<int>(scope,surfaceName,"height");
+							float scale = configValue<float>(scope,surfaceName,"scale");
+
+							if (scale < 0.3)
+								throw std::runtime_error(confPath + ": minimum scale is 0.3");
+
+							// If autoscale is true (default: false) symbol is shrinken until
+							// at least one symbol or all area symbols can be placed on the surface
+							bool isSet;
+							bool autoScale = configValue<bool>(scope,surfaceName,"autoscale",s_optional,&isSet);
+							if (!isSet)
+								autoScale = false;
+
+							// If mode is 'vertical' (default: horizontal) the symbols are placed using y -axis as the
+							// primary axis (using maximum vertical fillrects instead of maximum horizontal fillrects)
+							std::string mode = configValue<std::string>(scope,surfaceName,"mode",s_optional);
+							bool verticalRects = (mode == "vertical");
+
+							// If direction is 'both' (default: up) iterating vertically over the surface y-coordinates
+							// from both directions; otherwise from bottom up
+							std::string direction = configValue<std::string>(scope,surfaceName,"direction",s_optional);
+							bool scanUpDown = (direction == "both");
+
+							// If showareas is true (default: false) output the fill area bounding boxes too
+							bool showAreas = configValue<bool>(scope,surfaceName,"showareas",s_optional,&isSet);
+							if (!isSet)
+								showAreas = false;
+
+							// Get mapping for ParameterValueSetArea's symbols; code_<symCode> = <code>
+
+							std::list<std::string> fillSymbols;
+
+							if (areaSymbols) {
+								std::list<std::string>::const_iterator sym = areaSymbols->begin();
+								std::string code;
+
+								for ( ; (sym != areaSymbols->end()); sym++)
+									if (symbolMapping(config,confPath,"code_" + *sym,s_optional,code,&scope))
+										fillSymbols.push_back(code);
+
+								if (fillSymbols.size() < areaSymbols->size())
+									;
+							}
+
+							NFmiFillRect infoTextRect(std::make_pair(Point(1,1),Point(0,0)));
+							const std::string & infoText = (feature ? feature->text(options.locale) : "");
+							std::string TEXTPOSid("Z0TEXTPOS_" + id),textPosition;
+							int areaWidth = static_cast<int>(std::floor(0.5+area->Width()));
+							int areaHeight = static_cast<int>(std::floor(0.5+area->Height()));
+							int textWidth = 0,textHeight = 0,maxTextWidth = 0,fontSize = 0,tXOffset = 0,tYOffset = 0;
+
+							if ((!infoText.empty()) && (infoText != options.locale)) {
+								// Render feature's infotext. The text is rendered starting from coordinate (0,0) and
+								// final position is selected afterwards. The final position is set as transformation
+								// offsets to the selected position.
+								//
+								// Note: The key for position must sort after the key for the text (the key/text
+								//		 containing the position key must be handled/outputted prior the position key/text);
+								//		 therefore the position key starts with "Z0"
+								//
+								std::string textOut(boost::algorithm::trim_copy(infoText));
+
+								textPosition = configValue<std::string>(scope,surfaceName,"textposition",s_optional);
+
+								// The text can start with position, fontsize and x/y offset settings overriding the configured values.
+
+								textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
+
+								render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+
+								if (textPosition == "area") {
+									// Get text position within the area
+									//
+									NFmiFillMap fmap;
+									NFmiFillAreas areas;
+									path.length(&fmap);
+
+									if (fmap.getFillAreas(areaWidth,areaHeight,textWidth,textHeight,1.0,verticalRects,areas,false,scanUpDown))
+										infoTextRect = getCenterFillAreaRect(areas,textWidth,1.0);
+									else
+										// No room within the area, using the defaut location
+										//
+										textPosition.clear();
+								}
+							}
+
+							// Get symbol fill areas.
+							//
+							// If none available or not enough room for all area symbols, and autoscale is set,
+							// retry with smaller symbol size down to half of the original size.
+							//
+							NFmiFillMap fmap;
+							NFmiFillAreas areas;
+							NFmiFillPositions fpos;
+							path.length(&fmap);
+
+							int width = _width;
+							int height = _height;
+							bool noTextRetry = false,ok = false;
+
+							do {
+								areas.clear();
+
+								ok = fmap.getFillAreas(areaWidth,areaHeight,width,height,scale,verticalRects,areas,true,scanUpDown);
+
+								if (ok && (fillSymbols.size() > 0)) {
+									// Check there is room for all area symbols. Erase fill areas overlapping the area
+									// reserved for info text.
+									//
+									NFmiFillAreas::iterator iter;
+									size_t symCnt = 0;
+
+									for (iter = areas.begin(), fpos.clear(); ((iter != areas.end()) && (fpos.size() < fillSymbols.size())); )
+										if (getFillPositions(iter,width,height,scale,infoTextRect,fpos,symCnt))
+											iter++;
+										else
+											iter = areas.erase(iter);
+
+									ok = (fpos.size() >= fillSymbols.size());
+								}
+
+								if (!ok) {
+									// Render infotext within the area only when all symbols fit in.
+									//
+									int nw = width - 2,nh = height - 2;
+
+									noTextRetry = false;
+
+									if (((nw >= (_width / 2)) && (nh >= (_height / 2))) || (textPosition != "area")) {
+										width = nw;
+										height = nh;
+									}
+									else {
+										textPosition.clear();
+										infoTextRect = std::make_pair(Point(0,0),Point(0,0));
+
+										width = _width;
+										height = _height;
+
+										noTextRetry = true;
+									}
+								}
+							}
+							while ((autoScale || noTextRetry) && (! ok) && (width >= (_width / 2)) && (height >= (_height / 2)));
+
+							if (!ok) {
+								// For warning areas fit max 4 symbols per fill area
+								//
+								if (fillSymbols.size() == 0)
+									areas.clear();
+								else if ((!autoScale) || ((4 * fpos.size()) < fillSymbols.size()))
+									throw std::runtime_error("render_surface: too many symbols");
+							}
+
+							fpos.clear();
+
+							// Set final infotext position
+
+							if (!infoText.empty())
+								setTextPosition(path,TEXTPOSid,textPosition,infoTextRect,areaWidth,areaHeight,textWidth,textHeight,tXOffset,tYOffset);
+
+							// Get symbol positions withing the fill areas
+
+							const char *clrs[] =
+							{ "red",
+							  "blue",
+							  "green",
+							  "orange",
+							  "brown",
+							  "yellow"
+							};
+							size_t symCnt = 0,clrCnt = (sizeof(clrs) / sizeof(char *)),clrIdx = 0;
+
+							if (!areaSymbols || (areas.size() < 2)) {
+								for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
+									getFillPositions(iter,width,height,scale,infoTextRect,fpos,symCnt);
+
+									if (showAreas) {
+										// Draw fill area rects
+										//
+										surfaces << "<rect x=\""
+												 << iter->first.x
+												 << "\" y=\""
+												 << iter->first.y
+												 << "\" width=\""
+												 << iter->second.x - iter->first.x
+												 << "\" height=\""
+												 << iter->second.y - iter->first.y
+												 << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
+										clrIdx++;
+									}
+								}
+							}
+							else if (fillSymbols.size() > 0) {
+								getFillPositions(areas,width,height,fillSymbols.size(),scale,infoTextRect,fpos);
+
+								if (showAreas)
+									// Draw fill area rects
+									//
+									for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
+										surfaces << "<rect x=\""
+												 << iter->first.x
+												 << "\" y=\""
+												 << iter->first.y
+												 << "\" width=\""
+												 << iter->second.x - iter->first.x
+												 << "\" height=\""
+												 << iter->second.y - iter->first.y
+												 << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
+										clrIdx++;
+								}
+							}
+
+							// Render the symbols
+							render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
+						}
+						else if (!masked) {
+							// glyph
+							std::string _glyph("U");
+							double textlength = static_cast<double>(_glyph.size());
+							double len = path.length();
+							double fontsize = getCssSize(".cloudborderglyph","font-size");
+							double spacing = 0.0;
+
+							const int CosmologicalConstant = 2;
+							int nglyphs = CosmologicalConstant * static_cast<int>(std::floor(len/(fontsize*textlength+spacing)+0.5));
+
+							if((textlength > 0) && (nglyphs > 0))
+							{
+								std::string glyph(_glyph.size() * nglyphs,' ');
+								std::string spaces(_glyph.size(),' ');
+								boost::replace_all(glyph,spaces,_glyph);
+
+								surfaces << "\"/>\n<text>\n"
+										 << "<textPath class=\""
+										 << style
+										 << "\" xlink:href=\"#"
+										 << pathId
+										 << "\">\n"
+										 << glyph
+										 << "\n</textPath>"
+//											 << "<!-- len=" << len << " textlength=" << textlength << " fontsize=" << fontsize << " -->"
+										 << "\n</text>\n";
+							}
+							else
+								surfaces << "\"/>\n";
+						}
+					}
+
+					return;
+				}
+				else if (type == "svg") {
+					throw std::runtime_error(confPath + " type 'svg' not implemented yet");
+				}
+				else
+					throw std::runtime_error(confPath + ": '" + type + "'" + surfTypeMsg);
 			}
 		}	// for
 
