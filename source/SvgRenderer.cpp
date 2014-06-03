@@ -1339,6 +1339,7 @@ namespace frontier
 		  	  	  	  	  	    const std::string & textName,
 		  	  	  	  	  	    const std::string & text,
 		  	  	  	  	  	    int & xPosW,int & yPosH,		// I: text's starting x/y pos O: text's width/height
+		  	  	  	  	  	    bool ignoreErr,
 		  	  	  	  	  	    bool setTextArea,
 		  	  	  	  	  	    bool centerToStartX,
 		  	  	  	  	  	    const std::string & TEXTPOSid,
@@ -1413,156 +1414,164 @@ namespace frontier
 			// Enter the block on matching name, and for globals and last config entry
 			// to load/use the globals
 			//
-			if (nameMatch || noName || ((i == lastIdx) && hasLocaleGlobals)) {
-				if (nameMatch || noName) {
-					if (nameMatch)
-						textIdx = i;
+			try {
+				if (nameMatch || noName || ((i == lastIdx) && hasLocaleGlobals)) {
+					if (nameMatch || noName) {
+						if (nameMatch)
+							textIdx = i;
 
-					// Locale
-					//
-					std::string locale(toLower(configValue<std::string>(specs,textName,"locale",NULL,s_optional)));
-					bool localeMatch = (locale == options.locale);
+						// Locale
+						//
+						std::string locale(toLower(configValue<std::string>(specs,textName,"locale",NULL,s_optional)));
+						bool localeMatch = (locale == options.locale);
 
-					if (localeMatch || (locale == "")) {
-						scope.push_back(&specs);
+						if (localeMatch || (locale == "")) {
+							scope.push_back(&specs);
 
-						if ((nameMatch && (locale == "")) || (noName && localeMatch))
-							hasLocaleGlobals = true;
+							if ((nameMatch && (locale == "")) || (noName && localeMatch))
+								hasLocaleGlobals = true;
+						}
+
+						if ((noName || (!localeMatch)) && ((i < lastIdx) || (!hasLocaleGlobals)))
+							continue;
 					}
 
-					if ((noName || (!localeMatch)) && ((i < lastIdx) || (!hasLocaleGlobals)))
-						continue;
-				}
+					// Font name
+					std::string font = configValue<std::string>(scope,textName,"font-family");
 
-				// Font name
-				std::string font = configValue<std::string>(scope,textName,"font-family");
+					// Font size
+					int fSize = (fontSize && (*fontSize > 0)) ? *fontSize : configValue<unsigned int>(scope,textName,"font-size");
 
-				// Font size
-				int fSize = (fontSize && (*fontSize > 0)) ? *fontSize : configValue<unsigned int>(scope,textName,"font-size");
+					// Font style
+					cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
+					std::string style = configValue<std::string>(scope,textName,"font-style",s_optional);
 
-				// Font style
-				cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
-				std::string style = configValue<std::string>(scope,textName,"font-style",s_optional);
+					if (style == "italic")
+						slant = CAIRO_FONT_SLANT_ITALIC;
+					else if (style == "oblique")
+						slant = CAIRO_FONT_SLANT_OBLIQUE;
+					else if (style != "")
+						throw std::runtime_error(confPath + styleMsg);
+					else
+						style = "normal";
 
-				if (style == "italic")
-					slant = CAIRO_FONT_SLANT_ITALIC;
-				else if (style == "oblique")
-			    	slant = CAIRO_FONT_SLANT_OBLIQUE;
-				else if (style != "")
-					throw std::runtime_error(confPath + styleMsg);
-				else
-					style = "normal";
+					// Font weight
+					cairo_font_weight_t _weight = CAIRO_FONT_WEIGHT_NORMAL;
+					std::string weight = configValue<std::string>(scope,textName,"font-weight",s_optional);
 
-				// Font weight
-				cairo_font_weight_t _weight = CAIRO_FONT_WEIGHT_NORMAL;
-				std::string weight = configValue<std::string>(scope,textName,"font-weight",s_optional);
+					if (weight == "bold")
+						_weight = CAIRO_FONT_WEIGHT_BOLD;
+					else if (weight != "")
+						throw std::runtime_error(confPath + weightMsg);
+					else
+						weight = "normal";
 
-				if (weight == "bold")
-					_weight = CAIRO_FONT_WEIGHT_BOLD;
-				else if (weight != "")
-					throw std::runtime_error(confPath + weightMsg);
-				else
-					weight = "normal";
-
-				// Max width, height, x/y margin and x/y offsets
-				//
-				// For area text (when tXOffset and tYOffset are passed in as nonnull) the offsets are used later
-				// when setting the final text position.
-				//
-				// Note: If the passed offsets (or font size) are nonzero, they were set in the text and won't be overridden by config settings.
-				unsigned int maxWidth = ((maxTextWidth && (*maxTextWidth > 0)) ? *maxTextWidth : configValue<unsigned int>(scope,textName,"textwidth"));
-
-				bool isSet;
-				unsigned int maxHeight = configValue<unsigned int>(scope,textName,"textheight",s_optional,&isSet);
-				if (! isSet)
-					maxHeight = 0;
-
-				unsigned int margin = configValue<unsigned int>(scope,textName,"margin",s_optional,&isSet);
-				if (! isSet)
-					margin = 2;
-
-				if (maxWidth <= 20)
-					maxWidth = 20;
-				if ((maxHeight != 0) && (maxHeight <= 20))
-					maxHeight = 20;
-
-				int xOffset = configValue<int>(scope,textName,"txoffset",s_optional,&isSet);
-				if ((! isSet) || tXOffset) {
-					if (isSet && (*tXOffset == 0))
-						*tXOffset = xOffset;
-
-					xOffset = 0;
-				}
-
-				int yOffset = configValue<int>(scope,textName,"tyoffset",s_optional,&isSet);
-				if ((! isSet) || tYOffset) {
-					if (isSet && (*tYOffset == 0))
-						*tYOffset = yOffset;
-
-					yOffset = 0;
-				}
-
-				// Split the text into lines using given max. width and height
-
-				std::list<std::string> textLines;
-				unsigned int textWidth,textHeight,maxLineHeight;
-
-				getTextLines(text,
-						  	 font,fSize,slant,_weight,
-						  	 maxWidth,maxHeight,
-							 textLines,
-							 textWidth,textHeight,maxLineHeight);
-
-				xPosW = (2 * margin) + textWidth;
-
-				// Store the css class definition
-				//
-				// Note: Generating css class for each area infotext; the settings can differ
-
-				std::string textClass("text" + (TEXTPOSid.empty() ? textName : TEXTPOSid.substr(TEXTPOSid.find("_") + 1)));
-
-				texts[TEXTCLASStextName] << "." << textClass
-										 << " {\nfont-family: " << font
-										 << ";\nfont-size: " << fSize
-										 << ";\nfont-weight : " << weight
-										 << ";\nfont-style : " << style
-										 << ";\n}\n";
-
-				int x = startX - xOffset - (centerToStartX ? ((textWidth / 2) + margin) : 0);
-				int y = startY + yOffset;
-
-				if (setTextArea) {
-					// Store geometry for text border
+					// Max width, height, x/y margin and x/y offsets
 					//
-					texts[TEXTAREAtextName].str("");
-					texts[TEXTAREAtextName].clear();
+					// For area text (when tXOffset and tYOffset are passed in as nonnull) the offsets are used later
+					// when setting the final text position.
+					//
+					// Note: If the passed offsets (or font size) are nonzero, they were set in the text and won't be overridden by config settings.
+					unsigned int maxWidth = ((maxTextWidth && (*maxTextWidth > 0)) ? *maxTextWidth : configValue<unsigned int>(scope,textName,"textwidth"));
 
-					texts[TEXTAREAtextName] << " x=\"" << x << "\" y=\"" << y << "\" width=\"" << xPosW;
-				}
+					bool isSet;
+					unsigned int maxHeight = configValue<unsigned int>(scope,textName,"textheight",s_optional,&isSet);
+					if (! isSet)
+						maxHeight = 0;
 
-				// Store the text
+					unsigned int margin = configValue<unsigned int>(scope,textName,"margin",s_optional,&isSet);
+					if (! isSet)
+						margin = 2;
 
-				std::list<std::string>::const_iterator it = textLines.begin();
+					if (maxWidth <= 20)
+						maxWidth = 20;
+					if ((maxHeight != 0) && (maxHeight <= 20))
+						maxHeight = 20;
 
-				for (x += margin,y += (margin + maxLineHeight); (it != textLines.end()); it++, y += maxLineHeight) {
-					if ((!TEXTPOSid.empty()) && (it == textLines.begin()))
-						texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--)\">\n";
+					int xOffset = configValue<int>(scope,textName,"txoffset",s_optional,&isSet);
+					if ((! isSet) || tXOffset) {
+						if (isSet && (*tXOffset == 0))
+							*tXOffset = xOffset;
 
-					texts[TEXTtextName] << "<text class=\"" << textClass
-										<< "\" x=\"" << x
-										<< "\" y=\"" << y
-										<< "\">" << svgescapetext(*it) << "</text>\n";
-				}
+						xOffset = 0;
+					}
 
-				yPosH = y;
+					int yOffset = configValue<int>(scope,textName,"tyoffset",s_optional,&isSet);
+					if ((! isSet) || tYOffset) {
+						if (isSet && (*tYOffset == 0))
+							*tYOffset = yOffset;
 
-				if (!TEXTPOSid.empty())
-					texts[TEXTtextName] << "</g>\n";
-				else if (setTextArea)
-					texts[TEXTAREAtextName] << "\" height=\"" << yPosH << "\" ";
+						yOffset = 0;
+					}
 
-				return;
-			}  // if
+					// Split the text into lines using given max. width and height
+
+					std::list<std::string> textLines;
+					unsigned int textWidth,textHeight,maxLineHeight;
+
+					getTextLines(text,
+								 font,fSize,slant,_weight,
+								 maxWidth,maxHeight,
+								 textLines,
+								 textWidth,textHeight,maxLineHeight);
+
+					xPosW = (2 * margin) + textWidth;
+
+					// Store the css class definition
+					//
+					// Note: Generating css class for each area infotext; the settings can differ
+
+					std::string textClass("text" + (TEXTPOSid.empty() ? textName : TEXTPOSid.substr(TEXTPOSid.find("_") + 1)));
+
+					texts[TEXTCLASStextName] << "." << textClass
+											 << " {\nfont-family: " << font
+											 << ";\nfont-size: " << fSize
+											 << ";\nfont-weight : " << weight
+											 << ";\nfont-style : " << style
+											 << ";\n}\n";
+
+					int x = startX - xOffset - (centerToStartX ? ((textWidth / 2) + margin) : 0);
+					int y = startY + yOffset;
+
+					if (setTextArea) {
+						// Store geometry for text border
+						//
+						texts[TEXTAREAtextName].str("");
+						texts[TEXTAREAtextName].clear();
+
+						texts[TEXTAREAtextName] << " x=\"" << x << "\" y=\"" << y << "\" width=\"" << xPosW;
+					}
+
+					// Store the text
+
+					std::list<std::string>::const_iterator it = textLines.begin();
+
+					for (x += margin,y += (margin + maxLineHeight); (it != textLines.end()); it++, y += maxLineHeight) {
+						if ((!TEXTPOSid.empty()) && (it == textLines.begin()))
+							texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--)\">\n";
+
+						texts[TEXTtextName] << "<text class=\"" << textClass
+											<< "\" x=\"" << x
+											<< "\" y=\"" << y
+											<< "\">" << svgescapetext(*it) << "</text>\n";
+					}
+
+					yPosH = y;
+
+					if (!TEXTPOSid.empty())
+						texts[TEXTtextName] << "</g>\n";
+					else if (setTextArea)
+						texts[TEXTAREAtextName] << "\" height=\"" << yPosH << "\" ";
+
+					return;
+				}  // if
+			}
+			catch (...) {
+				if (ignoreErr)
+					return;
+
+				throw;
+			}
 		}	// for
 
 		if (options.debug) {
@@ -1960,7 +1969,7 @@ namespace frontier
 
 								textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
 
-								render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+								render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,true,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
 
 								if (textPosition == "area") {
 									// Get text position within the area
@@ -2953,7 +2962,7 @@ namespace frontier
 			catch (SettingIdNotFoundException & ex) {
 				// Global settings have no name
 				//
-				scope.push_back(&symbolSpecs[i]);
+				scope.push_back(&specs);
 				nameMatch = false;
 			}
 
@@ -2969,7 +2978,7 @@ namespace frontier
 					bool localeMatch = (locale == options.locale);
 
 					if (localeMatch || (locale == "")) {
-						scope.push_back(&symbolSpecs[i]);
+						scope.push_back(&specs);
 
 						if (localeMatch)
 							localeIdx = i;
@@ -3165,7 +3174,7 @@ namespace frontier
 					//
 					const std::string & infoText = feature->text(options.locale);
 					int x = lon,y = lat;
-					render_text(texts,confPath,symClass,(infoText != options.locale) ? NFmiStringTools::UrlDecode(infoText) : "",x,y,false,true);
+					render_text(texts,confPath,symClass,(infoText != options.locale) ? NFmiStringTools::UrlDecode(infoText) : "",x,y,true,false,true);
 				}
 
 				return;
