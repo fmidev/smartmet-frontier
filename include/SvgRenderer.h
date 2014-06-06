@@ -132,7 +132,7 @@ namespace frontier
 	const std::string & placeHolder() const { return itsPlaceHolder; }
 	const std::string & labelPlaceHolder() const { return itsLabelPlaceHolder; }
 	bool standalone() const { return itsStandalone; }
-	bool contains(const std::string & theMemberType) const;
+	bool contains(const std::string & theMemberType,bool only = false) const;
 	void addType(const std::string & type) const;
 	std::string memberTypes() const;
 
@@ -174,6 +174,11 @@ namespace frontier
 
   struct MemberType : public std::binary_function< ConfigGroup, std::string, bool > {
     bool operator () ( const ConfigGroup & configGroup, const std::string & memberType) const;
+  };
+
+  template <typename T>
+  struct GroupType : public std::binary_function< ConfigGroup, std::string, bool > {
+    bool operator () ( const ConfigGroup & configGroup, const std::string & memberTypes) const;
   };
 
   class CloudGroup : public ConfigGroup
@@ -266,7 +271,7 @@ namespace frontier
 	CategoryValueMeasureGroup() : itsFirstMember(NULL) { }
 
 	virtual bool groupMember(const woml::CategoryValueMeasure * cvm) const { return true; }
-	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
+	virtual bool groupMember(bool first,const woml::CategoryValueMeasure * cvm);
 	virtual bool standalone() { return false; }
 
   protected:
@@ -283,8 +288,10 @@ namespace frontier
 	typename std::list<T>::const_iterator currentGroup() { return itcg; }
 
 	bool groupMember(const woml::CategoryValueMeasure * cvm) const;
-	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2 = NULL);
+	bool groupMember(bool first,const woml::CategoryValueMeasure * cvm);
 	bool standalone() { return ((itsGroups.size() > 0) && (*itcg).standalone()); }
+
+	const std::string & groupSymbol() const;
 
   private:
 	typename std::list<T> itsGroups;
@@ -524,13 +531,13 @@ namespace frontier
 					  bool asValue = false);
 
 	typedef enum { fst, fwd, vup, eup, bwd, vdn, edn, lst } Phase;
-	typedef enum { t_ground, t_nonground, t_mixed } GroupType;
-	GroupType elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
-							 const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
-							 ElevGrp & eGrp,
-							 bool all = true,
-							 bool join = true,
-							 CategoryValueMeasureGroup * categoryGroup = NULL);
+	typedef enum { t_ground, t_nonground, t_mixed } ElevationGroupType;
+	ElevationGroupType elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
+									  const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
+									  ElevGrp & eGrp,
+									  bool all = true,
+									  bool join = true,
+									  CategoryValueMeasureGroup * categoryGroup = NULL);
 	unsigned int getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int nextGroupNumber,bool mixed = true);
 	unsigned int getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber,bool mixed = true);
 	void setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts,bool mixed = true);

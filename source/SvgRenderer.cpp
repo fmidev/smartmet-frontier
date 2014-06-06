@@ -3957,18 +3957,12 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  bool CategoryValueMeasureGroup::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
+  bool CategoryValueMeasureGroup::groupMember(bool first,const woml::CategoryValueMeasure * cvm)
   {
 	// Store first member of the group or check if group matches
 
 	if (!cvm)
 		throw std::runtime_error("CategoryValueMeasureGroup::groupMember: CategoryValueMeasure value expected");
-	else if (cvm2) {
-		groupMember(true,cvm);
-
-		first = false;
-		cvm = cvm2;
-	}
 
 	if (first)
 		itsFirstMember = cvm;
@@ -4003,11 +3997,9 @@ namespace frontier
   }
 
   template <typename T>
-  bool GroupCategory<T>::groupMember(bool first,const woml::CategoryValueMeasure * cvm,const woml::CategoryValueMeasure * cvm2)
+  bool GroupCategory<T>::groupMember(bool first,const woml::CategoryValueMeasure * cvm)
   {
 	// Add first member to the group or check if the given member type is compatible with the group
-
-	(void) cvm2;
 
 	if (!cvm)
 		throw std::runtime_error("GroupCategory::groupMember: CategoryValueMeasure value expected");
@@ -4030,7 +4022,7 @@ namespace frontier
 		// Check if elevations overlap (have the same group number) and have matching category
 		//
 		if (
-			(!CategoryValueMeasureGroup::groupMember(false,itsFirstMember,cvm)) ||
+			(!CategoryValueMeasureGroup::groupMember(false,cvm)) ||
 			(std::find_if(itsGroups.begin(),itsGroups.end(),std::bind2nd(MemberType(),category)) != itcg)
 		   )
 			return false;
@@ -4041,6 +4033,22 @@ namespace frontier
 	itcg->addType(category);
 
 	return true;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Return group's symbol.
+   */
+  // ----------------------------------------------------------------------
+
+  template <typename T>
+  const std::string & GroupCategory<T>::groupSymbol() const
+  {
+	// Search for a group containing only the types in current group, and if found, return it's symbol
+
+	typename std::list<T>::const_iterator group = std::find_if(itsGroups.begin(),itsGroups.end(),std::bind2nd(GroupType<T>(),itcg->memberTypes()));
+
+	return ((group != itsGroups.end()) ? group->symbol() : itcg->symbol());
   }
 
   // ----------------------------------------------------------------------
@@ -4662,12 +4670,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  SvgRenderer::GroupType SvgRenderer::elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
-		  	  	  	  	  	  	  	  	  	  	  	 const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
-		  	  	  	  	  	  	  	  	  	  	  	 ElevGrp & eGrp,
-		  	  	  	  	  	  	  	  	  	  	  	 bool all,
-		  	  	  	  	  	  	  	  	  	  	  	 bool join,
-													 CategoryValueMeasureGroup * categoryGroup)
+  SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
+		  	  	  	  	  	  	  	  	  	  	  	  	  	  const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
+		  	  	  	  	  	  	  	  	  	  	  	  	  	  ElevGrp & eGrp,
+		  	  	  	  	  	  	  	  	  	  	  	  	  	  bool all,
+		  	  	  	  	  	  	  	  	  	  	  	  	  	  bool join,
+		  	  	  	  	  	  	  	  	  	  	  	  	  	  CategoryValueMeasureGroup * categoryGroup)
   {
 	// Collect group of elevations.
 	//
@@ -5996,9 +6004,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			getAreaLabelPos(itcg->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,itcg->sOffset(),itcg->eOffset(),
 							scaledLo,scaledHi,hasHole,labelX,labelY);
 
-			for (itx = labelX.begin(),ity = labelY.begin(), n = 0; (itx != labelX.end()); itx++, ity++, n++)
-				if (!(itcg->symbol().empty())) {
-					render_aerodromeSymbol(confPath,symClass,classNameExt,itcg->symbol(),*itx,(y = *ity),true,true);
+			for (itx = labelX.begin(),ity = labelY.begin(), n = 0; (itx != labelX.end()); itx++, ity++, n++) {
+				const std::string & symbol = groupCategory.groupSymbol();
+
+				if (!(symbol.empty())) {
+					render_aerodromeSymbol(confPath,symClass,classNameExt,symbol,*itx,(y = *ity),true,true);
 
 					if (asSymbol) {
 						// The symbol should be visible, checking anyway
@@ -6016,6 +6026,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 													<< "\" x=\"" << *itx
 													<< "\" y=\"" << *ity
 													<< "\">" << itcg->label() << "</text>\n";
+			}
 		}
 	}	// for group
 
@@ -7792,14 +7803,16 @@ CloudGroup::CloudGroup(const std::string & theClass,
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Check if group contains given member type
+ * \brief Check if group contains (only) given member type(s)
  */
 // ----------------------------------------------------------------------
 
-bool ConfigGroup::contains(const std::string & theMemberType) const
+bool ConfigGroup::contains(const std::string & theMemberType,bool only) const
 {
   if (itsStandalone)
 	  return (itsMemberTypes == theMemberType);
+  else if (only)
+	  return (itsMemberTypes == ("," + theMemberType + ","));
   else
 	  return (itsMemberTypes.find("," + theMemberType + ",") != std::string::npos);
 }
@@ -7855,6 +7868,17 @@ std::string ConfigGroup::memberTypes() const
 
 bool MemberType::operator ()(const ConfigGroup & configGroup, const std::string & memberType) const {
   return configGroup.contains(memberType);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Search for a group containing only the given type(s)
+ */
+// ----------------------------------------------------------------------
+
+template <typename T>
+bool GroupType<T>::operator ()(const ConfigGroup & configGroup, const std::string & memberTypes) const {
+  return configGroup.contains(memberTypes,true);
 }
 
 // ----------------------------------------------------------------------
