@@ -4690,22 +4690,32 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	std::list<woml::TimeSeriesSlot>::const_iterator tsbeg = ts.begin();
 	std::list<woml::TimeSeriesSlot>::const_iterator tsend = ts.end();
-	std::list<woml::TimeSeriesSlot>::const_iterator itts;
+	std::list<woml::TimeSeriesSlot>::const_iterator itts,pitts;
 
 	bool byCategory = (categoryGroup != NULL),groundGrp = false,nonGroundGrp = false,hole = false;
 	double nonZ = axisManager->nonZeroElevation();
 
 	eGrp.clear();
 
-	for (itts = tsbeg; (itts != tsend); itts++) {
+	for (itts = pitts = tsbeg; (itts != tsend); itts++) {
 		// Skip time instants outside the given time range
 		//
 		const boost::posix_time::ptime & vt = itts->validTime();
 
 		if ((vt < bt) || (vt > et)) {
-			if (vt < bt)
+			if (vt < bt) {
+				// To ignore too early time instants in missing time instant check
+				//
+				pitts = itts;
 				continue;
+			}
 			else
+				break;
+		}
+		else if ((!all) && (itts != pitts)) {
+			// Check for missing time instant
+			//
+			if ((vt - pitts->validTime()).hours() > 1)
 				break;
 		}
 
@@ -4714,9 +4724,15 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator pvsend = itts->values().end(),itpvs;
 
 		for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++) {
-			std::list<woml::GeophysicalParameterValue>::iterator pvend = itpvs->get()->editableValues().end(),itpv;
+			std::list<woml::GeophysicalParameterValue>::iterator itpv = itpvs->get()->editableValues().begin();
+			std::list<woml::GeophysicalParameterValue>::iterator pvend = itpvs->get()->editableValues().end();
 
-			for (itpv = itpvs->get()->editableValues().begin(); (itpv != pvend); itpv++) {
+			if ((eGrp.size() == 0) && (itpv == pvend))
+				// To ignore handled (empty) time instants in missing time instant check
+				//
+				pitts = itts;
+
+			for ( ; (itpv != pvend); itpv++) {
 				// Not mixing holes and nonholes
 				//
 				if ((eGrp.size() > 0) && (hole != ((itpv->getFlags() & ElevationGroupItem::b_isHole) ? true : false)))
@@ -4744,6 +4760,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						continue;
 					}
 				}
+
+				pitts = itts;
 
 				if (eGrp.size() == 0) {
 					groundGrp = ground;
