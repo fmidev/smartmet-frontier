@@ -4453,8 +4453,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	// added to the set when collecting a group in elevationGroup()
 
 	const std::string confPath("CloudLayers");
+	const std::string CLOUDLAYERS(boost::algorithm::to_upper_copy(confPath));
 
-	bool borderCompensation;
+	bool visible = false,aboveTop = false,borderCompensation;
 	double tightness,minLabelPosHeight;
 	CloudGroupCategory cloudGroupCategory;
 
@@ -4558,7 +4559,16 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				itdp++;
 			}
 
-			path << " " << itcp->getX() << "," << itcp->getY();
+			double y = itcp->getY();
+
+			if (!isHole) {
+				if (y > 0)
+					visible = true;
+				else
+					aboveTop = true;
+			}
+
+			path << " " << itcp->getX() << "," << y;
 		}
 
 		texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef()
@@ -4600,6 +4610,25 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		curvePoints.clear();
 		decoratorPoints.clear();
 	}	// for group
+
+	// Visibility information
+
+	if (!visible) {
+		const std::string & classDef = ((cloudGroupCategory.groups().size() > 0) ? cloudGroupCategory.groups().front().classDef() : "");
+
+		if (!aboveTop) {
+			// Show the fixed template text "SKC"
+			//
+			const std::string NOCLOUDLAYERS(CLOUDLAYERS + "NOCLOUDLAYERS");
+			texts[NOCLOUDLAYERS] << classDef << "Visible";
+		}
+		else {
+			// Show the fixed template text "Clouds are located in the upper"
+			//
+			const std::string CLOUDLAYERSUPPER(CLOUDLAYERS + "INTHEUPPER");
+			texts[CLOUDLAYERSUPPER] << classDef << "Visible";
+		}
+	}
 
 	return;
   }
