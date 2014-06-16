@@ -59,6 +59,8 @@
 
 namespace frontier
 {
+  const size_t defaultSymbolWidth = 50;
+  const size_t defaultSymbolHeight = 50;
 
   // ----------------------------------------------------------------------
   /*!
@@ -1345,15 +1347,15 @@ namespace frontier
 		  	  	  	  	  	    const std::string & TEXTPOSid,
 		  	  	  	  	  	    int * maxTextWidth,				// I
 		  	  	  	  	  	    int * fontSize,					// I
-		  	  	  	  	  	    int * tXOffset,					// I/O: area text's border x -offset
-		  	  	  	  	  	    int * tYOffset)					// I/O: area text's border y -offset
+		  	  	  	  	  	    int * tXOffset,					// I/O: text's x -offset
+		  	  	  	  	  	    int * tYOffset)					// I/O: text's y -offset
   {
 	try {
 		const char * typeMsg = " must contain a list of groups in parenthesis";
 		const char * styleMsg = ": slant must be 'normal', 'italic' or 'oblique'";
 		const char * weightMsg = ": weight must be 'normal' or 'bold'";
 
-		// Note: 'textName' contains area type for area infotexts; using confPath ("Surface") to generate fixed placeholder names
+		// Note: 'textName' contains area/symbol type for area/symbol infotexts; using confPath to generate fixed placeholder names
 
 		std::string TEXTCLASStextName("TEXTCLASS" + (TEXTPOSid.empty() ? textName : confPath));
 		std::string TEXTtextName("TEXT" + (TEXTPOSid.empty() ? textName : confPath));
@@ -1466,9 +1468,13 @@ namespace frontier
 					else
 						weight = "normal";
 
+					// Stroke and fill color
+					std::string stroke = configValue<std::string>(scope,textName,"stroke",s_optional);
+					std::string fill = configValue<std::string>(scope,textName,"fill",s_optional);
+
 					// Max width, height, x/y margin and x/y offsets
 					//
-					// For area text (when tXOffset and tYOffset are passed in as nonnull) the offsets are used later
+					// For area/symbol text (when tXOffset and tYOffset are passed in as nonnull) the offsets are used later
 					// when setting the final text position.
 					//
 					// Note: If the passed offsets (or font size) are nonzero, they were set in the text and won't be overridden by config settings.
@@ -1527,8 +1533,12 @@ namespace frontier
 											 << " {\nfont-family: " << font
 											 << ";\nfont-size: " << fSize
 											 << ";\nfont-weight : " << weight
-											 << ";\nfont-style : " << style
-											 << ";\n}\n";
+											 << ";\nfont-style : " << style;
+
+					if (!stroke.empty()) texts[TEXTCLASStextName] << ";\nstroke: " << stroke;
+					if (!fill.empty()) texts[TEXTCLASStextName] << ";\nfill: " << fill;
+
+					texts[TEXTCLASStextName] << ";\n}\n";
 
 					int x = startX - xOffset - (centerToStartX ? ((textWidth / 2) + margin) : 0);
 					int y = startY + yOffset;
@@ -3050,17 +3060,19 @@ namespace frontier
 				std::string placeHolder(areaSymbols ? "" : boost::algorithm::trim_copy(configValue<std::string>(scope,symClass,"output",s_optional)));
 				std::ostringstream & symbols = (placeHolder.empty() ? symOutput : texts[placeHolder]);
 
+				bool hasWidth,hasHeight;
+				int width = 0,height = 0;
+
 				if ((type == "svg") || (type == "img")) {
 					// Some settings are required for svg but optional for img
 					//
 					settings reqORopt = ((type == "svg") ? s_required : s_optional);
-					bool hasWidth,hasHeight;
 
 					if (folder.empty())
 						folder = configValue<std::string,int>(scope,symClass,"folder",reqORopt);
 
-					int width = configValue<int>(scope,symClass,"width",reqORopt,&hasWidth);
-					int height = configValue<int>(scope,symClass,"height",reqORopt,&hasHeight);
+					width = configValue<int>(scope,symClass,"width",reqORopt,&hasWidth);
+					height = configValue<int>(scope,symClass,"height",reqORopt,&hasHeight);
 
 					std::string uri = configValue<std::string>(scope,symClass,"url");
 
@@ -3072,8 +3084,12 @@ namespace frontier
 					std::ostringstream wh;
 					if (hasWidth)
 						wh << " width=\"" << std::fixed << std::setprecision(0) << width << "px\"";
+					else
+						width = 0;
 					if (hasHeight)
 						wh << " height=\"" << std::fixed << std::setprecision(0) << height << "px\"";
+					else
+						height = 0;
 
 					if (!fpos)
 						symbols << "<image xlink:href=\""
@@ -3170,11 +3186,47 @@ namespace frontier
 					throw std::runtime_error(confPath + ": '" + type + "'" + symTypeMsg);
 
 				if (feature) {
-					// Render feature's infotext
-					//
-					const std::string & infoText = feature->text(options.locale);
-					int x = lon,y = lat;
-					render_text(texts,confPath,symClass,(infoText != options.locale) ? NFmiStringTools::UrlDecode(infoText) : "",x,y,true,false,true);
+					std::string textOut(feature->text(options.locale));
+
+					if ((!textOut.empty()) && (textOut != options.locale)) {
+						// Render feature's infotext. The text is rendered starting from coordinate (0,0) and
+						// final position is selected afterwards. The final position is set as transformation
+						// offsets to the selected position.
+						//
+						// Note: The key for position must sort after the key for the text (the key/text
+						//		 containing the position key must be handled/outputted prior the position key/text);
+						//		 therefore the position key starts with "Z0"
+						//
+						std::string TEXTPOSid("Z0TEXTPOS_" + symClass + boost::lexical_cast<std::string>(npointsymbols));
+						std::string textPosition = configValue<std::string>(scope,symClass,"textposition",s_optional);
+						int textWidth = 0,textHeight = 0,maxTextWidth = 0,fontSize = 0,tXOffset = 0,tYOffset = 0;
+						int areaWidth = static_cast<int>(std::floor(0.5+area->Width())),areaHeight = static_cast<int>(std::floor(0.5+area->Height()));
+
+						// The text can start with position, fontsize and x/y offset settings overriding the configured values.
+
+						textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
+
+						render_text(texts,confPath,symClass,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,true,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+
+						// setTextPosition() uses path object to get bbox of the component the text belongs to; generate path around the symbol.
+						// Using default width and height if not given.
+
+						if (width == 0) width = defaultSymbolWidth;
+						if (height == 0) height = defaultSymbolHeight;
+
+						Path path;
+						path.moveto(lon - (width  / 2.0),lat - (height  / 2.0));
+						path.lineto(lon + (width  / 2.0),lat - (height  / 2.0));
+						path.lineto(lon + (width  / 2.0),lat + (height  / 2.0));
+						path.lineto(lon - (width  / 2.0),lat + (height  / 2.0));
+						path.closepath();
+
+						// To position the text centered to the symbol should one wish so
+
+						NFmiFillRect infoTextRect(std::make_pair(Point(lon - (textWidth / 2.0),lat - (textHeight / 2.0)),Point(0,0)));
+
+						setTextPosition(path,TEXTPOSid,textPosition,infoTextRect,areaWidth,areaHeight,textWidth,textHeight,tXOffset,tYOffset);
+					}
 				}
 
 				return;
