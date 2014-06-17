@@ -41,7 +41,10 @@ namespace frontier
 	std::string svg() const;
 	void transform(const PathTransformation & transformation);
 
-	typedef struct bbox { bbox() : blX(0.0),blY(0.0),trX(0.0),trY(0.0) {} double blX; double blY; double trX; double trY; } BBox;
+	typedef struct bbox {
+		bbox(double _blX = 0.0,double _blY = 0.0,double _trX = 0.0,double _trY = 0.0) : blX(_blX),blY(_blY),trX(_trX),trY(_trY) {}
+		double blX; double blY; double trX; double trY;
+	} BBox;
 	BBox getBBox() const;
 
   private:

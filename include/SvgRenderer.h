@@ -607,7 +607,8 @@ namespace frontier
 						 const NFmiFillRect & infoTextRect,
 						 int areaWidth,int areaHeight,
 						 int textWidth,int textHeight,
-						 int tXOffset,int tYOffset);
+						 int tXOffset,int tYOffset,
+						 Path::BBox * boundingBox = NULL);
 
 	const Options & options;
 	const libconfig::Config & config;

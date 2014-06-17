@@ -1556,7 +1556,9 @@ namespace frontier
 
 					std::list<std::string>::const_iterator it = textLines.begin();
 
-					for (x += margin,y += (margin + maxLineHeight); (it != textLines.end()); it++, y += maxLineHeight) {
+					for (x += margin,y += margin; (it != textLines.end()); it++) {
+						y += maxLineHeight;
+
 						if ((!TEXTPOSid.empty()) && (it == textLines.begin()))
 							texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--)\">\n";
 
@@ -1662,6 +1664,7 @@ namespace frontier
 	const char * settings[] = {
 		// long name		short name
 		"<area>",			"<a>",
+		"<center>",			"<c>",
 		"<top>",			"<t>",
 		"<topleft>",		"<tl>",
 		"<topright>",		"<tr>",
@@ -1733,14 +1736,15 @@ namespace frontier
 		  	  	  	  	  	  	  	const NFmiFillRect & infoTextRect,
 									int areaWidth,int areaHeight,
 		  	  	  	  	  	  	  	int textWidth,int textHeight,
-		  	  	  	  	  	  	  	int tXOffset,int tYOffset)
+		  	  	  	  	  	  	  	int tXOffset,int tYOffset,
+		  	  	  	  	  	  	  	Path::BBox * boundingBox)
   {
-	if (textPosition == "area") {
+	if ((textPosition == "area") || (textPosition == "center")) {
 		texts[TEXTPOSid] << infoTextRect.first.x << "," << infoTextRect.first.y;
 		return;
 	}
 
-	Path::BBox bbox = path.getBBox();
+	Path::BBox bbox = (boundingBox ? *boundingBox : path.getBBox());
 	double bboxWidth = bbox.trX - bbox.blX,bboxHeight = bbox.trY - bbox.blY,x,y;
 	y = bbox.blY; bbox.blY = bbox.trY; bbox.trY = y;
 
@@ -3203,29 +3207,23 @@ namespace frontier
 						int areaWidth = static_cast<int>(std::floor(0.5+area->Width())),areaHeight = static_cast<int>(std::floor(0.5+area->Height()));
 
 						// The text can start with position, fontsize and x/y offset settings overriding the configured values.
+						//
+						// Using default symbol/image width and height if not given.
 
 						textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
 
 						render_text(texts,confPath,symClass,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,true,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
 
-						// setTextPosition() uses path object to get bbox of the component the text belongs to; generate path around the symbol.
-						// Using default width and height if not given.
-
 						if (width == 0) width = defaultSymbolWidth;
 						if (height == 0) height = defaultSymbolHeight;
 
-						Path path;
-						path.moveto(lon - (width  / 2.0),lat - (height  / 2.0));
-						path.lineto(lon + (width  / 2.0),lat - (height  / 2.0));
-						path.lineto(lon + (width  / 2.0),lat + (height  / 2.0));
-						path.lineto(lon - (width  / 2.0),lat + (height  / 2.0));
-						path.closepath();
+						Path::BBox bbox(lon - (width  / 2.0),lat - (height  / 2.0),lon + (width  / 2.0),lat + (height  / 2.0));
 
 						// To position the text centered to the symbol should one wish so
 
 						NFmiFillRect infoTextRect(std::make_pair(Point(lon - (textWidth / 2.0),lat - (textHeight / 2.0)),Point(0,0)));
 
-						setTextPosition(path,TEXTPOSid,textPosition,infoTextRect,areaWidth,areaHeight,textWidth,textHeight,tXOffset,tYOffset);
+						setTextPosition(Path(),TEXTPOSid,textPosition,infoTextRect,areaWidth,areaHeight,textWidth,textHeight,tXOffset,tYOffset,&bbox);
 					}
 				}
 
