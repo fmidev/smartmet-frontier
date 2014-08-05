@@ -7,47 +7,213 @@
  // ======================================================================
 
 #include "BezierModel.h"
+#include "Vector2Dee.h"
 #include <boost/foreach.hpp>
 #include <math.h>
 
 namespace frontier
 {
 
-BezierModel::BezierModel(List<DirectPosition> _curvePositions, boolean _isClosedCurve, double _tightness)
-  : curvePositions(_curvePositions)
-  , bezierSegments()
-  , totalCurveLengthInPixels(0.)
-  , cumulatedCurveLengthInPixels()
-  , isClosedCurve(_isClosedCurve)
-  , tightness(_tightness)
+BezierModel::BezierModel(const List<DirectPosition> & theCurvePositions, boolean isClosedCurve, double theTightness)
+  : tightness(theTightness)
 {
-	if(isClosedCurve)
-	{
-		// Add last point making it the same as first point due to curve being closed
-		curvePositions.push_back(curvePositions[0]);
-	}
+	init(theCurvePositions, isClosedCurve);
+}
+
+void BezierModel::init(const List<DirectPosition> & theCurvePositions, boolean isClosedCurve) {
+
+	// Creates list of Bezier segments *from the scratch*.
+
+	curvePositions = theCurvePositions;
+//	this.curvePositions = null;
+//	this.curvePositions = new ArrayList<DirectPosition>();
+//	for(DirectPosition pos : curvePositions)
+//	{
+//		this.curvePositions.add(pos);
+//	}
+
+	bIsClosedCurve = isClosedCurve;
+	orientation = POS;
+	totalCurveLength = 0.;
+
+	int lastIndex = curvePositions.size()-1;
+	int secondLastIndex = curvePositions.size()-2;
 
 	for(int i = 0; i < (int) curvePositions.size(); i++)
 	{
-		BezSeg bs(curvePositions, i, tightness);
+		BezSeg bs(curvePositions, i, isClosedCurve, tightness);
+		bs.isSecondLastSegment(false);	// Just an initialization
+		bs.isLastSegment(false); // Just an initialization
+
+		if(i == lastIndex)
+		{
+			bs.isLastSegment(true);
+		}
+		else
+		if(i == secondLastIndex)
+		{
+			bs.isSecondLastSegment(true);
+		}
 
 		bezierSegments.push_back(bs);
-		totalCurveLengthInPixels += bs.getSegmentLengthInPixels();
-		cumulatedCurveLengthInPixels.push_back(totalCurveLengthInPixels);
+		totalCurveLength += bs.getSegmentLength();
+		cumulatedCurveLength.push_back(totalCurveLength);
 	}
+
+//	this.curveDecorator = new BezierCurve(this);
+}
+
+void BezierModel::addCurvePosition(DirectPosition curvePosition, boolean isClosedCurve) {
+
+    curvePositions.push_back(curvePosition);
+
+    init(curvePositions, isClosedCurve);
+}
+
+double BezierModel::getCumulatedCurveLength(int i)
+{
+	std::list<double>::iterator iter = cumulatedCurveLength.begin();
+	advance(iter,i);
+
+	return *iter;
 }
 
 const List<DirectPosition> & BezierModel::getCurvePositions() {
 	return curvePositions;
 }
-	
+
 const std::list<BezSeg> & BezierModel::getBezierSegments() {
 	return bezierSegments;
 }
 
+int BezierModel::getBezierSegmentCount() {
+    return bezierSegments.size();
+}
+
+DirectPosition BezierModel::getStartPointOfLastBezierSegment()
+{
+	if(curvePositions.size() <= 2)
+		return curvePositions[0];
+
+	return bezierSegments.back().getStartPoint();
+}
+
+DirectPosition BezierModel::getEndPointOfLastBezierSegment()
+{
+	return bezierSegments.back().getEndPoint();
+}
+
+DirectPosition BezierModel::getStartPointOfFirstBezierSegment()
+{
+	return bezierSegments.front().getStartPoint();
+}
+
+DirectPosition BezierModel::getEndPointOfFirstBezierSegment()
+{
+	return bezierSegments.front().getEndPoint();
+}
+
+DirectPosition BezierModel::getFirstControlPointOfLastBezierSegment()
+{
+	 return bezierSegments.back().getFirstControlPoint();
+}
+
+DirectPosition BezierModel::getSecondControlPointOfFirstBezierSegment()
+{
+	 return bezierSegments.front().getSecondControlPoint();
+}
+
+DirectPosition BezierModel::getFirstControlPointOfFirstBezierSegment()
+{
+	 return bezierSegments.front().getFirstControlPoint();
+}
+
+DirectPosition BezierModel::getSecondControlPointOfLastBezierSegment()
+{
+	 return bezierSegments.back().getSecondControlPoint();
+}
+
 double BezierModel::getTotalLengthOfAllSegments()
 {
-	return totalCurveLengthInPixels;
+	return totalCurveLength;
+}
+
+void BezierModel::setOrientation(Orientation theOrientation)
+{
+	orientation = theOrientation;
+}
+
+Orientation BezierModel::getOrientation()
+{
+	return orientation;
+}
+
+//public BezierCurve getBezierCurve() {
+//	return this.curveDecorator;
+//}
+
+//public Shape getCurveLinePath() {
+//	return this.curveDecorator.getCurveLinePath();
+//}
+
+//public Rectangle getBoundingCurveLineRect() {
+//	return this.getCurveLinePath().getBounds();
+//}
+
+//public Shape getDecorationLinePath() {
+//	return this.curveDecorator.getDecorationLinePath();
+//}
+
+//public void setCurveDecorator(BezierCurve curveDecorator) {
+//	this.curveDecorator = curveDecorator;
+//}
+
+BezSeg BezierModel::getLastBezierSegment() {
+    return bezierSegments.back();
+}
+
+boolean BezierModel::isEmpty() {
+    return bezierSegments.empty();
+}
+
+//public List<Integer> getEvaluatedCurvePositionSegmentIndices()
+//{
+//    return this.curveDecorator.getEvaluatedCurvePositionSegmentIndices();
+//}
+
+//public DirectPosition getEvaluatedCurvePosition(double cumulatedPathLength) {
+//    return this.getBezierCurve().getEvaluatedCurvePosition(cumulatedPathLength);
+//}
+
+//public List<DirectPosition> getEvaluatedCurvePositions(double pathLengthIncrement)
+//{
+//    List<DirectPosition> evaluatedPositions = new ArrayList<DirectPosition>();
+//    for(double cumulatedPathLength = 0; cumulatedPathLength < this.getTotalLengthOfAllSegments(); cumulatedPathLength += pathLengthIncrement)
+//    {
+//        DirectPosition evaluatedPos = this.getEvaluatedCurvePosition(cumulatedPathLength);
+//        evaluatedPositions.add(evaluatedPos);
+//    }
+//    return evaluatedPositions;
+//}
+
+boolean BezierModel::isClosedCurve() {
+    return bIsClosedCurve;
+}
+
+void BezierModel::setTightness(double theTightness)
+{
+    // All Bezier segments in model are assumed to be of same tightness value
+    for(std::list<BezSeg>::iterator bezSeg = bezierSegments.begin(); (bezSeg != bezierSegments.end()); bezSeg++)
+    {
+    	bezSeg->setTightness(theTightness);
+    }
+}
+
+double BezierModel::getTightness()
+{
+    // All Bezier segments in model are assumed to be of same tightness value.
+    // (At least one segment should be found)
+    return bezierSegments.front().getTightness();
 }
 
 // ======================================================================
@@ -81,7 +247,7 @@ int BezierModel::getSteppedCurvePoints(unsigned int baseStep,					// Base distan
 	std::list<BezSeg>::iterator itb = bezierSegments.begin();
 
 	// Cumulative segment length iterator
-	std::list<double>::iterator itl = cumulatedCurveLengthInPixels.begin(),itlEnd = cumulatedCurveLengthInPixels.end();
+	std::list<double>::iterator itl = cumulatedCurveLength.begin(),itlEnd = cumulatedCurveLength.end();
 
 	// Number of points
 	int nPoints = 0;
@@ -155,7 +321,7 @@ void BezierModel::decorateCurve(std::list<DirectPosition> & curvePoints,	// Bezi
 								int scaleHeightRandom,						// Max random distance added to the base
 								int controlMin,								// Base offset for the decorator points
 								int controlRandom,							// Max random offset added to the base
-								std::list<doubleArr> & decoratorPoints)		// Output; decorator points
+								std::list<DoubleArr> & decoratorPoints)		// Output; decorator points
 {
 	std::list<DirectPosition>::iterator litcp = curvePoints.begin(),cpend = curvePoints.end(),ritcp;
 
@@ -166,134 +332,23 @@ void BezierModel::decorateCurve(std::list<DirectPosition> & curvePoints,	// Bezi
 	srand(time(NULL));
 
 	for ( ; (ritcp != cpend); litcp++, ritcp++) {
-		doubleArr leftPosition(litcp->getX(), litcp->getY());
-		doubleArr rightPosition(ritcp->getX(), ritcp->getY());
+		DoubleArr leftPosition(litcp->getX(), litcp->getY());
+		DoubleArr rightPosition(ritcp->getX(), ritcp->getY());
 
-		doubleArr basePosition(leftPosition[0] + ((rightPosition[0] - leftPosition[0]) / 2.0) + 0.001,
+		DoubleArr basePosition(leftPosition[0] + ((rightPosition[0] - leftPosition[0]) / 2.0) + 0.001,
 							   leftPosition[1] + ((rightPosition[1] - leftPosition[1]) / 2.0) + 0.001);
 
-		doubleArr normalScale = Vector2Dee::getScaledNormal(leftPosition,
+		DoubleArr normalScale = Vector2Dee::getScaledNormal(leftPosition,
 															basePosition,
 															rightPosition,
 															negative ? NEG : POS,
 															scaleHeightMin + ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0))));
 
-		doubleArr control(basePosition[0] + normalScale[0] + controlMin + ((controlRandom + 1) * (rand() / (RAND_MAX + 1.0))),
+		DoubleArr control(basePosition[0] + normalScale[0] + controlMin + ((controlRandom + 1) * (rand() / (RAND_MAX + 1.0))),
 						  basePosition[1] + normalScale[1] + controlMin + ((controlRandom + 1) * (rand() / (RAND_MAX + 1.0))));
 
 		decoratorPoints.push_back(control);
 	}
-}
-
-// Helper class
-
-const int Vector2Dee::X = 0;
-const int Vector2Dee::Y = 1;
-
-doubleArr Vector2Dee::normalize(double x, double y)
-{
-	double len = sqrt(x*x + y*y);
-	doubleArr norm(0., 0.);
-
-	if(len == 0)
-		return norm;
-
-	norm[X] = x/len;
-	norm[Y] = y/len;
-
-	return norm;
-}
-
-doubleArr Vector2Dee::normalize(doubleArr vector)
-{
-	return normalize(vector[X], vector[Y]);
-}
-
-doubleArr Vector2Dee::normalize(doubleArr vector1, doubleArr vector2)
-{
-	return normalize(vector1[X] - vector2[X], vector1[Y] - vector2[Y]);
-}
-
-double Vector2Dee::crossProd(doubleArr vector1, doubleArr vector2)
-{
-	return vector1[X]*vector2[Y] - vector1[Y]*vector2[X];
-}
-
-doubleArr Vector2Dee::sub(doubleArr vector1, doubleArr vector2)
-{
-	return doubleArr(vector1[X] - vector2[X], vector1[Y] - vector2[Y]);
-}
-
-doubleArr Vector2Dee::add(doubleArr vector1, doubleArr vector2)
-{
-	return doubleArr(vector1[X] + vector2[X], vector1[Y] + vector2[Y]);
-}
-
-doubleArr Vector2Dee::negate(doubleArr vector)
-{
-	return doubleArr(-vector[X], -vector[Y]);
-}
-
-doubleArr Vector2Dee::scale(doubleArr vector, double scaler)
-{
-	return doubleArr(scaler*vector[X], scaler*vector[Y]);
-}
-
-double Vector2Dee::length(doubleArr vector1, doubleArr vector2)
-{
-	double dx = vector1[X]-vector2[X];
-	double dy = vector1[Y]-vector2[Y];
-	return sqrt(dx*dx + dy*dy);
-}
-
-double Vector2Dee::length(doubleArr vector)
-{
-	double x = vector[X];
-	double y = vector[Y];
-	return sqrt(x*x + y*y);
-}
-
-doubleArr Vector2Dee::getScaledNormal(doubleArr & leftPosition,
-									  doubleArr & basePosition,
-									  doubleArr & rightPosition,
-									  Orientation orientation,
-									  double scaler)
-{
-	doubleArr unitNormal = getUnitNormal(leftPosition, basePosition, rightPosition, orientation);
-	return scale(unitNormal, scaler);
-}
-
-doubleArr Vector2Dee::getUnitNormal(doubleArr & leftPosition,
-									doubleArr & basePosition,
-									doubleArr & rightPosition,
-									Orientation orientation)
-{
-	doubleArr normalizedLeftVec = normalize(leftPosition,basePosition);
-	doubleArr normalizedRightVec = normalize(rightPosition,basePosition);
-	return getUnitNormal(normalizedLeftVec, normalizedRightVec, orientation);
-}
-
-doubleArr Vector2Dee::getUnitNormal(doubleArr & vector1,
-									doubleArr & vector2,
-									Orientation orientation)
-{
-	// NB! Vectors 'vector1' and 'vector2' *must* be normalized (unit)
-	// vectors
-	doubleArr normal = normalize(add(vector1, vector2));
-	double _crossProd = crossProd(vector1, vector2);
-
-	if (orientation == POS) {
-		if (_crossProd >= 0.) {
-			normal[0] = -normal[0];
-			normal[1] = -normal[1];
-		}
-	} else {
-		if (_crossProd < 0.) {
-			normal[0] = -normal[0];
-			normal[1] = -normal[1];
-		}
-	}
-	return normal;
 }
 
 } // namespace frontier

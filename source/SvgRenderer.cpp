@@ -4528,7 +4528,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	List<DirectPosition> curvePositions;
 	std::list<DirectPosition> curvePoints;
-	std::list<doubleArr> decoratorPoints;
+	std::list<DoubleArr> decoratorPoints;
 
 	// Set unique group number for members of each overlapping group of elevations
 
@@ -4587,14 +4587,24 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		// Create bezier curve and get curve and decorator points
 
-		BezierModel bm(curvePositions,false,tightness);
+//std::ostringstream pnts; pnts << std::fixed << std::setprecision(3);
+//{ std::cerr << std::fixed << std::setprecision(1);
+//List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend = curvePositions.end(),itcp; size_t n = 0;
+//for (itcp = cpbeg; (itcp != cpend); itcp++, n++) {
+//if ((n % 10) == 0) std::cerr << std::endl << n << ": "; else std::cerr << " "; std::cerr << itcp->getX() << "," << itcp->getY();
+//pnts << "<circle cx=\"" << itcp->getX() << "\" cy=\"" << itcp->getY()+150 << "\" r=\"5\" stroke=\"black\" stroke-width=\"1\" fill=\"blue\"/>"; } std::cerr << std::endl << "<<< PNT"; }
+		BezierModel bm(curvePositions,true,tightness);
 		bm.getSteppedCurvePoints(itcg->baseStep(),itcg->maxRand(),itcg->maxRepeat(),curvePoints);
-		bm.decorateCurve(curvePoints,(!isHole),itcg->scaleHeightMin(),itcg->scaleHeightRandom(),itcg->controlMin(),itcg->controlRandom(),decoratorPoints);
+//{ std::cerr << std::fixed << std::setprecision(1);
+//std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp; size_t n = 0;
+//for (itcp = cpbeg; (itcp != cpend); itcp++, n++) {
+//if ((n % 10) == 0) std::cerr << std::endl << n << ": "; else std::cerr << " "; std::cerr << itcp->getX() << "," << itcp->getY()+150; } std::cerr << std::endl << "<<< STP" << std::endl; }
+		bm.decorateCurve(curvePoints,isHole,itcg->scaleHeightMin(),itcg->scaleHeightRandom(),itcg->controlMin(),itcg->controlRandom(),decoratorPoints);
 
 		// Render path
 
 		std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
-		std::list<doubleArr>::iterator itdp = decoratorPoints.begin();
+		std::list<DoubleArr>::iterator itdp = decoratorPoints.begin();
 
 		if (options.debug) {
 			path.clear();
@@ -4606,6 +4616,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				path << "M";
 			else {
 				path << " Q" << (*itdp)[0] << "," << (*itdp)[1];
+//pnts << "<circle cx=\"" << (*itdp)[0] << "\" cy=\"" << (*itdp)[1]+150 << "\" r=\"5\" stroke=\"black\" stroke-width=\"1\" fill=\"yellow\"/>";
 				itdp++;
 			}
 
@@ -4619,6 +4630,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			}
 
 			path << " " << itcp->getX() << "," << y;
+//pnts << "<circle cx=\"" << itcp->getX() << "\" cy=\"" << y+150 << "\" r=\"3\" stroke=\"black\" stroke-width=\"1\" fill=\"red\"/>";
 		}
 
 		texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef()
@@ -4626,6 +4638,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 								   << "\" d=\""
 								   << path.str()
 								   << "\"/>\n";
+//texts[itcg->placeHolder()] << pnts.str();
 
 		if (!isHole) {
 			std::string label = itcg->label();
@@ -4782,16 +4795,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		const boost::posix_time::ptime & vt = itts->validTime();
 
 		if ((vt < bt) || (vt > et)) {
-			if (vt < bt) {
-				// To ignore too early time instants in missing time instant check
-				//
-				pitts = itts;
+			if (vt < bt)
 				continue;
-			}
 			else
 				break;
 		}
-		else if ((!all) && (itts != pitts)) {
+		else if ((!all) && (eGrp.size() > 0)) {
 			// Check for missing time instant
 			//
 			if ((vt - pitts->validTime()).hours() > 1)
@@ -4805,11 +4814,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++) {
 			std::list<woml::GeophysicalParameterValue>::iterator itpv = itpvs->get()->editableValues().begin();
 			std::list<woml::GeophysicalParameterValue>::iterator pvend = itpvs->get()->editableValues().end();
-
-			if ((eGrp.size() == 0) && (itpv == pvend))
-				// To ignore handled (empty) time instants in missing time instant check
-				//
-				pitts = itts;
 
 			for ( ; (itpv != pvend); itpv++) {
 				// Not mixing holes and nonholes
@@ -6052,7 +6056,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 			// Create bezier curve and get curve points
 
-			BezierModel bm(curvePositions,false,tightness);
+			BezierModel bm(curvePositions,true,tightness);
 			bm.getSteppedCurvePoints(0,0,0,curvePoints);
 
 			// Render path
@@ -7019,7 +7023,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 //List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend = curvePositions.end(),itcp;
 //for (itcp = cpbeg; (itcp != cpend); itcp++) printf("> Cpos x=%.1f, y=%.1f\n",itcp->getX(),itcp->getY());
 //}
-			BezierModel bm(curvePositions,false,tightness);
+			BezierModel bm(curvePositions,true,tightness);
 			bm.getSteppedCurvePoints(10,0,0,curvePoints);
 
 			// Output the path
