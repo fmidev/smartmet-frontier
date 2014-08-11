@@ -726,8 +726,14 @@ namespace frontier
 				if (type.empty() || (type == "datetime")) {
 					// NFmiTime language and format
 					//
+					// 'today' format can optionally be given in order to exclude the date part.
+					//
 					FmiLanguage language = locale2FmiLanguage(confPath,options.locale);
-					std::string pref(configValue<std::string>(scope,hdrClass,"pref"));
+					std::string pref(configValue<std::string>(scope,hdrClass,"pref")),& format = pref;
+					std::string prefToday(configValue<std::string>(scope,hdrClass,"preftoday",s_optional));
+
+					if ((!prefToday.empty()) && (datetime.date() == boost::gregorian::day_clock::universal_day()))
+						format = prefToday;
 
 					// utc
 					bool isSet;
@@ -736,7 +742,7 @@ namespace frontier
 					// Store formatted datum
 					texts[HEADERhdrClass] << (datetime.is_not_a_date_time()
 											  ? ""
-											  : svgescapetext(toFormattedString(datetime,pref,isSet && utc,language).CharPtr(),true));
+											  : svgescapetext(toFormattedString(datetime,format,isSet && utc,language).CharPtr(),true));
 
 					return;
 				}
