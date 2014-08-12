@@ -483,6 +483,7 @@ namespace frontier
 
 	void render_header(const std::string & hdrClass,
 					   const boost::posix_time::ptime & datetime,
+					   bool useDate = false,
 					   const std::string & text = "",
 					   const std::string & confPath = "Header");
 	void render_text(Texts & texts,

@@ -633,6 +633,7 @@ namespace frontier
 
   void SvgRenderer::render_header(const std::string & hdrClass,
 		  	  	  	  	  	  	  const boost::posix_time::ptime & datetime,
+		  	  	  	  	  	  	  bool useDate,
 		  	  	  	  	  	  	  const std::string & text,
 		  	  	  	  	  	  	  const std::string & confPath)
   {
@@ -726,14 +727,15 @@ namespace frontier
 				if (type.empty() || (type == "datetime")) {
 					// NFmiTime language and format
 					//
-					// 'today' format can optionally be given in order to exclude the date part.
-					//
 					FmiLanguage language = locale2FmiLanguage(confPath,options.locale);
-					std::string pref(configValue<std::string>(scope,hdrClass,"pref")),& format = pref;
-					std::string prefToday(configValue<std::string>(scope,hdrClass,"preftoday",s_optional));
+					std::string pref(configValue<std::string>(scope,hdrClass,"pref")),prefDate,& format = pref;
 
-					if ((!prefToday.empty()) && (datetime.date() == boost::gregorian::day_clock::universal_day()))
-						format = prefToday;
+					if (useDate) {
+						prefDate = configValue<std::string>(scope,hdrClass,"prefdate",s_optional);
+
+						if (!prefDate.empty())
+							format = prefDate;
+					}
 
 					// utc
 					bool isSet;
@@ -7361,11 +7363,11 @@ void SvgRenderer::render_header(boost::posix_time::ptime & validTime,
 							   )
 {
   // Target region name and id
-  render_header("regionName",boost::posix_time::ptime(),regionName);
-  render_header("regionId",boost::posix_time::ptime(),regionId);
+  render_header("regionName",boost::posix_time::ptime(),false,regionName);
+  render_header("regionId",boost::posix_time::ptime(),false,regionId);
 
   // Creator
-  render_header("creator",boost::posix_time::ptime(),creator);
+  render_header("creator",boost::posix_time::ptime(),false,creator);
 
   // Feature validtime
   render_header("validTime",validTime);
@@ -7377,15 +7379,17 @@ void SvgRenderer::render_header(boost::posix_time::ptime & validTime,
 
   // Creation time date and time
   render_header("creationTimeDate",creationTime);
-  render_header("creationTimeTime",creationTime);
+  render_header("creationTimeTime",creationTime,creationTime.date() != timePeriod.begin().date());
 
   // Analysis/forecast date and time
   render_header("forecastTimeDate",forecastTime);
-  render_header("forecastTimeTime",forecastTime);
+  render_header("forecastTimeTime",forecastTime,forecastTime.date() != timePeriod.begin().date());
 
   // Modification date and time
+  bool useDate = (modificationTime && ((*modificationTime).date() != timePeriod.begin().date()));
+
   render_header("modificationTimeDate",modificationTime ? *modificationTime : boost::posix_time::ptime());
-  render_header("modificationTimeTime",modificationTime ? *modificationTime : boost::posix_time::ptime());
+  render_header("modificationTimeTime",modificationTime ? *modificationTime : boost::posix_time::ptime(),useDate);
 
   // Approval date and time
 //  render_header("Header","approvalTimeDate");
