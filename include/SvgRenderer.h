@@ -127,14 +127,14 @@ namespace frontier
 
 	const std::string & classDef() const { return itsClass; }
 	const std::string & textClassDef() const { return itsTextClass; }
-	std::string label() const { return (hasLabel ? itsLabel : memberTypes()); }
+	std::string label(bool allTypes = false) const { return (hasLabel ? itsLabel : memberTypes(allTypes)); }
 	bool bbCenterLabel() const { return bbCenterLabelPos; }
 	const std::string & placeHolder() const { return itsPlaceHolder; }
 	const std::string & labelPlaceHolder() const { return itsLabelPlaceHolder; }
 	bool standalone() const { return itsStandalone; }
 	bool contains(const std::string & theMemberType,bool only = false) const;
 	void addType(const std::string & type) const;
-	std::string memberTypes() const;
+	std::string memberTypes(bool allTypes = false) const;
 
 	double xOffset() const { return itsXOffset; }
 	double vOffset() const { return itsVOffset; }

@@ -4120,7 +4120,7 @@ namespace frontier
 
 	typename std::list<T>::const_iterator group = std::find_if(itsGroups.begin(),itsGroups.end(),std::bind2nd(GroupType<T>(),itcg->memberTypes()));
 
-	return ((group != itsGroups.end()) ? group->label() : itcg->label());
+	return ((group != itsGroups.end()) ? group->label(true) : itcg->label());
   }
 
   // ----------------------------------------------------------------------
@@ -7962,21 +7962,27 @@ void ConfigGroup::addType(const std::string & theMemberType) const
  */
 // ----------------------------------------------------------------------
 
-std::string ConfigGroup::memberTypes() const
+std::string ConfigGroup::memberTypes(bool allTypes) const
 {
   if (itsStandalone)
 	  return itsMemberTypes;
 
-  std::set<size_t>::iterator setbeg = itsMemberSet.begin(),setend = itsMemberSet.end(),it;
-  std::ostringstream mts;
   std::string types;
 
-  for (it = setbeg; (it != setend); it++) {
-	std::string s(itsMemberTypes.substr(*it,itsMemberTypes.find(',',*it)));
-	mts << ((it != setbeg) ? "\t" : "") << s;
-  }
+  if (!allTypes) {
+	  std::set<size_t>::iterator setbeg = itsMemberSet.begin(),setend = itsMemberSet.end(),it;
+	  std::ostringstream mts;
 
-  types = mts.str();
+	  for (it = setbeg; (it != setend); it++) {
+		std::string s(itsMemberTypes.substr(*it,itsMemberTypes.find(',',*it) - *it));
+		mts << ((it != setbeg) ? "\t" : "") << s;
+	  }
+
+	  types = mts.str();
+  }
+  else
+	  types = itsMemberTypes;
+
   boost::algorithm::replace_all(types,",","");
   boost::algorithm::replace_all(types,"\t",",");
 
