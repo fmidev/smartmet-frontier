@@ -4109,6 +4109,22 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief Return group's label.
+   */
+  // ----------------------------------------------------------------------
+
+  template <typename T>
+  std::string GroupCategory<T>::groupLabel() const
+  {
+	// Search for a group containing only the types in current group, and if found, return it's label
+
+	typename std::list<T>::const_iterator group = std::find_if(itsGroups.begin(),itsGroups.end(),std::bind2nd(GroupType<T>(),itcg->memberTypes()));
+
+	return ((group != itsGroups.end()) ? group->label() : itcg->label());
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Render group's elevations as cloud symbols
    *
    */
@@ -4647,7 +4663,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 //texts[itcg->placeHolder()] << pnts.str();
 
 		if (!isHole) {
-			std::string label = itcg->label();
+			std::string label = cloudGroupCategory.groupLabel();
 
 			if (!label.empty()) {
 				// Render label to the center of each visible part of the cloud
@@ -6132,7 +6148,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 													<< "\" text-anchor=\"middle"
 													<< "\" x=\"" << *itx
 													<< "\" y=\"" << *ity
-													<< "\">" << itcg->label() << "</text>\n";
+													<< "\">" << groupCategory.groupLabel() << "</text>\n";
 			}
 		}
 	}	// for group

@@ -292,6 +292,7 @@ namespace frontier
 	bool standalone() { return ((itsGroups.size() > 0) && (*itcg).standalone()); }
 
 	const std::string & groupSymbol() const;
+	std::string groupLabel() const;
 
   private:
 	typename std::list<T> itsGroups;
