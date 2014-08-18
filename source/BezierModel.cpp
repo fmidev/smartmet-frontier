@@ -254,6 +254,8 @@ int BezierModel::getSteppedCurvePoints(unsigned int baseStep,					// Base distan
 
 	srand(time(NULL));
 
+	curvePoints.clear();
+
 	while (true) {
 		if (nPoints > 0) {
 			// Step
@@ -330,6 +332,8 @@ void BezierModel::decorateCurve(std::list<DirectPosition> & curvePoints,	// Bezi
 		ritcp++;
 
 	srand(time(NULL));
+
+	decoratorPoints.clear();
 
 	for ( ; (ritcp != cpend); litcp++, ritcp++) {
 		DoubleArr leftPosition(litcp->getX(), litcp->getY());

@@ -3678,7 +3678,7 @@ namespace frontier
 			else
 				vOffset *= xStep;
 
-			// Relative offset for intermediate curve point for single elevation (controls how much the
+			// Relative top/bottom and side x -offsets for intermediate curve points for single elevation (controls how much the
 			// ends of the area are extended horizontally)
 
 			double vSOffset = configValue<double>(group,confPath,"vsoffset",globalScope,s_optional,&isSet);
@@ -3686,6 +3686,12 @@ namespace frontier
 				vSOffset = xStep / 3;
 			else
 				vSOffset *= xStep;
+
+			double vSSOffset = configValue<double>(group,confPath,"vssoffset",globalScope,s_optional,&isSet);
+			if (!isSet)
+				vSSOffset = vSOffset;
+			else
+				vSSOffset *= xStep;
 
 			// Max offset in px for extending first time instant's elevations to the left
 
@@ -3715,7 +3721,7 @@ namespace frontier
 											 controlMin,
 											 controlRandom,
 											 xOffset,
-											 vOffset,vSOffset,
+											 vOffset,vSOffset,vSSOffset,
 											 sOffset,eOffset,
 											 cloudSet,
 											 &group,
@@ -4214,7 +4220,7 @@ namespace frontier
 		  	  	  	  	  	  	  	     std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 		  	  	  	  	  	  	  	     std::vector<bool> & hasHole,
 		  	  	  	  	  	  	  	     double xOffset,
-		  	  	  	  	  	  	  	     double vOffset,double vSOffset,
+		  	  	  	  	  	  	  	     double vOffset,double vSOffset,double vSSOffset,
 		  	  	  	  	  	  	  	     int sOffset,int eOffset,
 		  	  	  	  	  	  	  	     int scaleHeightMin,int scaleHeightRandom,
 		  	  	  	  	  	  	  	     std::ostringstream & path,
@@ -4242,6 +4248,9 @@ namespace frontier
 	// half of the timestep width (an intermediate point is always generated halfway of subsequent elevations)
 
 	xOffset = ((xOffset < 0.0) ? 0.0 : std::min(xOffset,(xStep / 2)));
+
+	curvePositions.clear();
+	curvePositions.push_back(DirectPosition(0,0));
 
 	for (iteg = egbeg, phase = fst; (iteg != egend); ) {
 		// Get elevation's lo and hi range values
@@ -4454,8 +4463,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				// Bounding box for single elevation. Limit the extent of the left side
 				// of first time instant and of the right side of last time instant.
 				//
-				double leftSide = x - (((vt == bt) && (vSOffset > sOffset)) ? sOffset : vSOffset);
-				double rightSide = x + (((vt == et) && (vSOffset > eOffset))? eOffset : vSOffset);
+				double leftSide = x - (((vt == bt) && (vSOffset > sOffset)) ? sOffset : vSOffset) + 1;
+				double rightSide = x + (((vt == et) && (vSOffset > eOffset))? eOffset : vSOffset) - 1;
 
 				if (options.debug) {
 					path.clear();
@@ -4470,11 +4479,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 				curvePositions.clear();
 
-				curvePositions.push_back(DirectPosition(leftSide,hipx));
-				curvePositions.push_back(DirectPosition(rightSide,hipx));
-				curvePositions.push_back(DirectPosition(rightSide,lopx));
-				curvePositions.push_back(DirectPosition(leftSide,lopx));
-				curvePositions.push_back(DirectPosition(leftSide,hipx));
+				curvePositions.push_back(DirectPosition(0,0));
+				addCurvePosition(curvePositions,leftSide,hipx,1);
+				addCurvePosition(curvePositions,rightSide,hipx,1);
+				curvePositions.push_back(DirectPosition(rightSide + ((vSSOffset < 0.0) ? 0.0 : vSSOffset),lopx - ((lopx - hipx) / 2)));
+				addCurvePosition(curvePositions,rightSide,lopx,-1);
+				addCurvePosition(curvePositions,leftSide,lopx,-1);
+				curvePositions.push_back(DirectPosition(leftSide - ((vSSOffset < 0.0) ? 0.0 : vSSOffset),lopx - ((lopx - hipx) / 2)));
+				addCurvePosition(curvePositions,leftSide,hipx,1,true);
 
 				break;
 			}
@@ -4497,6 +4509,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			single = false;
 		}
 	}	// for iteg
+
+	// Use the second last curve position - in the middle of the left side of the starting / top left elevation - as
+	// the starting position to eliminate the "starting nökkönen" effect, which appeared especially with single elevations
+
+	curvePositions[0] = curvePositions[curvePositions.size() - 2];
+	curvePositions.pop_back();
 
 	// Remove group's elevations from the collection
 
@@ -4600,7 +4618,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->xOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->sOffset(),itcg->eOffset(),scaleHeightMin,scaleHeightRandom,path);
+		scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->xOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->vSSOffset(),itcg->sOffset(),itcg->eOffset(),scaleHeightMin,scaleHeightRandom,path);
 
 		if (options.debug)
 			texts[itcg->placeHolder() + "PATH"] << "<path class=\"" << itcg->classDef()
@@ -4692,10 +4710,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				}
 			}
 		}
-
-		curvePositions.clear();
-		curvePoints.clear();
-		decoratorPoints.clear();
 	}	// for group
 
 	// Visibility information
@@ -5906,7 +5920,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			else
 				vOffset *= xStep;
 
-			// Relative offset for intermediate curve point for single elevation (controls how much the
+			// Relative top/bottom and side x -offsets for intermediate curve points for single elevation (controls how much the
 			// ends of the area are extended horizontally)
 
 			double vSOffset = configValue<double>(group,confPath,"vsoffset",globalScope,s_optional,&isSet);
@@ -5914,6 +5928,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				vSOffset = xStep / 3;
 			else
 				vSOffset *= xStep;
+
+			double vSSOffset = configValue<double>(group,confPath,"vssoffset",globalScope,s_optional,&isSet);
+			if (!isSet)
+				vSSOffset = vSOffset;
+			else
+				vSSOffset *= xStep;
 
 			// Max offset in px for extending first time instant's elevations to the left
 
@@ -5963,7 +5983,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 							   labelPlaceHolder,
 							   combined,
 							   xOffset,
-							   vOffset,vSOffset,
+							   vOffset,vSOffset,vSSOffset,
 							   sOffset,eOffset,
 							   memberSet,
 							   &group,
@@ -6065,7 +6085,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->xOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->sOffset(),itcg->eOffset(),0,0,path);
+		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->xOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->vSSOffset(),itcg->sOffset(),itcg->eOffset(),0,0,path);
 		bool asSymbol = (single && itcg->symbolOnly());
 
 		if (!asSymbol) {
@@ -6108,11 +6128,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						   << "\" d=\""
 						   << path.str()
 						   << "\"/>\n";
-
-			curvePoints.clear();
 		}
-
-		curvePositions.clear();
 
 		// Render the single symbol or one symbol or label to the center of each visible part of the area.
 
@@ -6952,7 +6968,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		else
 			vOffset *= xStep;
 
-		// Relative offset for intermediate curve point for single elevation (controls how much the
+		// Relative top/bottom and side x -offsets for intermediate curve points for single elevation (controls how much the
 		// ends of the area are extended horizontally)
 
 		double vSOffset = configValue<double>(specs,confPath,"vsoffset",NULL,s_optional,&isSet);
@@ -6960,6 +6976,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			vSOffset = xStep / 3;
 		else
 			vSOffset *= xStep;
+
+		double vSSOffset = configValue<double>(specs,confPath,"vssoffset",NULL,s_optional,&isSet);
+		if (!isSet)
+			vSSOffset = vSOffset;
+		else
+			vSSOffset *= xStep;
 
 		// Max offset in px for extending first time instant's elevations to the left
 
@@ -7032,7 +7054,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			std::ostringstream path;
 			path << std::fixed << std::setprecision(3);
 
-			scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,xOffset,vOffset,vSOffset,sOffset,eOffset,0,0,path,&visible,true,false,true);
+			scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,xOffset,vOffset,vSOffset,vSSOffset,sOffset,eOffset,0,0,path,&visible,true,false,true);
 
 			// Create bezier curve and get curve points
 
@@ -7066,9 +7088,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 								 << "\" d=\""
 								 << path.str()
 								 << "\"/>\n";
-
-			curvePositions.clear();
-			curvePoints.clear();
 
 			if (visible && setUnvisible) {
 				// The curve is visible (elevation(s) above zero did exist); hide the fixed template text "Zerolevel is null"
@@ -7830,7 +7849,7 @@ ConfigGroup::ConfigGroup(const std::string & theClassDef,
 						 const std::string & theLabelPlaceHolder,
 						 bool combined,
 						 double theXOffset,
-						 double theVOffset,double theVSOffset,
+						 double theVOffset,double theVSOffset,double theVSSOffset,
 						 int theSOffset,int theEOffset,
 						 std::set<size_t> & theMemberSet,
 						 const libconfig::Setting * theLocalScope,
@@ -7866,6 +7885,7 @@ ConfigGroup::ConfigGroup(const std::string & theClassDef,
   itsXOffset = theXOffset;
   itsVOffset = theVOffset;
   itsVSOffset = theVSOffset;
+  itsVSSOffset = theVSSOffset;
   itsSOffset = theSOffset;
   itsEOffset = theEOffset;
 
@@ -7895,7 +7915,7 @@ CloudGroup::CloudGroup(const std::string & theClass,
 					   int theControlMin,
 					   int theControlRandom,
 					   double theXOffset,
-					   double theVOffset,double theVSOffset,
+					   double theVOffset,double theVSOffset,double theVSSOffset,
 					   int theSOffset,int theEOffset,
 					   std::set<size_t> & theCloudSet,
 					   const libconfig::Setting * theLocalScope,
@@ -7909,7 +7929,7 @@ CloudGroup::CloudGroup(const std::string & theClass,
 		  	    theLabelPlaceHolder,
 		  	    combined,
 		  	    theXOffset,
-		  	    theVOffset,theVSOffset,
+		  	    theVOffset,theVSOffset,theVSSOffset,
 		  	    theSOffset,theEOffset,
 		  	    theCloudSet,
 		  	    theLocalScope,
@@ -8030,7 +8050,7 @@ IcingGroup::IcingGroup(const std::string & theClass,
 					   const std::string & theLabelPlaceHolder,
 					   bool combined,
 					   double theXOffset,
-					   double theVOffset,double theVSOffset,
+					   double theVOffset,double theVSOffset,double theVSSOffset,
 					   int theSOffset,int theEOffset,
 					   std::set<size_t> & theIcingSet,
 					   const libconfig::Setting * theLocalScope,
@@ -8043,7 +8063,7 @@ IcingGroup::IcingGroup(const std::string & theClass,
 		  	    theLabelPlaceHolder,
 		  	    combined,
 		  	    theXOffset,
-		  	    theVOffset,theVSOffset,
+		  	    theVOffset,theVSOffset,theVSSOffset,
 		  	    theSOffset,theEOffset,
 		  	    theIcingSet,
 		  	    theLocalScope,

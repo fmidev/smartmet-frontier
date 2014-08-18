@@ -118,7 +118,7 @@ namespace frontier
 			    const std::string & theLabelPlaceHolder,
 			    bool combined,
 			    double theXOffset,
-			    double theVOffset,double theVSOffset,
+			    double theVOffset,double theVSOffset,double theVSSOffset,
 			    int theSOffset,int theEOffset,
 			    std::set<size_t> & theMemberSet,
 			    const libconfig::Setting * localScope,
@@ -139,6 +139,7 @@ namespace frontier
 	double xOffset() const { return itsXOffset; }
 	double vOffset() const { return itsVOffset; }
 	double vSOffset() const { return itsVSOffset; }
+	double vSSOffset() const { return itsVSSOffset; }
 	int sOffset() const { return itsSOffset; }
 	int eOffset() const { return itsEOffset; }
 
@@ -163,6 +164,7 @@ namespace frontier
 	double itsXOffset;
 	double itsVOffset;
 	double itsVSOffset;
+	double itsVSSOffset;
 	int itsSOffset;
 	int itsEOffset;
 
@@ -200,7 +202,7 @@ namespace frontier
 			   int theControlMin,
 			   int theControlRandom,
 			   double theXOffset,
-			   double theVOffset,double theVSOffset,
+			   double theVOffset,double theVSOffset,double theVSSOffset,
 			   int theSOffset,int theEOffset,
 			   std::set<size_t> & theCloudSet,
 			   const libconfig::Setting * localScope,
@@ -246,7 +248,7 @@ namespace frontier
 			   const std::string & theLabelPlaceHolder,
 			   bool combined,
 			   double theXOffset,
-			   double theVOffset,double theVSOffset,
+			   double theVOffset,double theVSOffset,double theVSSOffset,
 			   int theSOffset,int theEOffset,
 			   std::set<size_t> & theIcingSet,
 			   const libconfig::Setting * localScope,
@@ -577,7 +579,7 @@ namespace frontier
 							  std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 							  std::vector<bool> & hasHole,
 							  double xOffset,
-							  double vOffset,double vSOffset,
+							  double vOffset,double vSOffset,double vSSOffset,
 							  int sOffset,int eOffset,
 							  int scaleHeightMin,int scaleHeightRandom,
 							  std::ostringstream & path,
