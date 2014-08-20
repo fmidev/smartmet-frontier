@@ -8122,6 +8122,8 @@ SvgRenderer::visit(const woml::ColdAdvection & theFeature)
 {
   if(options.debug)	std::cerr << "Visiting ColdAdvection" << std::endl;
 
+  if(!config.exists("coldadvection")) return;
+
   ++ncoldadvections;
   std::string id = "coldadvection" + boost::lexical_cast<std::string>(ncoldadvections);
 
@@ -8132,13 +8134,13 @@ SvgRenderer::visit(const woml::ColdAdvection & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = getCssSize("coldfrontglyph","font-size");
-  double spacing = lookup<double>(config,"coldfront.letter-spacing");
+  double fontsize = getCssSize("coldadvectionglyph","font-size");
+  double spacing = getSetting<double>("coldadvection","letter-spacing",60.0);
 
   const char * Cc = ((theFeature.orientation() == "-") ? "C" : "c");
 
   render_front(path,paths,coldfronts,id,
-			   "coldfront","coldfrontglyph",
+			   "coldadvection","coldadvectionglyph",
 			   Cc,Cc,
 			   fontsize,spacing);
 }
@@ -8154,6 +8156,8 @@ SvgRenderer::visit(const woml::ColdFront & theFeature)
 {
   if(options.debug)	std::cerr << "Visiting ColdFront" << std::endl;
 
+  if(!config.exists("coldfront")) return;
+
   ++ncoldfronts;
   std::string id = "coldfront" + boost::lexical_cast<std::string>(ncoldfronts);
 
@@ -8165,7 +8169,7 @@ SvgRenderer::visit(const woml::ColdFront & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("coldfrontglyph","font-size");
-  double spacing = lookup<double>(config,"coldfront.letter-spacing");
+  double spacing = getSetting<double>("coldfront","letter-spacing",60.0);
 
   const char * Cc = ((theFeature.orientation() == "-") ? "C" : "c");
 
@@ -8244,6 +8248,8 @@ SvgRenderer::visit(const woml::JetStream & theFeature)
 {
   if(options.debug)	std::cerr << "Visiting Jet" << std::endl;
 
+  if(!config.exists("jet")) return;
+
   ++njets;
 
   std::string id = "jet" + boost::lexical_cast<std::string>(njets);
@@ -8289,6 +8295,8 @@ SvgRenderer::visit(const woml::OccludedFront & theFeature)
 {
   if(options.debug)	std::cerr << "Visiting OccludedFront" << std::endl;
 
+  if(!config.exists("occludedfront")) return;
+
   ++noccludedfronts;
   std::string id = "occludedfront" + boost::lexical_cast<std::string>(noccludedfronts);
 
@@ -8300,7 +8308,7 @@ SvgRenderer::visit(const woml::OccludedFront & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("occludedfrontglyph","font-size");
-  double spacing = lookup<double>(config,"occludedfront.letter-spacing");
+  double spacing = getSetting<double>("occludedfront","letter-spacing",60.0);
 
   const char * CWcw = ((theFeature.orientation() == "-") ? "CW" : "cw");
 
@@ -8433,6 +8441,8 @@ SvgRenderer::visit(const woml::Ridge & theFeature)
 {
   if(options.debug)	std::cerr << "Visiting Ridge" << std::endl;
 
+  if(!config.exists("ridge")) return;
+
   ++nridges;
 
   std::string id = "ridge" + boost::lexical_cast<std::string>(nridges);
@@ -8445,7 +8455,7 @@ SvgRenderer::visit(const woml::Ridge & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("ridgeglyph","font-size");
-  double spacing = lookup<double>(config,"ridge.letter-spacing");
+  double spacing = getSetting<double>("ridge","letter-spacing",60.0);
 
   render_front(path,paths,ridges,id,
 			   "ridge","ridgeglyph",
@@ -8581,6 +8591,8 @@ SvgRenderer::visit(const woml::Trough & theFeature)
 {
   if(options.debug)	std::cerr << "Visiting Trough" << std::endl;
 
+  if(!config.exists("trough")) return;
+
   ++ntroughs;
 
   std::string id = "trough" + boost::lexical_cast<std::string>(ntroughs);
@@ -8593,7 +8605,7 @@ SvgRenderer::visit(const woml::Trough & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("troughglyph","font-size");
-  double spacing = lookup<double>(config,"trough.letter-spacing");
+  double spacing = getSetting<double>("trough","letter-spacing",60.0);
 
   render_front(path,paths,troughs,id,
 			   "trough","troughglyph",
@@ -8613,6 +8625,8 @@ SvgRenderer::visit(const woml::UpperTrough & theFeature)
 {
   if(options.debug)	std::cerr << "Visiting UpperTrough" << std::endl;
 
+  if(!config.exists("uppertrough")) return;
+
   ++nuppertroughs;
 
   std::string id = "uppertrough" + boost::lexical_cast<std::string>(nuppertroughs);
@@ -8625,7 +8639,7 @@ SvgRenderer::visit(const woml::UpperTrough & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("uppertroughglyph","font-size");
-  double spacing = lookup<double>(config,"uppertrough.letter-spacing");
+  double spacing = getSetting<double>("uppertrough","letter-spacing",60.0);
 
   render_front(path,paths,uppertroughs,id,
 			   "uppertrough","uppertroughglyph",
@@ -8643,7 +8657,9 @@ SvgRenderer::visit(const woml::UpperTrough & theFeature)
 void
 SvgRenderer::visit(const woml::WarmAdvection & theFeature)
 {
-  if(options.debug)	std::cerr << "Visiting ColdAdvection" << std::endl;
+  if(options.debug)	std::cerr << "Visiting WarmAdvection" << std::endl;
+
+  if(!config.exists("warmadvection")) return;
 
   ++nwarmadvections;
   std::string id = "warmadvection" + boost::lexical_cast<std::string>(nwarmadvections);
@@ -8655,13 +8671,13 @@ SvgRenderer::visit(const woml::WarmAdvection & theFeature)
   PathProjector proj(area);
   path.transform(proj);
 
-  double fontsize = getCssSize("warmfrontglyph","font-size");
-  double spacing = lookup<double>(config,"warmfront.letter-spacing");
+  double fontsize = getCssSize("warmadvectionglyph","font-size");
+  double spacing = getSetting<double>("warmadvection","letter-spacing",60.0);
 
   const char * Ww = ((theFeature.orientation() == "-") ? "W" : "w");
 
   render_front(path,paths,warmfronts,id,
-			   "warmfront","warmfrontglyph",
+			   "warmadvection","warmadvectionglyph",
 			   Ww,Ww,
 			   fontsize,spacing);
 }
@@ -8677,6 +8693,8 @@ SvgRenderer::visit(const woml::WarmFront & theFeature)
 {
   if(options.debug)	std::cerr << "Visiting WarmFront" << std::endl;
 
+  if(!config.exists("warmfront")) return;
+
   ++nwarmfronts;
   std::string id = "warmfront" + boost::lexical_cast<std::string>(nwarmfronts);
 
@@ -8688,7 +8706,7 @@ SvgRenderer::visit(const woml::WarmFront & theFeature)
   path.transform(proj);
 
   double fontsize = getCssSize("warmfrontglyph","font-size");
-  double spacing = lookup<double>(config,"warmfront.letter-spacing");
+  double spacing = getSetting<double>("warmfront","letter-spacing",60.0);
 
   const char * Ww = ((theFeature.orientation() == "-") ? "W" : "w");
 
@@ -8775,6 +8793,22 @@ double SvgRenderer::getCssSize(const std::string & theCssClass,
   std::string num = word.substr(0,word.size()-2);
 
   return Fmi::number_cast<double>(num);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Find the given config setting
+ */
+// ----------------------------------------------------------------------
+
+template <typename T>
+T SvgRenderer::getSetting(const std::string & theConfigClass,
+						  const std::string & theAttribute,
+						  T theDefaultValue)
+{
+  if(!config.exists(theConfigClass + "." + theAttribute)) return theDefaultValue;
+
+  return lookup<T>(config,theConfigClass + "." + theAttribute);
 }
 
 #ifdef __contouring__

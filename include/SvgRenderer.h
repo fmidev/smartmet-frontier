@@ -482,6 +482,10 @@ namespace frontier
 	double getCssSize(const std::string & theCssClass,
 					  const std::string & theAttribute,
 					  double defaultValue = 30);
+	template <typename T>
+	T getSetting(const std::string & theConfigClass,
+				 const std::string & theAttribute,
+				 T theDefaultValue);
 
 	void render_header(const std::string & hdrClass,
 					   const boost::posix_time::ptime & datetime,
