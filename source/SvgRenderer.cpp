@@ -1540,7 +1540,7 @@ namespace frontier
 					texts[TEXTCLASStextName] << "." << textClass
 											 << " {\nfont-family: " << font
 											 << ";\nfont-size: " << fSize
-											 << ";\nfont-weight : " << weight
+											 << "px;\nfont-weight : " << weight
 											 << ";\nfont-style : " << style;
 
 					if (!stroke.empty()) texts[TEXTCLASStextName] << ";\nstroke: " << stroke;
