@@ -1396,6 +1396,8 @@ namespace frontier
 		// as the last element). The list is processed in reverse order when searching.
 		//
 		// Current block or locale global block is needed for rendering.
+		//
+		// Note: Currently locale settings are not used.
 
 		std::list<const libconfig::Setting *> scope;
 		bool nameMatch,noName;
@@ -1432,7 +1434,9 @@ namespace frontier
 
 						// Locale
 						//
-						std::string locale(toLower(configValue<std::string>(specs,textName,"locale",NULL,s_optional)));
+						// Currently locale settings are not used
+						//
+						std::string locale(options.locale /*toLower(configValue<std::string>(specs,textName,"locale",NULL,s_optional))*/);
 						bool localeMatch = (locale == options.locale);
 
 						if (localeMatch || (locale == "")) {
