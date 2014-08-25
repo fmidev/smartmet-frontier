@@ -986,7 +986,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void getFillPositions(NFmiFillAreas & areas,size_t symbolCnt,NFmiFillPositions & fpos)
+  void getFillPositions(NFmiFillAreas & areas,size_t symbolCnt,NFmiFillPositions & fpos,const std::string & fillMode = "")
   {
 	// Extract fill area "columns", groups of fill areas having starting x -coordinate greater than or equal to
 	// the starting x -coordinate and less than or equal to the center x -coordinate of group's first fill area.
@@ -994,6 +994,44 @@ namespace frontier
 	FillAreaColumns columns = getFillAreaColumns(areas);
 
 	// Get fill positions within the columns
+
+	if (fillMode.empty() || (fillMode == "symbol")) {
+		// By default get one fill position for each symbol
+		//
+		;
+	}
+	else if (fillMode == "fill") {
+		// Get all available positions
+		//
+		symbolCnt = areas.size();
+	}
+	else if (fillMode == "column") {
+		// Get one fill position for each column if there are enough columns for the symbols,
+		// otherwise get one fill position for each symbol
+		//
+		if (columns.size() >= symbolCnt)
+			symbolCnt = columns.size();
+	}
+	else if (
+			 (strlen(fillMode.c_str()) >= 2) && (strlen(fillMode.c_str()) <= 4) &&
+			 (strspn(fillMode.c_str(),"1234567890") == (strlen(fillMode.c_str()) - 1)) &&
+			 strrchr(fillMode.c_str(),'%') &&
+			 (atoi(fillMode.c_str()) <= 100)
+			) {
+		// Get given percentage of available positions
+		//
+		size_t nPos = 0;
+
+		for (FillAreaColumns::const_iterator iCol = columns.begin(); (iCol != columns.end()); iCol++)
+			nPos += iCol->nRows();
+
+		size_t nSym = (size_t) floor(((atoi(fillMode.c_str()) / 100.0) * nPos) + 0.5);
+
+		if (nSym > symbolCnt)
+			symbolCnt = std::min(nSym,nPos);
+	}
+	else
+		throw std::runtime_error("getFillPositions: invalid fill mode: '" + fillMode + "'");
 
 	size_t nAreasLeft = areas.size(),nSymbolsLeft = symbolCnt,nColsLeft = columns.size(),colStepN = 1,colStep = 1,col,n;
 
@@ -1063,7 +1101,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void getFillPositions(NFmiFillAreas & areas,int symbolWidth,int symbolHeight,size_t symbolCnt,float scale,const NFmiFillRect & reservedArea,NFmiFillPositions & fpos)
+  void getFillPositions(NFmiFillAreas & areas,int symbolWidth,int symbolHeight,size_t symbolCnt,float scale,const NFmiFillRect & reservedArea,NFmiFillPositions & fpos,const std::string & fillMode = "")
   {
 	// Fill areas might have room for multiple symbols; split them to hold a single symbol
 
@@ -1088,7 +1126,7 @@ namespace frontier
 	if (symbolCnt < areas.size()) {
 		// There are more fill areas than symbols, stepping over some fill areas
 		//
-		getFillPositions(areas,symbolCnt,fpos);
+		getFillPositions(areas,symbolCnt,fpos,fillMode);
 		return;
 	}
 
@@ -2121,7 +2159,12 @@ namespace frontier
 								}
 							}
 							else if (fillSymbols.size() > 0) {
-								getFillPositions(areas,width,height,fillSymbols.size(),scale,infoTextRect,fpos);
+								// fillMode controls whether to get one position for each fill symbol (the default) or
+								// for each column, or to get all or given percentage of the available positions
+								//
+								std::string fillMode = configValue<std::string>(scope,surfaceName,"fillmode",s_optional);
+
+								getFillPositions(areas,width,height,fillSymbols.size(),scale,infoTextRect,fpos,fillMode);
 
 								if (showAreas)
 									// Draw fill area rects
