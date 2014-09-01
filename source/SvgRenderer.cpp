@@ -4333,8 +4333,16 @@ namespace frontier
 			hoffset += ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0)));
 		}
 
-		lopx = axisManager->scaledElevation(lo) - (loffset / 6);
-		hipx = axisManager->scaledElevation(hi) + (hoffset / 6);
+		lopx = axisManager->scaledElevation(lo);
+		hipx = axisManager->scaledElevation(hi);
+
+		double lopxBL = lopx - (loffset / 6);
+		double hipxBL = hipx + (hoffset / 6);
+
+		if (lopxBL > hipxBL) {
+			lopx = lopxBL;
+			hipx = hipxBL;
+		}
 
 		// x -coord of this time instant
 
