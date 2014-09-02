@@ -4441,10 +4441,12 @@ fprintf(stderr,">>>> vdn hi=%.0f %s\n",hi,cs.c_str());
 		else if (phase == eup) {
 			// Move up connecting "nonground" (or non ZeroTolorence) elevation's lo range point to hi range point
 			//
+			// Note: ZeroTolorence "ground" elevation's hi range point can be connected to 0 at previous/next time instant
+			//
 #ifdef STEPS
 fprintf(stderr,">>>> eup hi=%.0f %s\n",hi,cs.c_str());
 #endif
-			if (!ground) {
+			if ((!ground) || (vt == bt) || (!(iteg->topConnected()))) {
 				// Limit the extent of the left side of first time instant
 				//
 				double offset = (((vt == bt) && (vOffset > sOffset)) ? sOffset : vOffset);
@@ -7120,9 +7122,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 											  << path.str()
 											  << "\"/>\n";
 
-//printf("> Cpos:\n"); {
+//fprintf(stderr,"> Cpos:\n"); {
 //List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend = curvePositions.end(),itcp;
-//for (itcp = cpbeg; (itcp != cpend); itcp++) printf("> Cpos x=%.1f, y=%.1f\n",itcp->getX(),itcp->getY());
+//for (itcp = cpbeg; (itcp != cpend); itcp++) fprintf(stderr,"> Cpos x=%.1f, y=%.1f\n",itcp->getX(),itcp->getY());
 //}
 			BezierModel bm(curvePositions,true,tightness);
 			bm.getSteppedCurvePoints(10,0,0,curvePoints);
@@ -7133,8 +7135,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			path.str("");
 			std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
 
-//printf("> Bez:\n");
-//for (itcp = cpbeg; (itcp != cpend); itcp++) printf("> Bez x=%.1f, y=%.1f\n",itcp->getX(),itcp->getY());
+//fprintf(stderr,"> Bez:\n");
+//for (itcp = cpbeg; (itcp != cpend); itcp++) fprintf(stderr,"> Bez x=%.1f, y=%.1f\n",itcp->getX(),itcp->getY());
 			for (itcp = cpbeg; (itcp != cpend); itcp++)
 				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY();
 
