@@ -7075,7 +7075,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			xOffset *= xStep;
 
 		double yOffset = (double) configValue<int,double>(specs,confPath,"yoffset",NULL,s_optional,&isSet);
-		if (!isSet)
+		if ((!isSet) || (yOffset < 0.0))
 			yOffset = 0.0;
 
 		// Relative offset for intermediate curve points (controls how much the ends of the area
@@ -8002,7 +8002,7 @@ ConfigGroup::ConfigGroup(const std::string & theClassDef,
   itsLabelPlaceHolder = theLabelPlaceHolder;
 
   itsXOffset = theXOffset;
-  itsYOffset = theYOffset;
+  itsYOffset = std::max(theYOffset,0.0);
   itsVOffset = theVOffset;
   itsVSOffset = theVSOffset;
   itsVSSOffset = theVSSOffset;
