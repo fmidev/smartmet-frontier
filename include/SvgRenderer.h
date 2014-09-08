@@ -117,7 +117,7 @@ namespace frontier
 			    const std::string & thePlaceHolder,
 			    const std::string & theLabelPlaceHolder,
 			    bool combined,
-			    double theXOffset,
+			    double theXOffset,double theYOffset,
 			    double theVOffset,double theVSOffset,double theVSSOffset,
 			    int theSOffset,int theEOffset,
 			    std::set<size_t> & theMemberSet,
@@ -137,6 +137,7 @@ namespace frontier
 	std::string memberTypes(bool allTypes = false) const;
 
 	double xOffset() const { return itsXOffset; }
+	double yOffset() const { return itsYOffset; }
 	double vOffset() const { return itsVOffset; }
 	double vSOffset() const { return itsVSOffset; }
 	double vSSOffset() const { return itsVSSOffset; }
@@ -162,6 +163,7 @@ namespace frontier
 	bool itsStandalone;
 
 	double itsXOffset;
+	double itsYOffset;
 	double itsVOffset;
 	double itsVSOffset;
 	double itsVSSOffset;
@@ -201,7 +203,7 @@ namespace frontier
 			   int theScaleHeightRandom,
 			   int theControlMin,
 			   int theControlRandom,
-			   double theXOffset,
+			   double theXOffset,double theYOffset,
 			   double theVOffset,double theVSOffset,double theVSSOffset,
 			   int theSOffset,int theEOffset,
 			   std::set<size_t> & theCloudSet,
@@ -247,7 +249,7 @@ namespace frontier
 			   const std::string & thePlaceHolder,
 			   const std::string & theLabelPlaceHolder,
 			   bool combined,
-			   double theXOffset,
+			   double theXOffset,double theYOffset,
 			   double theVOffset,double theVSOffset,double theVSSOffset,
 			   int theSOffset,int theEOffset,
 			   std::set<size_t> & theIcingSet,
@@ -582,7 +584,7 @@ namespace frontier
 							  List<DirectPosition> & curvePositions,
 							  std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 							  std::vector<bool> & hasHole,
-							  double xOffset,
+							  double xOffset,double yOffset,
 							  double vOffset,double vSOffset,double vSSOffset,
 							  int sOffset,int eOffset,
 							  int scaleHeightMin,int scaleHeightRandom,
