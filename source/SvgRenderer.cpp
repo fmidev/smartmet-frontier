@@ -3643,6 +3643,10 @@ namespace frontier
 
 			libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &groupSpecs[globalsIdx] : NULL);
 
+			// Class
+
+			std::string cloudClass = configValue<std::string>(group,confPath,"class",globalScope,s_optional);
+
 			// Output label; default label is the cloud types concatenated with ',' as separator.
 			// If empty label is given, no label.
 
@@ -3756,7 +3760,7 @@ namespace frontier
 			if (!isSet)
 				eOffset = 0;
 
-			cloudGroups.push_back(CloudGroup(classDef,
+			cloudGroups.push_back(CloudGroup(cloudClass.empty() ? classDef : cloudClass,
 											 cloudTypes,
 											 symbolType,
 											 hasLabel ? &label : NULL,
