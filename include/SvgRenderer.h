@@ -113,9 +113,9 @@ namespace frontier
 	ConfigGroup(const std::string & theClassDef,
 			    const std::string & theMemberTypes,
 			    const std::string * theLabel,
-			    bool bbCenterLabel,
+			    bool bbCenterMarker,
 			    const std::string & thePlaceHolder,
-			    const std::string & theLabelPlaceHolder,
+			    const std::string & theMarkerPlaceHolder,
 			    bool combined,
 			    double theXOffset,double theYOffset,
 			    double theVOffset,double theVSOffset,double theVSSOffset,
@@ -128,9 +128,9 @@ namespace frontier
 	const std::string & classDef() const { return itsClass; }
 	const std::string & textClassDef() const { return itsTextClass; }
 	std::string label(bool allTypes = false) const { return (hasLabel ? itsLabel : memberTypes(allTypes)); }
-	bool bbCenterLabel() const { return bbCenterLabelPos; }
+	bool bbCenterMarker() const { return bbCenterMarkerPos; }
 	const std::string & placeHolder() const { return itsPlaceHolder; }
-	const std::string & labelPlaceHolder() const { return itsLabelPlaceHolder; }
+	const std::string & markerPlaceHolder() const { return itsMarkerPlaceHolder; }
 	bool standalone() const { return itsStandalone; }
 	bool contains(const std::string & theMemberType,bool only = false) const;
 	void addType(const std::string & type) const;
@@ -157,9 +157,9 @@ namespace frontier
 	std::string itsMemberTypes;
 	std::string itsLabel;
 	bool hasLabel;
-	bool bbCenterLabelPos;
+	bool bbCenterMarkerPos;
 	std::string itsPlaceHolder;
-	std::string itsLabelPlaceHolder;
+	std::string itsMarkerPlaceHolder;
 	bool itsStandalone;
 
 	double itsXOffset;
@@ -503,6 +503,7 @@ namespace frontier
 					 bool setTextArea = true,
 					 bool centerToStartX = false,
 					 const std::string & TEXTPOSid = "",
+					 bool useTextName = false,
 					 int * maxTextWidth = NULL,				// I
 					 int * fontSize = NULL,					// I
 					 int * tXOffset = NULL,					// I/O: area text's border x -offset
@@ -518,7 +519,8 @@ namespace frontier
 								const std::string & classNameExt,
 								const std::string & value,
 								double x,double y,
-								bool codeValue = true,bool mappedCode = false);
+								bool codeValue = true,bool mappedCode = false,
+								double xScale = -1.0,double yScale = -1.0);
 	template <typename T> void render_aerodromeSymbols(const T & theFeature,
 												       const std::string & confPath,
 												       bool setVisibility = false);
@@ -547,6 +549,7 @@ namespace frontier
 									  ElevGrp & eGrp,
 									  bool all = true,
 									  bool join = true,
+									  bool getHole = false,
 									  CategoryValueMeasureGroup * categoryGroup = NULL);
 	unsigned int getLeftSideGroupNumber(ElevGrp & eGrp,ElevGrp::iterator & iteg,unsigned int nextGroupNumber,bool mixed = true);
 	unsigned int getRightSideGroupNumber(ElevGrp & eGrp,ElevGrp::reverse_iterator & itegrev,unsigned int groupNumber,bool mixed = true);
@@ -556,10 +559,10 @@ namespace frontier
 	void checkRightSide(ElevGrp & eGrp,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
 	bool checkRightSideHoles(ElevationHoles & holes,ElevationHoles::reverse_iterator iteh,CategoryValueMeasureGroup * groupCategory = NULL);
 	bool checkBothSideHoles(ElevationHoles & holes,ElevationHoles::iterator & iteh,CategoryValueMeasureGroup * groupCategory = NULL);
-	void checkHoles(ElevGrp & eGrp,ElevationHoles & holes,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
+	bool checkHoles(ElevGrp & eGrp,ElevationHoles & holes,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
 	bool checkCategory(CategoryValueMeasureGroup * groupCategory,ElevGrp::iterator & e) const;
 	bool checkCategory(CategoryValueMeasureGroup * groupCategory,ElevGrp::iterator & e1,ElevGrp::iterator & e2) const;
-	void searchHoles(const std::list<woml::TimeSeriesSlot> & ts,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
+	bool searchHoles(const std::list<woml::TimeSeriesSlot> & ts,CategoryValueMeasureGroup * groupCategory = NULL,bool setNegative = true);
 	Phase uprightdown(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndFwd2Gnd = true);
 	Phase downleftup(ElevGrp & eGrp,ElevGrp::iterator & iteg,double lo,double hi,bool nonGndVdn2Gnd = false);
 
@@ -568,7 +571,8 @@ namespace frontier
 	void render_elevationAxis();
 	void render_timeAxis(const boost::posix_time::time_period & theTimePeriod);
 	const libconfig::Setting & cloudLayerConfig(const std::string & confPath,
-												double & tightness,bool & borderCompensation,double & minLabelPosHeight,
+												double & tightness,bool & borderCompensation,
+												int & minLabelPosHeight,double & labelPosHeightFactor,
 												std::list<CloudGroup> & cloudGroups,
 												std::set<size_t> & cloudSet);
 	void render_cloudSymbol(const std::string & confPath,
@@ -597,7 +601,8 @@ namespace frontier
 	void render_timeserie(const woml::CloudLayers & cloudlayers);
 	void render_timeserie(const woml::Contrails & contrails);
 	template <typename T> const libconfig::Setting & groupConfig(const std::string & groupConfPath,
-																 double & tightness,double & minLabelPosHeight,
+																 double & tightness,
+																 int & minLabelPosHeight,double & labelPosHeightFactor,
 																 std::list<T> & groups,
 																 std::set<size_t> & memberSet);
 	template <typename GroupCategoryT,typename GroupTypeT> void render_timeserie(const std::list<woml::TimeSeriesSlot> & ts,
@@ -619,6 +624,15 @@ namespace frontier
 						 int textWidth,int textHeight,
 						 int tXOffset,int tYOffset,
 						 Path::BBox * boundingBox = NULL);
+	void renderAreaLabels(const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,const std::string & confPath,const std::string & textName,const std::string & labelPlaceHolder,const std::string & textPosId,bool isHole,const std::string & label,bool bbCenterLabel,
+						  double minX,int minH,double hFactor,double sOffset,double eOffset,
+						  std::vector<double> & loPx,std::vector<double> & hiPx,std::vector<bool> & hasHole,
+						  const std::string & areaPlaceHolder = "");
+	template <typename T>
+	void renderAreaSymbols(const T & cg,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,const std::string & confPath,
+						   double minx,std::vector<double> & loPx,std::vector<double> & hiPx,std::vector<bool> & hasHole,
+						   const std::string & symClass,const std::string & classNameExt,const std::string & symbol,
+						   bool asSymbol,bool & visible,bool & aboveTop);
 
 	const Options & options;
 	const libconfig::Config & config;
@@ -673,6 +687,7 @@ namespace frontier
 	int nwarmadvections;
 	int nwarmfronts;
 
+	NFmiFillAreas reservedAreas;
   }; // class SvgRenderer
 
 } // namespace frontier

@@ -94,7 +94,8 @@ namespace frontier
 					  bool verticalRects,
 					  NFmiFillAreas & fillAreas,
 					  bool retainMap = true,
-					  bool scanUpDown = false);
+					  bool scanUpDown = false,
+					  bool getMapAreas = false);
 
   private:
 

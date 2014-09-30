@@ -25,8 +25,8 @@ namespace frontier
 	DirectPosition(double x = 0.0, double y = 0.0) : itsArr(x,y) { }
 	DirectPosition(const DoubleArr & da) : itsArr(da) { }
 	DoubleArr & getCoordinates() { return itsArr; }
-	double & getX() { return itsArr[0]; }
-	double & getY() { return itsArr[1]; }
+	const double & getX() const { return itsArr.getX(); }
+	const double & getY() const { return itsArr.getY(); }
 
   private:
 	DoubleArr itsArr;

@@ -39,6 +39,8 @@ namespace
 
 namespace frontier
 {
+  const size_t fillAreaWidthMin = 3;
+  const size_t fillAreaHeightMin = 3;
 
   // ----------------------------------------------------------------------
   // Scan for continuous rows overlapping the given xMin-xMax range to check
@@ -197,17 +199,38 @@ namespace frontier
 								 bool verticalRects,
 		  						 NFmiFillAreas & fillAreas,
 		  						 bool retainMap,
-		  						 bool scanUpDown)
+		  						 bool scanUpDown,
+		  						 bool getMapAreas)
   {
 	if (itsData.empty())
 		return false;
+
+	if (getMapAreas) {
+		// Get all areas, regardless of their size
+		//
+		NFmiFillMapData::iterator iter = itsData.begin(),enditer = itsData.end();
+
+		for( ; (iter != enditer); ++iter) {
+			NFmiFillMapElement::iterator dataiter = iter->second.begin(),enddata = iter->second.end();
+
+			for( ; (dataiter != enddata); ++dataiter) {
+				double x1 = *dataiter;
+				dataiter++;
+				double x2 = *dataiter;
+
+				fillAreas.push_back(std::make_pair(Point(std::min(x1,x2),iter->first),Point(std::max(x1,x2),iter->first + 1)));
+			}
+		}
+
+		return true;
+	}
 
 	symbolWidth = static_cast<int>(floor(symbolWidth * scale));
 	symbolHeight = static_cast<int>(floor(symbolHeight * scale));
 
 	if (
 		(imageWidth <= symbolWidth) || (imageHeight <= symbolHeight) ||
-		(symbolWidth < 10) || (symbolHeight < 10)
+		(symbolWidth < (int) fillAreaWidthMin) || (symbolHeight < (int) fillAreaHeightMin)
 	   )
 		return false;
 
