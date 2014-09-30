@@ -59,8 +59,15 @@
 
 namespace frontier
 {
+  const char * areaLabels = "AreaLabels";
   const size_t defaultSymbolWidth = 50;
   const size_t defaultSymbolHeight = 50;
+  const double defaultSymbolPosHeightFactor = 1.0;
+  const double defaultLabelPosHeightFactor = 1.0;
+  const size_t labelPosHeightMin = 5;
+  const double labelPosHeightFactorMin = 0.1;
+  const double symbolPosHeightFactorMin = 0.1;
+  const size_t fillAreaOverlapMax = 3;
 
   // ----------------------------------------------------------------------
   /*!
@@ -792,8 +799,8 @@ namespace frontier
 	// Check if the area is reserved (overlaps reserved area)
 
 	if (
-		(iter->first.x <= reservedArea.second.x) && (iter->second.x >= reservedArea.first.x) &&
-		(iter->first.y <= reservedArea.second.y) && (iter->second.y >= reservedArea.first.y)
+		(iter->first.x < reservedArea.second.x) && (iter->second.x > reservedArea.first.x) &&
+		(iter->first.y < reservedArea.second.y) && (iter->second.y > reservedArea.first.y)
 	   )
 		return false;
 
@@ -1116,8 +1123,8 @@ namespace frontier
 	if (reservedArea.second.x > reservedArea.first.x)
 		for (NFmiFillAreas::iterator iter = areas.begin(); (iter != areas.end()); )
 			if (
-				(iter->first.x <= reservedArea.second.x) && (iter->second.x >= reservedArea.first.x) &&
-				(iter->first.y <= reservedArea.second.y) && (iter->second.y >= reservedArea.first.y)
+				(iter->first.x < reservedArea.second.x) && (iter->second.x > reservedArea.first.x) &&
+				(iter->first.y < reservedArea.second.y) && (iter->second.y > reservedArea.first.y)
 			   )
 				iter = areas.erase(iter);
 			else
@@ -1391,6 +1398,7 @@ namespace frontier
 		  	  	  	  	  	    bool setTextArea,
 		  	  	  	  	  	    bool centerToStartX,
 		  	  	  	  	  	    const std::string & TEXTPOSid,
+		  	  	  	  	  	    bool useTextName,
 		  	  	  	  	  	    int * maxTextWidth,				// I
 		  	  	  	  	  	    int * fontSize,					// I
 		  	  	  	  	  	    int * tXOffset,					// I/O: text's x -offset
@@ -1401,10 +1409,12 @@ namespace frontier
 		const char * styleMsg = ": slant must be 'normal', 'italic' or 'oblique'";
 		const char * weightMsg = ": weight must be 'normal' or 'bold'";
 
-		// Note: 'textName' contains area/symbol type for area/symbol infotexts; using confPath to generate fixed placeholder names
+		// Note: 'textName' contains area/symbol type for area/symbol infotexts; using confPath to generate fixed placeholder names.
+		//		 'useTextName' is set when rendering cloudlayer, icing/turbulence and zerotolerance labels; using the text name
+		//		  as text output placeholder as is.
 
-		std::string TEXTCLASStextName("TEXTCLASS" + (TEXTPOSid.empty() ? textName : confPath));
-		std::string TEXTtextName("TEXT" + (TEXTPOSid.empty() ? textName : confPath));
+		std::string TEXTCLASStextName("TEXTCLASS" + ((TEXTPOSid.empty() || useTextName) ? textName : confPath));
+		std::string TEXTtextName(useTextName ? textName : ("TEXT" + (TEXTPOSid.empty() ? textName : confPath)));
 		std::string TEXTAREAtextName;
 
 		if (setTextArea) {
@@ -1577,18 +1587,20 @@ namespace frontier
 					//
 					// Note: Generating css class for each area infotext; the settings can differ
 
-					std::string textClass("text" + (TEXTPOSid.empty() ? textName : TEXTPOSid.substr(TEXTPOSid.find("_") + 1)));
+					std::string textClass("text" + ((TEXTPOSid.empty() || useTextName) ? textName : TEXTPOSid.substr(TEXTPOSid.find("_") + 1)));
 
-					texts[TEXTCLASStextName] << "." << textClass
-											 << " {\nfont-family: " << font
-											 << ";\nfont-size: " << fSize
-											 << "px;\nfont-weight : " << weight
-											 << ";\nfont-style : " << style;
+					if (texts[TEXTCLASStextName].str().empty()) {
+						texts[TEXTCLASStextName] << "." << textClass
+												 << " {\nfont-family: " << font
+												 << ";\nfont-size: " << fSize
+												 << "px;\nfont-weight : " << weight
+												 << ";\nfont-style : " << style;
 
-					if (!stroke.empty()) texts[TEXTCLASStextName] << ";\nstroke: " << stroke;
-					if (!fill.empty()) texts[TEXTCLASStextName] << ";\nfill: " << fill;
+						if (!stroke.empty()) texts[TEXTCLASStextName] << ";\nstroke: " << stroke;
+						if (!fill.empty()) texts[TEXTCLASStextName] << ";\nfill: " << fill;
 
-					texts[TEXTCLASStextName] << ";\n}\n";
+						texts[TEXTCLASStextName] << ";\n}\n";
+					}
 
 					int x = startX - xOffset - (centerToStartX ? ((textWidth / 2) + margin) : 0);
 					int y = startY + yOffset;
@@ -1610,7 +1622,11 @@ namespace frontier
 						y += maxLineHeight;
 
 						if ((!TEXTPOSid.empty()) && (it == textLines.begin()))
-							texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--)\">\n";
+							// Set transformation data.
+							//
+							// Note: Scaling placeholder/value might not get set; unset placehoders will be removed prior output
+							//
+							texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--) --" << TEXTPOSid << "SCALE--\">\n";
 
 						texts[TEXTtextName] << "<text class=\"" << textClass
 											<< "\" x=\"" << x
@@ -2033,7 +2049,7 @@ namespace frontier
 
 								textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
 
-								render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,true,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+								render_text(texts,confPath,surfaceName,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,true,false,false,TEXTPOSid,false,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
 
 								if (textPosition == "area") {
 									// Get text position within the area
@@ -2645,7 +2661,8 @@ namespace frontier
 		  	  	  	  	  	  	  	  	   const std::string & classNameExt,
 		  	  	  	  	  	  	  	  	   const std::string & value,
 		  	  	  	  	  	  	  	  	   double x,double y,
-		  	  	  	  	  	  	  	  	   bool codeValue,bool mappedCode)
+		  	  	  	  	  	  	  	  	   bool codeValue,bool mappedCode,
+		  	  	  	  	  	  	  	  	   double xScale,double yScale)
   {
 	// Nothing to do with empty value
 
@@ -2694,6 +2711,15 @@ namespace frontier
 
 		bool hasScale;
 		double scale = (double) configValue<double,int>(symbolSpecs,confPath,"scale",NULL,s_optional,&hasScale);
+
+		if (xScale > 0.0) {
+			if (!hasScale)
+				scale = xScale;
+			else
+				scale *= xScale;
+
+			hasScale = true;
+		}
 
 		std::ostringstream sc;
 		if (hasScale)
@@ -3267,7 +3293,7 @@ namespace frontier
 
 						textSettings(textOut,textPosition,maxTextWidth,fontSize,tXOffset,tYOffset);
 
-						render_text(texts,confPath,symClass,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,true,false,false,TEXTPOSid,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
+						render_text(texts,confPath,symClass,NFmiStringTools::UrlDecode(textOut),textWidth,textHeight,true,false,false,TEXTPOSid,false,&maxTextWidth,&fontSize,&tXOffset,&tYOffset);
 
 						if (width == 0) width = defaultSymbolWidth;
 						if (height == 0) height = defaultSymbolHeight;
@@ -3543,7 +3569,8 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   const libconfig::Setting & SvgRenderer::cloudLayerConfig(const std::string & _confPath,
-		  	  	  	  	  	  	  	  	  	  	  	  	   double & tightness,bool & borderCompensation,double & minLabelPosHeight,
+		  	  	  	  	  	  	  	  	  	  	  	  	   double & tightness,bool & borderCompensation,
+		  	  	  	  	  	  	  	  	  	  	  	  	   int & minLabelPosHeight,double & labelPosHeightFactor,
 		  	  	  	  	  	  	  	  	  	  	  	  	   std::list<CloudGroup> & cloudGroups,
 		  	  	  	  	  	  	  	  	  	  	  	  	   std::set<size_t> & cloudSet)
   {
@@ -3580,12 +3607,18 @@ namespace frontier
 		if (!isSet)
 			borderCompensation = true;
 
-		// Minimum height (px) for the label position
+		// Minimum absolute/relative height for the label position
 
-		minLabelPosHeight = (double) configValue<double,int>(specs,confPath,"labelheight",NULL,s_optional,&isSet);
+		minLabelPosHeight = configValue<int>(specs,confPath,"minlabelposheight",NULL,s_optional,&isSet);
 
-		if (!isSet)
-			minLabelPosHeight = 40.0;
+		if ((!isSet) || (minLabelPosHeight < (int) labelPosHeightMin)) {
+			labelPosHeightFactor = configValue<double>(specs,confPath,"labelposheightfactor",NULL,s_optional,&isSet);
+
+			if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
+				labelPosHeightFactor = defaultLabelPosHeightFactor;
+
+			minLabelPosHeight = 0;
+		}
 
 		// If bbcenterlabel is true (default: false), cloud label is positioned to the center of the cloud's bounding box;
 		// otherwise using 1 or 2 elevations in the middle of the cloud in x -direction
@@ -3853,12 +3886,12 @@ namespace frontier
 	std::string label = cg.label();
 
 	if (!label.empty())
-		texts[cg.labelPlaceHolder()] << "<text class=\"" << cg.textClassDef()
-									 << "\" id=\"" << "CloudLayersText" << nGroups
-									 << "\" text-anchor=\"middle"
-									 << "\" x=\"" << x
-									 << "\" y=\"" << (lopx - ((lopx - hipx) / 2))
-									 << "\">" << label << "</text>\n";
+		texts[cg.markerPlaceHolder()] << "<text class=\"" << cg.textClassDef()
+									  << "\" id=\"" << "CloudLayersText" << nGroups
+									  << "\" text-anchor=\"middle"
+									  << "\" x=\"" << x
+									  << "\" y=\"" << (lopx - ((lopx - hipx) / 2))
+									  << "\">" << label << "</text>\n";
   }
 
   // ----------------------------------------------------------------------
@@ -3899,17 +3932,165 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Utility function for getting area's label position(s)
+   * \brief Erase used/reserved fill areas to avoid overlapping
+   *		labels/symbols etc
    */
   // ----------------------------------------------------------------------
 
-  void getAreaLabelPos(bool bbCenterLabel,
-		  	  	  	   double minx,double axisHeight,double axisWidth,double xStep,double minh,double sOffset,double eOffset,
-		  	  	  	   std::vector<double> & _lopx,std::vector<double> & _hipx,
-		  	  	  	   std::vector<bool> & hasHole,
-		  	  	  	   std::vector<double> & labelX,std::vector<double> & labelY)
+  void eraseReservedAreas(const NFmiFillAreas & reservedAreas,NFmiFillAreas & fillAreas,bool isHole = false)
   {
-	double lopx,lx,ly;
+	// Allow some overlap for nonholes
+
+	int overlap = (isHole ? -fillAreaOverlapMax : fillAreaOverlapMax);
+
+	for (NFmiFillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
+		for (NFmiFillAreas::iterator fiter = fillAreas.begin(); (fiter != fillAreas.end()); )
+			if (
+				(fiter->first.x < riter->second.x) && (fiter->second.x >= (riter->first.x + overlap)) &&
+				(fiter->first.y < riter->second.y) && (fiter->second.y >= (riter->first.y + overlap))
+			   ) {
+//fprintf(stderr,">> erase %.0f,%.0f - %.0f,%.0f [%.0f,%.0f - %.0f,%.0f]\n",fiter->first.x,fiter->first.y,fiter->second.x,fiter->second.y,riter->first.x,riter->first.y,riter->second.x,riter->second.y);
+				fiter = fillAreas.erase(fiter);
+			}
+			else
+				fiter++;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Check if given marker (label or symbol) position is free.
+   *		Return the bbox if the position is free, otherwise an empty list
+   *		is returned.
+   */
+  // ----------------------------------------------------------------------
+
+  NFmiFillAreas getMarkerArea(const NFmiFillAreas & holeAreas,const NFmiFillAreas & reservedAreas,double mx,double my,int markerWidth,int markerHeight)
+  {
+	NFmiFillAreas markerArea;
+
+	markerArea.push_back(std::make_pair(Point(mx - (markerWidth / 2.0),my - (markerHeight / 2.0)),Point(mx + (markerWidth / 2.0),my + (markerHeight / 2.0))));
+
+	eraseReservedAreas(holeAreas,markerArea,true);
+	eraseReservedAreas(reservedAreas,markerArea);
+
+	return markerArea;
+  }
+
+  NFmiFillAreas getMarkerArea(const NFmiFillAreas & holeAreas,const NFmiFillAreas & reservedAreas,double & mx,double my,int & markerWidth,int & markerHeight,bool checkBwd,bool checkFwd,double xStep)
+  {
+	NFmiFillAreas markerArea;
+	double x = mx;
+	int w = markerWidth,h = markerHeight;
+
+	do {
+		// Check the given position
+
+		markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
+
+		if (markerArea.empty() && checkBwd) {
+			// Check half timestep backwards
+			//
+			mx = x - (xStep / 2);
+			markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
+
+			// Check 1/4 timestep backwards
+
+			if (markerArea.empty()) {
+				mx = x - (xStep / 4);
+				markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
+			}
+		}
+
+		if (markerArea.empty() && checkFwd) {
+			// Check half timestep forwards
+			//
+			mx = x + (xStep / 2);
+			markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
+
+			// Check 1/4 timestep forwards
+
+			if (markerArea.empty()) {
+				mx = x + (xStep / 4);
+				markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
+			}
+		}
+
+		if (markerArea.empty()) {
+			markerWidth -= 2;
+			markerHeight -= 2;
+		}
+	}
+	while (markerArea.empty() && (markerWidth >= (w / 2.0)) && (markerHeight >= (h / 2.0)));
+
+	return markerArea;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Get area's marker (label or symbol) position(s); return one
+   *		position (markerX and markerY) for each separate visible part
+   *		of the area.
+   *
+   *		The available positions are checked against 'holeAreas' and 'reservedAreas'.
+   *		If the area is a hole, all available positions are added to 'holeAreas'.
+   *		The selected positions are added to 'reservedAreas'.
+   *
+   *		Note: Separate 'holeAreas' is used by each feature to ignore feature's
+   *			  holes. 'reservedAreas' is used across features.
+   */
+  // ----------------------------------------------------------------------
+
+  void getAreaMarkerPos(const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,NFmiFillAreas & reservedAreas,bool isHole,bool bbCenterMarker,bool labelOutput,
+		  	  	  	    int windowWidth,int windowHeight,
+		  	  	  	    double minx,double axisHeight,double axisWidth,double xStep,double minh,double sOffset,double eOffset,
+		  	  	  	    int markerWidth,int markerHeight,double markerScale,
+		  	  	  	    std::vector<double> & _lopx,std::vector<double> & _hipx,std::vector<bool> & hasHole,
+		  	  	  	    std::list<double> & markerX,std::list<double> & markerY,
+		  	  	  	    std::list<double> & scaleX,std::list<double> & scaleY,
+		  	  	  	    boost::ptr_map<std::string,std::ostringstream> * areasOut = NULL,const std::string & areaPlaceHolder = "")
+  {
+	// Get fill areas
+
+	NFmiFillMap fillMap;
+	NFmiFillAreas fillAreas;
+	std::list<DirectPosition>::const_iterator cpend = curvePoints.end(),itcp = curvePoints.begin(),pitcp = curvePoints.begin();
+	std::list<std::pair<double,double> > scale;
+	double mw = markerWidth,mh = markerHeight,lopx,mx,my,xScale = 1.0,yScale = 1.0;
+
+	for (itcp++; (itcp != cpend); itcp++, pitcp++)
+		fillMap.Add(pitcp->getX(),pitcp->getY(),itcp->getX(),itcp->getY());
+
+	fillMap.getFillAreas(windowWidth,windowHeight,markerWidth,markerHeight,1.0,false,fillAreas,isHole && labelOutput,false,isHole && (!labelOutput));
+
+	if (isHole && (!labelOutput)) {
+		// Just reserve the area of the hole
+		//
+		holeAreas.insert(holeAreas.end(),fillAreas.begin(),fillAreas.end());
+
+		return;
+	}
+
+	if (!fillAreas.empty()) {
+		// Erase reserved fill areas
+		//
+		splitFillAreas(fillAreas,markerWidth,1.0);
+
+		eraseReservedAreas(holeAreas,fillAreas,true);
+		eraseReservedAreas(reservedAreas,fillAreas);
+
+		fillAreas.sort(sortFillAreas);
+	}
+
+	if (isHole) {
+		// Reserve the area of the hole ('fillAreas' contain fill areas suitable for the label, load/save the area of the hole as fill areas too)
+		//
+		NFmiFillAreas holeFillAreas;
+
+		fillMap.getFillAreas(windowWidth,windowHeight,0,0,0.0,false,holeFillAreas,false,true);
+		holeAreas.insert(holeAreas.end(),holeFillAreas.begin(),holeFillAreas.end());
+	}
+
+	NFmiFillAreas::iterator area = fillAreas.begin();
 
 	for (int npx = 0,nX = 0,n0 = 0; (npx < ((int) _lopx.size())); ) {
 		// Step until end of data or area is no longer visible
@@ -3922,7 +4103,7 @@ namespace frontier
 				//
 				n0 = npx;
 
-			if (bbCenterLabel && (npx > 0)) {
+			if (bbCenterMarker && (npx > 0)) {
 				// Keep track of bounding box
 				//
 				double hipx = std::max(_hipx[npx],0.0);
@@ -3941,132 +4122,441 @@ namespace frontier
 		if (((lopx > 0) && (npx < ((int) _lopx.size()))) || (nX == 0))
 			continue;
 
-		if (!bbCenterLabel) {
-			// Use 1 or 2 elevations in the middle or a elevation as near as possible to the middle of
-			// the area in x -direction and having enough height for the label.
+		if (!bbCenterMarker) {
+			// Use a fill area if available
 			//
-			// To favour the center of the area, use the middlest position having at least 70% of
+			NFmiFillAreas areas;
+
+			if (area != fillAreas.end()) {
+				int timeSteps = nX;
+
+				if (npx < ((int) _lopx.size()))
+					for (int idx = npx; ((idx < ((int) _lopx.size())) && (_lopx[idx] <= 0)); idx++)
+						timeSteps++;
+
+				for ( ; ((area != fillAreas.end()) && (area->first.x < (minx + ((n0 + timeSteps) * xStep)))); area++)
+				{
+					// Ignore areas going below 0 over 1/3'rd
+
+					if (area->second.y <= (axisHeight + ((area->second.y - area->first.y) / 3)))
+						areas.push_back(*area);
+//fprintf(stderr,"\t%s n0=%d nN=%d xLim=%.0f bl=%.0f,%.0f tr=%.0f,%.0f\n",area->second.y <= (axisHeight + ((area->second.y - area->first.y) / 3)) ? "Pick" : "Skip",n0,n0 + timeSteps,(minx + ((n0 + timeSteps) * xStep)),area->first.x,area->first.y,area->second.x,area->second.y);
+				}
+
+				if (!areas.empty()) {
+					if (areasOut && (!areaPlaceHolder.empty())) {
+						boost::ptr_map<std::string,std::ostringstream> & texts = *areasOut;
+
+						texts[areaPlaceHolder] << "<line x1=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y1=\"0\""
+											   <<      " x2=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y2=\"" << axisHeight
+											   <<      "\" style=\"stroke:rgb(255,0,0);stroke-width:2\"/>";
+
+						const char *clrs[] =
+						{ "red",
+						  "blue",
+						  "green",
+						  "orange",
+						  "brown",
+						  "yellow"
+						};
+
+						size_t clrCnt = (sizeof(clrs) / sizeof(char *)),clrIdx = 0;
+
+						for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
+							texts[areaPlaceHolder] << "<rect x=\"" << iter->first.x
+												   << "\" y=\"" << iter->first.y
+												   << "\" width=\"" << iter->second.x - iter->first.x
+												   << "\" height=\"" << iter->second.y - iter->first.y
+												   << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
+							clrIdx++;
+						}
+					}
+//fprintf(stderr,"\n");
+
+					// Note: Symbols are centered to the selected position, labels have their height as the rendered y -coordinate (x is 0);
+					//		 adjust the position (used as tranformation offsets) for a label to center it to the selected position
+
+					NFmiFillRect markerRect = getCenterFillAreaRect(areas,markerWidth,1.0);
+					markerX.push_back(markerRect.first.x + (labelOutput ? 0 : ((markerRect.second.x - markerRect.first.x) / 2)));
+					markerY.push_back(markerRect.first.y + (labelOutput ? 0 : ((markerRect.second.y - markerRect.first.y) / 2)));
+					scaleX.push_back(1.0);
+					scaleY.push_back(1.0);
+
+					reservedAreas.push_back(std::make_pair(Point(markerRect.first.x,markerRect.first.y),Point(markerRect.second.x,markerRect.second.y)));
+//fprintf(stderr,"\tFR Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",markerRect.first.x,markerRect.first.y,markerRect.second.x,markerRect.second.y);
+
+					nX = 0;
+					continue;
+				}
+			}
+
+			// Use 1 or 2 elevations in the middle or a elevation as near as possible to the middle of
+			// the area in x -direction and having enough height for the marker.
+			//
+			// To favour the center of the area, use the nearest middle position having at least 70% of
 			// the selected position's height.
 			//
-			// If the 2 middle elevations have holes, use the taller one; by using the center of the
-			// elevations without additional checks the label might end up in a hole.
+			// Note: The holes are now checked with fill areas ('hasHole' not used anymore):
 			//
-			double sellx = 0.0,selly = 0.0;			// Selected label position
-			double sellfvx = 0.0,sellfvy = 0.0;		// Favoured label position
-			double selh = 0.0,selfvh = 0.0,h;		// Height of label position
+			// // If the 2 middle elevations have holes, use the taller one; by using the center of the
+			// // elevations without additional checks the marker might end up in a hole.
+			//
+
+			double selmx = 0.0,selmy = 0.0;			// Selected marker position
+			double selmfvx = 0.0,selmfvy = 0.0;		// Favoured marker position
+			double selh = 0.0,selfvh = 0.0,h;		// Height of marker position
+			double selfrh = 0.0;					// Height of free marker position
 			double fvlim = 0.7;						// Using 70% as the favouring limit
-			bool nearest = false;					// Set if the primary position (middle elevation) did not have enough room for the label
-			bool multiple = false,fvmul = false;	// Set if using center of 2 middle elevations as label position
+			bool nearest = false;					// Set if the primary position (middle elevation) did not have enough room for the marker
+			bool multiple = false,fvmul = false;	// Set if using center of 2 middle elevations as marker position
 
 			int n = n0 + ((nX - 1) / 2);		// Middle elevation
 			int nS = n;							// Selected elevation
 			int nN = n0 + nX - 1;				// Last elevation
 			int n2 = n + ((nX > 1) ? 1 : 0);	// Right side elevation
 			int n1 = n2 - ((nX > 1) ? 1 : 0);	// Left side elevation
+			int selhoff = -1;					// Index of selected marker position
+			int selfroff = -1;					// Index of heighest free marker position
+			int selfvoff = -1;					// Index of favoured free marker position
 
 			for ( ; (n2 <= nN); ) {
-				if (nearest || (nX % 2) || hasHole[n1] || hasHole[n2]) {
+				if (nearest || (nX % 2) /* The holes are now checked with fill areas: || hasHole[n1] || hasHole[n2] */) {
 					if (nearest || ((nX % 2) == 0)) {
 						// Select the taller elevation
 						//
-						n = (((_lopx[n2] - _hipx[n2]) > (_lopx[n1] - _hipx[n1])) ? n2 : n1);
+						// Note: The holes are now checked with fill areas ...
+						//
+//						n = (((_lopx[n2] - _hipx[n2]) > (_lopx[n1] - _hipx[n1])) ? n2 : n1);
+//
+//						n2++;
+//						n1--;
 
-						n2++;
-						n1--;
+						// ... scanning the left side first
+
+						if (n1 >= 0) {
+							n = n1;
+							n1--;
+						}
+						else {
+							n = n2;
+							n2++;
+						}
 					}
 					else
 						n1--;
 
 					double lo = std::min(_lopx[n],axisHeight),hi = std::max(_hipx[n],0.0);
 
-					lx = minx + ((nS = n) * xStep);
-					ly = lo - ((lo - hi) / 2);
+					mx = minx + ((nS = n) * xStep);
+					my = lo - ((lo - hi) / 2);
 
 					h = lo - hi;
 
 					multiple = false;
+//fprintf(stderr,"\tCheck (%d,%d) %d mx=%.0f my=%.0f h=%.0f\n",n2,n1,n,mx,my,h);
 				}
 				else {
 					double lo2 = std::min(_lopx[n2],axisHeight),hi2 = std::max(_hipx[n2],0.0);
 					double lo1 = std::min(_lopx[n1],axisHeight),hi1 = std::max(_hipx[n1],0.0);
 
-					lx = minx + (n1 * xStep) + (xStep / 2);
+					mx = minx + (n1 * xStep) + (xStep / 2);
 
 					double y2 = lo2 - ((lo2 - hi2) / 2);
 					double y1 = lo1 - ((lo1 - hi1) / 2);
 
 					if (y2 > y1) {
-						ly = lo1 - ((lo1 - hi2) / 2);
+						my = lo1 - ((lo1 - hi2) / 2);
 						h = lo2 - hi2;
 					}
 					else {
-						ly = lo2 - ((lo2 - hi1) / 2);
+						my = lo2 - ((lo2 - hi1) / 2);
 						h = lo1 - hi1;
 					}
 
 					n2++;
 					n1--;
+					n = nN;
 
 					multiple = true;
+//fprintf(stderr,"\tCheck %d,%d mx=%.0f my=%.0f h=%.0f\n",n2,n1,mx,my,h);
 				}
+
+				// Check the current x -position and 1/4 and 1/2 timesteps backwards/forwards if there's free space for the marker.
+				//
+				// Scale the marker down to half width/height if needed
+
+				double x = mx;
+				NFmiFillAreas markerArea = getMarkerArea(holeAreas,reservedAreas,x,my,markerWidth,markerHeight,(n > n0),(n < nN),xStep);
+
+				if (!markerArea.empty()) {
+					// Free, store the center point and scale
+					//
+					areas.push_back(std::make_pair(Point(x,my),Point(x,my)));
+					scale.push_back(std::make_pair(markerWidth / mw,markerHeight / mh));
+
+					if (selfrh < h) {
+						// Highest free position
+						//
+						selfrh = h;
+						selfroff = areas.size();
+					}
+				}
+
+				markerWidth = mw;
+				markerHeight = mh;
 
 				if ((h > minh) || (h > selh)) {
 					selh = h;
-					sellx = lx;
-					selly = ly;
+					selmx = mx;
+					selmy = my;
 
-					if (selh > minh)
-						break;
+					if (!markerArea.empty()) {
+						// Select the last fill area
+						//
+						selhoff = areas.size();
+
+						if (selh >= minh)
+							break;
+					}
 
 					if (selfvh < (fvlim * selh)) {
 						selfvh = selh;
-						sellfvx = sellx;
-						sellfvy = selly;
+						selmfvx = selmx;
+						selmfvy = selmy;
 						fvmul = multiple;
+
+						if (!markerArea.empty())
+							// Favour the last fill area
+							//
+							selfvoff = areas.size();
 					}
 				}
 
 				nearest = true;
 			}
 
-			if ((selh < minh) || (selfvh >= (fvlim * selh))) {
-				lx = sellfvx;
-				ly = sellfvy;
-				multiple = fvmul;
+			if ((selhoff >= 0) || (selfroff >= 0)) {
+				// Using the last (selh; selh > minh), favoured (selfvh) or the heighest free (selfrh) fill area
+				//
+				NFmiFillAreas::const_iterator it = areas.begin();
+				std::list<std::pair<double,double> >::const_iterator sit = scale.begin();
+
+				if (selhoff < 0)
+					selhoff = selfvoff = selfroff;
+
+				advance(it,(selh >= minh) ? selhoff - 1 : selfvoff - 1);
+				advance(sit,(selh >= minh) ? selhoff - 1 : selfvoff - 1);
+
+				mx = it->first.x;
+				my = it->first.y;
+				xScale = sit->first;
+				yScale = sit->second;
 			}
 			else {
-				lx = sellx;
-				ly = selly;
-			}
+				// No free fill areas, using the highest/favoured position
+				//
+				if ((selh < minh) || (selfvh >= (fvlim * selh))) {
+					mx = selmfvx;
+					my = selmfvy;
+					multiple = fvmul;
+				}
+				else {
+					mx = selmx;
+					my = selmy;
+				}
 
-			// To better keep the label within the area adjust the x -position slightly if using area's
-			// first or last elevation for labeling.
-			//
-			// For single elevation areas make adjustment only for document's first and last time instant's elevations.
-			// Take the extension offsets (how much the elevation exceeds the begin or end of the x -axis) into
-			// account when calculating the label position.
+				// Scale marker down to half size
 
-			if ((!multiple) && ((nS == n0) || (nS == nN))) {
-				if (nN != n0)
-					lx -= (((nS == n0) ? -1 : 1) * (xStep / 5));
-				else if (minx < (xStep / 2))
-					lx += ((xStep / 5) - sOffset);
-				else if (fabs(axisWidth - minx) < (xStep / 2))
-					lx -= ((xStep / 5) - eOffset);
+				xScale = yScale = ((markerScale > 0.5) ? (0.5 / markerScale) : 1.0);
+
+				// To better keep the marker within the area adjust the x -position slightly if using area's
+				// first or last elevation.
+				//
+				// For single elevation areas make adjustment only for document's first and last time instant's elevations.
+				// Take the extension offsets (how much the elevation exceeds the begin or end of the x -axis) into
+				// account when calculating the marker position.
+
+				if ((!multiple) && ((nS == n0) || (nS == nN))) {
+					if (nN != n0)
+						mx -= (((nS == n0) ? -1 : 1) * (xStep / 5));
+					else if (minx < (xStep / 2))
+						mx += ((xStep / 5) - sOffset);
+					else if (fabs(axisWidth - minx) < (xStep / 2))
+						mx -= ((xStep / 5) - eOffset);
+				}
 			}
 		}
 		else {
 			double xmin = minx + (n0 * xStep);
 			double xmax = xmin + ((nX - 1) * xStep);
 
-			lx = (xmax - ((xmax - xmin) / 2));
-			ly = (_lopx[0] - ((_lopx[0] - std::max(_hipx[0],0.0)) / 2));
+			mx = (xmax - ((xmax - xmin) / 2));
+			my = (_lopx[0] - ((_lopx[0] - std::max(_hipx[0],0.0)) / 2));
 		}
 
-		labelX.push_back(lx);
-		labelY.push_back(ly);
+		// Note: Symbols are centered to the selected position, labels have their height as the rendered y -coordinate (x is 0);
+		//		 adjust the position (used as tranformation offset) for a label to center it to the selected position
+
+		markerWidth = xScale * mw;
+		markerHeight = yScale * mh;
+
+		markerX.push_back(mx - (labelOutput ? (markerWidth / 2.0) : 0));
+		markerY.push_back(my - (labelOutput ? (markerHeight / 2.0) : 0));
+		scaleX.push_back(xScale);
+		scaleY.push_back(yScale);
+
+		reservedAreas.push_back(std::make_pair(Point(mx - (markerWidth / 2.0),my - (markerHeight / 2.0)),Point(mx + (markerWidth / 2.0),my + (markerHeight / 2.0))));
+//fprintf(stderr,"\tNF Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",mx - (markerWidth / 2.0),my - (markerHeight / 2.0),mx + (markerWidth / 2.0),my + (markerHeight / 2.0));
 
 		nX = 0;
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Render a label to each separate visible part of a area.
+   *		For a hole just store the area as reserved.
+   */
+  // ----------------------------------------------------------------------
+
+  void SvgRenderer::renderAreaLabels(const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,const std::string & confPath,const std::string & textName,const std::string & labelPlaceHolder,const std::string & textPosId,bool isHole,const std::string & label,bool bbCenterLabel,
+		  	  	  	  	  	  	  	 double minX,int minH,double hFactor,double sOffset,double eOffset,
+		  	  	  	  	  	  	  	 std::vector<double> & loPx,std::vector<double> & hiPx,std::vector<bool> & hasHole,
+		  	  	  	  	  	  	  	 const std::string & areaPlaceHolder)
+  {
+	using boost::algorithm::replace_all_copy;
+
+	double minLabelPosHeight = 0.0;
+	int textWidth = 0,textHeight = 0;
+
+	if (!label.empty()) {
+		// Render the label to fixed position (0,0). The final positions are set afterwards by using transformation offsets
+		//
+		texts[textName].str("");
+		render_text(texts,confPath,textName,label,textWidth,textHeight,true,false,false,textPosId,true);
+
+		minLabelPosHeight = ((minH > 0) ? minH : (hFactor * textHeight));
+	}
+
+	// Get and reserve label positions for each separate visible part of the area
+
+	std::list<double> labelX,labelY,scaleX,scaleY;
+
+	getAreaMarkerPos(curvePoints,holeAreas,reservedAreas,isHole,bbCenterLabel,!label.empty(),
+					 static_cast<int>(std::floor(0.5+area->Width())),
+					 static_cast<int>(std::floor(0.5+area->Height())),
+					 minX,axisManager->axisHeight(),axisManager->axisWidth(),axisManager->xStep(),minLabelPosHeight,sOffset,eOffset,
+					 textWidth,textHeight,1.0,
+					 loPx,hiPx,hasHole,
+					 labelX,labelY,scaleX,scaleY,
+					 areaPlaceHolder.empty() ? NULL : &texts,areaPlaceHolder);
+
+	if (label.empty())
+		return;
+
+	// Render the label
+
+	using boost::algorithm::replace_first_copy;
+
+	std::string svg = texts[textName].str(),textPosId0("--" + textPosId + "--"),scaleId0("--" + textPosId + "SCALE--");
+	std::list<double>::const_iterator itX,itY,sitX,sitY;
+
+	static int placeHolderIndex = 0;
+
+//fprintf(stderr,"\nSvg: %s\n",svg.c_str());
+	for (itX = labelX.begin(),itY = labelY.begin(),sitX = scaleX.begin(),sitY = scaleY.begin(); (itX != labelX.end()); itX++, itY++, sitX++, sitY++, placeHolderIndex++) {
+		std::string textPosIdN(textPosId + boost::lexical_cast<std::string>(placeHolderIndex));
+		std::string scaleIdN(textPosId + "SCALE" + boost::lexical_cast<std::string>(placeHolderIndex));
+		std::string s(replace_first_copy(svg,textPosId0,"--" + textPosIdN + "--"));
+
+		texts[labelPlaceHolder] << replace_first_copy(s,scaleId0,"--" + scaleIdN + "--");
+		texts[textPosIdN] << std::fixed << std::setprecision(1) << *itX << "," << *itY;
+		texts[scaleIdN] << std::fixed << std::setprecision(1) << "scale(" << *sitX << "," << *sitY << ")";
+//fprintf(stderr,"Out %s=%s %s=%s\n",labelPlaceHolder.c_str(),texts[labelPlaceHolder].str().c_str(),textPosIdN.c_str(),texts[textPosIdN].str().c_str());
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Render a symbol to each separate visible part of a area
+   */
+  // ----------------------------------------------------------------------
+
+  template <typename T>
+  void SvgRenderer::renderAreaSymbols(const T & cg,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,const std::string & confPath,
+		  	  	  	  	  	  	  	  double minx,std::vector<double> & loPx,std::vector<double> & hiPx,std::vector<bool> & hasHole,
+		  	  	  	  	  	  	  	  const std::string & symClass,const std::string & classNameExt,const std::string & symbol,
+		  	  	  	  	  	  	  	  bool asSymbol,bool & visible,bool & aboveTop)
+  {
+	std::list<const libconfig::Setting *> scope;
+
+	const char * typeMsg = " must contain a group in curly brackets";
+
+	const libconfig::Setting & specs = config.lookup(confPath);
+	if(!specs.isGroup())
+		throw std::runtime_error(confPath + typeMsg);
+
+	scope.push_back(&specs);
+
+	if (cg.globalScope())
+		scope.push_back(cg.globalScope());
+
+	scope.push_back(cg.localScope());
+
+	// Symbol height, width, scale and minimum absolute/relative height for the symbol position
+
+	bool isSet;
+
+	int height = configValue<int>(scope,confPath,"height",s_optional,&isSet);
+	if (!isSet)
+		height = defaultSymbolHeight;
+
+	int width = configValue<int>(scope,confPath,"width",s_optional,&isSet);
+	if (!isSet)
+		width = defaultSymbolWidth;
+
+	double scale = configValue<double>(scope,confPath,"scale",s_optional,&isSet);
+	if (!isSet)
+		scale = 1.0;
+
+	int minSymbolPosHeight = configValue<int>(scope,confPath,"minsymbolposheight",s_optional,&isSet);
+	if ((!isSet) || (minSymbolPosHeight < (height * symbolPosHeightFactorMin))) {
+		double symbolPosHeightFactor = configValue<double>(scope,confPath,"symbolposheightfactor",s_optional,&isSet);
+
+		if ((!isSet) || (symbolPosHeightFactor < symbolPosHeightFactorMin))
+			symbolPosHeightFactor = defaultSymbolPosHeightFactor;
+
+		minSymbolPosHeight = height * scale * symbolPosHeightFactor;
+	}
+
+	// Get and reserve symbol position for each separate visible part of the area
+
+	std::list<double> symbolX,symbolY,scaleX,scaleY;
+	std::list<double>::const_iterator itx,ity,sitx,sity;
+	double axisHeight = axisManager->axisHeight(),x,y;
+
+	getAreaMarkerPos(curvePoints,holeAreas,reservedAreas,false,cg.bbCenterMarker(),false,
+					 static_cast<int>(std::floor(0.5+area->Width())),
+					 static_cast<int>(std::floor(0.5+area->Height())),
+					 minx,axisManager->axisHeight(),axisManager->axisWidth(),axisManager->xStep(),minSymbolPosHeight,cg.sOffset(),cg.eOffset(),
+					 width * scale,height * scale,scale,
+					 loPx,hiPx,hasHole,
+					 symbolX,symbolY,scaleX,scaleY,
+					 options.debug ? &texts : NULL,options.debug ? cg.placeHolder() + "FILLAREAS" : "");
+
+	// Render the symbol
+
+	for (itx = symbolX.begin(),ity = symbolY.begin(),sitx = scaleX.begin(),sity = scaleY.begin(); (itx != symbolX.end()); itx++, ity++, sitx++, sity++) {
+		render_aerodromeSymbol(confPath,symClass,classNameExt,symbol,(x = *itx),(y = *ity),true,true,*sitx,*sity);
+
+		if (asSymbol) {
+			// The symbol should be visible, checking anyway
+			//
+			if ((y > 0) && (y < axisHeight))
+				visible = true;
+			else if (y < 0)
+				aboveTop = true;
+		}
 	}
   }
 
@@ -4663,12 +5153,13 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const std::string CLOUDLAYERS(boost::algorithm::to_upper_copy(confPath));
 
 	bool visible = false,aboveTop = false,borderCompensation;
-	double tightness,minLabelPosHeight;
+	double tightness,labelPosHeightFactor;
+	int minLabelPosHeight;
 	CloudGroupCategory cloudGroupCategory;
 
 	std::set<size_t> cloudSet;
 
-	cloudLayerConfig(confPath,tightness,borderCompensation,minLabelPosHeight,cloudGroupCategory.groups(),cloudSet);
+	cloudLayerConfig(confPath,tightness,borderCompensation,minLabelPosHeight,labelPosHeightFactor,cloudGroupCategory.groups(),cloudSet);
 
 	// Document's time period, cloud layer time series and x -axis step (px)
 
@@ -4676,7 +5167,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const std::list<woml::TimeSeriesSlot> & ts = cloudlayers.timeseries();
 
 	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-	double xStep = axisManager->xStep();
 
 	// Elevation group and curve point data
 
@@ -4693,15 +5183,25 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// Search and flag elevation holes
 
-	searchHoles(ts,&cloudGroupCategory);
+	NFmiFillAreas holeAreas;
+	bool hasHole = searchHoles(ts,&cloudGroupCategory);
 
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,false,true,&cloudGroupCategory);
+		// Note: Holes are loaded first; they (fill areas extracted from them) are added to reserved areas
+		//		 before loading the clouds and positioning the labels
+		//
+		elevationGroup(ts,bt,et,eGrp,false,true,hasHole,&cloudGroupCategory);
 
-		if (eGrp.size() == 0)
+		if (eGrp.size() == 0) {
+			if (hasHole) {
+				hasHole = false;
+				continue;
+			}
+
 			break;
+		}
 
 		nGroups++;
 
@@ -4760,8 +5260,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		// Render path
 
-		std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
-		std::list<DoubleArr>::iterator itdp = decoratorPoints.begin();
+		std::list<DirectPosition>::const_iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp;
+		std::list<DoubleArr>::const_iterator itdp = decoratorPoints.begin();
 
 		if (options.debug) {
 			path.clear();
@@ -4772,7 +5272,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			if (itcp == cpbeg)
 				path << "M";
 			else {
-				path << " Q" << (*itdp)[0] << "," << (*itdp)[1];
+				path << " Q" << itdp->getX() << "," << itdp->getY();
 //pnts << "<circle cx=\"" << (*itdp)[0] << "\" cy=\"" << (*itdp)[1]+150 << "\" r=\"5\" stroke=\"black\" stroke-width=\"1\" fill=\"yellow\"/>";
 				itdp++;
 			}
@@ -4797,33 +5297,19 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 								   << "\"/>\n";
 //texts[itcg->placeHolder()] << pnts.str();
 
-		if (!isHole) {
-			std::string label = cloudGroupCategory.groupLabel();
+		std::string label = cloudGroupCategory.groupLabel();
 
-			if (!label.empty()) {
-				// Render label to the center of each visible part of the cloud
-				//
-				// x -coord of group's first time instant
-				//
-				const boost::posix_time::ptime & vt = eGrp.front().validTime();
-				double minX = axisManager->xOffset(vt);
+		if (!label.empty()) {
+			// For a hole store it's area as reserved, otherwise render the label to each separate visible part of the cloud
+			//
+			// x -coord of group's first time instant
+			//
+			const boost::posix_time::ptime & vt = eGrp.front().validTime();
+			double minX = axisManager->xOffset(vt);
 
-				std::vector<double> labelX,labelY;
-				std::vector<double>::const_iterator itx,ity;
-				int n;
-
-				getAreaLabelPos(itcg->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,itcg->sOffset(),itcg->eOffset(),
-								scaledLo,scaledHi,hasHole,labelX,labelY);
-
-				for (itx = labelX.begin(),ity = labelY.begin(),n = 0; (itx != labelX.end()); itx++, ity++, n++) {
-					texts[itcg->labelPlaceHolder()] << "<text class=\"" << itcg->textClassDef()
-													<< "\" id=\"" << "CloudLayersText" << nGroups << n
-													<< "\" text-anchor=\"middle"
-													<< "\" x=\"" << *itx
-													<< "\" y=\"" << *ity
-													<< "\">" << label << "</text>\n";
-				}
-			}
+			renderAreaLabels(curvePoints,holeAreas,areaLabels,"CLOUDLAYERSLABEL",itcg->markerPlaceHolder(),"ZZCloudLayersText",isHole,isHole ? "" : label,itcg->bbCenterMarker(),
+							 minX,minLabelPosHeight,labelPosHeightFactor,itcg->sOffset(),itcg->eOffset(),scaledLo,scaledHi,hasHole,
+							 options.debug ? itcg->placeHolder() + "FILLAREAS" : "");
 		}
 	}	// for group
 
@@ -4920,6 +5406,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		  	  	  	  	  	  	  	  	  	  	  	  	  	  ElevGrp & eGrp,
 		  	  	  	  	  	  	  	  	  	  	  	  	  	  bool all,
 		  	  	  	  	  	  	  	  	  	  	  	  	  	  bool join,
+		  	  	  	  	  	  	  	  	  	  	  	  	  	  bool getHole,
 		  	  	  	  	  	  	  	  	  	  	  	  	  	  CategoryValueMeasureGroup * categoryGroup)
   {
 	// Collect group of elevations.
@@ -4937,7 +5424,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	std::list<woml::TimeSeriesSlot>::const_iterator tsend = ts.end();
 	std::list<woml::TimeSeriesSlot>::const_iterator itts,pitts;
 
-	bool byCategory = (categoryGroup != NULL),groundGrp = false,nonGroundGrp = false,hole = false;
+	bool byCategory = (categoryGroup != NULL),groundGrp = false,nonGroundGrp = false,hole = getHole;
 	double nonZ = axisManager->nonZeroElevation();
 
 	eGrp.clear();
@@ -4971,7 +5458,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			for ( ; (itpv != pvend); itpv++) {
 				// Not mixing holes and nonholes
 				//
-				if ((eGrp.size() > 0) && (hole != ((itpv->getFlags() & ElevationGroupItem::b_isHole) ? true : false)))
+				if (((eGrp.size() > 0) || getHole) && (hole != ((itpv->getFlags() & ElevationGroupItem::b_isHole) ? true : false)))
 					continue;
 
 				const woml::Elevation & e = itpv->elevation();
@@ -5304,7 +5791,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  void SvgRenderer::checkHoles(ElevGrp & eGrp,ElevationHoles & holes,CategoryValueMeasureGroup * groupCategory,bool setNegative)
+  bool SvgRenderer::checkHoles(ElevGrp & eGrp,ElevationHoles & holes,CategoryValueMeasureGroup * groupCategory,bool setNegative)
   {
 	// Check if the holes are closed by left side closed holes on the left side or by elevations on the right side.
 
@@ -5329,7 +5816,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	// Check if all overlapping holes have both sides closed. Repeat until no "leaks" are found (all overlapping holes
 	// are set to open if needed), rolling the status changes (set to open) to neighbour holes one hole at a time.
 
-	bool reScan;
+	bool reScan,hasHole = false;
 
 	do {
 		reScan = false;
@@ -5406,11 +5893,13 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		boost::optional<woml::Elevation> eHole(hElev);
 
 		(holeElev = iteh->belowElev)->Pv()->elevation(*eHole);
-		holeElev->isHole(true);
+		holeElev->isHole(hasHole = true);
 
 		if (setNegative)
 			holeElev->isNegative(true);
 	}
+
+	return hasHole;
   }
 
   // ----------------------------------------------------------------------
@@ -5538,7 +6027,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
    */
   // ----------------------------------------------------------------------
 
-  void SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot> & ts,CategoryValueMeasureGroup * groupCategory,bool setNegative)
+  bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot> & ts,CategoryValueMeasureGroup * groupCategory,bool setNegative)
   {
 	// Get all elevations.
 	//
@@ -5669,7 +6158,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	// in the underlying woml object collection. For nonclosed holes the generated elevations (if any) are
 	// deleted.
 
-	checkHoles(eGrp,holes,groupCategory,setNegative);
+	return checkHoles(eGrp,holes,groupCategory,setNegative);
   }
 
   // ----------------------------------------------------------------------
@@ -5917,7 +6406,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   template <typename T>
   const libconfig::Setting & SvgRenderer::groupConfig(const std::string & groupConfPath,
-		  	  	  	  	  	  	  	  	  	  	  	  double & tightness,double & minLabelPosHeight,
+		  	  	  	  	  	  	  	  	  	  	  	  double & tightness,
+	  	  	  	  	  	  	  	  	  	  	  	  	  int & minLabelPosHeight,double & labelPosHeightFactor,
 		  	  	  	  	  	  	  	  	  	  	  	  std::list<T> & groups,
 		  	  	  	  	  	  	  	  	  	  	  	  std::set<size_t> & memberSet)
   {
@@ -5947,12 +6437,18 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			//
 			tightness = -1.0;
 
-		// Minimum height (px) for the symbol (or label) position
+		// Minimum absolute/relative height for the label position
 
-		minLabelPosHeight = (double) configValue<double,int>(specs,confPath,"labelheight",NULL,s_optional,&isSet);
+		minLabelPosHeight = configValue<int>(specs,confPath,"minlabelposheight",NULL,s_optional,&isSet);
 
-		if (!isSet)
-			minLabelPosHeight = 40.0;
+		if ((!isSet) || (minLabelPosHeight < (int) labelPosHeightMin)) {
+			labelPosHeightFactor = configValue<double>(specs,confPath,"labelposheightfactor",NULL,s_optional,&isSet);
+
+			if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
+				labelPosHeightFactor = defaultLabelPosHeightFactor;
+
+			minLabelPosHeight = 0;
+		}
 
 		// If bbcenterlabel is true (default: false), group's symbol is positioned to the center of the area's bounding box;
 		// otherwise using 1 or 2 elevations in the middle of the area in x -direction
@@ -6148,16 +6644,17 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	GroupCategoryT groupCategory;
 	std::set<size_t> memberSet;
 
-	double tightness,minLabelPosHeight;
+	double tightness,labelPosHeightFactor;
+	int minLabelPosHeight;
 
-	groupConfig<GroupTypeT>(confPath,tightness,minLabelPosHeight,groupCategory.groups(),memberSet);
+	groupConfig<GroupTypeT>(confPath,tightness,minLabelPosHeight,labelPosHeightFactor,groupCategory.groups(),memberSet);
 
 	// Document's time period, x -axis step and y -axis height (px)
 
 	const boost::posix_time::time_period & tp = axisManager->timePeriod();
 
 	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-	double xStep = axisManager->xStep(),axisHeight = axisManager->axisHeight(),y;
+	double axisHeight = axisManager->axisHeight(),y;
 
 	const std::string symClass(boost::algorithm::to_upper_copy(confPath + classNameExt));
 
@@ -6176,15 +6673,25 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	// Search and flag elevation holes
 
-	searchHoles(ts,&groupCategory);
+	NFmiFillAreas holeAreas;
+	bool hasHole = searchHoles(ts,&groupCategory);
 
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
 		//
-		elevationGroup(ts,bt,et,eGrp,false,true,&groupCategory);
+		// Note: Holes are loaded first; they (fill areas extracted from them) are added to reserved areas
+		//		 before loading the icing/turbulence and positioning the symbols/labels
+		//
+		elevationGroup(ts,bt,et,eGrp,false,true,hasHole,&groupCategory);
 
-		if (eGrp.size() == 0)
-			break;
+		if (eGrp.size() == 0) {
+			if (hasHole) {
+				hasHole = false;
+				continue;
+			}
+			else
+				break;
+		}
 
 		nGroups++;
 
@@ -6249,45 +6756,23 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						   << "\"/>\n";
 		}
 
-		// Render the single symbol or one symbol or label to the center of each visible part of the area.
+		// For a hole store it's area as reserved, otherwise render the single symbol or one symbol or label
+		// to each separate visible part of the area.
+		//
+		// x -coord of group's first time instant
+		//
+		const boost::posix_time::ptime & vt = eGrp.front().validTime();
+		double minX = axisManager->xOffset(vt);
 
-		if (!isHole) {
-			// x -coord of group's first time instant
-			//
-			const boost::posix_time::ptime & vt = eGrp.front().validTime();
-			double minX = axisManager->xOffset(vt);
-			int n;
+		const std::string & symbol = groupCategory.groupSymbol();
 
-			std::vector<double> labelX,labelY;
-			std::vector<double>::const_iterator itx,ity;
-
-			getAreaLabelPos(itcg->bbCenterLabel(),minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,itcg->sOffset(),itcg->eOffset(),
-							scaledLo,scaledHi,hasHole,labelX,labelY);
-
-			for (itx = labelX.begin(),ity = labelY.begin(), n = 0; (itx != labelX.end()); itx++, ity++, n++) {
-				const std::string & symbol = groupCategory.groupSymbol();
-
-				if (!(symbol.empty())) {
-					render_aerodromeSymbol(confPath,symClass,classNameExt,symbol,*itx,(y = *ity),true,true);
-
-					if (asSymbol) {
-						// The symbol should be visible, checking anyway
-						//
-						if ((y > 0) && (y < axisHeight))
-							visible = true;
-						else if (y < 0)
-							aboveTop = true;
-					}
-				}
-				else
-					texts[itcg->labelPlaceHolder()] << "<text class=\"" << itcg->textClassDef()
-													<< "\" id=\"" << FEATURE << "Text" << nGroups << n
-													<< "\" text-anchor=\"middle"
-													<< "\" x=\"" << *itx
-													<< "\" y=\"" << *ity
-													<< "\">" << groupCategory.groupLabel() << "</text>\n";
-			}
-		}
+		if ((!isHole) && (!symbol.empty()))
+			renderAreaSymbols(*itcg,curvePoints,holeAreas,confPath,minX,scaledLo,scaledHi,hasHole,symClass,classNameExt,symbol,asSymbol,visible,aboveTop);
+		else
+			renderAreaLabels(curvePoints,holeAreas,areaLabels,FEATURE + "LABEL",itcg->markerPlaceHolder(),"ZZ" + FEATURE + "Text",isHole,
+							 (symbol.empty() && (!isHole)) ? groupCategory.groupLabel() : "",itcg->bbCenterMarker(),
+							 minX,minLabelPosHeight,labelPosHeightFactor,itcg->sOffset(),itcg->eOffset(),scaledLo,scaledHi,hasHole,
+							 options.debug ? itcg->placeHolder() + "FILLAREAS" : "");
 	}	// for group
 
 	// Visibility information. Class is taken from the first group.
@@ -7118,12 +7603,19 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		if (!isSet)
 			eOffset = 0;
 
-		// Minimum height (px) for the label position
+		// Minimum absolute/relative height for the label position
 
-		double minLabelPosHeight = (double) configValue<double,int>(specs,confPath,"labelheight",NULL,s_optional,&isSet);
+		int minLabelPosHeight = configValue<int>(specs,confPath,"minlabelposheight",NULL,s_optional,&isSet);
+		double labelPosHeightFactor = 0.0;
 
-		if (!isSet)
-			minLabelPosHeight = 50.0;
+		if ((!isSet) || (minLabelPosHeight < (int) labelPosHeightMin)) {
+			labelPosHeightFactor = configValue<double>(specs,confPath,"labelposheightfactor",NULL,s_optional,&isSet);
+
+			if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
+				labelPosHeightFactor = defaultLabelPosHeightFactor;
+
+			minLabelPosHeight = 0;
+		}
 
 		// Curve/text visibility
 
@@ -7144,15 +7636,25 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		// Search and flag elevation holes
 
-		searchHoles(ts);
+		NFmiFillAreas holeAreas;
+		bool hasHole = searchHoles(ts);
 
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
 			//
-			elevationGroup(ts,bt,et,eGrpAll,false,true);
+			// Note: Holes are loaded first; they (fill areas extracted from them) are added to reserved areas
+			//		 before loading the zerotolerance and positioning the labels
+			//
+			elevationGroup(ts,bt,et,eGrpAll,false,true,hasHole);
 
-			if (eGrpAll.size() == 0)
-				break;
+			if (eGrpAll.size() == 0) {
+				if (hasHole) {
+					hasHole = false;
+					continue;
+				}
+				else
+					break;
+			}
 
 			nGroups++;
 
@@ -7164,7 +7666,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			else
 				eGrp = eGrpAll;
 
-			std::string & label = (eGrp.begin()->isNegative() ? negLabel : posLabel);
+			bool isNegative = eGrp.begin()->isNegative();
+			std::string & label = (isNegative ? negLabel : posLabel);
 
 			// Get curve positions for overlapping elevations for bezier creation.
 			//
@@ -7219,7 +7722,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				setUnvisible = false;
 			}
 
-			// Render label to the center of each visible part of the area
+			// Render label to each separate visible part of the area
+			//
+			// Note: Holes (-deg) are labeled too
 			//
 			if (!label.empty()) {
 				// x -coord of group's first time instant
@@ -7227,20 +7732,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				const boost::posix_time::ptime & vt = eGrp.front().validTime();
 				double minX = axisManager->xOffset(vt);
 
-				std::vector<double> labelX,labelY;
-				std::vector<double>::const_iterator itx,ity;
-				int n;
-
-				getAreaLabelPos(bbCenterLabel,minX,axisManager->axisHeight(),axisManager->axisWidth(),xStep,minLabelPosHeight,sOffset,eOffset,
-								scaledLo,scaledHi,hasHole,labelX,labelY);
-
-				for (itx = labelX.begin(),ity = labelY.begin(),n = 0; (itx != labelX.end()); itx++, n++)
-					texts[labelPlaceHolder] << "<text class=\"" << textClassDef
-											<< "\" id=\"" << "ZeroToleranceText" << nGroups << n
-											<< "\" text-anchor=\"middle"
-											<< "\" x=\"" << *itx
-											<< "\" y=\"" << *ity
-											<< "\">" << label << "</text>\n";
+				renderAreaLabels(curvePoints,holeAreas,areaLabels,"ZEROTOLERANCELABEL",labelPlaceHolder,"ZZZeroToleranceText",isNegative,label,bbCenterLabel,
+								 minX,minLabelPosHeight,labelPosHeightFactor,sOffset,eOffset,scaledLo,scaledHi,hasHole,
+								 options.debug ? ZEROTOLERANCE + "FILLAREAS" : "");
 			}
 		}
 
@@ -7967,9 +8461,9 @@ bool ElevationHole::operator < (const ElevationHole & theOther) const
 ConfigGroup::ConfigGroup(const std::string & theClassDef,
 						 const std::string & theMemberTypes,
 						 const std::string * theLabel,
-						 bool bbCenterLabel,
+						 bool bbCenterMarker,
 						 const std::string & thePlaceHolder,
-						 const std::string & theLabelPlaceHolder,
+						 const std::string & theMarkerPlaceHolder,
 						 bool combined,
 						 double theXOffset,double theYOffset,
 						 double theVOffset,double theVSOffset,double theVSSOffset,
@@ -8001,9 +8495,9 @@ ConfigGroup::ConfigGroup(const std::string & theClassDef,
   itsMemberTypes = (itsStandalone ? theMemberTypes : ("," + theMemberTypes + ","));
   itsLabel = theLabel ? *theLabel : "";
   hasLabel = theLabel ? true : false;
-  bbCenterLabelPos = bbCenterLabel;
+  bbCenterMarkerPos = bbCenterMarker;
   itsPlaceHolder = thePlaceHolder;
-  itsLabelPlaceHolder = theLabelPlaceHolder;
+  itsMarkerPlaceHolder = theMarkerPlaceHolder;
 
   itsXOffset = theXOffset;
   itsYOffset = std::max(theYOffset,0.0);
