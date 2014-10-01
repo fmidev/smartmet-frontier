@@ -1570,6 +1570,18 @@ namespace frontier
 						yOffset = 0;
 					}
 
+					// Settings for background; style and x/y offsets for top left corner
+
+					std::string bStyle = configValue<std::string>(scope,textName,"bstyle",s_optional);
+
+					int bXOffset = configValue<int>(scope,textName,"bxoffset",s_optional,&isSet);
+					if (!isSet)
+						bXOffset = 0;
+
+					int bYOffset = configValue<int>(scope,textName,"byoffset",s_optional,&isSet);
+					if (!isSet)
+						bYOffset = 0;
+
 					// Split the text into lines using given max. width and height
 
 					std::list<std::string> textLines;
@@ -1627,6 +1639,13 @@ namespace frontier
 							// Note: Scaling placeholder/value might not get set; unset placehoders will be removed prior output
 							//
 							texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--) --" << TEXTPOSid << "SCALE--\">\n";
+
+						if (!bStyle.empty())
+							// Set background
+							//
+							texts[TEXTtextName] << "<rect width=\"" << textWidth - (2 * bXOffset)
+												<< "\" height=\"" << textHeight - (2 * bYOffset)
+												<< "\" x=\"" << bXOffset << "\" y=\"" << bYOffset << "\" style=\"" << bStyle << "\"" << "/>";
 
 						texts[TEXTtextName] << "<text class=\"" << textClass
 											<< "\" x=\"" << x
@@ -4167,7 +4186,8 @@ namespace frontier
 												   << "\" y=\"" << iter->first.y
 												   << "\" width=\"" << iter->second.x - iter->first.x
 												   << "\" height=\"" << iter->second.y - iter->first.y
-												   << "\" fill=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
+												   << "\" fill=\"" << clrs[clrIdx % clrCnt]
+												   << "\" stroke=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
 							clrIdx++;
 						}
 					}
