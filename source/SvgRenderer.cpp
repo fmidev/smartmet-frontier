@@ -8113,7 +8113,7 @@ std::string SvgRenderer::svg() const
 
   // Clear all remaining placeholders
 
-  boost::regex pl("--[[:upper:]*[:lower:]*[:digit:]*[@]*]*--");
+  boost::regex pl("--[[:upper:]+[\\S]*]*--");
 
   return boost::regex_replace(ret,pl,"");
 
