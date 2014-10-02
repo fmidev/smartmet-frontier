@@ -1709,8 +1709,8 @@ namespace frontier
   {
 	// Symbol's <code>; code_<symCode> = <code>
 	//
-	// Note: libconfig does not support special characters in configuration keys; the code values
-	//		 have their +/- characters replaced with P_ and M_ (e.g. '+RA' is converted to 'P_RA')
+	// Note: libconfig supports only some non alphanumeric characters in configuration keys; the codes
+	//		 have their '+' and '@' characters replaced with 'P_' and '_' respectively (e.g. '+RA' is converted to 'P_RA')
 
 	mappedCode = boost::algorithm::trim_copy(symCode);
 	bool isSet = false;
@@ -1724,7 +1724,6 @@ namespace frontier
 			throw std::runtime_error(confPath + typeMsg);
 
 		boost::algorithm::replace_all(mappedCode,"+","P_");
-		boost::algorithm::replace_all(mappedCode,"-","M_");
 		boost::algorithm::replace_all(mappedCode,"@","_");
 
 		mappedCode = scope
