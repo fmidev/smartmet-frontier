@@ -4760,6 +4760,36 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
+  void addCurvePosition(List<DirectPosition> & curvePositions,List<DirectPosition> & curvePositions0,const DirectPosition & pos,const DirectPosition & pos0)
+  {
+	curvePositions.push_back(pos);
+
+	if (&curvePositions != &curvePositions0)
+		curvePositions0.push_back(pos0);
+  }
+
+  void addCurvePosition(List<DirectPosition> & curvePositions,List<DirectPosition> & curvePositions0,double x,double y,double y0,double xOffset = 0.0,double yOffset = 0.0,bool leftOnly = false)
+  {
+	// Add curve point and if x- (and additionally y-) offset is given, add points on both sides too (to control the curve shape on corners)
+	// if leftOnly is false; if leftOnly is true, add only the left side point (going up to the left side hi range point
+	// when closing the path to the starting top left corner).
+	//
+	// Note: y -offset is passed in for top left ('fst') and bottom right ('edn' followed by 'bwd') corners; for top right ('fwd' + 'edn') and
+	//		 bottom left ('bwd' + 'eup') corner smoothenCurve() is used
+
+	if (fabs(xOffset) >= 1.0) {
+		addCurvePosition(curvePositions,curvePositions0,DirectPosition(x - xOffset,y + yOffset),DirectPosition(x - xOffset,y0 + yOffset));
+
+		if (leftOnly)
+			return;
+	}
+
+	addCurvePosition(curvePositions,curvePositions0,DirectPosition(x,y + (yOffset / 2)),DirectPosition(x,y0 + (yOffset / 2)));
+
+	if (fabs(xOffset) >= 1.0)
+		addCurvePosition(curvePositions,curvePositions0,DirectPosition(x + xOffset,y),DirectPosition(x + xOffset,y0));
+  }
+
   void addCurvePosition(List<DirectPosition> & curvePositions,double x,double y,double xOffset = 0.0,double yOffset = 0.0,bool leftOnly = false)
   {
 	// Add curve point and if x- (and additionally y-) offset is given, add points on both sides too (to control the curve shape on corners)
@@ -4811,7 +4841,7 @@ namespace frontier
   }
 
   bool SvgRenderer::scaledCurvePositions(ElevGrp & eGrp,
-		  	  	  	  	  	  	  	     List<DirectPosition> & curvePositions,
+		  	  	  	  	  	  	  	     List<DirectPosition> & curvePositions,List<DirectPosition> & curvePositions0,
 		  	  	  	  	  	  	  	     std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 		  	  	  	  	  	  	  	     std::vector<bool> & hasHole,
 		  	  	  	  	  	  	  	     double xOffset,double yOffset,
@@ -4827,8 +4857,8 @@ namespace frontier
   {
 	ElevGrp::iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
 	Phase phase,pphase;
-	double lopx = 0.0,plopx = 0.0;
-	double hipx = 0.0,phipx = 0.0;
+	double lopx = 0.0,plopx,lopx0 = 0.0,plopx0;
+	double hipx = 0.0,phipx,hipx0 = 0.0,phipx0;
 	double maxx = 0.0;
 	bool single = true,smoothen = false;
 
@@ -4844,8 +4874,8 @@ namespace frontier
 
 	xOffset = ((xOffset < 0.0) ? 0.0 : std::min(xOffset,(xStep / 2)));
 
-	curvePositions.clear();
-	curvePositions.push_back(DirectPosition(0,0));
+	curvePositions.clear(); curvePositions0.clear();
+	addCurvePosition(curvePositions,curvePositions0,0,0,0);
 
 	for (iteg = egbeg, phase = pphase = fst; (iteg != egend); ) {
 		// Get elevation's lo and hi range values
@@ -4867,10 +4897,11 @@ namespace frontier
 		if (isVisible && (hi >= nonZ))
 			*isVisible = true;
 
-		plopx = lopx;
-		phipx = hipx;
+		plopx = lopx; plopx0 = lopx0;
+		phipx = hipx; phipx0 = hipx0;
 
 		// Adjust baseline points to keep decorated curve baseline at the right level.
+		// The unadjusted baseline is stored too if requested (it is used for cloud labeling).
 		//
 		// Note: 1/6'th of the decoration control point offset just seems to do the job well enough.
 
@@ -4881,8 +4912,8 @@ namespace frontier
 			hOffset += ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0)));
 		}
 
-		lopx = axisManager->scaledElevation(lo);
-		hipx = axisManager->scaledElevation(hi);
+		lopx0 = lopx = axisManager->scaledElevation(lo);
+		hipx0 = hipx = axisManager->scaledElevation(hi);
 
 		double lopxBL = lopx - (lOffset / 6);
 		double hipxBL = hipx + (hOffset / 6);
@@ -4899,7 +4930,7 @@ namespace frontier
 
 		// Keep track of elevations to calculate the label position(s)
 
-		trackAreaLabelPos(iteg,x,maxx,lopx,scaledLo,hipx,scaledHi,hasHole);
+		trackAreaLabelPos(iteg,x,maxx,lopx0,scaledLo,hipx0,scaledHi,hasHole);
 
 #define STEPSS
 
@@ -4920,11 +4951,11 @@ cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
 fprintf(stderr,"**** fst hi=%.0f %s\n",hi,cs.c_str());
 #endif
 			if (ground && (vt > bt)) {
-				curvePositions.push_back(DirectPosition(x - xStep,axisManager->axisHeight()));
+				addCurvePosition(curvePositions,curvePositions0,x - xStep,axisManager->axisHeight(),axisManager->axisHeight());
 				single = false;
 			}
 
-			addCurvePosition(curvePositions,x,hipx,xOffset,yOffset);
+			addCurvePosition(curvePositions,curvePositions0,x,hipx,hipx0,xOffset,yOffset);
 			iteg->topConnected(true);
 
 			if (options.debug) {
@@ -4944,9 +4975,10 @@ fprintf(stderr,"**** fst hi=%.0f %s\n",hi,cs.c_str());
 fprintf(stderr,">>>> fwd hi=%.0f %s\n",hi,cs.c_str());
 #endif
 			double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
+			double ipx0 = ((hipx0 < phipx0) ? hipx0 : phipx0) + (fabs(hipx0 - phipx0) / 2);
 
-			curvePositions.push_back(DirectPosition(x - (xStep / 2),ipx));
-			addCurvePosition(curvePositions,x,hipx,xOffset);
+			addCurvePosition(curvePositions,curvePositions0,x - (xStep / 2),ipx,ipx0);
+			addCurvePosition(curvePositions,curvePositions0,x,hipx,hipx0,xOffset);
 			iteg->topConnected(true);
 
 			if (options.debug)
@@ -4960,8 +4992,8 @@ fprintf(stderr,">>>> fwd hi=%.0f %s\n",hi,cs.c_str());
 #ifdef STEPS
 fprintf(stderr,">>>> vup lo=%.0f %s\n",lo,cs.c_str());
 #endif
-			curvePositions.push_back(DirectPosition(x + (xStep / 2),phipx - ((phipx - lopx) / 2)));
-			curvePositions.push_back(DirectPosition(x,lopx));
+			addCurvePosition(curvePositions,curvePositions0,x + (xStep / 2),phipx - ((phipx - lopx) / 2),phipx0 - ((phipx0 - lopx0) / 2));
+			addCurvePosition(curvePositions,curvePositions0,x,lopx,lopx0);
 			iteg->bottomConnected(true);
 
 			if (options.debug)
@@ -4977,8 +5009,8 @@ fprintf(stderr,">>>> vup lo=%.0f %s\n",lo,cs.c_str());
 #ifdef STEPS
 fprintf(stderr,">>>> vdn hi=%.0f %s\n",hi,cs.c_str());
 #endif
-			curvePositions.push_back(DirectPosition(x - (xStep / 2),hipx - ((hipx - plopx) / 2)));
-			curvePositions.push_back(DirectPosition(x,hipx));
+			addCurvePosition(curvePositions,curvePositions0,x - (xStep / 2),hipx - ((hipx - plopx) / 2),hipx0 - ((hipx0 - plopx0) / 2));
+			addCurvePosition(curvePositions,curvePositions0,x,hipx,hipx0);
 			iteg->topConnected(true);
 
 			if (options.debug)
@@ -4997,13 +5029,16 @@ fprintf(stderr,">>>> eup hi=%.0f %s\n",hi,cs.c_str());
 			// The curve turns up, smoothen the corner
 			smoothenCurve(curvePositions,x,lopx,lopx - hipx,-xOffset,-yOffset);
 
+			if (&curvePositions != &curvePositions0)
+				smoothenCurve(curvePositions0,x,lopx0,lopx0 - hipx0,-xOffset,-yOffset);
+
 			if ((!ground) || (vt == bt) || (!(iteg->topConnected()))) {
 				// Limit the extent of the left side of first time instant
 				//
 				double offset = (((vt == bt) && (vOffset > sOffset)) ? sOffset : vOffset);
 
-				curvePositions.push_back(DirectPosition(x - offset,lopx - ((lopx - hipx) / 2)));
-				addCurvePosition(curvePositions,x,hipx,xOffset,0.0,iteg->topConnected());
+				addCurvePosition(curvePositions,curvePositions0,x - offset,lopx - ((lopx - hipx) / 2),lopx0 - ((lopx0 - hipx0) / 2));
+				addCurvePosition(curvePositions,curvePositions0,x,hipx,hipx0,xOffset,0.0,iteg->topConnected());
 
 				if (options.debug)
 					path << (((vt != bt) && (vt != et)) ? " L" : " M") << x << "," << hipx;
@@ -5030,8 +5065,11 @@ fprintf(stderr,">>>> edn lo=%.0f %s\n",lo,cs.c_str());
 			// The curve turns down, smoothen the corner
 			smoothenCurve(curvePositions,x,hipx,lopx - hipx,xOffset,yOffset);
 
+			if (&curvePositions != &curvePositions0)
+				smoothenCurve(curvePositions0,x,hipx0,lopx0 - hipx0,xOffset,yOffset);
+
 			if (ground && (vt < et)) {
-				curvePositions.push_back(DirectPosition(x + xStep,axisManager->axisHeight()));
+				addCurvePosition(curvePositions,curvePositions0,x + xStep,axisManager->axisHeight(),axisManager->axisHeight());
 				single = false;
 			}
 			else {
@@ -5039,10 +5077,10 @@ fprintf(stderr,">>>> edn lo=%.0f %s\n",lo,cs.c_str());
 				//
 				double offset = (((vt == et) && (vOffset > eOffset)) ? eOffset : vOffset);
 
-				curvePositions.push_back(DirectPosition(x + offset,lopx - ((lopx - hipx) / 2)));
+				addCurvePosition(curvePositions,curvePositions0,x + offset,lopx - ((lopx - hipx) / 2),lopx0 - ((lopx0 - hipx0) / 2));
 			}
 
-			addCurvePosition(curvePositions,x,lopx,-xOffset);
+			addCurvePosition(curvePositions,curvePositions0,x,lopx,lopx0,-xOffset);
 			iteg->bottomConnected(true);
 
 			if (options.debug) {
@@ -5061,15 +5099,20 @@ fprintf(stderr,">>>> edn lo=%.0f %s\n",lo,cs.c_str());
 #ifdef STEPS
 fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 #endif
-			if (smoothen)
+			if (smoothen) {
 				// The curve turns backwards, smoothen the corner
 				//
 				smoothenCurve(curvePositions,x + xStep,plopx,plopx - phipx,-xOffset,-yOffset,true);
 
-			double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
+				if (&curvePositions != &curvePositions0)
+					smoothenCurve(curvePositions0,x + xStep,plopx0,plopx0 - phipx0,-xOffset,-yOffset,true);
+			}
 
-			curvePositions.push_back(DirectPosition(x + (xStep / 2),ipx));
-			addCurvePosition(curvePositions,x,lopx,-xOffset);
+			double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
+			double ipx0 = ((lopx0 < plopx0) ? lopx0 : plopx0) + (fabs(lopx0 - plopx0) / 2);
+
+			addCurvePosition(curvePositions,curvePositions0,x + (xStep / 2),ipx,ipx0);
+			addCurvePosition(curvePositions,curvePositions0,x,lopx,lopx0,-xOffset);
 			iteg->bottomConnected(true);
 
 			if (options.debug)
@@ -5094,16 +5137,16 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						 << " L" << leftSide << "," << hipx;
 				}
 
-				curvePositions.clear();
+				curvePositions.clear(); curvePositions0.clear();
 
-				curvePositions.push_back(DirectPosition(0,0));
-				addCurvePosition(curvePositions,leftSide,hipx,1);
-				addCurvePosition(curvePositions,rightSide,hipx,1);
-				curvePositions.push_back(DirectPosition(rightSide + ((vSSOffset < 0.0) ? 0.0 : vSSOffset),lopx - ((lopx - hipx) / 2)));
-				addCurvePosition(curvePositions,rightSide,lopx,-1);
-				addCurvePosition(curvePositions,leftSide,lopx,-1);
-				curvePositions.push_back(DirectPosition(leftSide - ((vSSOffset < 0.0) ? 0.0 : vSSOffset),lopx - ((lopx - hipx) / 2)));
-				addCurvePosition(curvePositions,leftSide,hipx,1,0.0,true);
+				addCurvePosition(curvePositions,curvePositions0,0,0,0);
+				addCurvePosition(curvePositions,curvePositions0,leftSide,hipx,hipx0,1);
+				addCurvePosition(curvePositions,curvePositions0,rightSide,hipx,hipx0,1);
+				addCurvePosition(curvePositions,curvePositions0,rightSide + ((vSSOffset < 0.0) ? 0.0 : vSSOffset),lopx - ((lopx - hipx) / 2),lopx0 - ((lopx0 - hipx0) / 2));
+				addCurvePosition(curvePositions,curvePositions0,rightSide,lopx,lopx0,-1);
+				addCurvePosition(curvePositions,curvePositions0,leftSide,lopx,lopx0,-1);
+				addCurvePosition(curvePositions,curvePositions0,leftSide - ((vSSOffset < 0.0) ? 0.0 : vSSOffset),lopx - ((lopx - hipx) / 2),lopx0 - ((lopx0 - hipx0) / 2));
+				addCurvePosition(curvePositions,curvePositions0,leftSide,hipx,hipx0,1,0.0,true);
 
 				break;
 			}
@@ -5139,6 +5182,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	curvePositions[0] = curvePositions[curvePositions.size() - 2];
 	curvePositions.pop_back();
+
+	if (&curvePositions != &curvePositions0) {
+		curvePositions0[0] = curvePositions0[curvePositions0.size() - 2];
+		curvePositions0.pop_back();
+	}
 
 	// Remove group's elevations from the collection
 
@@ -5192,8 +5240,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	ElevGrp eGrp;
 	int nGroups = 0;
 
-	List<DirectPosition> curvePositions;
-	std::list<DirectPosition> curvePoints;
+	List<DirectPosition> curvePositions,curvePositions0;
+	std::list<DirectPosition> curvePoints,curvePoints0;
 	std::list<DoubleArr> decoratorPoints;
 
 	// Set unique group number for members of each overlapping group of elevations
@@ -5241,7 +5289,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		// The scaled lo/hi values for the elevations are returned in scaledLo/scaledHi;
 		// they are used to calculate cloud label positions.
 		//
-		// Use cloud decoration offsets if the decoration is compensated when constructing the base line.
+		// Use cloud decoration offsets and get the unmodified curve baseline too (for label positioning)
+		// if the decoration is compensated when constructing the base line
 
 		std::vector<double> scaledLo,scaledHi;
 		std::vector<bool> hasHole;
@@ -5252,7 +5301,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->xOffset(),itcg->yOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->vSSOffset(),itcg->sOffset(),itcg->eOffset(),scaleHeightMin,scaleHeightRandom,path);
+		scaledCurvePositions(eGrp,curvePositions,borderCompensation ? curvePositions0 : curvePositions,scaledLo,scaledHi,hasHole,
+							 itcg->xOffset(),itcg->yOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->vSSOffset(),itcg->sOffset(),itcg->eOffset(),
+							 scaleHeightMin,scaleHeightRandom,path);
 
 		if (options.debug)
 			texts[itcg->placeHolder() + "PATH"] << "<path class=\"" << itcg->classDef()
@@ -5271,6 +5322,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 //pnts << "<circle cx=\"" << itcp->getX() << "\" cy=\"" << itcp->getY()+150 << "\" r=\"5\" stroke=\"black\" stroke-width=\"1\" fill=\"blue\"/>"; } std::cerr << std::endl << "<<< PNT"; }
 		BezierModel bm(curvePositions,true,tightness);
 		bm.getSteppedCurvePoints(itcg->baseStep(),itcg->maxRand(),itcg->maxRepeat(),curvePoints);
+
+		if (borderCompensation) {
+			BezierModel bm0(curvePositions0,true,tightness);
+			bm0.getSteppedCurvePoints(itcg->baseStep(),0,0,curvePoints0);
+		}
 //{ std::cerr << std::fixed << std::setprecision(1);
 //std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(),cpend = curvePoints.end(),itcp; size_t n = 0;
 //for (itcp = cpbeg; (itcp != cpend); itcp++, n++) {
@@ -5326,7 +5382,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			const boost::posix_time::ptime & vt = eGrp.front().validTime();
 			double minX = axisManager->xOffset(vt);
 
-			renderAreaLabels(curvePoints,holeAreas,areaLabels,"CLOUDLAYERSLABEL",itcg->markerPlaceHolder(),"ZZCloudLayersText",isHole,isHole ? "" : label,itcg->bbCenterMarker(),
+			renderAreaLabels(borderCompensation ? curvePoints0 : curvePoints,holeAreas,areaLabels,"CLOUDLAYERSLABEL",itcg->markerPlaceHolder(),"ZZCloudLayersText",isHole,isHole ? "" : label,itcg->bbCenterMarker(),
 							 minX,minLabelPosHeight,labelPosHeightFactor,itcg->sOffset(),itcg->eOffset(),scaledLo,scaledHi,hasHole,
 							 options.debug ? itcg->placeHolder() + "FILLAREAS" : "");
 		}
@@ -6730,7 +6786,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		bool single = scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,itcg->xOffset(),itcg->yOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->vSSOffset(),itcg->sOffset(),itcg->eOffset(),0,0,path);
+		bool single = scaledCurvePositions(eGrp,curvePositions,curvePositions,scaledLo,scaledHi,hasHole,
+										   itcg->xOffset(),itcg->yOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->vSSOffset(),itcg->sOffset(),itcg->eOffset(),
+										   0,0,path);
 		bool asSymbol = (single && itcg->symbolOnly());
 
 		if (!asSymbol) {
@@ -7699,7 +7757,10 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			std::ostringstream path;
 			path << std::fixed << std::setprecision(3);
 
-			scaledCurvePositions(eGrp,curvePositions,scaledLo,scaledHi,hasHole,xOffset,yOffset,vOffset,vSOffset,vSSOffset,sOffset,eOffset,0,0,path,&visible,true,false,true);
+			scaledCurvePositions(eGrp,curvePositions,curvePositions,scaledLo,scaledHi,hasHole,
+								 xOffset,yOffset,vOffset,vSOffset,vSSOffset,sOffset,eOffset,
+								 0,0,path,
+								 &visible,true,false,true);
 
 			// Create bezier curve and get curve points
 

@@ -585,7 +585,7 @@ namespace frontier
 							 std::list<CloudGroup>::const_iterator itcg,
 							 int nGroups);
 	bool scaledCurvePositions(ElevGrp & eGrp,
-							  List<DirectPosition> & curvePositions,
+							  List<DirectPosition> & curvePositions,List<DirectPosition> & curvePositions0,
 							  std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 							  std::vector<bool> & hasHole,
 							  double xOffset,double yOffset,
