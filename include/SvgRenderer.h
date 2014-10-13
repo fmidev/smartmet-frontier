@@ -406,6 +406,14 @@ namespace frontier
 
   typedef boost::ptr_map<std::string,std::ostringstream> Texts;
 
+  typedef struct {
+	  std::list<std::string> markers;					// Marker names of reserved fill areas for candidate fill areas
+	  double x; double y;								// Marker position for reserved fill area (the nearest (free) fill area is used)
+	  NFmiFillAreas fillAreas;							// One reserved of all free/candidate fill areas
+	  std::list<std::pair<double,double> > scales;		// Marker scales
+  } FillAreaData;
+  typedef std::map<std::string,FillAreaData> FillAreas;	// Marker name and related fill areas
+
   class SvgRenderer : public woml::FeatureVisitor
   {
   public:
@@ -520,7 +528,8 @@ namespace frontier
 								const std::string & value,
 								double x,double y,
 								bool codeValue = true,bool mappedCode = false,
-								double xScale = -1.0,double yScale = -1.0);
+								double xScale = -1.0,double yScale = -1.0,
+								const std::string symbolPosIdN = "");
 	template <typename T> void render_aerodromeSymbols(const T & theFeature,
 												       const std::string & confPath,
 												       bool setVisibility = false);
@@ -629,7 +638,7 @@ namespace frontier
 						  std::vector<double> & loPx,std::vector<double> & hiPx,std::vector<bool> & hasHole,
 						  const std::string & areaPlaceHolder = "");
 	template <typename T>
-	void renderAreaSymbols(const T & cg,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,const std::string & confPath,
+	void renderAreaSymbols(const T & cg,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,const std::string & confPath,const std::string & symbolPosId,
 						   double minx,std::vector<double> & loPx,std::vector<double> & hiPx,std::vector<bool> & hasHole,
 						   const std::string & symClass,const std::string & classNameExt,const std::string & symbol,
 						   bool asSymbol,bool & visible,bool & aboveTop);
@@ -687,7 +696,9 @@ namespace frontier
 	int nwarmadvections;
 	int nwarmfronts;
 
-	NFmiFillAreas reservedAreas;
+	FillAreas reservedAreas;
+	FillAreas freeAreas;
+	FillAreas candidateAreas;
   }; // class SvgRenderer
 
 } // namespace frontier

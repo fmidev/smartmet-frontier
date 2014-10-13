@@ -2680,7 +2680,8 @@ namespace frontier
 		  	  	  	  	  	  	  	  	   const std::string & value,
 		  	  	  	  	  	  	  	  	   double x,double y,
 		  	  	  	  	  	  	  	  	   bool codeValue,bool mappedCode,
-		  	  	  	  	  	  	  	  	   double xScale,double yScale)
+		  	  	  	  	  	  	  	  	   double xScale,double yScale,
+		  	  	  	  	  	  	  	  	   const std::string symbolPosIdN)
   {
 	// Nothing to do with empty value
 
@@ -2728,40 +2729,57 @@ namespace frontier
 		// Scale
 
 		bool hasScale;
-		double scale = (double) configValue<double,int>(symbolSpecs,confPath,"scale",NULL,s_optional,&hasScale);
+		double scale = (double) configValue<double,int>(symbolSpecs,confPath,"scale",NULL,s_optional,&hasScale),scaleX,scaleY;
 
 		if (xScale > 0.0) {
-			if (!hasScale)
-				scale = xScale;
-			else
-				scale *= xScale;
+			scaleX = xScale;
+			scaleY = yScale;
+
+			if (hasScale) {
+				scaleX *= scale;
+				scaleY *= scale;
+			}
 
 			hasScale = true;
 		}
+		else
+			scaleX = scaleY = scale;
 
-		std::ostringstream sc;
-		if (hasScale)
-			sc << " scale(" << std::fixed << std::setprecision(1) << scale << ")";
+		std::ostringstream transf;
+		std::string scaleIdN(symbolPosIdN + "SCALE");
 
-		npointsymbols++;
+		if (symbolPosIdN.empty())
+			transf << "translate(" << std::fixed << std::setprecision(1) << x << "," << y << ")";
+		else
+			transf << "translate(--" << symbolPosIdN << "--)";
+
+		if (hasScale) {
+			if (symbolPosIdN.empty())
+				transf << " scale(" << std::fixed << std::setprecision(1) << scale << ")";
+			else
+				transf << " scale(--" << scaleIdN << "--)";
+		}
+
 		std::string id = confPath + boost::lexical_cast<std::string>(npointsymbols);
+		npointsymbols++;
 
 		if (codeValue)
 			texts[symClass] << "<g id=\"" << id
 							<< "\" class=\"" << class1 << class2
-							<< "\" transform=\"translate(" << std::fixed << std::setprecision(1) << x << "," << y << ")"
-							<< sc.str()
-							<< "\">\n"
+							<< "\" transform=\"" << transf.str() << "\">\n"
 							<< "<use xlink:href=\"" << uri << "\"/>\n"
 							<< "</g>\n";
 		else
 			texts[symClass] << "<g id=\"" << id
 							<< "\" class=\"" << class1
-							<< "\" transform=\"translate(" << std::fixed << std::setprecision(1) << x << "," << y << ")"
-							<< sc.str()
-							<< "\">\n"
+							<< "\" transform=\"" << transf.str() << "\">\n"
 							<< "<text>" << value << "</text>\n"
 							<< "</g>\n";
+
+		if (!symbolPosIdN.empty()) {
+			texts[symbolPosIdN] << x << "," << y;
+			texts[scaleIdN] << scaleX << "," << scaleY;
+		}
 
 		return;
 	}
@@ -3950,12 +3968,12 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Erase used/reserved fill areas to avoid overlapping
-   *		labels/symbols etc
+   * \brief Move used/reserved 'fillAreas' container's fill areas to
+   *		to 'candidateAreas' to avoid overlapping labels/symbols etc.
    */
   // ----------------------------------------------------------------------
 
-  void eraseReservedAreas(const NFmiFillAreas & reservedAreas,NFmiFillAreas & fillAreas,bool isHole = false)
+  void eraseReservedAreas(const std::string & markerId,const std::string & reserver,const NFmiFillAreas & reservedAreas,FillAreas & candidateAreas,NFmiFillAreas & fillAreas,bool isHole = false,bool storeCandidates = true)
   {
 	// Allow some overlap for nonholes
 
@@ -3967,11 +3985,21 @@ namespace frontier
 				(fiter->first.x < riter->second.x) && (fiter->second.x >= (riter->first.x + overlap)) &&
 				(fiter->first.y < riter->second.y) && (fiter->second.y >= (riter->first.y + overlap))
 			   ) {
+				if ((!isHole) && storeCandidates) {
+					candidateAreas[markerId].fillAreas.push_back(*fiter);
+					candidateAreas[markerId].markers.push_back(reserver);
+				}
 //fprintf(stderr,">> erase %.0f,%.0f - %.0f,%.0f [%.0f,%.0f - %.0f,%.0f]\n",fiter->first.x,fiter->first.y,fiter->second.x,fiter->second.y,riter->first.x,riter->first.y,riter->second.x,riter->second.y);
 				fiter = fillAreas.erase(fiter);
 			}
 			else
 				fiter++;
+  }
+
+  void eraseReservedAreas(const std::string & markerId,const FillAreas & reservedAreas,FillAreas & candidateAreas,NFmiFillAreas & fillAreas,bool isHole = false,bool storeCandidates = true)
+  {
+	for (FillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
+		eraseReservedAreas(markerId,riter->first,riter->second.fillAreas,candidateAreas,fillAreas,isHole,storeCandidates);
   }
 
   // ----------------------------------------------------------------------
@@ -3982,65 +4010,270 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  NFmiFillAreas getMarkerArea(const NFmiFillAreas & holeAreas,const NFmiFillAreas & reservedAreas,double mx,double my,int markerWidth,int markerHeight)
+  NFmiFillAreas getMarkerArea(const std::string & markerId,const NFmiFillAreas & holeAreas,const FillAreas & reservedAreas,FillAreas & candidateAreas,double mx,double my,int markerWidth,int markerHeight,bool storeCandidates = true)
   {
 	NFmiFillAreas markerArea;
 
 	markerArea.push_back(std::make_pair(Point(mx - (markerWidth / 2.0),my - (markerHeight / 2.0)),Point(mx + (markerWidth / 2.0),my + (markerHeight / 2.0))));
 
-	eraseReservedAreas(holeAreas,markerArea,true);
-	eraseReservedAreas(reservedAreas,markerArea);
+	eraseReservedAreas("hole","hole",holeAreas,candidateAreas,markerArea,true);
+	eraseReservedAreas(markerId,reservedAreas,candidateAreas,markerArea,false,storeCandidates);
 
 	return markerArea;
   }
 
-  NFmiFillAreas getMarkerArea(const NFmiFillAreas & holeAreas,const NFmiFillAreas & reservedAreas,double & mx,double my,int & markerWidth,int & markerHeight,bool checkBwd,bool checkFwd,double xStep)
+  NFmiFillAreas getMarkerArea(const std::string & markerId,const NFmiFillAreas & holeAreas,const FillAreas & reservedAreas,FillAreas & candidateAreas,double & mx,double my,int & markerWidth,int & markerHeight,bool checkBwd,bool checkFwd,double xStep)
   {
 	NFmiFillAreas markerArea;
 	double x = mx;
+	bool storeCandidates = true;
 	int w = markerWidth,h = markerHeight;
 
 	do {
 		// Check the given position
 
-		markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
-
-		if (markerArea.empty() && checkBwd) {
-			// Check half timestep backwards
-			//
-			mx = x - (xStep / 2);
-			markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
-
-			// Check 1/4 timestep backwards
-
-			if (markerArea.empty()) {
-				mx = x - (xStep / 4);
-				markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
-			}
-		}
-
-		if (markerArea.empty() && checkFwd) {
-			// Check half timestep forwards
-			//
-			mx = x + (xStep / 2);
-			markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
-
-			// Check 1/4 timestep forwards
-
-			if (markerArea.empty()) {
-				mx = x + (xStep / 4);
-				markerArea = getMarkerArea(holeAreas,reservedAreas,mx,my,markerWidth,markerHeight);
-			}
-		}
+		markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
 
 		if (markerArea.empty()) {
-			markerWidth -= 2;
-			markerHeight -= 2;
+			if (checkBwd) {
+				// Check half timestep backwards
+				//
+				mx = x - (xStep / 2);
+				markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
+
+				// Check 1/4 timestep backwards
+
+				if (markerArea.empty()) {
+					mx = x - (xStep / 4);
+					markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
+				}
+			}
+
+			if (markerArea.empty() && checkFwd) {
+				// Check half timestep forwards
+				//
+				mx = x + (xStep / 2);
+				markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
+
+				// Check 1/4 timestep forwards
+
+				if (markerArea.empty()) {
+					mx = x + (xStep / 4);
+					markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
+				}
+			}
+
+			if (markerArea.empty()) {
+				markerWidth -= 2;
+				markerHeight -= 2;
+
+				storeCandidates = false;
+			}
 		}
 	}
 	while (markerArea.empty() && (markerWidth >= (w / 2.0)) && (markerHeight >= (h / 2.0)));
 
 	return markerArea;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief	Select/return free marker position which is nearest to given position,
+   *		and if 'storeFreeAreas' is true, store the rest free positions to
+   *		free fill area container; otherwise (called with free fill area container
+   *		as input container) remove the selected area from free fill area container
+   */
+  // ----------------------------------------------------------------------
+
+  NFmiFillRect selectMarkerPos(const std::string & markerId,NFmiFillAreas & areas,const std::list<std::pair<double,double> > & scale,FillAreas & freeAreas,double x,double y,double & mx,double & my,double & xScale,double & yScale,bool storeFreeAreas = true)
+  {
+	NFmiFillAreas::iterator fits = areas.begin(),fit;
+	std::list<std::pair<double,double> >::const_iterator sits = scale.begin(),sit;
+	double dist2 = 0.0;
+
+	for (fit = fits,sit = sits; (fit != areas.end()); fit++, sit++) {
+		double cx = fit->first.x + ((fit->second.x - fit->first.x) / 2),cy = fit->first.y + ((fit->second.y - fit->first.y) / 2);
+		double d2 = ((x - cx) * (x - cx)) + ((y - cy) * (y - cy));
+
+		if ((fit == areas.begin()) || (d2 < dist2)) {
+			if ((fit != areas.begin()) && storeFreeAreas) {
+				freeAreas[markerId].fillAreas.push_back(*fits);
+				freeAreas[markerId].scales.push_back(*sits);
+			}
+
+			fits = fit;
+			sits = sit;
+			dist2 = d2;
+		}
+		else if (storeFreeAreas) {
+			freeAreas[markerId].fillAreas.push_back(*fit);
+			freeAreas[markerId].scales.push_back(*sit);
+		}
+	}
+
+	mx = fits->first.x + ((fits->second.x - fits->first.x) / 2);
+	my = fits->first.y + ((fits->second.y - fits->first.y) / 2);
+	xScale = sits->first;
+	yScale = sits->second;;
+
+	NFmiFillRect r(*fits);
+
+	if (!storeFreeAreas)
+		areas.erase(fits);
+
+	return r;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Arrange reserved marker positions to find a free position.
+   *
+   * 		Search candidate fill areas recursively until the reserving
+   * 		marker can be released and moved to a free position; then release
+   * 		the rest of the reserved areas by replacing them with now free
+   *		canditate areas and return the "bottommost"/free candidate area.
+   *
+   *		R4	F1  Marker 4 has reserved area R4 and it has free area F4
+   *		R3	C3  Marker 3 has reserved area R3 and it's candidate area C3 is reserved by R4
+   *		R2	C2	Marker 2 has reserved area R2 and it's candidate area C2 is reserved by R3
+   *			C1	Marker 1 has no free areas and it's candidate area C1 is reserved by R2
+   *
+   *		==>
+   *		R4 --> F4  Release R4, use F4
+   *		R3 --> C3  Release R3, use C3
+   *		R2 --> C2  Release R2, use C2
+   *
+   *		C1 can be used/returned.
+   *
+   *		Return true if a free position was found.
+   *
+   *		Note: Currently candidates with multiple reservations are not handled properly;
+   *			  candidate is used if one of the reservers can be released
+   */
+  // ----------------------------------------------------------------------
+
+  bool arrangeMarkerPos(Texts & texts,
+		  	  	  	    FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,NFmiFillAreas & fillAreas,
+		  	  	  	    double markerWidth,double markerHeight,bool labelOutput)
+  {
+//fprintf(stderr,">> MARKER: %s\n",(cit == candidateAreas.end()) ? "END" : cit->first.c_str());
+	if (cit == candidateAreas.end())
+		return false;
+
+	std::list<std::string>::iterator mit = cit->second.markers.begin();
+	std::list<std::string>::const_iterator mend = cit->second.markers.end();
+	NFmiFillAreas::iterator it = cit->second.fillAreas.begin();
+//{
+//FillAreas::iterator rit = reservedAreas.begin();
+//fprintf(stderr,"\n");
+//for ( ; (rit != reservedAreas.end()); rit++) {
+//fprintf(stderr,">> RESE: %s\n",rit->first.c_str());
+//NFmiFillAreas::iterator it = rit->second.fillAreas.begin();
+//for ( ; (it != rit->second.fillAreas.end()); it++)
+//fprintf(stderr,">>\t%.0f,%.0f - %.0f,%.0f\n",it->first.x,it->first.y,it->second.x,it->second.y);
+//}
+//FillAreas::iterator fit = freeAreas.begin();
+//for ( ; (fit != freeAreas.end()); fit++) {
+//fprintf(stderr,"\n>> FREE: %s\n",fit->first.c_str());
+//NFmiFillAreas::iterator it = fit->second.fillAreas.begin();
+//for ( ; (it != fit->second.fillAreas.end()); it++)
+//fprintf(stderr,">>\t%.0f,%.0f - %.0f,%.0f\n",it->first.x,it->first.y,it->second.x,it->second.y);
+//}
+//FillAreas::iterator cit = candidateAreas.begin();
+//for ( ; (cit != candidateAreas.end()); cit++) {
+//fprintf(stderr,"\n>> CAND: %s\n",cit->first.c_str());
+//NFmiFillAreas::iterator it = cit->second.fillAreas.begin();
+//std::list<std::string>::iterator mit = cit->second.markers.begin();
+//for ( ; (it != cit->second.fillAreas.end()); it++, mit++)
+//fprintf(stderr,">>\t%s %.0f,%.0f - %.0f,%.0f\n",mit->c_str(),it->first.x,it->first.y,it->second.x,it->second.y);
+//}
+//fprintf(stderr,"\n");
+//}
+
+	for ( ; (mit != mend); mit++, it++) {
+		FillAreas::iterator rit = reservedAreas.find(*mit);
+
+		if (rit == reservedAreas.end())
+			throw std::runtime_error("arrangeMarkerPos: internal: reserved marker not found: '" + *mit + "'");
+
+		FillAreas::iterator fit = freeAreas.find(*mit);
+
+		if (fit != freeAreas.end()) {
+			// Ignore (by moving them to candidate container) fill areas which have been reserved
+			// after they were stored as free. Check the area of the current candidate too.
+			//
+			rit->second.fillAreas.push_back(*it);
+			eraseReservedAreas(fit->first,reservedAreas,candidateAreas,fit->second.fillAreas);
+			rit->second.fillAreas.pop_back();
+
+			if (fit->second.fillAreas.empty())
+				fit = freeAreas.end();
+		}
+
+		if (fit != freeAreas.end()) {
+			// Free position exists for the marker, release the currently reserved area
+			//
+//NFmiFillRect rr(rit->second.fillAreas.front());
+//fprintf(stderr,">> %s release old %.0f,%.0f - %.0f,%.0f\n",rit->first.c_str(),rr.first.x,rr.first.y,rr.second.x,rr.second.y);
+			rit->second.fillAreas.clear();
+
+			// Get a free position near the originally selected marker position and reserve the area
+
+			double x,y,xScale,yScale;
+			NFmiFillRect r = selectMarkerPos(rit->first,fit->second.fillAreas,fit->second.scales,freeAreas,rit->second.x,rit->second.y,x,y,xScale,yScale,false);
+
+			rit->second.fillAreas.push_back(r);
+//fprintf(stderr,">> %s %s reserve new %.0f,%.0f - %.0f,%.0f\n",rit->first.c_str(),texts[rit->first].str().c_str(),r.first.x,r.first.y,r.second.x,r.second.y);
+
+			// Change the position in output container
+			//
+			// Note: Symbols are centered to the selected position, labels have their height as the rendered y -coordinate (x is 0);
+			//		 adjust the position (used as tranformation offset) for a label to center it to the selected position
+
+			x = r.first.x + ((r.second.x - r.first.x) / 2) - (labelOutput ? (markerWidth / 2.0) : 0);
+			y = r.first.y + ((r.second.y - r.first.y) / 2) - (labelOutput ? (markerHeight / 2.0) : 0);
+
+			texts[rit->first].str("");
+			texts[rit->first] << std::fixed << std::setprecision(1) << x << "," << y;
+			texts[rit->first + "SCALE"].str("");
+			texts[rit->first + "SCALE"] << std::fixed << std::setprecision(1) << "scale(" << xScale << "," << yScale << ")";
+
+			// Store the candidate fill area to be returned and remove it from candidate fill area container
+
+			fillAreas.push_back(*it);
+			cit->second.fillAreas.erase(it);
+			cit->second.markers.erase(mit);
+		}
+
+		if ((fit != freeAreas.end()) || arrangeMarkerPos(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(*mit),fillAreas,markerWidth,markerHeight,labelOutput)) {
+			// Reserve new area
+			//
+			FillAreas::iterator rit = reservedAreas.find(cit->first);
+
+			if (rit != reservedAreas.end()) {
+//NFmiFillRect r(fillAreas.front());
+//fprintf(stderr,">> %s reserve new %.0f,%.0f - %.0f,%.0f\n",rit->first.c_str(),r.first.x,r.first.y,r.second.x,r.second.y);
+				rit->second.fillAreas.push_back(fillAreas.front());
+
+				// Store and release the area to be returned
+
+				fillAreas.clear();
+				fillAreas.push_back(rit->second.fillAreas.front());
+
+//r = rit->second.fillAreas.front();
+//fprintf(stderr,">> %s release old %.0f,%.0f - %.0f,%.0f\n",rit->first.c_str(),r.first.x,r.first.y,r.second.x,r.second.y);
+				rit->second.fillAreas.pop_front();
+			}
+//else {
+//NFmiFillRect r(fillAreas.front());
+//fprintf(stderr,">> %s NO reserved areas, RET candidate %.0f,%.0f - %.0f,%.0f\n",cit->first.c_str(),r.first.x,r.first.y,r.second.x,r.second.y);
+//}
+
+			return true;
+		}
+	}
+
+	return false;
   }
 
   // ----------------------------------------------------------------------
@@ -4058,7 +4291,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void getAreaMarkerPos(const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,NFmiFillAreas & reservedAreas,bool isHole,bool bbCenterMarker,bool labelOutput,
+  void getAreaMarkerPos(Texts & texts,const std::string & markerId,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,bool isHole,bool bbCenterMarker,bool labelOutput,
 		  	  	  	    int windowWidth,int windowHeight,
 		  	  	  	    double minx,double axisHeight,double axisWidth,double xStep,double minh,double sOffset,double eOffset,
 		  	  	  	    int markerWidth,int markerHeight,double markerScale,
@@ -4074,6 +4307,7 @@ namespace frontier
 	std::list<DirectPosition>::const_iterator cpend = curvePoints.end(),itcp = curvePoints.begin(),pitcp = curvePoints.begin();
 	std::list<std::pair<double,double> > scale;
 	double mw = markerWidth,mh = markerHeight,lopx,mx,my,xScale = 1.0,yScale = 1.0;
+	size_t nMarkers = 0;
 
 	for (itcp++; (itcp != cpend); itcp++, pitcp++)
 		fillMap.Add(pitcp->getX(),pitcp->getY(),itcp->getX(),itcp->getY());
@@ -4088,15 +4322,15 @@ namespace frontier
 		return;
 	}
 
+//int TRAP = 0;
 	if (!fillAreas.empty()) {
-		// Erase reserved fill areas
+		// Move reserved fill areas to candidate container
 		//
 		splitFillAreas(fillAreas,markerWidth,1.0);
-
-		eraseReservedAreas(holeAreas,fillAreas,true);
-		eraseReservedAreas(reservedAreas,fillAreas);
-
+		eraseReservedAreas("hole","hole",holeAreas,candidateAreas,fillAreas,true);
 		fillAreas.sort(sortFillAreas);
+//if (TRAP != 0)
+//fillAreas.clear();
 	}
 
 	if (isHole) {
@@ -4140,6 +4374,9 @@ namespace frontier
 		if (((lopx > 0) && (npx < ((int) _lopx.size()))) || (nX == 0))
 			continue;
 
+		nMarkers++;
+		std::string mId(markerId + boost::lexical_cast<std::string>(nMarkers));
+
 		if (!bbCenterMarker) {
 			// Use a fill area if available
 			//
@@ -4156,56 +4393,62 @@ namespace frontier
 				{
 					// Ignore areas going below 0 over 1/3'rd
 
-					if (area->second.y <= (axisHeight + ((area->second.y - area->first.y) / 3)))
+					if (area->second.y <= (axisHeight + ((area->second.y - area->first.y) / 3))) {
 						areas.push_back(*area);
+						scale.push_back(std::make_pair(1.0,1.0));
+					}
 //fprintf(stderr,"\t%s n0=%d nN=%d xLim=%.0f bl=%.0f,%.0f tr=%.0f,%.0f\n",area->second.y <= (axisHeight + ((area->second.y - area->first.y) / 3)) ? "Pick" : "Skip",n0,n0 + timeSteps,(minx + ((n0 + timeSteps) * xStep)),area->first.x,area->first.y,area->second.x,area->second.y);
 				}
 
 				if (!areas.empty()) {
-					if (areasOut && (!areaPlaceHolder.empty())) {
-						boost::ptr_map<std::string,std::ostringstream> & texts = *areasOut;
+					eraseReservedAreas(mId,reservedAreas,candidateAreas,areas);
 
-						texts[areaPlaceHolder] << "<line x1=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y1=\"0\""
-											   <<      " x2=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y2=\"" << axisHeight
-											   <<      "\" style=\"stroke:rgb(255,0,0);stroke-width:2\"/>";
+					if (!areas.empty()) {
+						if (areasOut && (!areaPlaceHolder.empty())) {
+							boost::ptr_map<std::string,std::ostringstream> & texts = *areasOut;
 
-						const char *clrs[] =
-						{ "red",
-						  "blue",
-						  "green",
-						  "orange",
-						  "brown",
-						  "yellow"
-						};
+							texts[areaPlaceHolder] << "<line x1=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y1=\"0\""
+												   <<      " x2=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y2=\"" << axisHeight
+												   <<      "\" style=\"stroke:rgb(255,0,0);stroke-width:2\"/>";
 
-						size_t clrCnt = (sizeof(clrs) / sizeof(char *)),clrIdx = 0;
+							const char *clrs[] =
+							{ "red",
+							  "blue",
+							  "green",
+							  "orange",
+							  "brown",
+							  "yellow"
+							};
 
-						for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
-							texts[areaPlaceHolder] << "<rect x=\"" << iter->first.x
-												   << "\" y=\"" << iter->first.y
-												   << "\" width=\"" << iter->second.x - iter->first.x
-												   << "\" height=\"" << iter->second.y - iter->first.y
-												   << "\" fill=\"" << clrs[clrIdx % clrCnt]
-												   << "\" stroke=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
-							clrIdx++;
+							size_t clrCnt = (sizeof(clrs) / sizeof(char *)),clrIdx = 0;
+
+							for (NFmiFillAreas::const_iterator iter = areas.begin(); (iter != areas.end()); iter++) {
+								texts[areaPlaceHolder] << "<rect x=\"" << iter->first.x
+													   << "\" y=\"" << iter->first.y
+													   << "\" width=\"" << iter->second.x - iter->first.x
+													   << "\" height=\"" << iter->second.y - iter->first.y
+													   << "\" fill=\"" << clrs[clrIdx % clrCnt]
+													   << "\" stroke=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
+								clrIdx++;
+							}
 						}
-					}
 //fprintf(stderr,"\n");
 
-					// Note: Symbols are centered to the selected position, labels have their height as the rendered y -coordinate (x is 0);
-					//		 adjust the position (used as tranformation offsets) for a label to center it to the selected position
-
-					NFmiFillRect markerRect = getCenterFillAreaRect(areas,markerWidth,1.0);
-					markerX.push_back(markerRect.first.x + (labelOutput ? 0 : ((markerRect.second.x - markerRect.first.x) / 2)));
-					markerY.push_back(markerRect.first.y + (labelOutput ? 0 : ((markerRect.second.y - markerRect.first.y) / 2)));
-					scaleX.push_back(1.0);
-					scaleY.push_back(1.0);
-
-					reservedAreas.push_back(std::make_pair(Point(markerRect.first.x,markerRect.first.y),Point(markerRect.second.x,markerRect.second.y)));
-//fprintf(stderr,"\tFR Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",markerRect.first.x,markerRect.first.y,markerRect.second.x,markerRect.second.y);
-
-					nX = 0;
-					continue;
+//						// Note: Symbols are centered to the selected position, labels have their height as the rendered y -coordinate (x is 0);
+//						//		 adjust the position (used as tranformation offsets) for a label to center it to the selected position
+//
+//						NFmiFillRect markerRect = getCenterFillAreaRect(areas,markerWidth,1.0);
+//						markerX.push_back(markerRect.first.x + (labelOutput ? 0 : ((markerRect.second.x - markerRect.first.x) / 2)));
+//						markerY.push_back(markerRect.first.y + (labelOutput ? 0 : ((markerRect.second.y - markerRect.first.y) / 2)));
+//						scaleX.push_back(1.0);
+//						scaleY.push_back(1.0);
+//
+//						reservedAreas.push_back(std::make_pair(Point(markerRect.first.x,markerRect.first.y),Point(markerRect.second.x,markerRect.second.y)));
+////fprintf(stderr,"\tFR Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",markerRect.first.x,markerRect.first.y,markerRect.second.x,markerRect.second.y);
+//
+//						nX = 0;
+//						continue;
+					}
 				}
 			}
 
@@ -4305,12 +4548,12 @@ namespace frontier
 				// Scale the marker down to half width/height if needed
 
 				double x = mx;
-				NFmiFillAreas markerArea = getMarkerArea(holeAreas,reservedAreas,x,my,markerWidth,markerHeight,(n > n0),(n < nN),xStep);
+				NFmiFillAreas markerArea = getMarkerArea(mId,holeAreas,reservedAreas,candidateAreas,x,my,markerWidth,markerHeight,(n > n0),(n < nN),xStep);
 
 				if (!markerArea.empty()) {
 					// Free, store the center point and scale
 					//
-					areas.push_back(std::make_pair(Point(x,my),Point(x,my)));
+					areas.push_back(std::make_pair(Point(x - (markerWidth / 2),my - (markerHeight / 2)),Point(x + (markerWidth / 2),my + (markerHeight / 2))));
 					scale.push_back(std::make_pair(markerWidth / mw,markerHeight / mh));
 
 					if (selfrh < h) {
@@ -4354,23 +4597,50 @@ namespace frontier
 				nearest = true;
 			}
 
-			if ((selhoff >= 0) || (selfroff >= 0)) {
-				// Using the last (selh; selh > minh), favoured (selfvh) or the heighest free (selfrh) fill area
+//if (TRAP != 0) {
+////areas.clear(); reservedAreas.clear(); freeAreas.clear(); candidateAreas.clear();
+////
+////reservedAreas["R3"].fillAreas.push_back(std::make_pair(Point(33,33),Point(44,44)));
+////freeAreas["R3"].fillAreas.push_back(std::make_pair(Point(333,333),Point(444,444)));
+////
+////reservedAreas["R2"].fillAreas.push_back(std::make_pair(Point(22,22),Point(33,33)));
+////candidateAreas["R2"].fillAreas.push_back(std::make_pair(Point(33,33),Point(44,44)));
+////candidateAreas["R2"].markers.push_back("R3");
+////
+////reservedAreas["R1"].fillAreas.push_back(std::make_pair(Point(11,11),Point(22,22)));
+////candidateAreas["R1"].fillAreas.push_back(std::make_pair(Point(22,22),Point(33,33)));
+////candidateAreas["R1"].markers.push_back("R2");
+////
+////candidateAreas[mId].fillAreas.push_back(std::make_pair(Point(11,11),Point(22,22)));
+////candidateAreas[mId].markers.push_back("R1");
+//FillAreas::const_iterator rit = reservedAreas.begin();
+//areas.clear(); candidateAreas[mId].fillAreas.push_back(rit->second.fillAreas.front());
+//}
+			if ((areas.size() > 0) || arrangeMarkerPos(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(mId),areas,markerWidth,markerHeight,labelOutput)) {
+				// Select free marker position near the selected position
 				//
-				NFmiFillAreas::const_iterator it = areas.begin();
-				std::list<std::pair<double,double> >::const_iterator sit = scale.begin();
-
-				if (selhoff < 0)
-					selhoff = selfvoff = selfroff;
-
-				advance(it,(selh >= minh) ? selhoff - 1 : selfvoff - 1);
-				advance(sit,(selh >= minh) ? selhoff - 1 : selfvoff - 1);
-
-				mx = it->first.x;
-				my = it->first.y;
-				xScale = sit->first;
-				yScale = sit->second;
+				selectMarkerPos(mId,areas,scale,freeAreas,selmx,selmy,mx,my,xScale,yScale);
+//if (areasOut && (!areaPlaceHolder.empty())) {
+//boost::ptr_map<std::string,std::ostringstream> & texts = *areasOut;
+//texts[areaPlaceHolder] << "<circle cx=\"" << selmx << "\" cy=\"" << selmy << "\" r=\"5\" stroke=\"black\" stroke-width=\"1\" fill=\"blue\"/>"; }
 			}
+//			else if ((selhoff >= 0) || (selfroff >= 0)) {
+//				// Using the last (selh; selh > minh), favoured (selfvh) or the heighest free (selfrh) fill area
+//				//
+//				NFmiFillAreas::const_iterator it = areas.begin();
+//				std::list<std::pair<double,double> >::const_iterator sit = scale.begin();
+//
+//				if (selhoff < 0)
+//					selhoff = selfvoff = selfroff;
+//
+//				advance(it,(selh >= minh) ? selhoff - 1 : selfvoff - 1);
+//				advance(sit,(selh >= minh) ? selhoff - 1 : selfvoff - 1);
+//
+//				mx = it->first.x;
+//				my = it->first.y;
+//				xScale = sit->first;
+//				yScale = sit->second;
+//			}
 			else {
 				// No free fill areas, using the highest/favoured position
 				//
@@ -4424,7 +4694,10 @@ namespace frontier
 		scaleX.push_back(xScale);
 		scaleY.push_back(yScale);
 
-		reservedAreas.push_back(std::make_pair(Point(mx - (markerWidth / 2.0),my - (markerHeight / 2.0)),Point(mx + (markerWidth / 2.0),my + (markerHeight / 2.0))));
+		reservedAreas[mId].x = mx;
+		reservedAreas[mId].y = my;
+		reservedAreas[mId].fillAreas.push_back(std::make_pair(Point(mx - (markerWidth / 2.0),my - (markerHeight / 2.0)),Point(mx + (markerWidth / 2.0),my + (markerHeight / 2.0))));
+		reservedAreas[mId].scales.push_back(std::make_pair(xScale,yScale));
 //fprintf(stderr,"\tNF Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",mx - (markerWidth / 2.0),my - (markerHeight / 2.0),mx + (markerWidth / 2.0),my + (markerHeight / 2.0));
 
 		nX = 0;
@@ -4460,8 +4733,11 @@ namespace frontier
 	// Get and reserve label positions for each separate visible part of the area
 
 	std::list<double> labelX,labelY,scaleX,scaleY;
+	std::string tId(textPosId + boost::lexical_cast<std::string>(npointsymbols));
+	npointsymbols++;
+//fprintf(stderr,">> LABEL %s1 %s\n",tId.c_str(),label.c_str());
 
-	getAreaMarkerPos(curvePoints,holeAreas,reservedAreas,isHole,bbCenterLabel,!label.empty(),
+	getAreaMarkerPos(texts,tId,curvePoints,holeAreas,reservedAreas,freeAreas,candidateAreas,isHole,bbCenterLabel,!label.empty(),
 					 static_cast<int>(std::floor(0.5+area->Width())),
 					 static_cast<int>(std::floor(0.5+area->Height())),
 					 minX,axisManager->axisHeight(),axisManager->axisWidth(),axisManager->xStep(),minLabelPosHeight,sOffset,eOffset,
@@ -4480,12 +4756,12 @@ namespace frontier
 	std::string svg = texts[textName].str(),textPosId0("--" + textPosId + "--"),scaleId0("--" + textPosId + "SCALE--");
 	std::list<double>::const_iterator itX,itY,sitX,sitY;
 
-	static int placeHolderIndex = 0;
+	int placeHolderIndex = 1;
 
 //fprintf(stderr,"\nSvg: %s\n",svg.c_str());
 	for (itX = labelX.begin(),itY = labelY.begin(),sitX = scaleX.begin(),sitY = scaleY.begin(); (itX != labelX.end()); itX++, itY++, sitX++, sitY++, placeHolderIndex++) {
-		std::string textPosIdN(textPosId + boost::lexical_cast<std::string>(placeHolderIndex));
-		std::string scaleIdN(textPosId + "SCALE" + boost::lexical_cast<std::string>(placeHolderIndex));
+		std::string textPosIdN(tId + boost::lexical_cast<std::string>(placeHolderIndex));
+		std::string scaleIdN(textPosIdN + "SCALE");
 		std::string s(replace_first_copy(svg,textPosId0,"--" + textPosIdN + "--"));
 
 		texts[labelPlaceHolder] << replace_first_copy(s,scaleId0,"--" + scaleIdN + "--");
@@ -4502,7 +4778,7 @@ namespace frontier
   // ----------------------------------------------------------------------
 
   template <typename T>
-  void SvgRenderer::renderAreaSymbols(const T & cg,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,const std::string & confPath,
+  void SvgRenderer::renderAreaSymbols(const T & cg,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,const std::string & confPath,const std::string & symbolPosId,
 		  	  	  	  	  	  	  	  double minx,std::vector<double> & loPx,std::vector<double> & hiPx,std::vector<bool> & hasHole,
 		  	  	  	  	  	  	  	  const std::string & symClass,const std::string & classNameExt,const std::string & symbol,
 		  	  	  	  	  	  	  	  bool asSymbol,bool & visible,bool & aboveTop)
@@ -4553,8 +4829,11 @@ namespace frontier
 	std::list<double> symbolX,symbolY,scaleX,scaleY;
 	std::list<double>::const_iterator itx,ity,sitx,sity;
 	double axisHeight = axisManager->axisHeight(),x,y;
+	std::string sId(symbolPosId + boost::lexical_cast<std::string>(npointsymbols));
+	npointsymbols++;
+//fprintf(stderr,">> SYMBOL %s1 %s\n",sId.c_str(),symbol.c_str());
 
-	getAreaMarkerPos(curvePoints,holeAreas,reservedAreas,false,cg.bbCenterMarker(),false,
+	getAreaMarkerPos(texts,sId,curvePoints,holeAreas,reservedAreas,freeAreas,candidateAreas,false,cg.bbCenterMarker(),false,
 					 static_cast<int>(std::floor(0.5+area->Width())),
 					 static_cast<int>(std::floor(0.5+area->Height())),
 					 minx,axisManager->axisHeight(),axisManager->axisWidth(),axisManager->xStep(),minSymbolPosHeight,cg.sOffset(),cg.eOffset(),
@@ -4565,8 +4844,10 @@ namespace frontier
 
 	// Render the symbol
 
-	for (itx = symbolX.begin(),ity = symbolY.begin(),sitx = scaleX.begin(),sity = scaleY.begin(); (itx != symbolX.end()); itx++, ity++, sitx++, sity++) {
-		render_aerodromeSymbol(confPath,symClass,classNameExt,symbol,(x = *itx),(y = *ity),true,true,*sitx,*sity);
+	int placeHolderIndex = 1;
+
+	for (itx = symbolX.begin(),ity = symbolY.begin(),sitx = scaleX.begin(),sity = scaleY.begin(); (itx != symbolX.end()); itx++, ity++, sitx++, sity++, placeHolderIndex++) {
+		render_aerodromeSymbol(confPath,symClass,classNameExt,symbol,(x = *itx),(y = *ity),true,true,*sitx,*sity,sId + boost::lexical_cast<std::string>(placeHolderIndex));
 
 		if (asSymbol) {
 			// The symbol should be visible, checking anyway
@@ -6844,7 +7125,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		const std::string & symbol = groupCategory.groupSymbol();
 
 		if ((!isHole) && (!symbol.empty()))
-			renderAreaSymbols(*itcg,curvePoints,holeAreas,confPath,minX,scaledLo,scaledHi,hasHole,symClass,classNameExt,symbol,asSymbol,visible,aboveTop);
+			renderAreaSymbols(*itcg,curvePoints,holeAreas,confPath,"ZZ" + FEATURE + "Symbol",minX,scaledLo,scaledHi,hasHole,symClass,classNameExt,symbol,asSymbol,visible,aboveTop);
 		else
 			renderAreaLabels(curvePoints,holeAreas,areaLabels,FEATURE + "LABEL",itcg->markerPlaceHolder(),"ZZ" + FEATURE + "Text",isHole,
 							 (symbol.empty() && (!isHole)) ? groupCategory.groupLabel() : "",itcg->bbCenterMarker(),
