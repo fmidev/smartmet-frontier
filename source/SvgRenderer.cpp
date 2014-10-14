@@ -7341,13 +7341,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		double firstXPos = 0.0;
 
-		// Wind arrow arm length (in pixels) to calculate horizontal and vertical offsets to position the arrowheads to
-		// the elevation lines. Without adjustment the wind arrows are (assumed to be) centered to the elevation lines.
-
-		unsigned int arrowArmLength = configValue<unsigned int>(specs,confPath,"arrowarmlength",NULL,s_optional,&isSet);
-		if (!isSet)
-			arrowArmLength = 0;
-
 		std::list<WindArrowOffsets> windArrowOffsetsList;
 		WindArrowOffsets windArrowOffsets;
 
@@ -7423,6 +7416,13 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						double scale = configValue<double,int>(*condSpecs,confPath,"scale",&specs,s_optional,&isSet);
 						if (!isSet)
 							scale = 1.0;
+
+						// Wind arrow arm length (in pixels) to calculate horizontal and vertical offsets to position the arrowheads to
+						// the elevation lines. Without adjustment the wind arrows are (assumed to be) centered to the elevation lines.
+
+						unsigned int arrowArmLength = configValue<unsigned int>(*condSpecs,confPath,"arrowarmlength",&specs,s_optional,&isSet);
+						if (!isSet)
+							arrowArmLength = 0;
 
 						const woml::Elevation & e = itpv->elevation();
 						boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLower = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
