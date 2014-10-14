@@ -3982,6 +3982,7 @@ namespace frontier
 	for (NFmiFillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
 		for (NFmiFillAreas::iterator fiter = fillAreas.begin(); (fiter != fillAreas.end()); )
 			if (
+				(markerId != reserver) &&
 				(fiter->first.x < riter->second.x) && (fiter->second.x >= (riter->first.x + overlap)) &&
 				(fiter->first.y < riter->second.y) && (fiter->second.y >= (riter->first.y + overlap))
 			   ) {
@@ -4152,9 +4153,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  bool arrangeMarkerPos(Texts & texts,
-		  	  	  	    FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,NFmiFillAreas & fillAreas,
-		  	  	  	    double markerWidth,double markerHeight,bool labelOutput)
+  bool arrangeMarkerPos(Texts & texts,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,NFmiFillAreas & fillAreas)
   {
 //fprintf(stderr,">> MARKER: %s\n",(cit == candidateAreas.end()) ? "END" : cit->first.c_str());
 	if (cit == candidateAreas.end())
@@ -4230,8 +4229,8 @@ namespace frontier
 			// Note: Symbols are centered to the selected position, labels have their height as the rendered y -coordinate (x is 0);
 			//		 adjust the position (used as tranformation offset) for a label to center it to the selected position
 
-			x = r.first.x + ((r.second.x - r.first.x) / 2) - (labelOutput ? (markerWidth / 2.0) : 0);
-			y = r.first.y + ((r.second.y - r.first.y) / 2) - (labelOutput ? (markerHeight / 2.0) : 0);
+			x = r.first.x + (rit->second.centered ? ((r.second.x - r.first.x) / 2) : 0);
+			y = r.first.y + (rit->second.centered ? ((r.second.y - r.first.y) / 2) : 0);
 
 			texts[rit->first].str("");
 			texts[rit->first] << std::fixed << std::setprecision(1) << x << "," << y;
@@ -4245,7 +4244,7 @@ namespace frontier
 			cit->second.markers.erase(mit);
 		}
 
-		if ((fit != freeAreas.end()) || arrangeMarkerPos(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(*mit),fillAreas,markerWidth,markerHeight,labelOutput)) {
+		if ((fit != freeAreas.end()) || arrangeMarkerPos(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(*mit),fillAreas)) {
 			// Reserve new area
 			//
 			FillAreas::iterator rit = reservedAreas.find(cit->first);
@@ -4291,7 +4290,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void getAreaMarkerPos(Texts & texts,const std::string & markerId,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,bool isHole,bool bbCenterMarker,bool labelOutput,
+  void getAreaMarkerPos(Texts & texts,const std::string & markerId,const std::list<DirectPosition> & curvePoints,NFmiFillAreas & holeAreas,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,bool isHole,bool bbCenterMarker,bool textOutput,
 		  	  	  	    int windowWidth,int windowHeight,
 		  	  	  	    double minx,double axisHeight,double axisWidth,double xStep,double minh,double sOffset,double eOffset,
 		  	  	  	    int markerWidth,int markerHeight,double markerScale,
@@ -4312,9 +4311,9 @@ namespace frontier
 	for (itcp++; (itcp != cpend); itcp++, pitcp++)
 		fillMap.Add(pitcp->getX(),pitcp->getY(),itcp->getX(),itcp->getY());
 
-	fillMap.getFillAreas(windowWidth,windowHeight,markerWidth,markerHeight,1.0,false,fillAreas,isHole && labelOutput,false,isHole && (!labelOutput));
+	fillMap.getFillAreas(windowWidth,windowHeight,markerWidth,markerHeight,1.0,false,fillAreas,isHole && textOutput,false,isHole && (!textOutput));
 
-	if (isHole && (!labelOutput)) {
+	if (isHole && (!textOutput)) {
 		// Just reserve the area of the hole
 		//
 		holeAreas.insert(holeAreas.end(),fillAreas.begin(),fillAreas.end());
@@ -4438,8 +4437,8 @@ namespace frontier
 //						//		 adjust the position (used as tranformation offsets) for a label to center it to the selected position
 //
 //						NFmiFillRect markerRect = getCenterFillAreaRect(areas,markerWidth,1.0);
-//						markerX.push_back(markerRect.first.x + (labelOutput ? 0 : ((markerRect.second.x - markerRect.first.x) / 2)));
-//						markerY.push_back(markerRect.first.y + (labelOutput ? 0 : ((markerRect.second.y - markerRect.first.y) / 2)));
+//						markerX.push_back(markerRect.first.x + (textOutput ? 0 : ((markerRect.second.x - markerRect.first.x) / 2)));
+//						markerY.push_back(markerRect.first.y + (textOutput ? 0 : ((markerRect.second.y - markerRect.first.y) / 2)));
 //						scaleX.push_back(1.0);
 //						scaleY.push_back(1.0);
 //
@@ -4616,7 +4615,7 @@ namespace frontier
 //FillAreas::const_iterator rit = reservedAreas.begin();
 //areas.clear(); candidateAreas[mId].fillAreas.push_back(rit->second.fillAreas.front());
 //}
-			if ((areas.size() > 0) || arrangeMarkerPos(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(mId),areas,markerWidth,markerHeight,labelOutput)) {
+			if ((areas.size() > 0) || arrangeMarkerPos(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(mId),areas)) {
 				// Select free marker position near the selected position
 				//
 				selectMarkerPos(mId,areas,scale,freeAreas,selmx,selmy,mx,my,xScale,yScale);
@@ -4689,13 +4688,14 @@ namespace frontier
 		markerWidth = xScale * mw;
 		markerHeight = yScale * mh;
 
-		markerX.push_back(mx - (labelOutput ? (markerWidth / 2.0) : 0));
-		markerY.push_back(my - (labelOutput ? (markerHeight / 2.0) : 0));
+		markerX.push_back(mx - (textOutput ? (markerWidth / 2.0) : 0));
+		markerY.push_back(my - (textOutput ? (markerHeight / 2.0) : 0));
 		scaleX.push_back(xScale);
 		scaleY.push_back(yScale);
 
 		reservedAreas[mId].x = mx;
 		reservedAreas[mId].y = my;
+		reservedAreas[mId].centered = (!textOutput);
 		reservedAreas[mId].fillAreas.push_back(std::make_pair(Point(mx - (markerWidth / 2.0),my - (markerHeight / 2.0)),Point(mx + (markerWidth / 2.0),my + (markerHeight / 2.0))));
 		reservedAreas[mId].scales.push_back(std::make_pair(xScale,yScale));
 //fprintf(stderr,"\tNF Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",mx - (markerWidth / 2.0),my - (markerHeight / 2.0),mx + (markerWidth / 2.0),my + (markerHeight / 2.0));
