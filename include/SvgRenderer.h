@@ -409,9 +409,11 @@ namespace frontier
   typedef struct {
 	  std::list<std::string> markers;					// Marker names of reserved fill areas for candidate fill areas
 	  double x; double y;								// Marker position for reserved fill area (the nearest (free) fill area is used)
+	  double scale;										// Configured marker scale for reserved fill area
 	  bool centered;									// Set for reserved fill area if the marker is centered to the selected position (set for symbols)
 	  NFmiFillAreas fillAreas;							// One reserved of all free/candidate fill areas
-	  std::list<std::pair<double,double> > scales;		// Marker scales
+	  std::list<int> areaIds;							// Area id's for candidate fill areas (used to detect multiple reservations)
+	  std::list<std::pair<double,double> > scales;		// Additional marker scales to scale the marker down (to half size) if necessary to make it fit
   } FillAreaData;
   typedef std::map<std::string,FillAreaData> FillAreas;	// Marker name and related fill areas
 
