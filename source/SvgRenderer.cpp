@@ -3188,21 +3188,44 @@ namespace frontier
 					// Some settings are required for svg but optional for img
 					//
 					settings reqORopt = ((type == "svg") ? s_required : s_optional);
+					std::ostringstream wh;
 
+					// If symbol url is not given, 'use' reference is generated
+
+					std::string uri = configValue<std::string>(scope,symClass,"url",fpos ? s_required : s_optional);
+
+					if (uri.empty()) {
+						std::string classDef = configValue<std::string>(scope,symClass,"class",s_optional);
+						if (classDef.empty())
+							classDef = code;
+
+						bool hasScale;
+						double scale;
+						scale = configValue<double>(scope,symClass,"scale",s_optional,&hasScale);
+
+						wh << "<use class=\"" << classDef << "\""
+						   << " xlink:href=\"#" << code << "\""
+						   << " x=\"" << lon << "\" y=\"" << lat << "\"";
+
+						if (hasScale) {
+							wh << std::setprecision(4) << " transform=\"translate(" << -lon * (scale - 1) << "," << -lat * (scale - 1)
+							   << ") scale(" << scale << ")\"";
+						}
+
+						wh << "/>";
+					}
+					else {
 					if (folder.empty())
 						folder = configValue<std::string,int>(scope,symClass,"folder",reqORopt);
 
 					width = configValue<int>(scope,symClass,"width",reqORopt,&hasWidth);
 					height = configValue<int>(scope,symClass,"height",reqORopt,&hasHeight);
 
-					std::string uri = configValue<std::string>(scope,symClass,"url");
-
 					if (!areaSymbols) {
 						boost::algorithm::replace_all(uri,"%folder%",folder);
 						boost::algorithm::replace_all(uri,"%symbol%",code + "." + type);
 					}
 
-					std::ostringstream wh;
 					if (hasWidth)
 						wh << " width=\"" << std::fixed << std::setprecision(0) << width << "px\"";
 					else
@@ -3211,8 +3234,12 @@ namespace frontier
 						wh << " height=\"" << std::fixed << std::setprecision(0) << height << "px\"";
 					else
 						height = 0;
+					}
 
-					if (!fpos)
+					if (!fpos) {
+						if (uri.empty())
+							symbols << wh.str();
+						else
 						symbols << "<image xlink:href=\""
 								<< svgescape(uri)
 								<< "\" x=\""
@@ -3220,6 +3247,7 @@ namespace frontier
 								<< "\" y=\""
 								<< std::fixed << std::setprecision(1) << ((lat-height/2) + yoffset)
 								<< "\"" << wh.str() << "/>\n";
+					}
 					else {
 						NFmiFillPositions::const_iterator piter;
 						std::list<std::string>::const_iterator siter;
