@@ -3211,7 +3211,7 @@ namespace frontier
 							wh << std::setprecision(4) << " transform=\"translate(" << -lon * (scale - 1) << "," << -lat * (scale - 1)
 							   << ") scale(" << scale << ")\"";
 
-						wh << "/>";
+						wh << "/>\n";
 					}
 					else {
 						if (folder.empty())
