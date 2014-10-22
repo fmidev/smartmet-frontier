@@ -3207,46 +3207,45 @@ namespace frontier
 						   << " xlink:href=\"#" << code << "\""
 						   << " x=\"" << lon << "\" y=\"" << lat << "\"";
 
-						if (hasScale) {
+						if (hasScale)
 							wh << std::setprecision(4) << " transform=\"translate(" << -lon * (scale - 1) << "," << -lat * (scale - 1)
 							   << ") scale(" << scale << ")\"";
-						}
 
 						wh << "/>";
 					}
 					else {
-					if (folder.empty())
-						folder = configValue<std::string,int>(scope,symClass,"folder",reqORopt);
+						if (folder.empty())
+							folder = configValue<std::string,int>(scope,symClass,"folder",reqORopt);
 
-					width = configValue<int>(scope,symClass,"width",reqORopt,&hasWidth);
-					height = configValue<int>(scope,symClass,"height",reqORopt,&hasHeight);
+						width = configValue<int>(scope,symClass,"width",reqORopt,&hasWidth);
+						height = configValue<int>(scope,symClass,"height",reqORopt,&hasHeight);
 
-					if (!areaSymbols) {
-						boost::algorithm::replace_all(uri,"%folder%",folder);
-						boost::algorithm::replace_all(uri,"%symbol%",code + "." + type);
-					}
+						if (!areaSymbols) {
+							boost::algorithm::replace_all(uri,"%folder%",folder);
+							boost::algorithm::replace_all(uri,"%symbol%",code + "." + type);
+						}
 
-					if (hasWidth)
-						wh << " width=\"" << std::fixed << std::setprecision(0) << width << "px\"";
-					else
-						width = 0;
-					if (hasHeight)
-						wh << " height=\"" << std::fixed << std::setprecision(0) << height << "px\"";
-					else
-						height = 0;
+						if (hasWidth)
+							wh << " width=\"" << std::fixed << std::setprecision(0) << width << "px\"";
+						else
+							width = 0;
+						if (hasHeight)
+							wh << " height=\"" << std::fixed << std::setprecision(0) << height << "px\"";
+						else
+							height = 0;
 					}
 
 					if (!fpos) {
 						if (uri.empty())
 							symbols << wh.str();
 						else
-						symbols << "<image xlink:href=\""
-								<< svgescape(uri)
-								<< "\" x=\""
-								<< std::fixed << std::setprecision(1) << ((lon-width/2) - xoffset)
-								<< "\" y=\""
-								<< std::fixed << std::setprecision(1) << ((lat-height/2) + yoffset)
-								<< "\"" << wh.str() << "/>\n";
+							symbols << "<image xlink:href=\""
+									<< svgescape(uri)
+									<< "\" x=\""
+									<< std::fixed << std::setprecision(1) << ((lon-width/2) - xoffset)
+									<< "\" y=\""
+									<< std::fixed << std::setprecision(1) << ((lat-height/2) + yoffset)
+									<< "\"" << wh.str() << "/>\n";
 					}
 					else {
 						NFmiFillPositions::const_iterator piter;
