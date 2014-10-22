@@ -3212,7 +3212,7 @@ namespace frontier
 							   << ") scale(" << scale << ")\"";
 						}
 
-						wh << "/>";
+						wh << "/>\n";
 					}
 					else {
 					if (folder.empty())
