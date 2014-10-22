@@ -3968,7 +3968,7 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
-   * \brief Move used/reserved 'fillAreas' container's fill areas to
+   * \brief Move used/reserved 'fillAreas' container's fill areas into
    *		to 'candidateAreas' to avoid overlapping labels/symbols etc.
    */
   // ----------------------------------------------------------------------
@@ -3977,12 +3977,10 @@ namespace frontier
   {
 	// Allow some overlap for nonholes
 
-	int overlap = (isHole ? -fillAreaOverlapMax : fillAreaOverlapMax),areaId;
+	int overlap = (isHole ? -fillAreaOverlapMax : fillAreaOverlapMax);
 
-	for (NFmiFillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++) {
-		areaId = 0;
-
-		for (NFmiFillAreas::iterator fiter = fillAreas.begin(); (fiter != fillAreas.end()); areaId++)
+	for (NFmiFillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
+		for (NFmiFillAreas::iterator fiter = fillAreas.begin(); (fiter != fillAreas.end()); )
 			if (
 				(markerId != reserver) &&
 				(fiter->first.x < riter->second.x) && (fiter->second.x >= (riter->first.x + overlap)) &&
@@ -3991,7 +3989,6 @@ namespace frontier
 				if ((!isHole) && storeCandidates) {
 					candidateAreas[markerId].fillAreas.push_back(*fiter);
 					candidateAreas[markerId].markers.push_back(reserver);
-					candidateAreas[markerId].areaIds.push_back(areaId);
 					candidateAreas[markerId].scales.push_back(std::make_pair(1.0,1.0));
 				}
 
@@ -4003,7 +4000,6 @@ namespace frontier
 			}
 			else
 				fiter++;
-	}
   }
 
   void eraseReservedAreas(const std::string & markerId,const FillAreas & reservedAreas,FillAreas & candidateAreas,NFmiFillAreas & fillAreas,bool isHole = false,bool storeCandidates = true)
@@ -4012,7 +4008,9 @@ namespace frontier
 
 	if (storeCandidates) {
 		for (FillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
-			eraseReservedAreas(markerId,riter->first,riter->second.fillAreas,candidateAreas,fillAreas,isHole,storeCandidates,false);
+			// Note: Temporary "CURRENTCANDIDATE" reserved marker is flagged with nonempty 'markers' field
+			//
+			eraseReservedAreas(markerId,riter->first,riter->second.fillAreas,candidateAreas,fillAreas,isHole,riter->second.markers.empty(),false);
 
 		storeCandidates = false;
 	}
@@ -4098,7 +4096,7 @@ namespace frontier
   // ----------------------------------------------------------------------
   /*!
    * \brief	Select/return free marker position which is nearest to given position,
-   *		and if 'storeFreeAreas' is true, store the rest free positions to
+   *		and if 'storeFreeAreas' is true, store the rest free positions into
    *		free fill area container; otherwise (called with free fill area container
    *		as input container) remove the selected area from free fill area container
    */
@@ -4196,7 +4194,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  bool arrangeMarkers(Texts & texts,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,NFmiFillAreas & fillAreas,int RC = 1,std::list<std::string>::iterator * mit2 = NULL,NFmiFillAreas::iterator * it2 = NULL,std::list<int>::iterator * idit2 = NULL,std::list<std::pair<double,double> >::iterator * sit2 = NULL)
+  bool arrangeMarkers(Texts & texts,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,NFmiFillAreas & fillAreas,int RC = 1,std::list<std::string>::iterator * mit2 = NULL,NFmiFillAreas::iterator * it2 = NULL,std::list<std::pair<double,double> >::iterator * sit2 = NULL)
   {
 //fprintf(stderr,"\n>> [%d] MARKER: %s\n",RC,(cit == candidateAreas.end()) ? "END" : cit->first.c_str());
 	if (cit == candidateAreas.end())
@@ -4207,7 +4205,6 @@ namespace frontier
 	std::list<std::string>::iterator mit = (mit2 ? *mit2 : cit->second.markers.begin());
 	std::list<std::string>::iterator mend = (mit2 ? *mit2 : cit->second.markers.end());
 	NFmiFillAreas::iterator it = (mit2 ? *it2 : cit->second.fillAreas.begin());
-	std::list<int>::iterator idit = (mit2 ? *idit2 : cit->second.areaIds.begin());
 	std::list<std::pair<double,double> >::iterator sit = (mit2 ? *sit2 : cit->second.scales.begin());
 
 	if (mit2)
@@ -4241,7 +4238,7 @@ namespace frontier
 //fprintf(stderr,"\n");
 //}
 
-	for ( ; (mit != mend); mit++, it++, idit++, sit++) {
+	for ( ; (mit != mend); mit++, it++, sit++) {
 		// Check if the marker can be moved to a free position
 		//
 		FillAreas::iterator rit = reservedAreas.find(*mit);
@@ -4252,82 +4249,50 @@ namespace frontier
 		FillAreas::iterator fit = freeAreas.find(*mit);
 
 		if (fit != freeAreas.end()) {
-			// Reserve the area of the current candidate temporarily, and check for (and move to candidate container)
+			// Reserve the area of the current candidate temporarily, and check for (and move into candidate container)
 			// fill areas which have been reserved after the marker was previously positioned
 			//
+			// Note: Temporary "CURRENTCANDIDATE" reserved marker is flagged with nonempty 'markers' field
+			//
 			reservedAreas["CURRENTCANDIDATE"].fillAreas.push_back(*it);
+			reservedAreas["CURRENTCANDIDATE"].markers.push_back("CURRENTCANDIDATE");
 			eraseReservedAreas(fit->first,reservedAreas,candidateAreas,fit->second.fillAreas);
 			reservedAreas["CURRENTCANDIDATE"].fillAreas.clear();
+			reservedAreas["CURRENTCANDIDATE"].markers.clear();
 
-			if (fit->second.fillAreas.empty())
+			if (!(fit->second.fillAreas.empty())) {
+				// Free position exists for the reserving marker.
+				//
+				// Get new position near the originally selected marker position.
+				// Release old and reserve new marker position and set/change marker position and scale in svg output container
+				//
+				std::list<std::pair<double,double> >::iterator csit;
+				moveMarker(texts,freeAreas,rit,csit,selectMarkerPos(rit->first,fit->second.fillAreas,fit->second.scales,freeAreas,rit->second.x,rit->second.y,csit,false));
+			}
+			else
 				fit = freeAreas.end();
-		}
-
-		if (fit != freeAreas.end()) {
-			// Free position exists for the reserving marker.
-			//
-			// Get new position near the originally selected marker position.
-			// Release old and reserve new marker position and set/change marker position and scale in svg output container
-			//
-			std::list<std::pair<double,double> >::iterator csit;
-			moveMarker(texts,freeAreas,rit,csit,selectMarkerPos(rit->first,fit->second.fillAreas,fit->second.scales,freeAreas,rit->second.x,rit->second.y,csit,false));
 		}
 
 		// Use the candidate if released above or recurse with reserving marker's candidates
 
 		if ((fit != freeAreas.end()) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(*mit),fillAreas,RC + 1)) {
-			// Check if the candidate has multiple reservations
+			// Store the candidate
 			//
-			std::list<std::string>::iterator mit22 = mit;
-			NFmiFillAreas::iterator it22 = it;
-			std::list<int>::iterator idit22 = idit;
-			std::list<std::pair<double,double> >::iterator sit22 = sit;
-			bool released = true;
-
-			for (mit22++, it22++, idit22++, sit22++; (it22 != cit->second.fillAreas.end()); mit22++, it22++, idit22++, sit22++)
-				if (*idit22 == *idit) {
-					// Other reservations for the candidate exists, try to release them
-					//
-//NFmiFillRect r(*it);
-//fprintf(stderr,">> [%d] Rescan cand %d %.0f,%.0f - %.0f,%.0f\n",RC,*idit,r.first.x,r.first.y,r.second.x,r.second.y);
-					released = arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,cit,fillAreas,RC + 1,&mit22,&it22,&idit22,&sit22);
-					break;
-				}
-
-			if (!mit2) {
-				if (!released)
-					// Could not release, try next candidate
-					//
-					continue;
-
-				// Store the candidate and remove it from candidate fill area container
-				//
-				fillAreas.clear();
-				fillAreas.push_back(*it);
-
-				cit->second.markers.erase(mit);
-				cit->second.fillAreas.erase(it);
-				cit->second.areaIds.erase(idit);
-				cit->second.scales.erase(sit);
-			}
-			else
-				// Other reservations for the candidate are now hopefully released
- 				//
-				return released;
+			fillAreas.clear();
+			fillAreas.push_back(*it);
 
 			FillAreas::iterator rit = reservedAreas.find(cit->first);
 
-			if (rit != reservedAreas.end()) {
+			if (rit != reservedAreas.end())
 				// Release the old and reserve new position and change the position in output container
 				//
-				// Note: Scale iterator ('sit') is valid here since the block is entered only when a reserved marker is moved
-				//		 (the candidate was not removed by the code above)
-				//
-				if (!mit2)
-					throw std::runtime_error("arrangeMarkers: internal: unexpected candidate marker");
-
 				moveMarker(texts,freeAreas,rit,sit,fillAreas.front());
-			}
+
+			// Remove candidate from container
+			//
+			cit->second.markers.erase(mit);
+			cit->second.fillAreas.erase(it);
+			cit->second.scales.erase(sit);
 //else {
 //NFmiFillRect r(fillAreas.front());
 //fprintf(stderr,">> [%d] %s NO reserved areas, RET candidate %.0f,%.0f - %.0f,%.0f\n",RC,cit->first.c_str(),r.first.x,r.first.y,r.second.x,r.second.y);
@@ -4338,6 +4303,32 @@ namespace frontier
 	}
 
 	return false;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief	Scale down reserved markers which overlap current marker.
+   */
+  // ----------------------------------------------------------------------
+
+  void scaleMarkers(Texts & texts,FillAreas & reservedAreas,double markerWidth,double markerHeight,double mx,double my,double xScale,double yScale)
+  {
+	// Currently simply scaling with current marker's scale instead of searching for scales down from 1 until markers do not overlap,
+	// and without moving the scaled markers withing their original bbox
+
+	NFmiFillRect r(std::make_pair(Point(mx - (markerWidth / 2.0),my - (markerHeight / 2.0)),Point(mx + (markerWidth / 2.0),my + (markerHeight / 2.0))));
+	int overlap = fillAreaOverlapMax;
+
+	for (FillAreas::const_iterator rrit = reservedAreas.begin(); (rrit != reservedAreas.end()); rrit++)
+		for (NFmiFillAreas::const_iterator rit = rrit->second.fillAreas.begin(); (rit != rrit->second.fillAreas.end()); rit++) {
+			if (
+				(r.first.x < rit->second.x) && (r.second.x >= (rit->first.x + overlap)) &&
+				(r.first.y < rit->second.y) && (r.second.y >= (rit->first.y + overlap))
+			   ) {
+				texts[rrit->first + "SCALE"].str("");
+				texts[rrit->first + "SCALE"] << std::fixed << std::setprecision(1) << "scale(" << rrit->second.scale * xScale << "," << rrit->second.scale * yScale << ")";
+			}
+		}
   }
 
   // ----------------------------------------------------------------------
@@ -4388,7 +4379,7 @@ namespace frontier
 
 //int TRAP = 0;
 	if (!fillAreas.empty()) {
-		// Move reserved fill areas to candidate container
+		// Move reserved fill areas into candidate container
 		//
 		splitFillAreas(fillAreas,markerWidth,1.0);
 		eraseReservedAreas("hole","hole",holeAreas,candidateAreas,fillAreas,true);
@@ -4664,19 +4655,38 @@ namespace frontier
 //if (TRAP != 0) {
 ////areas.clear(); reservedAreas.clear(); freeAreas.clear(); candidateAreas.clear();
 ////
+////reservedAreas["R4"].fillAreas.push_back(std::make_pair(Point(44,44),Point(55,55)));
+////reservedAreas["R4"].scales.push_back(std::make_pair(1,1));
+////freeAreas["R4"].fillAreas.push_back(std::make_pair(Point(444,444),Point(555,555)));
+////freeAreas["R4"].scales.push_back(std::make_pair(1,1));
+////
 ////reservedAreas["R3"].fillAreas.push_back(std::make_pair(Point(33,33),Point(44,44)));
+////reservedAreas["R3"].scales.push_back(std::make_pair(1,1));
 ////freeAreas["R3"].fillAreas.push_back(std::make_pair(Point(333,333),Point(444,444)));
+////freeAreas["R3"].scales.push_back(std::make_pair(1,1));
 ////
 ////reservedAreas["R2"].fillAreas.push_back(std::make_pair(Point(22,22),Point(33,33)));
-////candidateAreas["R2"].fillAreas.push_back(std::make_pair(Point(34,34),Point(45,45)));
+////reservedAreas["R2"].scales.push_back(std::make_pair(1,1));
 ////candidateAreas["R2"].markers.push_back("R3");
+////candidateAreas["R2"].fillAreas.push_back(std::make_pair(Point(34,34),Point(45,45)));
+////candidateAreas["R2"].areaIds.push_back(1);
+////candidateAreas["R2"].scales.push_back(std::make_pair(1,1));
+////candidateAreas["R2"].markers.push_back("R4");
+////candidateAreas["R2"].fillAreas.push_back(std::make_pair(Point(34,34),Point(45,45)));
+////candidateAreas["R2"].areaIds.push_back(1);
+////candidateAreas["R2"].scales.push_back(std::make_pair(1,1));
 ////
 ////reservedAreas["R1"].fillAreas.push_back(std::make_pair(Point(11,11),Point(22,22)));
-////candidateAreas["R1"].fillAreas.push_back(std::make_pair(Point(23,23),Point(34,34)));
+////reservedAreas["R1"].scales.push_back(std::make_pair(1,1));
 ////candidateAreas["R1"].markers.push_back("R2");
+////candidateAreas["R1"].fillAreas.push_back(std::make_pair(Point(23,23),Point(34,34)));
+////candidateAreas["R1"].areaIds.push_back(1);
+////candidateAreas["R1"].scales.push_back(std::make_pair(1,1));
 ////
-////candidateAreas[mId].fillAreas.push_back(std::make_pair(Point(12,12),Point(23,23)));
 ////candidateAreas[mId].markers.push_back("R1");
+////candidateAreas[mId].fillAreas.push_back(std::make_pair(Point(12,12),Point(23,23)));
+////candidateAreas[mId].areaIds.push_back(1);
+////candidateAreas[mId].scales.push_back(std::make_pair(1,1));
 //FillAreas::const_iterator rit = reservedAreas.begin();
 //areas.clear(); candidateAreas[mId].fillAreas.push_back(rit->second.fillAreas.front());
 //}
@@ -4726,7 +4736,7 @@ namespace frontier
 
 				// Scale marker down to half size
 
-				xScale = yScale = ((markerScale > 0.5) ? (0.5 / markerScale) : 1.0);
+				xScale = yScale = 0.5;
 
 				// To better keep the marker within the area adjust the x -position slightly if using area's
 				// first or last elevation.
@@ -4753,11 +4763,15 @@ namespace frontier
 			my = (_lopx[0] - ((_lopx[0] - std::max(_hipx[0],0.0)) / 2));
 		}
 
-		// Note: Symbols are centered to the selected position, labels have their height as the rendered y -coordinate (x is 0);
-		//		 adjust the position (used as tranformation offset) for a label to center it to the selected position
+		// Scale down reserved markers which overlap current marker
 
 		markerWidth = xScale * mw;
 		markerHeight = yScale * mh;
+
+		scaleMarkers(texts,reservedAreas,markerWidth,markerHeight,mx,my,xScale,yScale);
+
+		// Note: Symbols are centered to the selected position, labels have their height as the rendered y -coordinate (x is 0);
+		//		 adjust the position (used as tranformation offset) for a label to center it to the selected position
 
 		markerX.push_back(mx - (textOutput ? (markerWidth / 2.0) : 0));
 		markerY.push_back(my - (textOutput ? (markerHeight / 2.0) : 0));
