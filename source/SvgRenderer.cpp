@@ -4360,6 +4360,31 @@ namespace frontier
 
   // ----------------------------------------------------------------------
   /*!
+   * \brief	Adjust marker position depending on it's location on the area.
+   */
+  // ----------------------------------------------------------------------
+
+  void adjustMarkerPosition(double minx,double axisWidth,double xStep,double sOffset,double eOffset,int n0,int nN,int nS,double & mx,double & my)
+  {
+	// To better keep the marker within the area adjust the x -position slightly if using area's
+	// first or last elevation.
+	//
+	// For single elevation areas make adjustment only for document's first and last time instant's elevations.
+	// Take the extension offsets (how much the elevation exceeds the begin or end of the x -axis) into
+	// account when calculating the marker position.
+
+	if ((nS == n0) || (nS == nN)) {
+		if (nN != n0)
+			mx -= (((nS == n0) ? -1 : 1) * (xStep / 5));
+		else if (minx < (xStep / 2))
+			mx += ((xStep / 5) - sOffset);
+		else if (fabs(axisWidth - minx) < (xStep / 2))
+			mx -= ((xStep / 5) - eOffset);
+	}
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
    * \brief Get area's marker (label or symbol) position(s); return one
    *		position (markerX and markerY) for each separate visible part
    *		of the area.
@@ -4594,6 +4619,10 @@ namespace frontier
 					mx = minx + ((nS = n) * xStep);
 					my = lo - ((lo - hi) / 2);
 
+					// Adjust x -position if using areas first or last elevation
+
+					adjustMarkerPosition(minx,axisWidth,xStep,sOffset,eOffset,n0,nN,nS,mx,my);
+
 					h = lo - hi;
 
 					multiple = false;
@@ -4761,25 +4790,12 @@ namespace frontier
 					my = selmy;
 				}
 
-				// Scale marker down to half size
+				// Scale marker down to half size and adjust x -position if using areas first or last elevation
 
 				xScale = yScale = 0.5;
 
-				// To better keep the marker within the area adjust the x -position slightly if using area's
-				// first or last elevation.
-				//
-				// For single elevation areas make adjustment only for document's first and last time instant's elevations.
-				// Take the extension offsets (how much the elevation exceeds the begin or end of the x -axis) into
-				// account when calculating the marker position.
-
-				if ((!multiple) && ((nS == n0) || (nS == nN))) {
-					if (nN != n0)
-						mx -= (((nS == n0) ? -1 : 1) * (xStep / 5));
-					else if (minx < (xStep / 2))
-						mx += ((xStep / 5) - sOffset);
-					else if (fabs(axisWidth - minx) < (xStep / 2))
-						mx -= ((xStep / 5) - eOffset);
-				}
+				if (!multiple)
+					adjustMarkerPosition(minx,axisWidth,xStep,sOffset,eOffset,n0,nN,nS,mx,my);
 			}
 		}
 		else {
