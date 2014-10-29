@@ -31,7 +31,11 @@
 #include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/newbase/NFmiStringTools.h>
 
-#ifdef __contouring__
+#ifdef CONTOURING
+#include <smartmet/tron/Tron.h>
+#include <smartmet/newbase/NFmiDataMatrix.h>
+#include <smartmet/tron/MirrorMatrix.h>
+#include <smartmet/tron/SavitzkyGolay2D.h>
 #include <smartmet/newbase/NFmiEnumConverter.h>
 #include <smartmet/newbase/NFmiQueryData.h>
 #include <smartmet/newbase/NFmiFastQueryInfo.h>
@@ -75,7 +79,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-#ifdef __contouring__
+#ifdef CONTOURING
 
   NFmiMetTime to_mettime(const boost::posix_time::ptime  & theTime)
   {
@@ -8571,7 +8575,7 @@ std::string SvgRenderer::svg() const
 
   // BOOST_FOREACH does not work nicely with ptr_map
 
-#ifdef __contouring__
+#ifdef CONTOURING
 
   for(Contours::const_iterator it=contours.begin(); it!=contours.end(); ++it)
 	replace_all(ret,it->first, it->second->str());
@@ -9919,18 +9923,13 @@ T SvgRenderer::getSetting(const std::string & theConfigClass,
   return lookup<T>(config,theConfigClass + "." + theAttribute);
 }
 
-#ifdef __contouring__
+#ifdef CONTOURING
 
 // ----------------------------------------------------------------------
 /*
  * TODO: This part should be refactored when finished
  */
 // ----------------------------------------------------------------------
-
-#include <smartmet/tron/Tron.h>
-#include <smartmet/newbase/NFmiDataMatrix.h>
-#include <smartmet/tron/MirrorMatrix.h>
-#include <smartmet/tron/SavitzkyGolay2D.h>
 
 class DataMatrixAdapter
 {
@@ -10118,7 +10117,7 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 		  for(float value=start; value<=stop; value+=step)
 			{
 			  Path path;
-			  MyContourer::line(path,grid,value,hints);
+			  MyContourer::line(path,grid,value,false,hints);
 
 			  if(!path.empty())
 				{

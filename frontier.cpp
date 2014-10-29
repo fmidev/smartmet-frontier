@@ -305,7 +305,7 @@ search_model_origintime(const frontier::Options & options,
  */
 // ----------------------------------------------------------------------
 
-#ifdef __contouring__
+#ifdef CONTOURING
 
 boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options,
 											   const libconfig::Config & config,
@@ -436,7 +436,7 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
   //
   // == Model not used anymore; background data is handled by frontier frontend ==
 
-#ifdef __contouring__
+#ifdef CONTOURING
 
     boost::shared_ptr<NFmiQueryData> qd;
 

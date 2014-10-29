@@ -468,7 +468,7 @@ namespace frontier
 	virtual void visit(const woml::Winds & theFeature);
 	virtual void visit(const woml::ZeroTolerance & theFeature);
 
-#ifdef __contouring__
+#ifdef CONTOURING
 	void contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 				 const boost::posix_time::ptime & theTime);
 #endif
