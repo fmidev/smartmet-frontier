@@ -56,7 +56,7 @@ env.Append( CPPDEFINES= "_REENTRANT" )
 #
 # To enable contouring
 #
-#env.Append( CPPDEFINES= "CONTOURING" )
+env.Append( CPPDEFINES= "CONTOURING" )
 
 env.Append( CPPPATH= [ "./include", "/usr/include/smartmet/woml", "/usr/include/cairo" ] )
 
