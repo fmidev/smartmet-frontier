@@ -51,6 +51,7 @@
 #include <boost/date_time/local_time/local_time.hpp>
 #include <boost/regex.hpp>
 
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -10139,6 +10140,141 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 				}
 			}
 
+		}
+
+	}
+
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render the contour labels
+ */
+// ----------------------------------------------------------------------
+
+void
+SvgRenderer::labels(const boost::shared_ptr<NFmiQueryData> & theQD,
+					const boost::posix_time::ptime & theTime)
+{
+  if(!config.exists("contourlabels"))
+	return;
+
+  // Fast access iterator
+
+  boost::shared_ptr<NFmiFastQueryInfo> qi(new NFmiFastQueryInfo(theQD.get()));
+
+  // newbase time
+
+  NFmiMetTime validtime = to_mettime(theTime);
+
+  // Parameter identification
+
+  NFmiEnumConverter enumconverter;
+
+  // Except list of groups
+
+  const char * typeMsg = "contourlabels must contain a list of groups in parenthesis";
+
+  const libconfig::Setting & contourSpecs = config.lookup("contourlabels");
+
+  if(!contourSpecs.isList())
+	throw std::runtime_error(typeMsg);
+
+  for(int i=0; i<contourSpecs.getLength(); ++i)
+	{
+	  const libconfig::Setting & specs = contourSpecs[i];
+
+	  if(!specs.isGroup())
+		throw std::runtime_error(typeMsg);
+
+	  // Now process this individual contour
+
+	  std::string paramname = lookup<std::string>(specs,"contourlabels","parameter");
+	  std::string classname = lookup<std::string>(specs,"contourlabels","class");
+	  std::string outputname = lookup<std::string>(specs,"contourlabels","output");
+
+	  std::string symbol = lookup<std::string>(specs,"contourlabels","symbol");
+	  std::string symbolclass = lookup<std::string>(specs,"contourlabels","symbolclass");
+
+	  int modulo = lookup<int>(specs,"contourlabels","modulo");
+	  double accuracy = lookup<double>(specs,"contourlabels","accuracy");
+
+	  if(options.verbose)
+		{
+		  std::cerr << "Contourlabels "
+					<< paramname
+					<< " class="
+					<< classname
+					<< " to "
+					<< outputname
+					<< " modulo "
+					<< modulo
+					<< std::endl;
+		}
+
+	  FmiParameterName param = FmiParameterName(enumconverter.ToEnum(paramname));
+	  if(param == kFmiBadParameter)
+		throw std::runtime_error("Unknown parameter name '"
+								 + paramname
+								 + "' requested for contour labels");
+		  
+	  if(!qi->Param(param))
+		throw std::runtime_error("Parameter '"
+								 + paramname
+								 + "' is not available in the referenced numerical model");
+
+
+	  const libconfig::Setting & latlons = specs["latlons"];
+	  
+	  if(!latlons.isArray())
+		throw std::runtime_error("latlons must be an array of coordinates");
+
+	  if(latlons.getLength() % 2 != 0)
+		throw std::runtime_error("latlons must have an even number of floating point numbers");
+
+	  for(int i=0; i<latlons.getLength(); i += 2)
+		{
+		  double lon = latlons[i];
+		  double lat = latlons[i+1];
+		  NFmiPoint latlon(lon,lat);
+
+		  double value = qi->InterpolatedValue(latlon, validtime);
+
+		  if(value == kFloatMissing)
+			continue;
+
+		  int intvalue = static_cast<int>(round(value));
+
+		  if( intvalue % modulo == 0 && std::abs(value-intvalue) <= accuracy)
+			{
+			  NFmiPoint xy = area->ToXY(latlon);
+
+			  int nx = static_cast<int>(round(xy.X()));
+			  int ny = static_cast<int>(round(xy.Y()));
+
+			  if(!symbol.empty())
+				{
+				  contours[outputname] << "<use xlink:href=\"#"
+									   << symbol
+									   << "\" class=\""
+									   << symbolclass
+									   << "\" x=\""
+									   << nx
+									   << "\" y=\""
+									   << ny
+									   << "\"/>\n";
+				}
+
+			  contours[outputname] << "<text class=\""
+								   << classname
+								   << "\" x=\""
+								   << nx
+								   << "\" y=\""
+								   << ny
+								   << "\">"
+								   << intvalue
+								   << "</text>\n";
+			}
 		}
 
 	}

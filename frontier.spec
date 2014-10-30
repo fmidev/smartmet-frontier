@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 14.10.29
+Version: 14.10.30
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -9,8 +9,8 @@ URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.54.0
-BuildRequires: libsmartmet-macgyver >= 14.2.27
-BuildRequires: libsmartmet-tron >= 14.2.21
+BuildRequires: libsmartmet-macgyver >= 14.9.5
+BuildRequires: libsmartmet-tron >= 14.10.23
 BuildRequires: libsmartmet-woml >= 13.11.28
 BuildRequires: libxml++-devel >= 2.30.0
 Requires: libxml++ >= 2.30.0
@@ -51,6 +51,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Thu Oct 30 2014 Mika Heiskanen <mika.heiskanen@fmi.fi> - 14.10.30-1.fmi
+- Added contour label support
 * Wed Oct 29 2014 Santeri Oksman <santeri.oksman@fmi.fi> - 14.10.29-1.fmi
 - New release to enable contouring
 * Wed Oct 22 2014 Santeri Oksman <santeri.oksman@fmi.fi> - 14.10.22-1.fmi

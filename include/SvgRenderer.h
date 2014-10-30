@@ -471,6 +471,8 @@ namespace frontier
 #ifdef CONTOURING
 	void contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 				 const boost::posix_time::ptime & theTime);
+	void labels(const boost::shared_ptr<NFmiQueryData> & theQD,
+				const boost::posix_time::ptime & theTime);
 #endif
 
 	void render_header(boost::posix_time::ptime & validTime,
