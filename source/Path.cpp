@@ -10,10 +10,12 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 
 #include "clipper.hpp"
 
 #define sqr(x) ((x) * (x))
+#define distance(x1,y1,x2,y2) sqrt(sqr(x1-x2)+sqr(y1-y2));
 
 namespace frontier
 {
@@ -377,6 +379,59 @@ namespace frontier
 	  }
 
 	return bbox;
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Return nearest vertex to the given point
+   */
+  // ----------------------------------------------------------------------
+
+  std::pair<double,double> Path::nearestVertex(double x, double y) const
+  {
+	double mindistance = -1;
+	double bestx = 0;
+	double besty = 0;
+
+	for(PathData::size_type i=0; i<pathdata.size(); )
+	  {
+		PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+
+		switch(cmd)
+		  {
+		  case ClosePath:
+			break;
+		  case MoveTo:
+		  case LineTo:
+			{
+			  double dist = distance(x,y,pathdata[i],pathdata[i+1]);
+			  if(mindistance < 0 || dist<mindistance)
+				{
+				  mindistance = dist;
+				  bestx = pathdata[i];
+				  besty = pathdata[i+1];
+				}
+			  i += 2;
+			  break;
+			}
+		  case CurveTo:
+			{
+			  double dist = distance(x,y,pathdata[i+4],pathdata[i+5]);
+			  if(mindistance < 0 || dist<mindistance)
+				{
+				  mindistance = dist;
+				  bestx = pathdata[i];
+				  besty = pathdata[i+1];
+				}
+			  i += 6;
+			  break;
+			}
+		  }
+	  }
+	if(mindistance < 0)
+	  throw std::runtime_error("No nearest vertex exists for empty paths");
+
+	return std::make_pair(bestx,besty);
   }
 
 } // namespace frontier

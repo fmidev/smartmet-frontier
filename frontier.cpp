@@ -454,7 +454,6 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
   // Render contours
 
   renderer.contour(qd,validtime);
-  renderer.labels(qd,validtime);
 
 #endif
 
