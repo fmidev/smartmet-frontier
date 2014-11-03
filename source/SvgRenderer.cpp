@@ -73,6 +73,7 @@ namespace frontier
   const double labelPosHeightFactorMin = 0.1;
   const double symbolPosHeightFactorMin = 0.1;
   const size_t fillAreaOverlapMax = 3;
+  const size_t symbolScaleFactor = 0.75;				// Minimum symbol size 3/4'th of the original
   const size_t symbolBBoxFactorMin = 0.5;				// Minimum symbol bbox 0.5 * symbol width/height; symbols can overlap
   const size_t pathScalingSymbolHeightFactorMax = 5;	// Surface scaling max offset 5 * (symbol height / 2)
 
@@ -2095,8 +2096,8 @@ namespace frontier
 							// Get symbol fill areas.
 							//
 							// If none available or not enough room for all area symbols, and autoscale is set,
-							// retry with smaller symbol size down to half of the original size. If still not enough room, retry without
-							// placing the infotext into the area, by using smaller symbol bbox and by scaling the surface bigger
+							// retry with smaller symbol size. If still not enough room, retry without placing the
+							// infotext into the area, by using smaller symbol bbox and by scaling the surface bigger
 							//
 							NFmiFillMap fmap;
 							NFmiFillAreas areas;
@@ -2109,6 +2110,21 @@ namespace frontier
 							size_t pathScalingOffset = 0;
 							bool noTextRetry = false,sizeOk,ok;
 
+							// If symbol bounding box (spacing) is increased, first scale up the surface to get
+							// the outermost symbols positioned near enough the surface border.
+							//
+							// The scaled surface will not be rendered, it is used only to get fill areas.
+
+							if ((scale >= 1) && autoScale) {
+								NFmiFillMap fmapScaled;
+
+								pathScalingOffset = (((scale - 1.0) * 30) + 12);
+
+								path = path.scale(std::min(pathScalingOffset,(pathScalingSymbolHeightFactorMax * height)));
+								path.length(&fmapScaled);
+								fmap = fmapScaled;
+							}
+
 							do {
 								do {
 									areas.clear();
@@ -2119,6 +2135,11 @@ namespace frontier
 										// Check there is room for all area symbols. Erase fill areas overlapping the area
 										// reserved for info text.
 										//
+										// Note: To get fillareas with width near or equal to twice (etc) the symbol width splitted, decreasing scale
+										//		 slightly (this needs some checking/thinking later through)
+										//
+										splitFillAreas(areas,width,scale - 0.1);
+
 										NFmiFillAreas::iterator iter;
 										size_t symCnt = 0;
 
@@ -2136,7 +2157,7 @@ namespace frontier
 										//
 										int nw = width - 2,nh = height - 2;
 
-										sizeOk = ((nw >= (_width / 2)) && (nh >= (_height / 2)));
+										sizeOk = ((nw >= floor(_width * symbolScaleFactor)) && (nh >= floor(_height * symbolScaleFactor)));
 										noTextRetry = false;
 
 										if (sizeOk || (textPosition != "area")) {
@@ -2171,7 +2192,7 @@ namespace frontier
 								while ((autoScale || noTextRetry) && (! ok) && sizeOk);
 
 								if ((!ok) && autoScale) {
-									// Scale up the surface. The scaled surface will not be rendered, it is used only to get fill areas.
+									// Scale up the surface
 									//
 									pathScalingOffset += 2;
 
