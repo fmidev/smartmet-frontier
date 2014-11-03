@@ -520,7 +520,7 @@ namespace frontier
 					 int * fontSize = NULL,					// I
 					 int * tXOffset = NULL,					// I/O: area text's border x -offset
 					 int * tYOffset = NULL);				// I/O: area text's border y -offset
-	void render_surface(const Path & path,
+	void render_surface(Path & path,
 						std::ostringstream & surfaceOutput,
 						const std::string & id,
 						const std::string & surfaceName,
@@ -545,7 +545,8 @@ namespace frontier
 					   const woml::Feature * feature = NULL,
 					   const woml::NumericalSingleValueMeasure * svm = NULL,
 					   NFmiFillPositions * fpos = NULL,
-					   const std::list<std::string> * areaSymbols = NULL);
+					   const std::list<std::string> * areaSymbols = NULL,
+					   int width = 0,int height = 0);
 	void render_value(const std::string & path,
 					  std::ostringstream & valOutput,
 					  const std::string & valClass,

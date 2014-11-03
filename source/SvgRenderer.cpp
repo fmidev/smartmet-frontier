@@ -73,6 +73,8 @@ namespace frontier
   const double labelPosHeightFactorMin = 0.1;
   const double symbolPosHeightFactorMin = 0.1;
   const size_t fillAreaOverlapMax = 3;
+  const size_t symbolBBoxFactorMin = 0.5;				// Minimum symbol bbox 0.5 * symbol width/height; symbols can overlap
+  const size_t pathScalingSymbolHeightFactorMax = 5;	// Surface scaling max offset 5 * (symbol height / 2)
 
   // ----------------------------------------------------------------------
   /*!
@@ -1881,7 +1883,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void SvgRenderer::render_surface(const Path & path,
+  void SvgRenderer::render_surface(Path & path,
 		  	  	  	  	  	  	   std::ostringstream & surfaceOutput,
 		  	  	  	  	  	  	   const std::string & id,
 		  	  	  	  	  	  	   const std::string & surfaceName,				// cloudType (for CloudArea), rainPhase (for SurfacePrecipitationArea or area type for ParameterValueSetArea)
@@ -1980,7 +1982,7 @@ namespace frontier
 						surfaces << "<use class=\""
 								 << classDef
 								 << "\" xlink:href=\"#"
-								 << pathId << ((filled && (!masked)) ? "\"/>\n": "");
+								 << pathId << ((filled && (!masked)) ? "\"/>\n" : "");
 
 						if (masked) {
 							std::string maskId(pathId + "mask");
@@ -2005,10 +2007,10 @@ namespace frontier
 							//
 							int _width = configValue<int>(scope,surfaceName,"width");
 							int _height = configValue<int>(scope,surfaceName,"height");
-							float scale = configValue<float>(scope,surfaceName,"scale");
+							float _scale = configValue<float>(scope,surfaceName,"scale");
 
-							if (scale < 0.3)
-								throw std::runtime_error(confPath + ": minimum scale is 0.3");
+							if (_scale < symbolBBoxFactorMin)
+								throw std::runtime_error(confPath + ": minimum scale is " + boost::lexical_cast<std::string>(symbolBBoxFactorMin));
 
 							// If autoscale is true (default: false) symbol is shrinken until
 							// at least one symbol or all area symbols can be placed on the surface
@@ -2093,7 +2095,8 @@ namespace frontier
 							// Get symbol fill areas.
 							//
 							// If none available or not enough room for all area symbols, and autoscale is set,
-							// retry with smaller symbol size down to half of the original size.
+							// retry with smaller symbol size down to half of the original size. If still not enough room, retry without
+							// placing the infotext into the area, by using smaller symbol bbox and by scaling the surface bigger
 							//
 							NFmiFillMap fmap;
 							NFmiFillAreas areas;
@@ -2102,52 +2105,86 @@ namespace frontier
 
 							int width = _width;
 							int height = _height;
-							bool noTextRetry = false,ok = false;
+							double scale = _scale;
+							size_t pathScalingOffset = 0;
+							bool noTextRetry = false,sizeOk,ok;
 
 							do {
-								areas.clear();
+								do {
+									areas.clear();
 
-								ok = fmap.getFillAreas(areaWidth,areaHeight,width,height,scale,verticalRects,areas,true,scanUpDown);
+									ok = sizeOk = fmap.getFillAreas(areaWidth,areaHeight,width,height,scale,verticalRects,areas,true,scanUpDown);
 
-								if (ok && (fillSymbols.size() > 0)) {
-									// Check there is room for all area symbols. Erase fill areas overlapping the area
-									// reserved for info text.
-									//
-									NFmiFillAreas::iterator iter;
-									size_t symCnt = 0;
+									if (ok && (fillSymbols.size() > 0)) {
+										// Check there is room for all area symbols. Erase fill areas overlapping the area
+										// reserved for info text.
+										//
+										NFmiFillAreas::iterator iter;
+										size_t symCnt = 0;
 
-									for (iter = areas.begin(), fpos.clear(); ((iter != areas.end()) && (fpos.size() < fillSymbols.size())); )
-										if (getFillPositions(iter,width,height,scale,infoTextRect,fpos,symCnt))
-											iter++;
-										else
-											iter = areas.erase(iter);
+										for (iter = areas.begin(), fpos.clear(); ((iter != areas.end()) && (fpos.size() < fillSymbols.size())); )
+											if (getFillPositions(iter,width,height,scale,infoTextRect,fpos,symCnt))
+												iter++;
+											else
+												iter = areas.erase(iter);
 
-									ok = (fpos.size() >= fillSymbols.size());
-								}
-
-								if (!ok) {
-									// Render infotext within the area only when all symbols fit in.
-									//
-									int nw = width - 2,nh = height - 2;
-
-									noTextRetry = false;
-
-									if (((nw >= (_width / 2)) && (nh >= (_height / 2))) || (textPosition != "area")) {
-										width = nw;
-										height = nh;
+										ok = (fpos.size() >= fillSymbols.size());
 									}
-									else {
-										textPosition.clear();
-										infoTextRect = std::make_pair(Point(0,0),Point(0,0));
 
-										width = _width;
-										height = _height;
+									if (!ok) {
+										// Render infotext within the area only when all symbols fit in.
+										//
+										int nw = width - 2,nh = height - 2;
 
-										noTextRetry = true;
+										sizeOk = ((nw >= (_width / 2)) && (nh >= (_height / 2)));
+										noTextRetry = false;
+
+										if (sizeOk || (textPosition != "area")) {
+											if (sizeOk) {
+												// First trying with smaller symbol size
+												//
+												width = nw;
+												height = nh;
+											}
+											else if ((fillSymbols.size() > 0) && (scale >= (symbolBBoxFactorMin + 0.1)))
+												// Thirdly trying with smaller symbol bounding box, allowing (more) overlap
+												//
+												scale -= 0.1;
+											else
+												// Not enough room. Break the inner loop and scale up the surface
+												//
+												break;
+										}
+										else {
+											// Secondly trying without the infotext within the area
+											//
+											textPosition.clear();
+											infoTextRect = std::make_pair(Point(0,0),Point(0,0));
+
+											width = _width;
+											height = _height;
+
+											noTextRetry = true;
+										}
+									}
+								}
+								while ((autoScale || noTextRetry) && (! ok) && sizeOk);
+
+								if ((!ok) && autoScale) {
+									// Scale up the surface. The scaled surface will not be rendered, it is used only to get fill areas.
+									//
+									pathScalingOffset += 2;
+
+									if (pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)) {
+										NFmiFillMap fmapScaled;
+
+										path = path.scale(2);
+										path.length(&fmapScaled);
+										fmap = fmapScaled;
 									}
 								}
 							}
-							while ((autoScale || noTextRetry) && (! ok) && (width >= (_width / 2)) && (height >= (_height / 2)));
+							while (autoScale && (! ok) && (pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)));
 
 							if (!ok) {
 								// For warning areas fit max 4 symbols per fill area
@@ -2157,6 +2194,33 @@ namespace frontier
 								else if ((!autoScale) || ((4 * fpos.size()) < fillSymbols.size()))
 									throw std::runtime_error("render_surface: too many symbols");
 							}
+//if (pathScalingOffset > 0) {
+//paths << "<path id=\""
+//	  << pathId + "C"
+//	  << "\" d=\"" << path.svg() << "\"/>\n";
+//
+//surfaces << "<use class=\""
+//		 << classDef
+//		 << "\" xlink:href=\"#"
+//		 << pathId  + "C" << ((filled && (!masked)) ? "\"/>\n" : "");
+//
+//if (masked) {
+//	std::string maskId(pathId + "Cmask");
+//
+//	masks << "<mask id=\""
+//		  << maskId
+//		  << "\" maskUnits=\"userSpaceOnUse\">\n"
+//		  << "<use xlink:href=\"#"
+//		  << pathId + "C"
+//		  << "\" class=\""
+//		  << style
+//		  << "\"/>\n</mask>\n";
+//
+//	surfaces << "\" mask=\"url(#"
+//			 << maskId
+//			 << ")\"/>\n";
+//}
+//}
 
 							fpos.clear();
 
@@ -2223,7 +2287,7 @@ namespace frontier
 							}
 
 							// Render the symbols
-							render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL);
+							render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL,width,height);
 						}
 						else if (!masked) {
 							// glyph
@@ -3040,7 +3104,8 @@ namespace frontier
 		  	  	  	  	  	  	  const woml::Feature * feature,
 		  	  	  	  	  	  	  const woml::NumericalSingleValueMeasure * svm,
 		  						  NFmiFillPositions * fpos,
-		  						  const std::list<std::string> * areaSymbols)
+		  						  const std::list<std::string> * areaSymbols,
+		  						  int width,int height)
   {
 	// symCode is empty when called for PressureCenterType and StormType derived objects
 	// (AntiCyclone, Antimesocyclone, ..., ConvectiveStorm, Storm) or for surface filling
@@ -3187,7 +3252,6 @@ namespace frontier
 				std::ostringstream & symbols = (placeHolder.empty() ? symOutput : texts[placeHolder]);
 
 				bool hasWidth,hasHeight;
-				int width = 0,height = 0;
 
 				if ((type == "svg") || (type == "img")) {
 					// Some settings are required for svg but optional for img
@@ -3222,8 +3286,12 @@ namespace frontier
 						if (folder.empty())
 							folder = configValue<std::string,int>(scope,symClass,"folder",reqORopt);
 
-						width = configValue<int>(scope,symClass,"width",reqORopt,&hasWidth);
-						height = configValue<int>(scope,symClass,"height",reqORopt,&hasHeight);
+						if ((width <= 0) || (height <= 0)) {
+							width = configValue<int>(scope,symClass,"width",reqORopt,&hasWidth);
+							height = configValue<int>(scope,symClass,"height",reqORopt,&hasHeight);
+						}
+						else
+							hasWidth = hasHeight = true;
 
 						if (!areaSymbols) {
 							boost::algorithm::replace_all(uri,"%folder%",folder);

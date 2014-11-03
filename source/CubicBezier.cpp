@@ -5,6 +5,7 @@
  // ======================================================================
 
 #include "CubicBezier.h"
+#include "clipper.hpp"
 
 namespace frontier
 {
@@ -66,7 +67,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  double CubicBezier::length(double eps,NFmiFillMap * fmap,double * lastx,double * lasty) const
+  double CubicBezier::length(double eps,NFmiFillMap * fmap,double * lastx,double * lasty,ClipperLib::Path * path) const
   {
 	// Length along control points and the end points
 	double chord = distance(P1,P4);
@@ -90,6 +91,16 @@ namespace frontier
 			*lasty = P4.y;
 		}
 
+		if (path) {
+			// Storing the bezier curve as segmentized lines/points. The segmentized path will be used
+			// to scale up the surface to get enough fill positions.
+			//
+			*path << ClipperLib::IntPoint(P1.x,P1.y);
+			*path << ClipperLib::IntPoint(P2.x,P2.y);
+			*path << ClipperLib::IntPoint(P3.x,P3.y);
+			*path << ClipperLib::IntPoint(P4.x,P4.y);
+		}
+
 	  return 0.5*(arc+chord);
 	}
 
@@ -97,8 +108,8 @@ namespace frontier
 
 	std::pair<CubicBezier,CubicBezier> parts = split();
 
-	double l1 = parts.first.length(eps,fmap,lastx,lasty);
-	double l2 = parts.second.length(eps,fmap,lastx,lasty);
+	double l1 = parts.first.length(eps,fmap,lastx,lasty,path);
+	double l2 = parts.second.length(eps,fmap,lastx,lasty,path);
 
 	return l1 + l2;
   }

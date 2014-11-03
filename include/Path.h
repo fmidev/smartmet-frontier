@@ -40,6 +40,7 @@ namespace frontier
 	double length(NFmiFillMap * fmap = NULL) const;
 	std::string svg() const;
 	void transform(const PathTransformation & transformation);
+	Path scale(double offset) const;
 
 	typedef struct bbox {
 		bbox(double _blX = 0.0,double _blY = 0.0,double _trX = 0.0,double _trY = 0.0) : blX(_blX),blY(_blY),trX(_trX),trY(_trY) {}

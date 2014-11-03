@@ -445,14 +445,18 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
     else
   	  qd = resolve_model(options,config, weather.forecast().dataSource());
 
-  // Render contours
-
 #endif
 
   frontier::SvgRenderer renderer(options, config, svg, area, validtime, &debugoutput);
 
+#ifdef CONTOURING
+
+  // Render contours
+
   renderer.contour(qd,validtime);
   renderer.labels(qd,validtime);
+
+#endif
 
   // Synchronize some aerodrome forecast features (SurfaceWeather and SurfaceVisibility)
   // to have common time serie

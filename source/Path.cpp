@@ -11,6 +11,8 @@
 #include <iomanip>
 #include <sstream>
 
+#include "clipper.hpp"
+
 #define sqr(x) ((x) * (x))
 
 namespace frontier
@@ -206,6 +208,8 @@ namespace frontier
 			break;
 		  case LineTo:
 			len += sqrt(sqr(lastx-pathdata[i])+sqr(lasty-pathdata[i+1]));
+			if (fmap)
+				fmap->Add(lastx,lasty,pathdata[i],pathdata[i+1]);
 			lastx = pathdata[i];
 			lasty = pathdata[i+1];
 			i += 2;
@@ -257,6 +261,72 @@ namespace frontier
 			break;
 		  }
 	  }
+  }
+
+  // ----------------------------------------------------------------------
+  /*!
+   * \brief Path scaling. Uses 'clipper' module
+   * 		(http://sourceforge.net/projects/polyclipping/).
+   */
+  // ----------------------------------------------------------------------
+
+  Path Path::scale(double offset) const
+  {
+	// Load 'clipper' path
+
+	using namespace ClipperLib;
+
+	ClipperLib::Path srcPath;
+	double lastx = 0;
+	double lasty = 0;
+
+	for(PathData::size_type i=0; i<pathdata.size(); )
+	  {
+		PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+
+		switch(cmd)
+		  {
+		  case ClosePath:
+			break;
+		  case MoveTo:
+		  case LineTo:
+			srcPath << IntPoint(lastx = pathdata[i],lasty = pathdata[i+1]);
+			i += 2;
+			break;
+		  case CurveTo:
+			CubicBezier bez(lastx,lasty,
+							pathdata[i],pathdata[i+1],
+							pathdata[i+2],pathdata[i+3],
+							pathdata[i+4],pathdata[i+5]);
+			double eps = 0.001;
+			bez.length(eps,NULL,NULL,NULL,&srcPath);
+			lastx = pathdata[i+4];
+			lasty = pathdata[i+5];
+			i += 6;
+			break;
+		  }
+	  }
+
+	// Scale the 'clipper' path
+
+	ClipperOffset co;
+	ClipperLib::Paths solution;
+	co.AddPath(srcPath,jtRound,etClosedPolygon);
+	co.Execute(solution,offset);
+
+	// Load and return scaled path
+
+	frontier::Path scaledPath;
+
+	for (ClipperLib::Path::const_iterator it = solution.front().begin(); (it != solution.front().end()); it++)
+		if (it == solution.front().begin())
+			scaledPath.moveto(it->X,it->Y);
+		else
+			scaledPath.lineto(it->X,it->Y);
+
+	scaledPath.closepath();
+
+	return scaledPath;
   }
 
   // ----------------------------------------------------------------------
