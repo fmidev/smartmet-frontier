@@ -557,7 +557,7 @@ namespace frontier
 	typedef enum { fst, fwd, vup, eup, bwd, vdn, edn, lst } Phase;
 	typedef enum { t_ground, t_nonground, t_mixed } ElevationGroupType;
 	ElevationGroupType elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
-									  const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
+									  boost::posix_time::ptime & bt,boost::posix_time::ptime & et,
 									  ElevGrp & eGrp,
 									  bool all = true,
 									  bool join = true,
@@ -597,6 +597,7 @@ namespace frontier
 							 std::list<CloudGroup>::const_iterator itcg,
 							 int nGroups);
 	bool scaledCurvePositions(ElevGrp & eGrp,
+							  const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
 							  List<DirectPosition> & curvePositions,List<DirectPosition> & curvePositions0,
 							  std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 							  std::vector<bool> & hasHole,

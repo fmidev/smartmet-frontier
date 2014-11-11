@@ -2915,11 +2915,11 @@ namespace frontier
 	// Document's time period
 
 	const boost::posix_time::time_period & tp = axisManager->timePeriod();
-	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
 	// Get the elevations from the time serie
 
 	ElevGrp eGrp;
+	boost::posix_time::ptime bt,et;
 
 	bool ground = (elevationGroup(theFeature.timeseries(),bt,et,eGrp) == t_ground);
 
@@ -3021,7 +3021,7 @@ namespace frontier
 
 				// Move first and last time instant's symbols to keep them better withing the area
 
-				if (iteg->validTime() == bt) {
+				if (iteg->validTime() == tp.begin()) {
 					// Offset in px for moving first time instant's symbols to the right
 					//
 					bool isSet;
@@ -3030,7 +3030,7 @@ namespace frontier
 					if (isSet)
 						x += sOffset;
 				}
-				else if (iteg->validTime() == et) {
+				else if (iteg->validTime() == tp.end()) {
 					// Offset in px for moving last time instant's symbols to the left
 					//
 					bool isSet;
@@ -4501,7 +4501,8 @@ namespace frontier
 		  	  	  	    std::list<double> & scaleX,std::list<double> & scaleY,
 		  	  	  	    boost::ptr_map<std::string,std::ostringstream> * areasOut = NULL,const std::string & areaPlaceHolder = "")
   {
-	// Get fill areas
+	// Get fill areas. axisWidth (instead of windowWidth) is passed to getFillAreas() to ignore possible fill areas outside
+	// (data may contain an extra time step before and after) the document time range
 
 	NFmiFillMap fillMap;
 	NFmiFillAreas fillAreas;
@@ -4513,7 +4514,7 @@ namespace frontier
 	for (itcp++; (itcp != cpend); itcp++, pitcp++)
 		fillMap.Add(pitcp->getX(),pitcp->getY(),itcp->getX(),itcp->getY());
 
-	fillMap.getFillAreas(windowWidth,windowHeight,markerWidth,markerHeight,1.0,false,fillAreas,isHole && textOutput,false,isHole && (!textOutput));
+	fillMap.getFillAreas(axisWidth,windowHeight,markerWidth,markerHeight,1.0,false,fillAreas,isHole && textOutput,false,isHole && (!textOutput));
 
 	if (isHole && (!textOutput)) {
 		// Just reserve the area of the hole
@@ -5212,12 +5213,8 @@ namespace frontier
 		  	  	  	  	  	  	  	    int nGroups)
   {
 	ElevGrp::const_iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
-	Phase phase;
 
-	const boost::posix_time::time_period & tp = axisManager->timePeriod();
-	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-
-	for (iteg = egbeg, phase = fst; (iteg != egend); iteg++) {
+	for (iteg = egbeg; (iteg != egend); iteg++) {
 		// Get elevation's lo and hi range values
 		//
 		const woml::Elevation & e = iteg->elevation();
@@ -5345,6 +5342,7 @@ namespace frontier
   }
 
   bool SvgRenderer::scaledCurvePositions(ElevGrp & eGrp,
+		  	  	  	  	  	  	  	     const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
 		  	  	  	  	  	  	  	     List<DirectPosition> & curvePositions,List<DirectPosition> & curvePositions0,
 		  	  	  	  	  	  	  	     std::vector<double> & scaledLo,std::vector<double> & scaledHi,
 		  	  	  	  	  	  	  	     std::vector<bool> & hasHole,
@@ -5366,10 +5364,7 @@ namespace frontier
 	double maxx = 0.0;
 	bool single = true,smoothen = false;
 
-	const boost::posix_time::time_period & tp = axisManager->timePeriod();
-	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-
-	double xStep = axisManager->xStep(),nonZ = axisManager->nonZeroElevation();
+	double axisWidth = axisManager->axisWidth(),xStep = axisManager->xStep(),nonZ = axisManager->nonZeroElevation();
 
 	srand(time(NULL));
 
@@ -5434,7 +5429,8 @@ namespace frontier
 
 		// Keep track of elevations to calculate the label position(s)
 
-		trackAreaLabelPos(iteg,x,maxx,lopx0,scaledLo,hipx0,scaledHi,hasHole);
+		if ((x >= 0) && (x < (axisWidth + 1)))
+			trackAreaLabelPos(iteg,x,maxx,lopx0,scaledLo,hipx0,scaledHi,hasHole);
 
 #define STEPSS
 
@@ -5711,9 +5707,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   void SvgRenderer::render_timeserie(const woml::CloudLayers & cloudlayers)
   {
-	// Get bezier curve tightness and cloud groups from configuration
-	//
-	// Cloud types (their starting positions in the group's 'types' setting) contained in current group;
+	// 'cloudSet' stores cloud types (their starting positions in the group's 'types' setting) contained in current group;
 	// if group's label is not given, label (comma separated list of types) is build using the order
 	// the types are defined in 'types' setting
 	//
@@ -5724,20 +5718,19 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	const std::string CLOUDLAYERS(boost::algorithm::to_upper_copy(confPath));
 
 	bool visible = false,aboveTop = false,borderCompensation;
-	double tightness,labelPosHeightFactor;
+	double axisWidth = axisManager->axisWidth(),tightness,labelPosHeightFactor;
 	int minLabelPosHeight;
 	CloudGroupCategory cloudGroupCategory;
 
 	std::set<size_t> cloudSet;
 
+	// Get cloud grouping configuration
+
 	cloudLayerConfig(confPath,tightness,borderCompensation,minLabelPosHeight,labelPosHeightFactor,cloudGroupCategory.groups(),cloudSet);
 
-	// Document's time period, cloud layer time series and x -axis step (px)
+	// Cloud layer time series
 
-	const boost::posix_time::time_period & tp = axisManager->timePeriod();
 	const std::list<woml::TimeSeriesSlot> & ts = cloudlayers.timeseries();
-
-	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
 	// Elevation group and curve point data
 
@@ -5756,6 +5749,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	NFmiFillAreas holeAreas;
 	bool hasHole = searchHoles(ts,&cloudGroupCategory);
+
+	boost::posix_time::ptime bt,et;
 
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
@@ -5805,7 +5800,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		scaledCurvePositions(eGrp,curvePositions,borderCompensation ? curvePositions0 : curvePositions,scaledLo,scaledHi,hasHole,
+		scaledCurvePositions(eGrp,bt,et,curvePositions,borderCompensation ? curvePositions0 : curvePositions,scaledLo,scaledHi,hasHole,
 							 itcg->xOffset(),itcg->yOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->vSSOffset(),itcg->sOffset(),itcg->eOffset(),
 							 scaleHeightMin,scaleHeightRandom,path);
 
@@ -5819,6 +5814,12 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		// Create bezier curve and get curve and decorator points
 
 //std::ostringstream pnts; pnts << std::fixed << std::setprecision(3);
+//{
+//List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend = curvePositions.end(),itcp;
+//for (itcp = cpbeg; (itcp != cpend); itcp++) {
+//pnts << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY(); }
+//}
+//--
 //{ std::cerr << std::fixed << std::setprecision(1);
 //List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend = curvePositions.end(),itcp; size_t n = 0;
 //for (itcp = cpbeg; (itcp != cpend); itcp++, n++) {
@@ -5856,17 +5857,17 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				itdp++;
 			}
 
-			double y = itcp->getY();
+			double x = itcp->getX(),y = itcp->getY();
 
-			if (!isHole) {
+			if ((!isHole) && (x >= 0) && (x < (axisWidth + 1))) {
 				if (y > 0)
 					visible = true;
 				else
 					aboveTop = true;
 			}
 
-			path << " " << itcp->getX() << "," << y;
-//pnts << "<circle cx=\"" << itcp->getX() << "\" cy=\"" << y+150 << "\" r=\"3\" stroke=\"black\" stroke-width=\"1\" fill=\"red\"/>";
+			path << " " << x << "," << y;
+//pnts << "<circle cx=\"" << x << "\" cy=\"" << y/*+150*/ << "\" r=\"3\" stroke=\"black\" stroke-width=\"1\" fill=\"red\"/>";
 		}
 
 		texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef()
@@ -5874,6 +5875,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 								   << "\" d=\""
 								   << path.str()
 								   << "\"/>\n";
+//texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef()
+//						   << "\" id=\"" << "CloudLayers" << nGroups
+//						   << "\" d=\""
+//						   << pnts.str()
+//						   << "\"/>\n";
 //texts[itcg->placeHolder()] << pnts.str();
 
 		std::string label = cloudGroupCategory.groupLabel();
@@ -5881,10 +5887,10 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		if (!label.empty()) {
 			// For a hole store it's area as reserved, otherwise render the label to each separate visible part of the cloud
 			//
-			// x -coord of group's first time instant
+			// x -coord of group's first visible time instant
 			//
 			const boost::posix_time::ptime & vt = eGrp.front().validTime();
-			double minX = axisManager->xOffset(vt);
+			double minX = std::max(axisManager->xOffset(vt),0.0);
 
 			renderAreaLabels(borderCompensation ? curvePoints0 : curvePoints,holeAreas,areaLabels,"CLOUDLAYERSLABEL",itcg->markerPlaceHolder(),"ZZCloudLayersText",isHole,isHole ? "" : label,itcg->bbCenterMarker(),
 							 minX,minLabelPosHeight,labelPosHeightFactor,itcg->sOffset(),itcg->eOffset(),scaledLo,scaledHi,hasHole,
@@ -5981,7 +5987,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
   // ----------------------------------------------------------------------
 
   SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(const std::list<woml::TimeSeriesSlot> & ts,
-		  	  	  	  	  	  	  	  	  	  	  	  	  	  const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
+		  	  	  	  	  	  	  	  	  	  	  	  	  	  boost::posix_time::ptime & bt,boost::posix_time::ptime & et,
 		  	  	  	  	  	  	  	  	  	  	  	  	  	  ElevGrp & eGrp,
 		  	  	  	  	  	  	  	  	  	  	  	  	  	  bool all,
 		  	  	  	  	  	  	  	  	  	  	  	  	  	  bool join,
@@ -5999,6 +6005,10 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	CategoryValueMeasureGroup overlappingGroup;
 
+	const boost::posix_time::time_period & tp = axisManager->timePeriod();
+	bt = tp.begin();
+	et = tp.end();
+
 	std::list<woml::TimeSeriesSlot>::const_iterator tsbeg = ts.begin();
 	std::list<woml::TimeSeriesSlot>::const_iterator tsend = ts.end();
 	std::list<woml::TimeSeriesSlot>::const_iterator itts,pitts;
@@ -6009,20 +6019,36 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	eGrp.clear();
 
 	for (itts = pitts = tsbeg; (itts != tsend); itts++) {
-		// Skip time instants outside the given time range
+		// Load the time instants within the document's time range plus one time instant before the starting and after the
+		// ending time instant (if available), thus extending the document's time range (by 1 hour) in both directions.
 		//
+		// Extendind the time range gives some hints how the clouds, icing etc. continue outside the visible time window.
+		//
+		// All data is rendered, but only the document's original time range is assumed to be visible; only the visible parts of
+		// the clouds, icing etc. are used when positioning labels/symbols.
+
 		const boost::posix_time::ptime & vt = itts->validTime();
 
-		if ((vt < bt) || (vt > et)) {
-			if (vt < bt)
+		if (vt < bt) {
+			std::list<woml::TimeSeriesSlot>::const_iterator nitts = itts;
+			nitts++;
+
+			if ((nitts == tsend) || (nitts->validTime() != bt) || ((bt - vt).hours() != 1))
 				continue;
-			else
-				break;
+
+			// Extending the time range 1h backwards
+
+			bt = vt;
 		}
-		else if ((!all) && (eGrp.size() > 0)) {
-			// Check for missing time instant
-			//
-			if ((vt - pitts->validTime()).hours() > 1)
+		else {
+			if ((!all) && (eGrp.size() > 0)) {
+				// Check for missing time instant
+				//
+				if ((vt - pitts->validTime()).hours() > 1)
+					break;
+			}
+
+			if ((vt > et) && ((itts == tsbeg) || (pitts->validTime() != et) || ((vt - et).hours() != 1)))
 				break;
 		}
 
@@ -6081,6 +6107,13 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 					return (groundGrp ? t_ground : t_nonground);
 			}	// for itpv
 		}	// for itpvs
+
+		if (vt > et) {
+			// Extending the time range 1h forwards
+			//
+			et = vt;
+			break;
+		}
 	}	// for itts
 
 	// Join vertically overlapping elevations.
@@ -6615,10 +6648,10 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	//		 Turbulence), and joining can only be made after each overlapping subgroup of elevations having matching/configured
 	//		 type/magnitude have first been extracted.
 
-	const boost::posix_time::time_period & tp = axisManager->timePeriod();
-	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
 
 	ElevGrp eGrp;
+	boost::posix_time::ptime bt,et;
+
 	elevationGroup(ts,bt,et,eGrp,true,false);
 
 	// Search for holes.
@@ -6657,9 +6690,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		for (reScan = false, iteg = egbeg, piteg = egend; (iteg != egend); nextItem(iteg,scanned,reScan)) {
 			// No need to check the first and last time instants (holes would be open on the left or right side).
 			//
-			if (iteg->validTime() == tp.begin())
+			if (iteg->validTime() == bt)
 				continue;
-			else if (iteg->validTime() == tp.end())
+			else if (iteg->validTime() == et)
 				break;
 			else if (!(iteg->isScanned())) {
 				// Get elevation's lo and hi range values
@@ -6752,17 +6785,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	try {
 		ElevGrp eGrp;
-		double xStep = axisManager->xStep();
+		double axisWidth = axisManager->axisWidth(),xStep = axisManager->xStep();
 		const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
 		bool visible = false,hiVisible = false,aboveTop = false;
 		int nGroups = 0;
 
 		const char * typeMsg = " must contain a group in curly brackets";
 
-		// Document's time period
-
-		const boost::posix_time::time_period & tp = axisManager->timePeriod();
-		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
+		// Contrail time series
 
 		const std::list<woml::TimeSeriesSlot> & ts = contrails.timeseries();
 
@@ -6778,6 +6808,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		// Do not mix ground and nonground elevations.
 
 		setGroupNumbers(ts,false);
+
+		boost::posix_time::ptime bt,et;
 
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
@@ -6801,8 +6833,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				path << std::fixed << std::setprecision(1);
 
 				double prevX = -xStep,prevVal = -1;
-				size_t visibleCnt = 0;
-				bool segmentVisible = false,prevAbove = false;
+				size_t pntCnt = 0;
+				bool segmentDrawn = false,prevAbove = false;
 
 				for (iteg = prevIteg = eGrp.begin(); (iteg != egend); ) {
 					// Get elevation's lo and hi range values
@@ -6829,7 +6861,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 					bool prevMissing = ((val > 0) && (x > (xStep / 2)) && ((x > (prevX + xStep + (xStep / 2))) || (prevVal <= 0)));
 
-					if (((val <= 0) || prevMissing) && (visibleCnt > 0)) {
+					if (((val <= 0) || prevMissing) && (pntCnt > 0)) {
 						// Continue ending path segment half timestep forwards.
 						//
 						path << " L" << (prevX + (xStep / 2)) << "," << prevVal;
@@ -6852,7 +6884,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 					}
 
 					if (val > 0) {
-						// Visible
+						// Within the visible y -axis range
 						//
 						if (prevMissing) {
 							// Start new path segment half timestep backwards.
@@ -6870,22 +6902,31 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 								path << " L" << (x - (xStep / 2)) << "," << axisManager->scaledElevation(hi)
 									 << " M" << (x - (xStep / 2)) << "," << val;
 
-							visibleCnt++;
+							pntCnt++;
 						}
 
-						path << ((visibleCnt == 0) ? "M" : " L") << x << "," << val;
-						visibleCnt++;
+						path << ((pntCnt == 0) ? "M" : " L") << x << "," << val;
+						pntCnt++;
+
+						// Because the data can now exceed the visible x -axis, checking/setting visibility here by checking the x -coordinate too
+
+						if ((x >= 0) && (x < (axisWidth + 1))) {
+							visible = true;
+
+							if (rng == 1)
+								hiVisible = true;
+						}
 					}
 					else {
 						// Missing or above the top
 						//
-						if (above)
+						if (above && (x >= 0) && (x < (axisWidth + 1)))
 							aboveTop = true;
 
-						if (visibleCnt > 0)
-							segmentVisible = true;
+						if (pntCnt > 0)
+							segmentDrawn = true;
 
-						visibleCnt = 0;
+						pntCnt = 0;
 					}
 
 					prevX = x;
@@ -6894,10 +6935,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 					iteg++;
 
-					if ((iteg == egend) && ((visibleCnt > 0) || segmentVisible)) {
-						// At least part of the curve is visible (scaled elevation(s) above zero and below the top of y -axis did exist)
-						//
-						if ((visibleCnt > 0) && (eGrp.back().validTime() < et)) {
+					if ((iteg == egend) && ((pntCnt > 0) || segmentDrawn)) {
+						if ((pntCnt > 0) && (eGrp.back().validTime() < et)) {
 							// Continue ending path segment half timestep forwards.
 							// Connect the lo range point to the hi range point.
 							//
@@ -6914,11 +6953,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 										 << "\" d=\""
 										 << path.str()
 										 << "\"/>\n";
-
-						visible = true;
-
-						if (rng == 1)
-							hiVisible = true;
 					}
 				}	// for iteg
 			}	// for rng
@@ -7228,12 +7262,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	groupConfig<GroupTypeT>(confPath,tightness,minLabelPosHeight,labelPosHeightFactor,groupCategory.groups(),memberSet);
 
-	// Document's time period, x -axis step and y -axis height (px)
+	// x -axis width, y -axis height (px) and symbol class
 
-	const boost::posix_time::time_period & tp = axisManager->timePeriod();
-
-	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-	double axisHeight = axisManager->axisHeight(),y;
+	double axisWidth = axisManager->axisWidth(),axisHeight = axisManager->axisHeight(),x,y;
 
 	const std::string symClass(boost::algorithm::to_upper_copy(confPath + classNameExt));
 
@@ -7254,6 +7285,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	NFmiFillAreas holeAreas;
 	bool hasHole = searchHoles(ts,&groupCategory);
+
+	boost::posix_time::ptime bt,et;
 
 	for ( ; ; ) {
 		// Get group of overlapping elevations from the time serie
@@ -7290,7 +7323,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		std::ostringstream path;
 		path << std::fixed << std::setprecision(3);
 
-		bool single = scaledCurvePositions(eGrp,curvePositions,curvePositions,scaledLo,scaledHi,hasHole,
+		bool single = scaledCurvePositions(eGrp,bt,et,curvePositions,curvePositions,scaledLo,scaledHi,hasHole,
 										   itcg->xOffset(),itcg->yOffset(),itcg->vOffset(),itcg->vSOffset(),itcg->vSSOffset(),itcg->sOffset(),itcg->eOffset(),
 										   0,0,path);
 		bool asSymbol = (single && itcg->symbolOnly());
@@ -7320,9 +7353,9 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			}
 
 			for (itcp = cpbeg; (itcp != cpend); itcp++) {
-				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << (y = itcp->getY());
+				path << ((itcp == cpbeg) ? "M" : " L") << (x = itcp->getX()) << "," << (y = itcp->getY());
 
-				if (!isHole) {
+				if ((!isHole) && (x >= 0) && (x < (axisWidth + 1))) {
 					if ((y > 0) && (y < axisHeight))
 						visible = true;
 					else if (y < 0)
@@ -7343,7 +7376,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		// x -coord of group's first time instant
 		//
 		const boost::posix_time::ptime & vt = eGrp.front().validTime();
-		double minX = axisManager->xOffset(vt);
+		double minX = std::max(axisManager->xOffset(vt),0.0);
 
 		const std::string & symbol = groupCategory.groupSymbol();
 
@@ -8010,11 +8043,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
   void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot> & ts,bool mixed)
   {
-	unsigned int nextGroupNumber = 1;
-
-	const boost::posix_time::time_period & tp = axisManager->timePeriod();
-	boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-
 	// Get all elevations.
 	//
 	// Note: 'join' controls whether vertically overlapping elevations are joined or not. It must be passed in as false here
@@ -8023,7 +8051,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	//		 type/magnitude have first been extracted.
 
 	ElevGrp eGrp;
+	boost::posix_time::ptime bt,et;
+
 	elevationGroup(ts,bt,et,eGrp,true,false);
+
+	unsigned int nextGroupNumber = 1;
 	bool reScan;
 
 	do
@@ -8119,13 +8151,11 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				labelPlaceHolder = ZEROTOLERANCE + "TEXT";
 		}
 
-		// Document's time period, zero tolerance time series and x -axis step (px)
+		// Zero tolerance time series and x -axis width/step (px)
 
-		const boost::posix_time::time_period & tp = axisManager->timePeriod();
 		const std::list<woml::TimeSeriesSlot> & ts = zerotolerance.timeseries();
 
-		boost::posix_time::ptime bt = tp.begin(),et = tp.end();
-		double xStep = axisManager->xStep();
+		double axisWidth = axisManager->axisWidth(),xStep = axisManager->xStep();
 
 		// Bezier curve tightness
 
@@ -8220,6 +8250,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		NFmiFillAreas holeAreas;
 		bool hasHole = searchHoles(ts);
 
+		boost::posix_time::ptime bt,et;
+
 		for ( ; ; ) {
 			// Get group of overlapping elevations from the time serie
 			//
@@ -8261,10 +8293,10 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 			std::ostringstream path;
 			path << std::fixed << std::setprecision(3);
 
-			scaledCurvePositions(eGrp,curvePositions,curvePositions,scaledLo,scaledHi,hasHole,
+			scaledCurvePositions(eGrp,bt,et,curvePositions,curvePositions,scaledLo,scaledHi,hasHole,
 								 xOffset,yOffset,vOffset,vSOffset,vSSOffset,sOffset,eOffset,
 								 0,0,path,
-								 &visible,true,false,true);
+								 NULL,true,false,true);
 
 			// Create bezier curve and get curve points
 
@@ -8290,8 +8322,16 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 //fprintf(stderr,"> Bez:\n");
 //for (itcp = cpbeg; (itcp != cpend); itcp++) fprintf(stderr,"> Bez x=%.1f, y=%.1f\n",itcp->getX(),itcp->getY());
-			for (itcp = cpbeg; (itcp != cpend); itcp++)
-				path << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY();
+			for (itcp = cpbeg; (itcp != cpend); itcp++) {
+				// Store the path and check visibility
+				//
+				double x,y;
+
+				path << ((itcp == cpbeg) ? "M" : " L") << (x = itcp->getX()) << "," << (y = itcp->getY());
+
+				if ((x >= 0) && (x < (axisWidth + 1)) && (y > 0))
+					visible = true;
+			}
 
 			texts[ZEROTOLERANCE] << "<path class=\"" << classDef
 								 << "\" id=\"" << "ZeroTolerance" << nGroups
@@ -8314,7 +8354,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				// x -coord of group's first time instant
 				//
 				const boost::posix_time::ptime & vt = eGrp.front().validTime();
-				double minX = axisManager->xOffset(vt);
+				double minX = std::max(axisManager->xOffset(vt),0.0);
 
 				renderAreaLabels(curvePoints,holeAreas,areaLabels,"ZEROTOLERANCELABEL",labelPlaceHolder,"ZZZeroToleranceText",isNegative,label,bbCenterLabel,
 								 minX,minLabelPosHeight,labelPosHeightFactor,sOffset,eOffset,scaledLo,scaledHi,hasHole,
@@ -8871,9 +8911,9 @@ double AxisManager::scaledElevation(double elevation,bool * above,double belowZe
 double AxisManager::xOffset(const boost::posix_time::ptime & validTime) const
 {
 	if (validTime < itsTimePeriod.begin())
-		return 0.0;
+		return -xStep();
 	else if (validTime > itsTimePeriod.end())
-		return itsAxisWidth;
+		return itsAxisWidth + xStep();
 
 	return (((double) (validTime - itsTimePeriod.begin()).total_seconds()) / itsTimePeriod.length().total_seconds()) * itsAxisWidth;
 }
