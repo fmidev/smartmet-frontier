@@ -2951,7 +2951,14 @@ namespace frontier
 			// Note: Using the lo-hi range average value for "nonground" elevations (MigratoryBirds) and
 			// 		 0 for "ground" elevation (SurfaceVisibility, SurfaceWeather)
 			//
-			double x = axisManager->xOffset(iteg->validTime()),y = 0.0;
+			boost::posix_time::ptime vt = iteg->validTime();
+
+			if (vt < tp.begin())
+				continue;
+			else if (vt > tp.end())
+				break;
+
+			double x = axisManager->xOffset(vt),y = 0.0;
 
 			// Category/magnitude or visibility (meters)
 
@@ -3021,7 +3028,7 @@ namespace frontier
 
 				// Move first and last time instant's symbols to keep them better withing the area
 
-				if (iteg->validTime() == tp.begin()) {
+				if (vt == tp.begin()) {
 					// Offset in px for moving first time instant's symbols to the right
 					//
 					bool isSet;
@@ -3030,7 +3037,7 @@ namespace frontier
 					if (isSet)
 						x += sOffset;
 				}
-				else if (iteg->validTime() == tp.end()) {
+				else if (vt == tp.end()) {
 					// Offset in px for moving last time instant's symbols to the left
 					//
 					bool isSet;
