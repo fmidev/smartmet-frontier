@@ -73,7 +73,7 @@ namespace frontier
   const double labelPosHeightFactorMin = 0.1;
   const double symbolPosHeightFactorMin = 0.1;
   const size_t fillAreaOverlapMax = 3;
-  const size_t symbolScaleFactor = 0.75;				// Minimum symbol size 3/4'th of the original
+  const size_t markerScaleFactorMin = 0.75;				// Minimum marker size 3/4'th of the original
   const size_t symbolBBoxFactorMin = 0.5;				// Minimum symbol bbox 0.5 * symbol width/height; symbols can overlap
   const size_t pathScalingSymbolHeightFactorMax = 5;	// Surface scaling max offset 5 * (symbol height / 2)
 
@@ -2157,7 +2157,7 @@ namespace frontier
 										//
 										int nw = width - 2,nh = height - 2;
 
-										sizeOk = ((nw >= floor(_width * symbolScaleFactor)) && (nh >= floor(_height * symbolScaleFactor)));
+										sizeOk = ((nw >= floor(_width * markerScaleFactorMin)) && (nh >= floor(_height * markerScaleFactorMin)));
 										noTextRetry = false;
 
 										if (sizeOk || (textPosition != "area")) {
@@ -4216,7 +4216,7 @@ namespace frontier
 			}
 		}
 	}
-	while (markerArea.empty() && (markerWidth >= (w / 2.0)) && (markerHeight >= (h / 2.0)));
+	while (markerArea.empty() && (markerWidth >= floor(w * markerScaleFactorMin)) && (markerHeight >= floor(h * markerScaleFactorMin)));
 
 	return markerArea;
   }
