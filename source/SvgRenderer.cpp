@@ -73,8 +73,8 @@ namespace frontier
   const double labelPosHeightFactorMin = 0.1;
   const double symbolPosHeightFactorMin = 0.1;
   const size_t fillAreaOverlapMax = 3;
-  const size_t markerScaleFactorMin = 0.75;				// Minimum marker size 3/4'th of the original
-  const size_t symbolBBoxFactorMin = 0.5;				// Minimum symbol bbox 0.5 * symbol width/height; symbols can overlap
+  const double markerScaleFactorMin = 0.75;				// Minimum marker size 3/4'th of the original
+  const double symbolBBoxFactorMin = 0.5;				// Minimum symbol bbox 0.5 * symbol width/height; symbols can overlap
   const size_t pathScalingSymbolHeightFactorMax = 5;	// Surface scaling max offset 5 * (symbol height / 2)
 
   // ----------------------------------------------------------------------
@@ -4892,9 +4892,9 @@ namespace frontier
 					my = selmy;
 				}
 
-				// Scale marker down to half size and adjust x -position if using areas first or last elevation
+				// Scale marker down to minimum size and adjust x -position if using areas first or last elevation
 
-				xScale = yScale = 0.5;
+				xScale = yScale = markerScaleFactorMin;
 
 				if (!multiple)
 					adjustMarkerPosition(minx,axisWidth,xStep,sOffset,eOffset,n0,nN,nS,mx,my);
