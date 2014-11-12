@@ -4167,53 +4167,78 @@ namespace frontier
 	return markerArea;
   }
 
-  NFmiFillAreas getMarkerArea(const std::string & markerId,const NFmiFillAreas & holeAreas,const FillAreas & reservedAreas,FillAreas & candidateAreas,double & mx,double my,int & markerWidth,int & markerHeight,bool checkBwd,bool checkFwd,double xStep)
+  NFmiFillAreas getMarkerArea(const std::string & markerId,const NFmiFillAreas & holeAreas,const FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,double & mx,double my,int & markerWidth,int & markerHeight,bool checkBwd,bool checkFwd,double xStep)
   {
-	NFmiFillAreas markerArea;
-	double x = mx;
+	NFmiFillAreas markerArea,ma;
+	double w = markerWidth,h = markerHeight,x0 = mx;
 	bool storeCandidates = true;
-	int w = markerWidth,h = markerHeight;
 
 	do {
-		// Check the given position
+		// Check the given position and positions half and 1/4 timestep backwards and forwards. Return the first available position,
+		// and store the other available positions as free and the reserved positions as candidates.
+		//
+		// Note: When checking the half and 1/4 offset positions, the position half step forwards is checked first because currently
+		//		 the right end of single elevation areas tends to be taller than the left end. The position half step backwards
+		//		 is checked next to favour greater distance to the (given/center) primary position in case another marker is already
+		//		 positioned there
 
-		markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
+		double x = x0;
 
-		if (markerArea.empty()) {
-			if (checkBwd) {
-				// Check half timestep backwards
-				//
-				mx = x - (xStep / 2);
-				markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
+		markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,x,my,markerWidth,markerHeight,storeCandidates);
+		ma.insert(ma.end(),markerArea.begin(),markerArea.end());
 
-				// Check 1/4 timestep backwards
+		if (checkFwd) {
+			// Check half timestep forwards
+			//
+			x = x0 + (xStep / 2);
+			mx = (ma.empty() ? x : mx);
+			markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,x,my,markerWidth,markerHeight,storeCandidates);
+			ma.insert(ma.end(),markerArea.begin(),markerArea.end());
+		}
 
-				if (markerArea.empty()) {
-					mx = x - (xStep / 4);
-					markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
-				}
+		if (checkBwd) {
+			// Check half timestep backwards
+			//
+			x = x0 - (xStep / 2);
+			mx = (ma.empty() ? x : mx);
+			markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,x,my,markerWidth,markerHeight,storeCandidates);
+			ma.insert(ma.end(),markerArea.begin(),markerArea.end());
+		}
+
+		if (checkFwd) {
+			// Check 1/4 timestep forwards
+			//
+			x = x0 + (xStep / 4);
+			mx = (ma.empty() ? x : mx);
+			markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,x,my,markerWidth,markerHeight,storeCandidates);
+			ma.insert(ma.end(),markerArea.begin(),markerArea.end());
+		}
+
+		if (checkBwd) {
+			// Check 1/4 timestep backwards
+			//
+			x = x0 - (xStep / 4);
+			mx = (ma.empty() ? x : mx);
+			markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,x,my,markerWidth,markerHeight,storeCandidates);
+			ma.insert(ma.end(),markerArea.begin(),markerArea.end());
+		}
+
+		if (!ma.empty()) {
+			NFmiFillAreas::iterator it = ma.begin();
+
+			markerArea.clear();
+			markerArea.push_back(*it);
+
+			for (it++; (it != ma.end()); it++) {
+				freeAreas[markerId].fillAreas.push_back(*it);
+				freeAreas[markerId].scales.push_back(std::make_pair<double,double>(markerWidth / w,markerHeight / h));
 			}
+		}
+		else {
+			markerWidth -= 2;
+			markerHeight -= 2;
 
-			if (markerArea.empty() && checkFwd) {
-				// Check half timestep forwards
-				//
-				mx = x + (xStep / 2);
-				markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
-
-				// Check 1/4 timestep forwards
-
-				if (markerArea.empty()) {
-					mx = x + (xStep / 4);
-					markerArea = getMarkerArea(markerId,holeAreas,reservedAreas,candidateAreas,mx,my,markerWidth,markerHeight,storeCandidates);
-				}
-			}
-
-			if (markerArea.empty()) {
-				markerWidth -= 2;
-				markerHeight -= 2;
-
-				storeCandidates = false;
-			}
+			storeCandidates = false;
 		}
 	}
 	while (markerArea.empty() && (markerWidth >= floor(w * markerScaleFactorMin)) && (markerHeight >= floor(h * markerScaleFactorMin)));
@@ -4758,10 +4783,12 @@ namespace frontier
 
 				// Check the current x -position and 1/4 and 1/2 timesteps backwards/forwards if there's free space for the marker.
 				//
-				// Scale the marker down to half width/height if needed
+				// Scale the marker down to minimum width/height if needed
 
 				double x = mx;
-				NFmiFillAreas markerArea = getMarkerArea(mId,holeAreas,reservedAreas,candidateAreas,x,my,markerWidth,markerHeight,(n > n0),(n < nN),xStep);
+				bool checkBwd = (mx >= 1),checkFwd = (mx <= (axisWidth - 1));
+
+				NFmiFillAreas markerArea = getMarkerArea(mId,holeAreas,reservedAreas,freeAreas,candidateAreas,x,my,markerWidth,markerHeight,checkBwd,checkFwd,xStep);
 
 				if (!markerArea.empty()) {
 					// Free, store the center point and scale
@@ -7375,6 +7402,15 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 						   << "\" d=\""
 						   << path.str()
 						   << "\"/>\n";
+//std::ostringstream pnts; pnts << std::fixed << std::setprecision(3);
+//{
+//List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend = curvePositions.end(),itcp;
+//for (itcp = cpbeg; (itcp != cpend); itcp++) {
+////pnts << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY(); }
+////texts[FEATURE] << "<path class=\"" << itcg->classDef() << "Visible\" d=\"" << pnts.str() << "\"/>";
+//pnts << "<circle cx=\"" << itcp->getX() << "\" cy=\"" << itcp->getY() << "\" r=\"2\" stroke=\"black\" stroke-width=\"1\" fill=\"red\"/>"; }
+//texts[FEATURE] << pnts.str();
+//}
 		}
 
 		// For a hole store it's area as reserved, otherwise render the single symbol or one symbol or label
