@@ -5657,6 +5657,8 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 				// Bounding box for single elevation. Limit the extent of the left side
 				// of first time instant and of the right side of last time instant.
 				//
+				// Note: Using the center of the top edge as starting point to get symmetrical (ends to the) result curve
+				//
 				double leftSide = x - (((vt == bt) && (vSOffset > sOffset)) ? sOffset : vSOffset) + 1;
 				double rightSide = x + (((vt == et) && (vSOffset > eOffset))? eOffset : vSOffset) - 1;
 
@@ -5673,14 +5675,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 				curvePositions.clear(); curvePositions0.clear();
 
-				addCurvePosition(curvePositions,curvePositions0,0,0,0);
-				addCurvePosition(curvePositions,curvePositions0,leftSide,hipx,hipx0,1);
+				addCurvePosition(curvePositions,curvePositions0,x,hipx,hipx0);
 				addCurvePosition(curvePositions,curvePositions0,rightSide,hipx,hipx0,1);
 				addCurvePosition(curvePositions,curvePositions0,rightSide + ((vSSOffset < 0.0) ? 0.0 : vSSOffset),lopx - ((lopx - hipx) / 2),lopx0 - ((lopx0 - hipx0) / 2));
 				addCurvePosition(curvePositions,curvePositions0,rightSide,lopx,lopx0,-1);
 				addCurvePosition(curvePositions,curvePositions0,leftSide,lopx,lopx0,-1);
 				addCurvePosition(curvePositions,curvePositions0,leftSide - ((vSSOffset < 0.0) ? 0.0 : vSSOffset),lopx - ((lopx - hipx) / 2),lopx0 - ((lopx0 - hipx0) / 2));
-				addCurvePosition(curvePositions,curvePositions0,leftSide,hipx,hipx0,1,0.0,true);
+				addCurvePosition(curvePositions,curvePositions0,leftSide,hipx,hipx0,1);
+				addCurvePosition(curvePositions,curvePositions0,x,hipx,hipx0);
 
 				break;
 			}
@@ -5711,15 +5713,17 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		}
 	}	// for iteg
 
-	// Use the second last curve position - in the middle of the left side of the starting / top left elevation - as
-	// the starting position to eliminate the "starting nökkönen" effect, which appeared especially with single elevations
+	if (!single) {
+		// Use the second last curve position - in the middle of the left side of the starting / top left elevation - as
+		// the starting position to eliminate the "starting nökkönen" effect
+		//
+		curvePositions[0] = curvePositions[curvePositions.size() - 2];
+		curvePositions.pop_back();
 
-	curvePositions[0] = curvePositions[curvePositions.size() - 2];
-	curvePositions.pop_back();
-
-	if (&curvePositions != &curvePositions0) {
-		curvePositions0[0] = curvePositions0[curvePositions0.size() - 2];
-		curvePositions0.pop_back();
+		if (&curvePositions != &curvePositions0) {
+			curvePositions0[0] = curvePositions0[curvePositions0.size() - 2];
+			curvePositions0.pop_back();
+		}
 	}
 
 	// Remove group's elevations from the collection
