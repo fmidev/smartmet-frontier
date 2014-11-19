@@ -76,6 +76,7 @@ namespace frontier
   const double markerScaleFactorMin = 0.75;				// Minimum marker size 3/4'th of the original
   const double symbolBBoxFactorMin = 0.5;				// Minimum symbol bbox 0.5 * symbol width/height; symbols can overlap
   const size_t pathScalingSymbolHeightFactorMax = 5;	// Surface scaling max offset 5 * (symbol height / 2)
+  const double textSizeFactor = 0.95;					// Calculated text width/height is inaccurate, using factor not to exceed limits
 
   // ----------------------------------------------------------------------
   /*!
@@ -1281,6 +1282,7 @@ namespace frontier
 //
 
 	unsigned int maxLineWidth = 0;
+	maxWidth *= textSizeFactor;
 	maxLineHeight = 0;
 
 	for (l = 0; (l < textlc); l++) {
@@ -1293,7 +1295,7 @@ namespace frontier
 		if (lineHeight > maxLineHeight)
 			maxLineHeight = lineHeight;
 
-		unsigned int lineWidth = static_cast<unsigned int>(ceil(extents.width));
+		unsigned int lineWidth = static_cast<unsigned int>(ceil(std::max(extents.width,extents.x_advance)));
 
 		if (lineWidth < maxWidth) {
 			outputLines.push_back(inputLines[l]);
@@ -1319,9 +1321,9 @@ namespace frontier
 			cairo_text_extents(cr,(line + word).c_str(),&extents);
 
 			if (! (fits = (ceil(extents.width) < maxWidth))) {
-				// Goes too wide, try cutting to first comma or period
+				// Goes too wide, try cutting to first comma, period, hyphen or slash
 				//
-				pos = word.find_first_of(",.");
+				pos = word.find_first_of(",.-/");
 
 				if (pos != std::string::npos) {
 					std::string cutted = word.substr(0,pos + 1);
@@ -1348,7 +1350,7 @@ namespace frontier
 				else
 					// Cutted; the rest of the word goes to the next line
 					//
-					words[w].erase(0,pos + 1);
+					words[w].erase(0,pos);
 			}
 			else if (linewc == 0) {
 				// A single word exceeding the max line width
@@ -1377,7 +1379,7 @@ namespace frontier
 	}  // for line
 
 	textHeight = ((outputLines.size() * (maxLineHeight + 2)) - 2);
-	textWidth = ((maxLineWidth == 0) ? maxWidth : maxLineWidth);
+	textWidth = ((maxLineWidth == 0) ? maxWidth : maxLineWidth) / textSizeFactor;
 
 //	if ((maxHeight > 0) && (maxHeight < textHeight))
 //		// Max height exceeded; decrement font size (downto half of the given size) and regenerate the text
@@ -1625,6 +1627,10 @@ namespace frontier
 					int x = startX - xOffset - (centerToStartX ? ((textWidth / 2) + margin) : 0);
 					int y = startY + yOffset;
 
+					// Offset is decremented from last line's y -coordinate to get text's height
+
+					yPosH = -y;
+
 					if (setTextArea) {
 						// Store geometry for text border
 						//
@@ -1661,7 +1667,8 @@ namespace frontier
 											<< "\">" << svgescapetext(*it) << "</text>\n";
 					}
 
-					yPosH = y;
+					yPosH += (y + margin);
+					yPosH /= textSizeFactor;
 
 					if (!TEXTPOSid.empty())
 						texts[TEXTtextName] << "</g>\n";
