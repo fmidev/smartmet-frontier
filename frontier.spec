@@ -1,8 +1,8 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 14.10.30
-Release: 2%{?dist}.fmi
+Version: 14.11.19
+Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
 URL: http://www.weatherproof.fi
@@ -11,7 +11,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.54.0
 BuildRequires: libsmartmet-macgyver >= 14.9.5
 BuildRequires: libsmartmet-tron >= 14.10.23
-BuildRequires: libsmartmet-woml >= 13.11.28
+BuildRequires: libsmartmet-woml >= 14.11.19
 BuildRequires: libxml++-devel >= 2.30.0
 Requires: libxml++ >= 2.30.0
 Requires: cairo >= 1.8.8
@@ -51,6 +51,59 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Wed Nov 19 2014 Mikko Visa <mikko.visa@fmi.fi> - 14.11.19-1.fmi
+-using the center of the top edge as starting point to get symmetrical (ends to the) result curve for a single elevat
+-in addition to the selected position storing free half and 1/4 timestep offset positions to be used instead if marke
+-yet another scaling factor fixes
+-increased minimum marker down scaling factor to 3/4
+-LENTOSAA-989; ignoring MigratoryBirds, SurfaceVisibility and SurfaceWeather data outside document's time range
+-LENTOSAA-989
+-MIRWA-984; some additional tuning
+-MIRWA-984
+-Enable contouring in frontier.cpp and SConstruct.
+-Fixes to enable build with contouring. Note: 'CPPDEFINES=CONTOURING' setting needs to be uncommented in SConstruct f
+-To better keep markers within the area adjust marker position if using areas first or last elevation
+-fixed some code indentation
+-Add newline after use elements to clarify output.
+-MIRWA-998
+-LENTOSAA-983, removed buggy handling for candidate fill areas having multiple reservations (LENTOSAA-951)
+-LENTOSAA-951; added handling for candidate fill areas (label/symbol positions) having multiple reservations
+-LENTOSAA-976
+-LENTOSAA-951; ignoring marker's own fill areas when checking for reserved areas, corrected marker positioning when r
+-LENTOSAA-951; some improvenments
+-LENTOSAA-982
+-MIRWA-991
+-fixed regex expression to match all placeholders starting with uppercase letter; placeholders with underscore were n
+-LENTOSAA-980
+-LENTOSAA-978
+-LENTOSAA-966; negative y -offset setting is ignored
+-LENTOSAA-966
+-LENTOSAA-954,LENTOSAA-955
+-LENTOSAA-956
+-added 'fillmode' setting to control the amount of (warning)symbols placed onto an (warning)area
+-locale is not used when selecting configuraton settings for rendering text
+-added missing 'px' to css class generated for component info text
+-front rendering is omitted if configuration block is missing
+-LENTOSAA-937
+-LENTOSAA-941; bug fix
+-fixed bug in extracting the default elevation group label using configured member types and the types contained in c
+-LENTOSAA-948
+-LENTOSAA-941
+-LENTOSAA-940, Esa's bezier java code upgrade/reconversion (no notable curve changes, some other/preliminary code cha
+-fixed bug in calculating text area height
+-added symbol infotext position control (like areas), setting text stroke/fill color from configuration
+-LENTOSAA-929
+-LENTOSAA-920; elevationGroup(); fixed bug in skipping elevations which don't belong to current categorized group. Mi
+-LENTOSAA-920
+-text rendering errors (due to missing configuration values) are silently ignored
+-surface rendering reads configuration in 'scoped' mode (using all encountered global blocks instead of just the last
+-added on/off control for text background handling; background setting currently implemented for document level text
+-added on/off control for text background handling; background setting currently implemented for document level text
+-fixed bug in handling surface info text configuration keys/names
+-fixed bug in handling area text configuration keys/names
+-generating css class for each surface info text instead of one common class
+-surface info text placement (within or outside the area), text splitting accuracy improved (using line extent instea
+-fill symbol positioning improved for ParameterValueSetArea (warning areas)
 * Thu Oct 30 2014 Mika Heiskanen <mika.heiskanen@fmi.fi> - 14.10.30-2.fmi
 - Improved contour labeling algorithm
 * Thu Oct 30 2014 Mika Heiskanen <mika.heiskanen@fmi.fi> - 14.10.30-1.fmi
