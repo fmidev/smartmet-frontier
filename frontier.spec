@@ -51,6 +51,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Upcoming (Tue Nov 25 Pertti Kinnia <pertti.kinnia@fmi.fi>)
+-using separate factors for adjusting calculated text width/height
 * Wed Nov 19 2014 Mikko Visa <mikko.visa@fmi.fi> - 14.11.19-1.fmi
 -using the center of the top edge as starting point to get symmetrical (ends to the) result curve for a single elevat
 -in addition to the selected position storing free half and 1/4 timestep offset positions to be used instead if marke
