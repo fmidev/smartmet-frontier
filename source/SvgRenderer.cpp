@@ -76,7 +76,8 @@ namespace frontier
   const double markerScaleFactorMin = 0.75;				// Minimum marker size 3/4'th of the original
   const double symbolBBoxFactorMin = 0.5;				// Minimum symbol bbox 0.5 * symbol width/height; symbols can overlap
   const size_t pathScalingSymbolHeightFactorMax = 5;	// Surface scaling max offset 5 * (symbol height / 2)
-  const double textSizeFactor = 0.95;					// Calculated text width/height is inaccurate, using factor not to exceed limits
+  const double textWitdhFactor = 0.94;					// Calculated text width/height is inaccurate, using factors not to exceed limits
+  const double textHeightFactor = 0.96;					//
 
   // ----------------------------------------------------------------------
   /*!
@@ -1282,7 +1283,7 @@ namespace frontier
 //
 
 	unsigned int maxLineWidth = 0;
-	maxWidth *= textSizeFactor;
+	maxWidth *= textWitdhFactor;
 	maxLineHeight = 0;
 
 	for (l = 0; (l < textlc); l++) {
@@ -1379,7 +1380,7 @@ namespace frontier
 	}  // for line
 
 	textHeight = ((outputLines.size() * (maxLineHeight + 2)) - 2);
-	textWidth = ((maxLineWidth == 0) ? maxWidth : maxLineWidth) / textSizeFactor;
+	textWidth = ((maxLineWidth == 0) ? maxWidth : maxLineWidth) / textWitdhFactor;
 
 //	if ((maxHeight > 0) && (maxHeight < textHeight))
 //		// Max height exceeded; decrement font size (downto half of the given size) and regenerate the text
@@ -1668,7 +1669,7 @@ namespace frontier
 					}
 
 					yPosH += (y + margin);
-					yPosH /= textSizeFactor;
+					yPosH /= textHeightFactor;
 
 					if (!TEXTPOSid.empty())
 						texts[TEXTtextName] << "</g>\n";
