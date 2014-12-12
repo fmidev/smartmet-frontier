@@ -2736,7 +2736,9 @@ namespace frontier
 		  	  	  	  	     const woml::NumericalSingleValueMeasure * upperLimit,
 		  	  	  	  	     const std::string & confPath,
 		  	  	  	  	     const std::string & pref,
-		  	  	  	  	     double * scale = NULL)
+		  	  	  	  	     double * scale = NULL,
+		  	  	  	  	     const libconfig::Setting * specs = NULL,
+		  	  	  	  	     libconfig::Setting * globalScope = NULL)
   {
 	if (pref.empty())
 		return upperLimit ? (lowerLimit->value() + ".." + upperLimit->value()) : (isnan(lowerLimit->numericValue()) ? "" : lowerLimit->value());
@@ -2751,11 +2753,65 @@ namespace frontier
 		scale = NULL;
 
 	try {
-		if (upperLimit)
+		if (upperLimit) {
+			// Value range lo/hi value sign/zero based default output order and respective config setting.
+			// Range output order is swapped if config setting is set to false.
+			//
+			//		-6..-12		negtoneg
+			//		-2..2		negtopos
+			//		 0..7		zerotopos
+			//		-4..0		negtozero
+			//		 6..14		postopos
+			//
+			// Initialize v1 (first output value) and v2 to the default order
+			//
+			const woml::NumericalSingleValueMeasure * v1 = (((lowerLimit->numericValue() <= upperLimit->numericValue()) && ((upperLimit->numericValue() >= 0))) ? lowerLimit : upperLimit);
+			const woml::NumericalSingleValueMeasure * v2 = ((v1 == lowerLimit) ? upperLimit : lowerLimit);
+
+			if (specs) {
+				// Check range lo/hi value sign/zero based setting if the output order should be swapped.
+				//
+				// Note: The first value formatter is used for both range limit values when checking the output value sign and if it is zero;
+				//		 e.g. format '%.0f .. %.1f' would be taken as 'negtozero' instead of 'negtopos' for range -2..0.2 (the hi range
+				//		 value would be formatted with '%.0f' instead of '%.1f'). This does not matter though because both range values
+				//		 (currently temperature ranges only) very likely have similar formatter and no fractional part.
+				//
+				os << boost::format(pref) % (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue()) % lowerLimit->numericValue();
+				std::string valStr = boost::algorithm::trim_copy(os.str()),rangeType;
+				const char * p = valStr.c_str();
+
+				if (*p == '-')
+					rangeType = "neg";
+				else
+					rangeType = (strpbrk(p,"123456789") ? "pos" : "zero");
+
+				os.str(""); os.clear();
+				os << boost::format(pref) % (scale ? (upperLimit->numericValue() / *scale) : upperLimit->numericValue()) % upperLimit->numericValue();
+				valStr = boost::algorithm::trim_copy(os.str());
+				p = valStr.c_str();
+
+				if (*p == '-')
+					rangeType += "toneg";
+				else
+					rangeType += (strpbrk(p,"123456789") ? "topos" : "tozero");
+
+				bool defaultOrder,isSet;
+				defaultOrder = configValue<bool>(*specs,"rangeType",rangeType,globalScope,s_optional,&isSet);
+
+				if (isSet && (!defaultOrder)) {
+					const woml::NumericalSingleValueMeasure * v = v1;
+					v1 = v2;
+					v2 = v;
+				}
+
+				os.str(""); os.clear();
+			}
+
 			if (scale)
-				os << boost::format(pref) % (lowerLimit->numericValue() / *scale) % (upperLimit->numericValue() / *scale);
+				os << boost::format(pref) % (v1->numericValue() / *scale) % (v2->numericValue() / *scale);
 			else
-				os << boost::format(pref) % lowerLimit->numericValue() % upperLimit->numericValue();
+				os << boost::format(pref) % v1->numericValue() % v2->numericValue();
+		}
 		else
 			os << boost::format(pref) % (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue());
 
@@ -8576,14 +8632,14 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 							values << "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
 								   << "\" text-anchor=\"middle\" x=\"" << std::fixed << std::setprecision(1) << lon
 								   << "\" y=\"" << std::fixed << std::setprecision(1) << lat
-								   << "\">" << formattedValue(lowerLimit,upperLimit,confPath,pref) << "</text>\n";
+								   << "\">" << formattedValue(lowerLimit,upperLimit,confPath,pref,NULL,&specs,globalScope) << "</text>\n";
 						else
 							values << "<g transform=\"translate("
 								   << std::fixed << std::setprecision(1) << lon << " "
 								   << std::fixed << std::setprecision(1) << lat << ")\">\n"
 								   << "<use xlink:href=\"#" << href << "\"/>\n"
 								   << "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
-								   << "\" text-anchor=\"middle\">" << formattedValue(lowerLimit,upperLimit,confPath,pref) << "</text>\n"
+								   << "\" text-anchor=\"middle\">" << formattedValue(lowerLimit,upperLimit,confPath,pref,NULL,&specs,globalScope) << "</text>\n"
 								   << "</g>\n";
 
 						values << "</g>\n";
