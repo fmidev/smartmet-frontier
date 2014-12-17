@@ -2116,7 +2116,7 @@ namespace frontier
 							int height = _height;
 							double scale = _scale;
 							size_t pathScalingOffset = 0;
-							bool noTextRetry = false,sizeOk,ok;
+							bool noTextRetry = false,isScaled = true,sizeOk,ok;
 
 							// If symbol bounding box (spacing) is increased, first scale up the surface to get
 							// the outermost symbols positioned near enough the surface border.
@@ -2124,13 +2124,14 @@ namespace frontier
 							// The scaled surface will not be rendered, it is used only to get fill areas.
 
 							if ((scale >= 1) && autoScale) {
-								NFmiFillMap fmapScaled;
-
 								pathScalingOffset = (((scale - 1.0) * 30) + 12);
 
-								path = path.scale(std::min(pathScalingOffset,(pathScalingSymbolHeightFactorMax * height)));
-								path.length(&fmapScaled);
-								fmap = fmapScaled;
+								if ((isScaled = path.scale(std::min(pathScalingOffset,(pathScalingSymbolHeightFactorMax * height)),path))) {
+									NFmiFillMap fmapScaled;
+
+									path.length(&fmapScaled);
+									fmap = fmapScaled;
+								}
 							}
 
 							do {
@@ -2199,27 +2200,40 @@ namespace frontier
 								}
 								while ((autoScale || noTextRetry) && (! ok) && sizeOk);
 
-								if ((!ok) && autoScale) {
+								if ((!ok) && autoScale && isScaled) {
 									// Scale up the surface
 									//
 									pathScalingOffset += 2;
 
-									if (pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)) {
+									if ((pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)) && (isScaled = path.scale(2,path))) {
 										NFmiFillMap fmapScaled;
 
-										path = path.scale(2);
 										path.length(&fmapScaled);
 										fmap = fmapScaled;
 									}
 								}
 							}
-							while (autoScale && (! ok) && (pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)));
+							while (autoScale && (! ok) && isScaled && (pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)));
 
 							if (!ok) {
 								// For warning areas fit max 4 symbols per fill area
 								//
-								if (fillSymbols.size() == 0)
-									areas.clear();
+								if (fillSymbols.size() == 0) {
+									if (areas.empty()) {
+										// Position one fill symbol to the center of area's bbox. Use the original symbol size.
+										//
+										Path::BBox bbox = path.getBBox();
+										double cx = bbox.blX + ((bbox.trX - bbox.blX) / 2),cy = bbox.blY + ((bbox.trY - bbox.blY) / 2);
+
+										bbox.blX = cx - ((width = _width) / 2) - 2;
+										bbox.blY = cy - ((height = _height) / 2) - 2;
+										bbox.trX = cx + width + 2;
+										bbox.trY = cy + height + 2;
+										scale = 1;
+
+										areas.push_back(std::make_pair(Point(bbox.blX,bbox.blY),Point(bbox.trX,bbox.trY)));
+									}
+								}
 								else if ((!autoScale) || ((4 * fpos.size()) < fillSymbols.size()))
 									throw std::runtime_error("render_surface: too many symbols");
 							}

@@ -41,7 +41,7 @@ namespace frontier
 	double length(NFmiFillMap * fmap = NULL) const;
 	std::string svg() const;
 	void transform(const PathTransformation & transformation);
-	Path scale(double offset) const;
+	bool scale(double offset,Path & scaledPath) const;
 
 	std::pair<double,double> nearestVertex(double x, double y) const;
 
@@ -55,6 +55,7 @@ namespace frontier
 	typedef std::vector<double> PathData;
 	PathData pathdata;
 
+	void clear() { pathdata.clear(); }
 	void walk(size_t i,BBox & bbox,double x,double y) const;
 
   }; // class Path

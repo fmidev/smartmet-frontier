@@ -272,7 +272,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  Path Path::scale(double offset) const
+  bool Path::scale(double offset,Path & scaledPath) const
   {
 	// Load 'clipper' path
 
@@ -310,25 +310,49 @@ namespace frontier
 	  }
 
 	// Scale the 'clipper' path
+	//
+	// Note: Currently in mirwa it is possible to store a path having the same coordinate for all path points
+	//		 (and using clipper's IntPoints here can also result duplicates). At first remove successive
+	//		 duplicate points. At least 3 remaining points are required, otherwise false is returned and the output
+	//		 (it is actually reference to the unscaled/original input path; metdhod is not truly const) is left untouched
 
-	ClipperOffset co;
-	ClipperLib::Paths solution;
-	co.AddPath(srcPath,jtRound,etClosedPolygon);
-	co.Execute(solution,offset);
+	bool isScaled = false;
 
-	// Load and return scaled path
+	if (srcPath.size() > 2) {
+		ClipperLib::Path strippedPath;
+		ClipperLib::Path::const_iterator pathStart = srcPath.begin(),pathEnd = srcPath.end(),it,pit;
 
-	frontier::Path scaledPath;
+		it = pit = pathStart;
+		strippedPath.push_back(*it);
 
-	for (ClipperLib::Path::const_iterator it = solution.front().begin(); (it != solution.front().end()); it++)
-		if (it == solution.front().begin())
-			scaledPath.moveto(it->X,it->Y);
-		else
-			scaledPath.lineto(it->X,it->Y);
+		for (it++; (it != pathEnd); it++, pit++)
+			if (*it != *pit)
+				strippedPath.push_back(*it);
 
-	scaledPath.closepath();
+		if (strippedPath.size() > 2) {
+			ClipperOffset co;
+			ClipperLib::Paths solution;
+			co.AddPath(strippedPath,jtRound,etClosedPolygon);
+			co.Execute(solution,offset);
 
-	return scaledPath;
+			// Load scaled path
+
+			if ((isScaled = (solution.front().size() > 2))) {
+				scaledPath.clear();
+
+				for (ClipperLib::Path::const_iterator it = solution.front().begin(); (it != solution.front().end()); it++)
+					if (it == solution.front().begin())
+						scaledPath.moveto(it->X,it->Y);
+					else
+						scaledPath.lineto(it->X,it->Y);
+
+				if (solution.front().front() != solution.front().back())
+					scaledPath.closepath();
+			}
+		}
+	}
+
+	return isScaled;
   }
 
   // ----------------------------------------------------------------------
