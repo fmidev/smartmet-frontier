@@ -51,6 +51,10 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Upcoming (Wed Dec 17 Pertti Kinnia <pertti.kinnia@fmi.fi>)
+-MIRWA-1051
+* Upcoming (Fri Dec 12 Pertti Kinnia <pertti.kinnia@fmi.fi>)
+-MIRWA-1044
 * Upcoming (Tue Nov 25 Pertti Kinnia <pertti.kinnia@fmi.fi>)
 -using separate factors for adjusting calculated text width/height
 * Wed Nov 19 2014 Mikko Visa <mikko.visa@fmi.fi> - 14.11.19-1.fmi

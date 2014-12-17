@@ -2216,26 +2216,57 @@ namespace frontier
 							while (autoScale && (! ok) && isScaled && (pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)));
 
 							if (!ok) {
+								if (!autoScale)
+									throw std::runtime_error("render_surface: no space for symbol(s)");
+
 								// For warning areas fit max 4 symbols per fill area
 								//
-								if (fillSymbols.size() == 0) {
-									if (areas.empty()) {
-										// Position one fill symbol to the center of area's bbox. Use the original symbol size.
-										//
-										Path::BBox bbox = path.getBBox();
-										double cx = bbox.blX + ((bbox.trX - bbox.blX) / 2),cy = bbox.blY + ((bbox.trY - bbox.blY) / 2);
+								if ((fillSymbols.size() == 0) || ((4 * fpos.size()) < fillSymbols.size())) {
+									// Position fill symbol(s) to/around the center of area's bbox.
+									//
+									// Use the original symbol size for precipitation and single warning area symbol,
+									// minimum size otherwise. Pack/overlap multiple (warning area) symbols.
+									//
+									Path::BBox bbox = path.getBBox();
+									const double packingFactor = 0.5;
+									double cx = bbox.blX + ((bbox.trX - bbox.blX) / 2),cy = bbox.blY + ((bbox.trY - bbox.blY) / 2),x0,y0;
+									const int spacing = 2;
+									int nx,ny,ns;
 
-										bbox.blX = cx - ((width = _width) / 2) - 2;
-										bbox.blY = cy - ((height = _height) / 2) - 2;
-										bbox.trX = cx + width + 2;
-										bbox.trY = cy + height + 2;
-										scale = 1;
+									scale = 1;
 
-										areas.push_back(std::make_pair(Point(bbox.blX,bbox.blY),Point(bbox.trX,bbox.trY)));
+									if ((ns = (int) fillSymbols.size()) == 0) {
+										nx = ny = 1;
+										width = _width;
+										height = _height;
+
+										x0 = cx - (width / 2) - spacing;
+										y0 = cy - (height / 2) - spacing;
 									}
+									else {
+										nx = floor(sqrt(fillSymbols.size()));
+										nx += (((fillSymbols.size() % nx) || ((nx == 1) && (fillSymbols.size() == 3))) ? 1 : 0);
+										ny = (fillSymbols.size() / nx);
+										ny += (((nx * ny) < (int) fillSymbols.size()) ? 1 : 0);
+										width = _width * ((fillSymbols.size() == 1) ? 1 : markerScaleFactorMin);
+										height = _height * ((fillSymbols.size() == 1) ? 1 : markerScaleFactorMin);
+
+										x0 = cx - ((nx / 2.0) * width * packingFactor);
+										y0 = cy - ((ny / 2.0) * height * packingFactor);
+										x0 -= (((nx / 2) * spacing) + ((nx % 2) ? (spacing / 2.0) : 0));
+										y0 -= (((ny / 2) * spacing) + ((ny % 2) ? (spacing / 2.0) : 0));
+									}
+
+									for (int x = 0; ((x < nx) && (ns > 0)); x++)
+										for (int y = 0; ((y < ny) && (ns > 0)); y++, ns--) {
+											double x1 = x0 + (x * ((width * packingFactor) + spacing));
+											double x2 = x1 + width;
+											double y1 = y0 + (y * ((height * packingFactor) + spacing));
+											double y2 = y1 + height;
+
+											areas.push_back(std::make_pair(Point(x1,y1),Point(x2,y2)));
+										}
 								}
-								else if ((!autoScale) || ((4 * fpos.size()) < fillSymbols.size()))
-									throw std::runtime_error("render_surface: too many symbols");
 							}
 //if (pathScalingOffset > 0) {
 //paths << "<path id=\""
