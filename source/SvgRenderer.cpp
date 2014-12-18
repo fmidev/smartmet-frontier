@@ -2245,7 +2245,7 @@ namespace frontier
 									}
 									else {
 										nx = floor(sqrt(fillSymbols.size()));
-										nx += (((fillSymbols.size() % nx) || ((nx == 1) && (fillSymbols.size() == 3))) ? 1 : 0);
+										nx += (((nx * nx) < (int) fillSymbols.size()) ? 1 : 0);
 										ny = (fillSymbols.size() / nx);
 										ny += (((nx * ny) < (int) fillSymbols.size()) ? 1 : 0);
 										width = _width * ((fillSymbols.size() == 1) ? 1 : markerScaleFactorMin);
@@ -2257,8 +2257,8 @@ namespace frontier
 										y0 -= (((ny / 2) * spacing) + ((ny % 2) ? (spacing / 2.0) : 0));
 									}
 
-									for (int x = 0; ((x < nx) && (ns > 0)); x++)
-										for (int y = 0; ((y < ny) && (ns > 0)); y++, ns--) {
+									for (int y = 0; ((y < ny) && (ns > 0)); y++)
+										for (int x = 0; ((x < nx) && (ns > 0)); x++, ns--) {
 											double x1 = x0 + (x * ((width * packingFactor) + spacing));
 											double x2 = x1 + width;
 											double y1 = y0 + (y * ((height * packingFactor) + spacing));
