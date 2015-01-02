@@ -213,12 +213,16 @@ namespace frontier
 		for( ; (iter != enditer); ++iter) {
 			NFmiFillMapElement::iterator dataiter = iter->second.begin(),enddata = iter->second.end();
 
-			for( ; (dataiter != enddata); ++dataiter) {
+			for( ; (dataiter != enddata); ) {
 				double x1 = *dataiter;
 				dataiter++;
-				double x2 = *dataiter;
 
-				fillAreas.push_back(std::make_pair(Point(std::min(x1,x2),iter->first),Point(std::max(x1,x2),iter->first + 1)));
+				if (dataiter != enddata) {
+					double x2 = *dataiter;
+					fillAreas.push_back(std::make_pair(Point(std::min(x1,x2),iter->first),Point(std::max(x1,x2),iter->first + 1)));
+
+					dataiter++;
+				}
 			}
 		}
 
