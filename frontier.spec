@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 14.11.19
+Version: 15.12.7
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
