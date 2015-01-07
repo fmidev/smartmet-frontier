@@ -51,12 +51,15 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
-* Upcoming (Wed Dec 17 Pertti Kinnia <pertti.kinnia@fmi.fi>)
--MIRWA-1051
-* Upcoming (Fri Dec 12 Pertti Kinnia <pertti.kinnia@fmi.fi>)
--MIRWA-1044
-* Upcoming (Tue Nov 25 Pertti Kinnia <pertti.kinnia@fmi.fi>)
--using separate factors for adjusting calculated text width/height
+* Wed Jan 7 2015 Pertti Kinnia <pertti.kinnia@fmi.fi> - 15.1.7-1.fmi
+- MIRWA-1056; Lopputuotteiden puolustusvoimien kartoissa ongelma (viivamaiset)
+- LENTOSAA-1008; Frontier kaatuu piirrettäessä pilviä 3.5 km lopputuotteeseen
+- MIRWA-1051; placing symbols primarily horizontally (ncols >= nrows)
+* Wed Dec 17 Pertti Kinnia <pertti.kinnia@fmi.fi>) - 14.12.17-1.fmi
+- using separate factors for adjusting calculated text width/height
+- MIRWA-1051: (single point warning areas not yet gracefully handled)
+- MIRWA-1044: lämpötilan vaihteluvälin raja-arvojen tulostusjärjestyksen ohjaus
+- calculated text width/height differs from rendered result (batik ?), adjusting by a factor to avoid exceeding limits
 * Wed Nov 19 2014 Mikko Visa <mikko.visa@fmi.fi> - 14.11.19-1.fmi
 -using the center of the top edge as starting point to get symmetrical (ends to the) result curve for a single elevat
 -in addition to the selected position storing free half and 1/4 timestep offset positions to be used instead if marke
