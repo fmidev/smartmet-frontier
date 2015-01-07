@@ -79,6 +79,11 @@ namespace frontier
 	if(chord == 0)
 	  return 0;
 
+	// Safety check which guarantees termination if chord is way too small
+
+	if((chord/arc) < eps)
+	  return chord;
+
 	// If the relative difference is small, return good length estimate
 	if( (arc-chord)/arc < eps) {
 		if (fmap && lastx && lasty) {
