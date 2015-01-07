@@ -55,7 +55,7 @@ rm -rf $RPM_BUILD_ROOT
 - MIRWA-1056; Lopputuotteiden puolustusvoimien kartoissa ongelma (viivamaiset)
 - LENTOSAA-1008; Frontier kaatuu piirrettäessä pilviä 3.5 km lopputuotteeseen
 - MIRWA-1051; placing symbols primarily horizontally (ncols >= nrows)
-* Wed Dec 17 Pertti Kinnia <pertti.kinnia@fmi.fi>) - 14.12.17-1.fmi
+* Wed Dec 17 2014 Pertti Kinnia <pertti.kinnia@fmi.fi>) - 14.12.17-1.fmi
 - using separate factors for adjusting calculated text width/height
 - MIRWA-1051: (single point warning areas not yet gracefully handled)
 - MIRWA-1044: lämpötilan vaihteluvälin raja-arvojen tulostusjärjestyksen ohjaus
