@@ -1,20 +1,20 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 15.12.7
+Version: 15.1.15
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
 URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires: boost-devel >= 1.54.0
-BuildRequires: libsmartmet-macgyver >= 14.9.5
+BuildRequires: boost-devel >= 1.55.0
+BuildRequires: libsmartmet-macgyver >= 14.9.23
 BuildRequires: libsmartmet-tron >= 14.10.23
-BuildRequires: libsmartmet-woml >= 14.11.19
-BuildRequires: libxml++-devel >= 2.30.0
-Requires: libxml++ >= 2.30.0
-Requires: cairo >= 1.8.8
+BuildRequires: libsmartmet-woml >= 15.1.15
+BuildRequires: libxml++-devel >= 2.37.1
+Requires: libxml++ >= 2.37.1
+Requires: cairo >= 1.12.14
 Provides: frontier
 
 %description
@@ -51,6 +51,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Thu Jan 15 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.1.15-1.fmi
+- Rebuild for RHEL7
 * Wed Jan 7 2015 Pertti Kinnia <pertti.kinnia@fmi.fi> - 15.1.7-1.fmi
 - MIRWA-1056; Lopputuotteiden puolustusvoimien kartoissa ongelma (viivamaiset)
 - LENTOSAA-1008; Frontier kaatuu piirrettäessä pilviä 3.5 km lopputuotteeseen
