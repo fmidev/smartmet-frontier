@@ -97,7 +97,7 @@ namespace frontier
 	boolean bIsSecondLastSegment;
 	boolean bIsLastSegment;
 
-	static const double dt = 0.04; // Bézier segment evalation step [0..1]
+	static constexpr double dt = 0.04; // Bézier segment evalation step [0..1]
 	double tightness;
 
 	boolean isChanged();
