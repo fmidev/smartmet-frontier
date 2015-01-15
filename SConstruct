@@ -34,13 +34,13 @@ env = Environment( )
 env.Append(LIBS=["smartmet_woml",
 		 "smartmet_macgyver",
 		 "smartmet_newbase",
-		 "boost_date_time-mt",
-		 "boost_program_options-mt",
-		 "boost_regex-mt",
-		 "boost_iostreams-mt",
-		 "boost_filesystem-mt",
-		 "boost_thread-mt",
-		 "boost_system-mt",
+		 "boost_date_time",
+		 "boost_program_options",
+		 "boost_regex",
+		 "boost_iostreams",
+		 "boost_filesystem",
+		 "boost_thread",
+		 "boost_system",
 	 	 "bz2",
 		 "pthread",
 		 "xqilla",
@@ -68,6 +68,7 @@ env.Append( CXXFLAGS= [
         "-Wall", 
         "-Wno-unused-parameter",
         "-Wno-variadic-macros",
+		"-std=c++11"
 	    
 	    # DIFFICULTFLAGS from orig. Makefile
 	    #

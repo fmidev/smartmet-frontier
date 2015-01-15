@@ -1070,7 +1070,7 @@ namespace frontier
 			//
 			break;
 
-		size_t nColSymbols = (nSymbolsLeft / nColsLeft),rowStepN = 1,rowStep = 1,row;
+		size_t nColSymbols = (nSymbolsLeft / nColsLeft),rowStepN = 1,rowStep = 1;
 
 		if ((nColSymbols * nColsLeft) < nSymbolsLeft)
 			nColSymbols++;
@@ -1090,7 +1090,7 @@ namespace frontier
 
 		NFmiFillAreas::const_iterator iArea = iCol->areas();
 
-		for (col = 0,row = 0,n = 1; ((col < iCol->nRows()) && (nColSymbols > 0) && (nSymbolsLeft > 0)); col++, iArea++) {
+		for (col = 0,n = 1; ((col < iCol->nRows()) && (nColSymbols > 0) && (nSymbolsLeft > 0)); col++, iArea++) {
 			if (n >= rowStep) {
 				double x = iArea->first.x + ((iArea->second.x - iArea->first.x) / 2.0);
 				double y = iArea->first.y + ((iArea->second.y - iArea->first.y) / 2.0);
@@ -4820,9 +4820,9 @@ namespace frontier
 			int nN = n0 + nX - 1;				// Last elevation
 			int n2 = n + ((nX > 1) ? 1 : 0);	// Right side elevation
 			int n1 = n2 - ((nX > 1) ? 1 : 0);	// Left side elevation
-			int selhoff = -1;					// Index of selected marker position
-			int selfroff = -1;					// Index of heighest free marker position
-			int selfvoff = -1;					// Index of favoured free marker position
+//			int selhoff = -1;					// Index of selected marker position
+//			int selfroff = -1;					// Index of heighest free marker position
+//			int selfvoff = -1;					// Index of favoured free marker position
 
 			for ( ; (n2 <= nN); ) {
 				if (nearest || (nX % 2) /* The holes are now checked with fill areas: || hasHole[n1] || hasHole[n2] */) {
@@ -4909,7 +4909,7 @@ namespace frontier
 						// Highest free position
 						//
 						selfrh = h;
-						selfroff = areas.size();
+//						selfroff = areas.size();
 					}
 				}
 
@@ -4924,7 +4924,7 @@ namespace frontier
 					if (!markerArea.empty()) {
 						// Select the last fill area
 						//
-						selhoff = areas.size();
+//						selhoff = areas.size();
 
 						if (selh >= minh)
 							break;
@@ -4936,10 +4936,10 @@ namespace frontier
 						selmfvy = selmy;
 						fvmul = multiple;
 
-						if (!markerArea.empty())
+//						if (!markerArea.empty())
 							// Favour the last fill area
 							//
-							selfvoff = areas.size();
+//							selfvoff = areas.size();
 					}
 				}
 
@@ -8036,20 +8036,17 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 	eGrpOut.clear();
 
 	ElevGrp::iterator egbeg = eGrpIn.begin(),egend = eGrpIn.end(),iteg,piteg;
-	double lo = 0.0,plo = 0.0,hi = 0.0,phi = 0.0;
+	double lo = 0.0,plo = 0.0;
 
 	for (iteg = piteg = egbeg; ; iteg++) {
 		if (iteg != egend) {
-			// Get elevation's lo and hi range values
+			// Get elevation's lo range value
 			//
 			const woml::Elevation & e = iteg->Pv()->elevation();
 			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo = (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
 			const boost::optional<woml::NumericalSingleValueMeasure> & itsLoLimit = (e.bounded() ? itsBoundedLo : e.value());
-			boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi = (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-			const boost::optional<woml::NumericalSingleValueMeasure> & itsHiLimit = (e.bounded() ? itsBoundedHi : e.value());
 
 			lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
-			hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 		}
 
 		if (iteg != egbeg) {
@@ -8079,7 +8076,6 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 		piteg = iteg;
 		plo = lo;
-		phi = hi;
 	}
   }
 
