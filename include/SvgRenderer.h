@@ -541,6 +541,7 @@ namespace frontier
 					   const std::string & symCode,
 					   double lon,double lat,
 					   const woml::Feature * feature = NULL,
+					   bool trueNorthAdjustment = false,
 					   const woml::NumericalSingleValueMeasure * svm = NULL,
 					   NFmiFillPositions * fpos = NULL,
 					   const std::list<std::string> * areaSymbols = NULL,

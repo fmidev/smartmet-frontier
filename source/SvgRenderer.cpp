@@ -30,6 +30,7 @@
 
 #include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/newbase/NFmiStringTools.h>
+#include <smartmet/newbase/NFmiAngle.h>
 
 #ifdef CONTOURING
 #include <smartmet/tron/Tron.h>
@@ -172,12 +173,15 @@ namespace frontier
 	{
 	}
 
-	void operator()(double & x, double & y) const
+	void operator()(double & x, double & y,NFmiAngle * trueNorthAzimuth = NULL) const
 	{
 	  NFmiPoint ll(x,y);
 	  NFmiPoint xy = area->ToXY(ll);
 	  x = xy.X();
 	  y = xy.Y();
+
+	  if (trueNorthAzimuth)
+		*trueNorthAzimuth = area->TrueNorthAzimuth(ll);
 	}
 
   private:
@@ -2361,7 +2365,7 @@ namespace frontier
 							}
 
 							// Render the symbols
-							render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL,width,height);
+							render_symbol(confPath,pointsymbols,surfaceName,"",0,0,NULL,false,NULL,&fpos,(fillSymbols.size() > 0) ? &fillSymbols : NULL,width,height);
 						}
 						else if (!masked) {
 							// glyph
@@ -3239,6 +3243,7 @@ namespace frontier
 		  	  	  	  	  	  	  const std::string & symCode,
 		  	  	  	  	  	  	  double lon,double lat,
 		  	  	  	  	  	  	  const woml::Feature * feature,
+								  bool trueNorthAdjustment,
 		  	  	  	  	  	  	  const woml::NumericalSingleValueMeasure * svm,
 		  						  NFmiFillPositions * fpos,
 		  						  const std::list<std::string> * areaSymbols,
@@ -3253,10 +3258,15 @@ namespace frontier
 	//
 	std::string _symCode("code" + (symCode.empty() ? "" : ("_" + symCode)));
 
-	// Find the pixel coordinate. For surface fill the positions are already projected
+	NFmiAngle trueNorthAzimuth;
+
+	// Find the pixel coordinate. For surface fill the positions are already projected.
+	//
+	// Get true north azimuth if direction adjustment is needed
+
 	if (!fpos) {
 		PathProjector proj(area);
-		proj(lon,lat);
+		proj(lon,lat,trueNorthAdjustment ? &trueNorthAzimuth : NULL);
 	}
 
 	++npointsymbols;
@@ -3413,11 +3423,20 @@ namespace frontier
 						   << " xlink:href=\"#" << code << "\""
 						   << " x=\"" << lon << "\" y=\"" << lat << "\"";
 
-						if (hasScale)
-							wh << std::setprecision(4) << " transform=\"translate(" << -lon * (scale - 1) << "," << -lat * (scale - 1)
-							   << ") scale(" << scale << ")\"";
+						if (hasScale || trueNorthAdjustment) {
+							wh << std::setprecision(4) << " transform=\"";
 
-						wh << "/>\n";
+							if (hasScale)
+								wh << "translate(" << -lon * (scale - 1) << "," << -lat * (scale - 1) << ") scale(" << scale << ")";
+
+							if (trueNorthAdjustment) {
+								// We assume the symbol is centered to 0,0
+								//
+								wh << " rotate(" << trueNorthAzimuth.Value() << " " << lon << " " << lat << ")";
+							}
+						}
+
+						wh << "\"/>\n";
 					}
 					else {
 						if (folder.empty())
@@ -3448,7 +3467,11 @@ namespace frontier
 					if (!fpos) {
 						if (uri.empty())
 							symbols << wh.str();
-						else
+						else {
+							if (trueNorthAdjustment)
+								symbols << "<g transform=\"rotate("
+										<< trueNorthAzimuth.Value() << " " << lon << " " << lat << ")\">\n";
+
 							symbols << "<image xlink:href=\""
 									<< svgescape(uri)
 									<< "\" x=\""
@@ -3456,6 +3479,10 @@ namespace frontier
 									<< "\" y=\""
 									<< std::fixed << std::setprecision(1) << ((lat-height/2) + yoffset)
 									<< "\"" << wh.str() << "/>\n";
+
+							if (trueNorthAdjustment)
+								symbols << "</g>\n";
+						}
 					}
 					else {
 						NFmiFillPositions::const_iterator piter;
@@ -9747,7 +9774,7 @@ void SvgRenderer::visit(const woml::ParameterValueSetPoint & theFeature)
 
 	if (fdm) {
 		const woml::GeophysicalParameterValue & theValue = *itvfdm;
-		render_symbol("ParameterValueSetPoint",pointsymbols,theValue.parameter().name(),fdm->value(),theFeature.point()->lon(),theFeature.point()->lat(),&theFeature,svm);
+		render_symbol("ParameterValueSetPoint",pointsymbols,theValue.parameter().name(),fdm->value(),theFeature.point()->lon(),theFeature.point()->lat(),&theFeature,true,svm);
 	}
 
 	if (svm) {
