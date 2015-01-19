@@ -4393,6 +4393,9 @@ namespace frontier
 
   NFmiFillRect selectMarkerPos(const std::string & markerId,NFmiFillAreas & areas,std::list<std::pair<double,double> > & scales,FillAreas & freeAreas,double x,double y,std::list<std::pair<double,double> >::iterator & sits,bool storeFreeAreas = true)
   {
+//	if (areas.size() != scales.size())
+//		throw std::runtime_error("selectMarkerPos: internal: areas.size() != scales.size()");
+
 	NFmiFillAreas::iterator fits = areas.begin(),fit;
 	std::list<std::pair<double,double> >::iterator sit;
 	double dist2 = 0.0;
@@ -4483,7 +4486,7 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  bool arrangeMarkers(Texts & texts,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,NFmiFillAreas & fillAreas,int RC = 1,std::list<std::string>::iterator * mit2 = NULL,NFmiFillAreas::iterator * it2 = NULL,std::list<std::pair<double,double> >::iterator * sit2 = NULL)
+  bool arrangeMarkers(Texts & texts,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,NFmiFillAreas & fillAreas,std::list<std::pair<double,double> > & scales,int RC = 1,std::list<std::string>::iterator * mit2 = NULL,NFmiFillAreas::iterator * it2 = NULL,std::list<std::pair<double,double> >::iterator * sit2 = NULL)
   {
 //fprintf(stderr,"\n>> [%d] MARKER: %s\n",RC,(cit == candidateAreas.end()) ? "END" : cit->first.c_str());
 	if (cit == candidateAreas.end())
@@ -4564,11 +4567,11 @@ namespace frontier
 
 		// Use the candidate if released above or recurse with reserving marker's candidates
 
-		if ((fit != freeAreas.end()) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(*mit),fillAreas,RC + 1)) {
+		if ((fit != freeAreas.end()) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(*mit),fillAreas,scales,RC + 1)) {
 			// Store the candidate
 			//
-			fillAreas.clear();
-			fillAreas.push_back(*it);
+			fillAreas.clear(); scales.clear();
+			fillAreas.push_back(*it); scales.push_back(*sit); 
 
 			FillAreas::iterator rit = reservedAreas.find(cit->first);
 
@@ -5011,7 +5014,7 @@ namespace frontier
 //FillAreas::const_iterator rit = reservedAreas.begin();
 //areas.clear(); candidateAreas[mId].fillAreas.push_back(rit->second.fillAreas.front());
 //}
-			if ((areas.size() > 0) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(mId),areas)) {
+			if ((areas.size() > 0) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(mId),areas,scales)) {
 				// Select free marker position near the selected position
 				//
 				std::list<std::pair<double,double> >::iterator csit;
