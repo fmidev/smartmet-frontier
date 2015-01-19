@@ -4237,14 +4237,23 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  void eraseReservedAreas(const std::string & markerId,const std::string & reserver,const NFmiFillAreas & reservedAreas,FillAreas & candidateAreas,NFmiFillAreas & fillAreas,bool isHole = false,bool storeCandidates = true,bool eraseReserved = true)
+  void eraseReservedAreas(const std::string & markerId,const std::string & reserver,const NFmiFillAreas & reservedAreas,FillAreas & candidateAreas,NFmiFillAreas & fillAreas,std::list<std::pair<double,double> > * scales = NULL,bool isHole = false,bool storeCandidates = true,bool eraseReserved = true)
   {
 	// Allow some overlap for nonholes
 
 	int overlap = (isHole ? -fillAreaOverlapMax : fillAreaOverlapMax);
 
-	for (NFmiFillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
-		for (NFmiFillAreas::iterator fiter = fillAreas.begin(); (fiter != fillAreas.end()); )
+	std::list<std::pair<double,double> >::iterator siter;
+
+	for (NFmiFillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++) {
+		if (scales) {
+			if (fillAreas.size() != scales->size())
+				throw std::runtime_error("eraseReservedAreas: internal: fillAreas.size() != scales.size()");
+
+			siter = scales->begin();
+		}
+
+		for (NFmiFillAreas::iterator fiter = fillAreas.begin(); (fiter != fillAreas.end()); ) {
 			if (
 				(markerId != reserver) &&
 				(fiter->first.x < riter->second.x) && (fiter->second.x >= (riter->first.x + overlap)) &&
@@ -4257,16 +4266,25 @@ namespace frontier
 				}
 
 //fprintf(stderr,">> %s %.0f,%.0f - %.0f,%.0f [%.0f,%.0f - %.0f,%.0f]\n",eraseReserved ? "erase" : "keep",fiter->first.x,fiter->first.y,fiter->second.x,fiter->second.y,riter->first.x,riter->first.y,riter->second.x,riter->second.y);
-				if (eraseReserved)
+				if (eraseReserved) {
 					fiter = fillAreas.erase(fiter);
-				else
-					fiter++;
+
+					if (scales)
+						siter = scales->erase(siter);
+
+					continue;
+				}
 			}
-			else
-				fiter++;
+
+			fiter++;
+
+			if (scales)
+				siter++;
+		}
+	}
   }
 
-  void eraseReservedAreas(const std::string & markerId,const FillAreas & reservedAreas,FillAreas & candidateAreas,NFmiFillAreas & fillAreas,bool isHole = false,bool storeCandidates = true)
+  void eraseReservedAreas(const std::string & markerId,const FillAreas & reservedAreas,FillAreas & candidateAreas,NFmiFillAreas & fillAreas,std::list<std::pair<double,double> > * scales = NULL,bool isHole = false,bool storeCandidates = true)
   {
 	// If storing candidates, loop the check twice; first get the candidates and remove the reserved areas on second round
 
@@ -4274,13 +4292,13 @@ namespace frontier
 		for (FillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
 			// Note: Temporary "CURRENTCANDIDATE" reserved marker is flagged with nonempty 'markers' field
 			//
-			eraseReservedAreas(markerId,riter->first,riter->second.fillAreas,candidateAreas,fillAreas,isHole,riter->second.markers.empty(),false);
+			eraseReservedAreas(markerId,riter->first,riter->second.fillAreas,candidateAreas,fillAreas,scales,isHole,riter->second.markers.empty(),false);
 
 		storeCandidates = false;
 	}
 
 	for (FillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
-		eraseReservedAreas(markerId,riter->first,riter->second.fillAreas,candidateAreas,fillAreas,isHole,storeCandidates);
+		eraseReservedAreas(markerId,riter->first,riter->second.fillAreas,candidateAreas,fillAreas,scales,isHole,storeCandidates);
   }
 
   // ----------------------------------------------------------------------
@@ -4297,8 +4315,8 @@ namespace frontier
 
 	markerArea.push_back(std::make_pair(Point(mx - (markerWidth / 2.0),my - (markerHeight / 2.0)),Point(mx + (markerWidth / 2.0),my + (markerHeight / 2.0))));
 
-	eraseReservedAreas("hole","hole",holeAreas,candidateAreas,markerArea,true);
-	eraseReservedAreas(markerId,reservedAreas,candidateAreas,markerArea,false,storeCandidates);
+	eraseReservedAreas("hole","hole",holeAreas,candidateAreas,markerArea,NULL,true);
+	eraseReservedAreas(markerId,reservedAreas,candidateAreas,markerArea,NULL,false,storeCandidates);
 
 	return markerArea;
   }
@@ -4393,8 +4411,8 @@ namespace frontier
 
   NFmiFillRect selectMarkerPos(const std::string & markerId,NFmiFillAreas & areas,std::list<std::pair<double,double> > & scales,FillAreas & freeAreas,double x,double y,std::list<std::pair<double,double> >::iterator & sits,bool storeFreeAreas = true)
   {
-//	if (areas.size() != scales.size())
-//		throw std::runtime_error("selectMarkerPos: internal: areas.size() != scales.size()");
+	if (areas.size() != scales.size())
+		throw std::runtime_error("selectMarkerPos: internal: areas.size() != scales.size()");
 
 	NFmiFillAreas::iterator fits = areas.begin(),fit;
 	std::list<std::pair<double,double> >::iterator sit;
@@ -4548,7 +4566,7 @@ namespace frontier
 			//
 			reservedAreas["CURRENTCANDIDATE"].fillAreas.push_back(*it);
 			reservedAreas["CURRENTCANDIDATE"].markers.push_back("CURRENTCANDIDATE");
-			eraseReservedAreas(fit->first,reservedAreas,candidateAreas,fit->second.fillAreas);
+			eraseReservedAreas(fit->first,reservedAreas,candidateAreas,fit->second.fillAreas,&(fit->second.scales));
 			reservedAreas["CURRENTCANDIDATE"].fillAreas.clear();
 			reservedAreas["CURRENTCANDIDATE"].markers.clear();
 
@@ -4700,7 +4718,7 @@ namespace frontier
 		// Move reserved fill areas into candidate container
 		//
 		splitFillAreas(fillAreas,markerWidth,1.0);
-		eraseReservedAreas("hole","hole",holeAreas,candidateAreas,fillAreas,true);
+		eraseReservedAreas("hole","hole",holeAreas,candidateAreas,fillAreas,NULL,true);
 		fillAreas.sort(sortFillAreas);
 //if (TRAP != 0)
 //fillAreas.clear();
@@ -4774,7 +4792,7 @@ namespace frontier
 				}
 
 				if (!areas.empty()) {
-					eraseReservedAreas(mId,reservedAreas,candidateAreas,areas);
+					eraseReservedAreas(mId,reservedAreas,candidateAreas,areas,&scales);
 
 					if (!areas.empty()) {
 						if (areasOut && (!areaPlaceHolder.empty())) {
