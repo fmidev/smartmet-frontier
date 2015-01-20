@@ -4440,8 +4440,10 @@ namespace frontier
 
 	NFmiFillRect r(*fits);
 
-	if (!storeFreeAreas)
+	if (!storeFreeAreas) {
 		areas.erase(fits);
+		scales.erase(sits);
+	}
 
 	return r;
   }
