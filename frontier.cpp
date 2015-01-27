@@ -388,7 +388,7 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
 
   // Parse the WOML
 
-  woml::Weather weather = woml::parse(options.womlfile,options.doctype);
+  woml::Weather weather = woml::parse(options.womlfile,options.doctype,options.debug);
   if(weather.empty())
 	throw std::runtime_error("No MeteorologicalAnalysis to draw");
 

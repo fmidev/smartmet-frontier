@@ -51,6 +51,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Upcoming (Tue Jan 27 2015 Pertti Kinnia <pertti.kinnia@fmi.fi>)
+- MIRWA-1070
 * Upcoming (Tue Jan 20 2015 Pertti Kinnia <pertti.kinnia@fmi.fi>)
 - LENTOSAA-1010
 * Upcoming (Fri Jan 16 2015 Pertti Kinnia <pertti.kinnia@fmi.fi>)
