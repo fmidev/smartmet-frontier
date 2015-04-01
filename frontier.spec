@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 15.1.15
+Version: 15.3.30
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -9,10 +9,11 @@ URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
-BuildRequires: libsmartmet-macgyver >= 14.9.23
+BuildRequires: libsmartmet-macgyver-devel >= 14.9.23
 BuildRequires: libsmartmet-tron >= 14.10.23
 BuildRequires: libsmartmet-woml >= 15.1.15
 BuildRequires: libxml++-devel >= 2.37.1
+Requires: libsmartmet-macgyver >= 14.9.23
 Requires: libxml++ >= 2.37.1
 Requires: cairo >= 1.12.14
 Provides: frontier
@@ -42,20 +43,19 @@ make %{_smp_mflags}
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%defattr(-,root,root,0775)
+%defattr(0775,root,root,-)
 %{_bindir}/frontier
 
 %files -n smartmet-frontier-devel
-%defattr(-,root,root,0775)
+%defattr(0664,root,root,-)
 %{_includedir}/smartmet/%{LIBNAME}
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
-* Upcoming (Tue Jan 27 2015 Pertti Kinnia <pertti.kinnia@fmi.fi>)
+* Tue Mar 31 2015 Mika Heiskanen <mika.heiskanen@fmi.fi> - 15.3.30-1.fmi
+- Use dynamic linking of smartmet libraries
 - MIRWA-1070
-* Upcoming (Tue Jan 20 2015 Pertti Kinnia <pertti.kinnia@fmi.fi>)
 - LENTOSAA-1010
-* Upcoming (Fri Jan 16 2015 Pertti Kinnia <pertti.kinnia@fmi.fi>)
 - MIRWA-839
 * Thu Jan 15 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.1.15-1.fmi
 - Rebuild for RHEL7
