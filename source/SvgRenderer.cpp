@@ -33,6 +33,7 @@
 #include <smartmet/newbase/NFmiAngle.h>
 
 #ifdef CONTOURING
+#include <smartmet/tron/Builder.h>
 #include <smartmet/tron/Tron.h>
 #include <smartmet/newbase/NFmiDataMatrix.h>
 #include <smartmet/tron/MirrorMatrix.h>
