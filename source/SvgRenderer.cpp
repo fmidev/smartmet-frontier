@@ -4186,13 +4186,21 @@ namespace frontier
 
 	std::string label = cg.label();
 
-	if (!label.empty())
-		texts[cg.markerPlaceHolder()] << "<text class=\"" << cg.textClassDef()
-									  << "\" id=\"" << "CloudLayersText" << nGroups
-									  << "\" text-anchor=\"middle"
-									  << "\" x=\"" << x
-									  << "\" y=\"" << (lopx - ((lopx - hipx) / 2))
-									  << "\">" << label << "</text>\n";
+	if (!label.empty()) {
+		// Render cloud label. The label is rendered to (starting from) coordinate (0,0).
+		// The final position is set as transformation offsets to the center of the symbol.
+		//
+		// Note: The key for position must sort after the key for the text (the key/text
+		//		 containing the position key must be handled/outputted prior the position key/text);
+		//		 therefore the position key starts with "Z0"
+		//
+		std::string TEXTPOSid("Z0TEXTPOS_" + confPath + boost::lexical_cast<std::string>(nGroups));
+		int textWidth = 0,textHeight = 0;
+
+		render_text(texts,areaLabels,"CLOUDSYMBOLLABEL",label,textWidth,textHeight,false,false,false,TEXTPOSid,true);
+
+		texts[TEXTPOSid] << std::fixed << std::setprecision(1) << (x - (textWidth / 2)) << "," << (lopx - ((lopx - hipx) / 2)) - (textHeight / 2);
+	}
   }
 
   // ----------------------------------------------------------------------
@@ -5875,7 +5883,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 
 	if (!single) {
 		// Use the second last curve position - in the middle of the left side of the starting / top left elevation - as
-		// the starting position to eliminate the "starting nökkönen" effect
+		// the starting position to eliminate the "starting nï¿½kkï¿½nen" effect
 		//
 		curvePositions[0] = curvePositions[curvePositions.size() - 2];
 		curvePositions.pop_back();
@@ -7082,7 +7090,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 					}
 
 					if (val > 0) {
-						// Within the visible y -axis range
+						// Within the visible y -axis range
 						//
 						if (prevMissing) {
 							// Start new path segment half timestep backwards.
