@@ -122,7 +122,8 @@ namespace frontier
 			    int theSOffset,int theEOffset,
 			    std::set<size_t> & theMemberSet,
 			    const libconfig::Setting * localScope,
-			    const libconfig::Setting * globalScope = NULL
+			    const libconfig::Setting * globalScope = NULL,
+			    const std::list<const libconfig::Setting *> * scope = NULL
 			   );
 
 	const std::string & classDef() const { return itsClass; }
@@ -148,6 +149,7 @@ namespace frontier
 
 	const libconfig::Setting * localScope() const { return itsLocalScope; }
 	const libconfig::Setting * globalScope() const { return itsGlobalScope; }
+	const std::list<const libconfig::Setting *> & scope() const { return itsScope; };
 
   private:
 	ConfigGroup();
@@ -174,6 +176,7 @@ namespace frontier
 
 	const libconfig::Setting * itsLocalScope;	// Group's configuration block
 	const libconfig::Setting * itsGlobalScope;	// Group's global configuration block (if any)
+	std::list<const libconfig::Setting *> itsScope; // Group's configuration blocks; first all global blocks (if any), then local/current block
   };
 
   struct MemberType : public std::binary_function< ConfigGroup, std::string, bool > {
@@ -207,8 +210,7 @@ namespace frontier
 			   double theVOffset,double theVSOffset,double theVSSOffset,
 			   int theSOffset,int theEOffset,
 			   std::set<size_t> & theCloudSet,
-			   const libconfig::Setting * localScope,
-			   const libconfig::Setting * globalScope = NULL
+			   const std::list<const libconfig::Setting *> & theScope
 			  );
 
 	const std::string & symbolType() const { return itsSymbolType; }

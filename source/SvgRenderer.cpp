@@ -1653,19 +1653,21 @@ namespace frontier
 					for (x += margin,y += margin; (it != textLines.end()); it++) {
 						y += maxLineHeight;
 
-						if ((!TEXTPOSid.empty()) && (it == textLines.begin()))
-							// Set transformation data.
-							//
-							// Note: Scaling placeholder/value might not get set; unset placehoders will be removed prior output
-							//
-							texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--) --" << TEXTPOSid << "SCALE--\">\n";
+						if (it == textLines.begin()) {
+							if (!TEXTPOSid.empty())
+								// Set transformation data.
+								//
+								// Note: Scaling placeholder/value might not get set; unset placehoders will be removed prior output
+								//
+								texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--) --" << TEXTPOSid << "SCALE--\">\n";
 
-						if (!bStyle.empty())
-							// Set background
-							//
-							texts[TEXTtextName] << "<rect width=\"" << textWidth - (2 * bXOffset)
-												<< "\" height=\"" << textHeight - (2 * bYOffset)
-												<< "\" x=\"" << bXOffset << "\" y=\"" << bYOffset << "\" style=\"" << bStyle << "\"" << "/>";
+							if (!bStyle.empty())
+								// Set background
+								//
+								texts[TEXTtextName] << "<rect width=\"" << textWidth - (2 * bXOffset)
+													<< "\" height=\"" << textHeight - (2 * bYOffset)
+													<< "\" x=\"" << bXOffset << "\" y=\"" << bYOffset << "\" style=\"" << bStyle << "\"" << "/>";
+						}
 
 						texts[TEXTtextName] << "<text class=\"" << textClass
 											<< "\" x=\"" << x
@@ -3930,13 +3932,15 @@ namespace frontier
 
 		// Cloud groups
 
+		std::list<const libconfig::Setting *> scope;
+
 		confPath += ".groups";
 
 		const libconfig::Setting & groupSpecs = config.lookup(confPath);
 		if(!groupSpecs.isList())
 			throw std::runtime_error(confPath + listtypeMsg);
 
-		for(int i=0, globalsIdx = -1; i<groupSpecs.getLength(); i++)
+		for(int i=0; i<groupSpecs.getLength(); i++)
 		{
 			const libconfig::Setting & group = groupSpecs[i];
 			if(!group.isGroup())
@@ -3966,20 +3970,19 @@ namespace frontier
 				}
 			}
 
+			// Scope contains all global blocks so far and the current block
+
+			scope.push_back(&group);
+
 			if (cloudTypes.empty()) {
 				// Global settings have no type(s)
 				//
-				globalsIdx = i;
 				continue;
 			}
 
-			// Missing settings from globals when available
-
-			libconfig::Setting * globalScope = ((globalsIdx >= 0) ? &groupSpecs[globalsIdx] : NULL);
-
 			// Class
 
-			std::string cloudClass = configValue<std::string>(group,confPath,"class",globalScope,s_optional);
+			std::string cloudClass = configValue<std::string>(scope,confPath,"class",s_optional);
 
 			// Output label; default label is the cloud types concatenated with ',' as separator.
 			// If empty label is given, no label.
@@ -3989,58 +3992,51 @@ namespace frontier
 
 			// Output placeholders; default label placeholder is the cloud placeholder + "TEXT"
 
-			std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"output",globalScope,s_optional)));
+			std::string placeHolder(boost::algorithm::trim_copy(configValue<std::string>(scope,confPath,"output",s_optional)));
 			if (placeHolder.empty())
 				placeHolder = CLOUDLAYERS;
 
-			std::string labelPlaceHolder(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"labeloutput",globalScope,s_optional)));
+			std::string labelPlaceHolder(boost::algorithm::trim_copy(configValue<std::string>(scope,confPath,"labeloutput",s_optional)));
 			if (labelPlaceHolder.empty())
 				labelPlaceHolder = placeHolder + "TEXT";
 
 			// Standalone cloud types (only one type in the group) have flag controlling whether the
 			// group/cloud is combined or not
 
-			bool combined = configValue<bool>(group,confPath,"combined",globalScope,s_optional,&isSet);
+			bool combined = configValue<bool>(scope,confPath,"combined",s_optional,&isSet);
 			if (!isSet)
 				combined = false;
 
 			// Render as symbol ?
 
-			std::string symbolType(boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"symboltype",NULL,s_optional)));
-
-			if (symbolType.empty()) {
-				bool symbol = configValue<bool>(group,confPath,"symbol",globalScope,s_optional,&isSet);
-
-				if (isSet && symbol)
-					symbolType = boost::algorithm::trim_copy(configValue<std::string>(group,confPath,"symboltype",globalScope));
-			}
+			std::string symbolType(boost::algorithm::trim_copy(configValue<std::string>(scope,confPath,"symboltype",s_optional)));
 
 			// Controls for extracting Bezier curve points; base distance between curve points along the line,
 			// max random distance added to the base and max number of subsequent points having equal distance
 
-			unsigned int baseStep = configValue<unsigned int>(group,confPath,"baseStep",globalScope,s_optional,&isSet);
+			unsigned int baseStep = configValue<unsigned int>(scope,confPath,"baseStep",s_optional,&isSet);
 			if (!isSet)
 				baseStep = 10;
-			unsigned int maxRand = configValue<unsigned int>(group,confPath,"maxRand",globalScope,s_optional,&isSet);
+			unsigned int maxRand = configValue<unsigned int>(scope,confPath,"maxRand",s_optional,&isSet);
 			if (!isSet)
 				maxRand = 4;
-			unsigned int maxRepeat = configValue<unsigned int>(group,confPath,"maxRepeat",globalScope,s_optional,&isSet);
+			unsigned int maxRepeat = configValue<unsigned int>(scope,confPath,"maxRepeat",s_optional,&isSet);
 			if (!isSet)
 				maxRepeat = 3;
 
 			// Controls for decorating the Bezier curve; base curve distance (normal length) for the decorator points,
 			// max random distance added to the base, base offset for the decorator points and max random offset added to the base
 
-			int scaleHeightMin = configValue<int>(group,confPath,"scaleHeightMin",globalScope,s_optional,&isSet);
+			int scaleHeightMin = configValue<int>(scope,confPath,"scaleHeightMin",s_optional,&isSet);
 			if (!isSet)
 				scaleHeightMin = 5;
-			int scaleHeightRandom = configValue<int>(group,confPath,"scaleHeightRandom",globalScope,s_optional,&isSet);
+			int scaleHeightRandom = configValue<int>(scope,confPath,"scaleHeightRandom",s_optional,&isSet);
 			if (!isSet)
 				scaleHeightRandom = 3;
-			int controlMin = configValue<int>(group,confPath,"controlMin",globalScope,s_optional,&isSet);
+			int controlMin = configValue<int>(scope,confPath,"controlMin",s_optional,&isSet);
 			if (!isSet)
 				controlMin = -2;
-			int controlRandom = configValue<int>(group,confPath,"controlRandom",globalScope,s_optional,&isSet);
+			int controlRandom = configValue<int>(scope,confPath,"controlRandom",s_optional,&isSet);
 			if (!isSet)
 			   controlRandom = 4;
 
@@ -4048,20 +4044,20 @@ namespace frontier
 
 			double xStep = axisManager->xStep();
 
-			double xOffset = configValue<double>(group,confPath,"xoffset",globalScope,s_optional,&isSet);
+			double xOffset = configValue<double>(scope,confPath,"xoffset",s_optional,&isSet);
 			if (!isSet)
 				xOffset = 0.0;
 			else
 				xOffset *= xStep;
 
-			double yOffset = (double) configValue<int,double>(group,confPath,"yoffset",globalScope,s_optional,&isSet);
+			double yOffset = (double) configValue<int,double>(scope,confPath,"yoffset",s_optional,&isSet);
 			if (!isSet)
 				yOffset = 0.0;
 
 			// Relative offset for intermediate curve points (controls how much the ends of the area
 			// are extended horizontally)
 
-			double vOffset = configValue<double>(group,confPath,"voffset",globalScope,s_optional,&isSet);
+			double vOffset = configValue<double>(scope,confPath,"voffset",s_optional,&isSet);
 			if (!isSet)
 				vOffset = 0.0;
 			else
@@ -4070,13 +4066,13 @@ namespace frontier
 			// Relative top/bottom and side x -offsets for intermediate curve points for single elevation (controls how much the
 			// ends of the area are extended horizontally)
 
-			double vSOffset = configValue<double>(group,confPath,"vsoffset",globalScope,s_optional,&isSet);
+			double vSOffset = configValue<double>(scope,confPath,"vsoffset",s_optional,&isSet);
 			if (!isSet)
 				vSOffset = xStep / 3;
 			else
 				vSOffset *= xStep;
 
-			double vSSOffset = configValue<double>(group,confPath,"vssoffset",globalScope,s_optional,&isSet);
+			double vSSOffset = configValue<double>(scope,confPath,"vssoffset",s_optional,&isSet);
 			if (!isSet)
 				vSSOffset = vSOffset;
 			else
@@ -4084,13 +4080,13 @@ namespace frontier
 
 			// Max offset in px for extending first time instant's elevations to the left
 
-			int sOffset = configValue<int>(group,confPath,"soffset",globalScope,s_optional,&isSet);
+			int sOffset = configValue<int>(scope,confPath,"soffset",s_optional,&isSet);
 			if (!isSet)
 				sOffset = 0;
 
 			// Max offset in px for extending last time instant's elevations to the right
 
-			int eOffset = configValue<int>(group,confPath,"eoffset",globalScope,s_optional,&isSet);
+			int eOffset = configValue<int>(scope,confPath,"eoffset",s_optional,&isSet);
 			if (!isSet)
 				eOffset = 0;
 
@@ -4113,9 +4109,10 @@ namespace frontier
 											 vOffset,vSOffset,vSSOffset,
 											 sOffset,eOffset,
 											 cloudSet,
-											 &group,
-											 globalScope
+											 scope
 											));
+
+			scope.pop_back();
 		}
 
 		return specs;
@@ -4150,12 +4147,7 @@ namespace frontier
 
 	// Set active configuration scope
 
-	std::list<const libconfig::Setting *> scope;
-
-	if (cg.globalScope())
-		scope.push_back(cg.globalScope());
-
-	scope.push_back(cg.localScope());
+	std::list<const libconfig::Setting *> scope = cg.scope();
 
 	if (condSpecs)
 		scope.push_back(condSpecs);
@@ -4199,7 +4191,7 @@ namespace frontier
 
 		render_text(texts,areaLabels,"CLOUDSYMBOLLABEL",label,textWidth,textHeight,false,false,false,TEXTPOSid,true);
 
-		texts[TEXTPOSid] << std::fixed << std::setprecision(1) << (x - (textWidth / 2)) << "," << (lopx - ((lopx - hipx) / 2)) - (textHeight / 2);
+		texts[TEXTPOSid] << std::fixed << std::setprecision(1) << (x - (textWidth / 2)) + cg.xOffset() << "," << (lopx - ((lopx - hipx) / 2)) - (textHeight / 2) + cg.yOffset();
 	}
   }
 
@@ -9305,7 +9297,8 @@ ConfigGroup::ConfigGroup(const std::string & theClassDef,
 						 int theSOffset,int theEOffset,
 						 std::set<size_t> & theMemberSet,
 						 const libconfig::Setting * theLocalScope,
-						 const libconfig::Setting * theGlobalScope)
+						 const libconfig::Setting * theGlobalScope,
+						 const std::list<const libconfig::Setting *> * theScope)
   : itsMemberSet(theMemberSet)
 {
   itsClass = boost::algorithm::trim_copy(theClassDef);
@@ -9344,6 +9337,9 @@ ConfigGroup::ConfigGroup(const std::string & theClassDef,
 
   itsLocalScope = theLocalScope;
   itsGlobalScope = theGlobalScope;
+
+  if (theScope)
+	  itsScope = *theScope;
 }
 
 // ----------------------------------------------------------------------
@@ -9371,9 +9367,7 @@ CloudGroup::CloudGroup(const std::string & theClass,
 					   double theVOffset,double theVSOffset,double theVSSOffset,
 					   int theSOffset,int theEOffset,
 					   std::set<size_t> & theCloudSet,
-					   const libconfig::Setting * theLocalScope,
-					   const libconfig::Setting * theGlobalScope)
-
+					   const std::list<const libconfig::Setting *> & theScope)
   : ConfigGroup(theClass,
 		  	    theCloudTypes,
 		  	    theLabel,
@@ -9385,8 +9379,9 @@ CloudGroup::CloudGroup(const std::string & theClass,
 		  	    theVOffset,theVSOffset,theVSSOffset,
 		  	    theSOffset,theEOffset,
 		  	    theCloudSet,
-		  	    theLocalScope,
-		  	    theGlobalScope
+		  	    NULL,
+		  	    NULL,
+		  	    &theScope
 			   )
 {
   itsSymbolType = (standalone() ? theSymbolType : "");
