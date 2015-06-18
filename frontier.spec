@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 15.4.23
+Version: 15.6.17
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -9,11 +9,11 @@ URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
-BuildRequires: libsmartmet-macgyver-devel >= 14.9.23
-BuildRequires: libsmartmet-tron >= 14.10.23
-BuildRequires: libsmartmet-woml >= 15.1.15
+BuildRequires: libsmartmet-macgyver-devel >= 15.5.19
+BuildRequires: libsmartmet-tron >= 15.3.30
+BuildRequires: libsmartmet-woml >= 15.6.17
 BuildRequires: libxml++-devel >= 2.37.1
-Requires: libsmartmet-macgyver >= 14.9.23
+Requires: libsmartmet-macgyver >= 15.5.19
 Requires: libxml++ >= 2.37.1
 Requires: cairo >= 1.12.14
 Provides: frontier
@@ -52,6 +52,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Wed Jun 17 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.6.17-1.fmi
+- [LENTOSAA-1037] Using scoped configuration for cloudlayers to enable use of multiple global blocks. "symboltype" setting alone (local or global, not using bool "symbol" setting anymore) controls whether or not rendering the group/cloud as a symbol
 * Thu Apr 23 2015 Mika Heiskanen <mika.heiskanen@fmi.fi> - 15.4.23-1.fmi
 - Enabled contouring again!
 * Tue Mar 31 2015 Mika Heiskanen <mika.heiskanen@fmi.fi> - 15.3.30-1.fmi
