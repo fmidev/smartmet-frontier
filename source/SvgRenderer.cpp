@@ -4699,7 +4699,6 @@ namespace frontier
 	NFmiFillMap fillMap;
 	NFmiFillAreas fillAreas;
 	std::list<DirectPosition>::const_iterator cpend = curvePoints.end(),itcp = curvePoints.begin(),pitcp = curvePoints.begin();
-	std::list<std::pair<double,double> > scales;
 	double mw = markerWidth,mh = markerHeight,lopx,mx,my,xScale = 1.0,yScale = 1.0;
 	size_t nMarkers = 0;
 
@@ -4775,6 +4774,7 @@ namespace frontier
 			// Use a fill area if available
 			//
 			NFmiFillAreas areas;
+			std::list<std::pair<double,double> > scales;
 
 			if (area != fillAreas.end()) {
 				int timeSteps = nX;
