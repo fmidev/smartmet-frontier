@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 15.6.17
+Version: 15.6.18
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -52,7 +52,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
-* Thu Jun 18 2015 Pertti Kinnia <pertti.kinnia@fmi.fi> - Upcoming
+* Thu Jun 18 2015 Pertti Kinnia <pertti.kinnia@fmi.fi> - 15.6.18-1.fmi
 - fixed LENTOSAA-1039
 * Wed Jun 17 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.6.17-1.fmi
 - [LENTOSAA-1037] Using scoped configuration for cloudlayers to enable use of multiple global blocks. "symboltype" setting alone (local or global, not using bool "symbol" setting anymore) controls whether or not rendering the group/cloud as a symbol
