@@ -4507,7 +4507,10 @@ namespace frontier
    */
   // ----------------------------------------------------------------------
 
-  bool arrangeMarkers(Texts & texts,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,NFmiFillAreas & fillAreas,std::list<std::pair<double,double> > & scales,int RC = 1,std::list<std::string>::iterator * mit2 = NULL,NFmiFillAreas::iterator * it2 = NULL,std::list<std::pair<double,double> >::iterator * sit2 = NULL)
+  bool arrangeMarkers(Texts & texts,FillAreas & reservedAreas,FillAreas & freeAreas,FillAreas & candidateAreas,FillAreas::iterator cit,
+		  	  	  	  NFmiFillAreas & fillAreas,std::list<std::pair<double,double> > & scales,
+					  std::list<std::string> & markerChain,
+					  int RC = 1,std::list<std::string>::iterator * mit2 = NULL,NFmiFillAreas::iterator * it2 = NULL,std::list<std::pair<double,double> >::iterator * sit2 = NULL)
   {
 //fprintf(stderr,"\n>> [%d] MARKER: %s\n",RC,(cit == candidateAreas.end()) ? "END" : cit->first.c_str());
 	if (cit == candidateAreas.end())
@@ -4559,6 +4562,11 @@ namespace frontier
 		if (rit == reservedAreas.end())
 			throw std::runtime_error("arrangeMarkers: internal: reserved marker not found: '" + *mit + "'");
 
+		// Prevent infinite recursion
+
+		if (find(markerChain.begin(),markerChain.end(),*mit) != markerChain.end())
+			continue;
+
 		FillAreas::iterator fit = freeAreas.find(*mit);
 
 		if (fit != freeAreas.end()) {
@@ -4588,7 +4596,10 @@ namespace frontier
 
 		// Use the candidate if released above or recurse with reserving marker's candidates
 
-		if ((fit != freeAreas.end()) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(*mit),fillAreas,scales,RC + 1)) {
+		if (fit == freeAreas.end())
+			markerChain.push_back(*mit);
+
+		if ((fit != freeAreas.end()) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(*mit),fillAreas,scales,markerChain,RC + 1)) {
 			// Store the candidate
 			//
 			fillAreas.clear(); scales.clear();
@@ -4699,6 +4710,7 @@ namespace frontier
 	NFmiFillMap fillMap;
 	NFmiFillAreas fillAreas;
 	std::list<DirectPosition>::const_iterator cpend = curvePoints.end(),itcp = curvePoints.begin(),pitcp = curvePoints.begin();
+	std::list<std::string> markerChain;
 	double mw = markerWidth,mh = markerHeight,lopx,mx,my,xScale = 1.0,yScale = 1.0;
 	size_t nMarkers = 0;
 
@@ -5035,7 +5047,9 @@ namespace frontier
 //FillAreas::const_iterator rit = reservedAreas.begin();
 //areas.clear(); candidateAreas[mId].fillAreas.push_back(rit->second.fillAreas.front());
 //}
-			if ((areas.size() > 0) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(mId),areas,scales)) {
+			markerChain.clear();
+
+			if ((areas.size() > 0) || arrangeMarkers(texts,reservedAreas,freeAreas,candidateAreas,candidateAreas.find(mId),areas,scales,markerChain)) {
 				// Select free marker position near the selected position
 				//
 				std::list<std::pair<double,double> >::iterator csit;
