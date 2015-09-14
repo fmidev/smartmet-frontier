@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 15.6.18
+Version: 15.9.14
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -9,11 +9,11 @@ URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
-BuildRequires: libsmartmet-macgyver-devel >= 15.5.19
-BuildRequires: libsmartmet-tron >= 15.3.30
+BuildRequires: libsmartmet-macgyver-devel >= 15.8.24
+BuildRequires: libsmartmet-tron >= 15.9.10
 BuildRequires: libsmartmet-woml >= 15.6.17
 BuildRequires: libxml++-devel >= 2.37.1
-Requires: libsmartmet-macgyver >= 15.5.19
+Requires: libsmartmet-macgyver >= 15.8.24
 Requires: libxml++ >= 2.37.1
 Requires: cairo >= 1.12.14
 Provides: frontier
@@ -52,7 +52,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
-* Tue Sep 8 2015 Pertti Kinnia <pertti.kinnia@fmi.fi> - Upcoming
+* Mon Sep 14 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.9.14-1.fmi
 - fixed LENTOSAA-1045
 * Thu Jun 18 2015 Pertti Kinnia <pertti.kinnia@fmi.fi> - 15.6.18-1.fmi
 - fixed LENTOSAA-1039
