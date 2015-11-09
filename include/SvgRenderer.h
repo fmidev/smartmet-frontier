@@ -598,7 +598,8 @@ namespace frontier
 	void render_cloudSymbols(const std::string confPath,
 							 const ElevGrp & eGrp,
 							 std::list<CloudGroup>::const_iterator itcg,
-							 int nGroups);
+							 int nGroups,
+							 bool & visible,bool & aboveTop);
 	bool scaledCurvePositions(ElevGrp & eGrp,
 							  const boost::posix_time::ptime & bt,const boost::posix_time::ptime & et,
 							  List<DirectPosition> & curvePositions,List<DirectPosition> & curvePositions0,

@@ -5418,7 +5418,8 @@ namespace frontier
   void SvgRenderer::render_cloudSymbols(const std::string confPath,
 		  	  	  	  	  	  	  	    const ElevGrp & eGrp,
 		  	  	  	  	  	  	  	    std::list<CloudGroup>::const_iterator itcg,
-		  	  	  	  	  	  	  	    int nGroups)
+		  	  	  	  	  	  	  	    int nGroups,
+		  	  	  	  	  	  	  	    bool & visible,bool & aboveTop)
   {
 	ElevGrp::const_iterator egbeg = eGrp.begin(),egend = eGrp.end(),iteg;
 
@@ -5444,6 +5445,15 @@ namespace frontier
 		// Render cloud symbol
 
 		render_cloudSymbol(confPath,*itcg,nGroups,x,lopx,hipx);
+
+		// Visibility information
+
+		if ((x >= 0) && (x < (axisManager->axisWidth() + 1))) {
+			if (lopx > 0)
+				visible = true;
+			else
+				aboveTop = true;
+		}
 	}
 
 	// Remove group's elevations from the collection
@@ -5991,7 +6001,7 @@ fprintf(stderr,">>>> bwd lo=%.0f %s\n",lo,cs.c_str());
 		if ((!isHole) && !(itcg->symbolType().empty())) {
 			// Rendering the group as cloud symbols
 			//
-			render_cloudSymbols(confPath,eGrp,itcg,nGroups);
+			render_cloudSymbols(confPath,eGrp,itcg,nGroups,visible,aboveTop);
 			continue;
 		}
 
