@@ -8849,9 +8849,11 @@ void SvgRenderer::render_header(boost::posix_time::ptime & validTime,
 								const std::string & creator
 							   )
 {
-  // Target region name and id
+  const char * missingRegionId = "--";
+
+  // Target region name and id. If name and id are equal, render the id as missing
   render_header("regionName",boost::posix_time::ptime(),false,regionName);
-  render_header("regionId",boost::posix_time::ptime(),false,regionId);
+  render_header("regionId",boost::posix_time::ptime(),false,(regionId != regionName) ? regionId : missingRegionId);
 
   // Creator
   render_header("creator",boost::posix_time::ptime(),false,creator);
