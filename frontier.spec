@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 15.9.14
+Version: 15.11.16
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -11,7 +11,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
 BuildRequires: libsmartmet-macgyver-devel >= 15.8.24
 BuildRequires: libsmartmet-tron >= 15.9.10
-BuildRequires: libsmartmet-woml >= 15.6.17
+BuildRequires: libsmartmet-woml >= 15.11.16
 BuildRequires: libxml++-devel >= 2.37.1
 Requires: libsmartmet-macgyver >= 15.8.24
 Requires: libxml++ >= 2.37.1
@@ -52,7 +52,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
-* Thu Nov 12 2015 upcoming:
+* Mon Nov 16 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.11.16-1.fmi
 - LENTOSAA-1089; Render region id as missing when name and id are equal
 * Mon Sep 14 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.9.14-1.fmi
 - fixed LENTOSAA-1045
