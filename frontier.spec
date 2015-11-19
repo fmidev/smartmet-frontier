@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 15.11.16
+Version: 15.11.19
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -11,7 +11,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
 BuildRequires: libsmartmet-macgyver-devel >= 15.8.24
 BuildRequires: libsmartmet-tron >= 15.9.10
-BuildRequires: libsmartmet-woml >= 15.11.16
+BuildRequires: libsmartmet-woml >= 15.11.19
 BuildRequires: libxml++-devel >= 2.37.1
 Requires: libsmartmet-macgyver >= 15.8.24
 Requires: libxml++ >= 2.37.1
