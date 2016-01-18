@@ -68,7 +68,7 @@ env.Append( CXXFLAGS= [
         "-Wall", 
         "-Wno-unused-parameter",
         "-Wno-variadic-macros",
-		"-std=c++11"
+	"-std=c++11"
 	    
 	    # DIFFICULTFLAGS from orig. Makefile
 	    #

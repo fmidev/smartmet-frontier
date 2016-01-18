@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 15.11.23
+Version: 16.1.17
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -9,13 +9,13 @@ URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
-BuildRequires: libsmartmet-macgyver-devel >= 15.8.24
-BuildRequires: libsmartmet-tron >= 15.9.10
+BuildRequires: libsmartmet-macgyver-devel >= 15.11.10
+BuildRequires: libsmartmet-tron >= 14.10.23
 BuildRequires: libsmartmet-woml >= 15.11.23
 BuildRequires: libxml++-devel >= 2.37.1
-Requires: libsmartmet-macgyver >= 15.8.24
+Requires: libsmartmet-macgyver >= 15.11.10
 Requires: libxml++ >= 2.37.1
-Requires: cairo >= 1.12.14
+Requires: cairo >= 1.14.2
 Provides: frontier
 
 %description
@@ -52,6 +52,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Mon Jan 18 2016 Mika Heiskanen <mika.heiskanen@fmi.fi> - 16.1.17-1.fmi
+- newbase API changed
 * Mon Nov 23 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.11.23-1.fmi
 - Rebuild with new woml library
 * Mon Nov 16 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.11.16-1.fmi
