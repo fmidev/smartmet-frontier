@@ -10,7 +10,7 @@ Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
 BuildRequires: libsmartmet-macgyver-devel >= 15.11.10
-BuildRequires: libsmartmet-tron >= 14.10.23
+BuildRequires: libsmartmet-tron = 14.10.23
 BuildRequires: libsmartmet-woml >= 15.11.23
 BuildRequires: libxml++-devel >= 2.37.1
 Requires: libsmartmet-macgyver >= 15.11.10
