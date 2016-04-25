@@ -17,11 +17,12 @@ namespace frontier
   public:
 	Options();
 
-	// --verbose, --quiet and --debug
+	// --verbose, --quiet, --debug and --nocontours
 
 	bool verbose;
 	bool quiet;
 	bool debug;
+	bool nocontours;
 
 	// -p projection | -p projectionfile
 

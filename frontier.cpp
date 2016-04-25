@@ -438,12 +438,14 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
 
 #ifdef CONTOURING
 
-    boost::shared_ptr<NFmiQueryData> qd;
+  boost::shared_ptr<NFmiQueryData> qd;
 
+  if (!options.nocontours) {
     if(weather.hasAnalysis())
   	  qd = resolve_model(options,config, weather.analysis().dataSource());
     else
   	  qd = resolve_model(options,config, weather.forecast().dataSource());
+  }
 
 #endif
 
@@ -453,7 +455,8 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
 
   // Render contours
 
-  renderer.contour(qd,validtime);
+  if (!options.nocontours)
+    renderer.contour(qd,validtime);
 
 #endif
 

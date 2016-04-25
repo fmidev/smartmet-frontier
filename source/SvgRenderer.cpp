@@ -33,10 +33,12 @@
 #include <smartmet/newbase/NFmiAngle.h>
 
 #ifdef CONTOURING
-#include <smartmet/tron/Builder.h>
-#include <smartmet/tron/Tron.h>
+#include <smartmet/tron/FmiBuilder.h>
+#include <smartmet/tron/Contourer.h>
+#include <smartmet/tron/Traits.h>
+#include <smartmet/tron/LinearInterpolation.h>
+#include "PathAdapter.h"
 #include <smartmet/newbase/NFmiDataMatrix.h>
-#include <smartmet/tron/MirrorMatrix.h>
 #include <smartmet/tron/SavitzkyGolay2D.h>
 #include <smartmet/newbase/NFmiEnumConverter.h>
 #include <smartmet/newbase/NFmiQueryData.h>
@@ -10346,7 +10348,7 @@ private:
 typedef Tron::Traits<float,float,Tron::NanMissing> MyTraits;
 
 typedef Tron::Contourer<DataMatrixAdapter,
-                        Path,
+                        Tron::FmiBuilder,
                         MyTraits,
                         Tron::LinearInterpolation> MyContourer;
 
@@ -10394,6 +10396,9 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 		throw std::runtime_error(typeMsg);
 
 	  std::size_t linenumber = 0;
+
+	  boost::shared_ptr<geos::geom::GeometryFactory> geomFactory(new geos::geom::GeometryFactory());
+	  Tron::FmiBuilder builder(geomFactory);
 
 	  for(int i=0; i<contourSpecs.getLength(); ++i)
 		{
@@ -10501,8 +10506,10 @@ SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> & theQD,
 
 		  for(float value=start; value<=stop; value+=step)
 			{
-			  Path path;
-			  MyContourer::line(path,grid,value,false,hints);
+			  MyContourer::line(builder,grid,value,false,hints);
+
+			  PathAdapter pathAdapter;
+			  const Path & path = GeosTools::getContours(&(*builder.result()),pathAdapter);
 
 			  if(!path.empty())
 				{
