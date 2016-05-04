@@ -321,6 +321,9 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options
   const std::string & name = source.numericalModelRun()->name();
   const boost::posix_time::ptime & origintime = source.numericalModelRun()->analysisTime();
 
+  if (name.find_first_not_of(" ") == std::string::npos)
+	return ret;
+
   std::string path = frontier::lookup<std::string>(config,"models."+name);
 
   if(path.empty())
@@ -441,10 +444,24 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
   boost::shared_ptr<NFmiQueryData> qd;
 
   if (!options.nocontours) {
+    const woml::DataSource & dataSource = weather.analysis().dataSource();
+
     if(weather.hasAnalysis())
-  	  qd = resolve_model(options,config, weather.analysis().dataSource());
+  	  qd = resolve_model(options,config,dataSource);
     else
-  	  qd = resolve_model(options,config, weather.forecast().dataSource());
+  	  qd = resolve_model(options,config,dataSource);
+
+    if (!qd) {
+  	  options.nocontours = true;
+
+	  if (options.verbose) {
+	    const boost::optional<woml::NumericalModelRun> & modelRun = dataSource.numericalModelRun();
+	    const std::string & modelName = (modelRun ? modelRun->name() : "");
+	    const std::string & name = ((modelName.find_first_not_of(" ") != std::string::npos) ? modelName : "?");
+
+	    std::cerr << "Contouring omitted; model (" << name << ") not available" << std::endl;
+	  }
+    }
   }
 
 #endif
