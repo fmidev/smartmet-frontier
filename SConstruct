@@ -34,6 +34,8 @@ env = Environment( )
 env.Append(LIBS=["smartmet_woml",
 		 "smartmet_macgyver",
 		 "smartmet_newbase",
+		 "smartmet_tron",
+		 "geos",
 		 "boost_date_time",
 		 "boost_program_options",
 		 "boost_regex",
@@ -85,7 +87,7 @@ if DEBUG:
     
 	# EXTRAFLAGS from orig. Makefile (for 'debug' target)
         #
-        "-ansi",
+        # "-ansi",
         "-Wcast-align",
         "-Wcast-qual",
         "-Winline",

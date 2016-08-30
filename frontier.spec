@@ -11,11 +11,9 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
 BuildRequires: libsmartmet-macgyver-devel >= 16.1.23
 BuildRequires: libsmartmet-tron = 16.4.1
+BuildRequires: geos >= 3.4.2
 BuildRequires: libsmartmet-woml >= 16.8.22
-BuildRequires: libxml++-devel >= 2.37.1
 Requires: libsmartmet-macgyver >= 16.4.18
-Requires: libxml++ >= 2.37.1
-Requires: cairo >= 1.14.2
 Provides: frontier
 
 %description
@@ -52,6 +50,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Tue Aug 30 2016 upcoming
+- Added/removed some dependencies in SConstruct and spec file
 * Mon Aug 22 2016 Mikko Visa <mikko.visa@fmi.fi> - 16.8.22-1.fmi
 - rebuild with new woml library
 * Mon Jan 18 2016 Mika Heiskanen <mika.heiskanen@fmi.fi> - 16.1.17-1.fmi
