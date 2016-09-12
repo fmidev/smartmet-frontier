@@ -1,7 +1,7 @@
 %define LIBNAME frontier
 Summary: frontier library
 Name: smartmet-%{LIBNAME}
-Version: 16.8.30
+Version: 16.9.6
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -51,7 +51,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
-* Thu Sep  1 2016 upcoming
+* Tue Sep 6 2016 Mikko Visa <mikko.visa@fmi.fi> - 16.9.6-1.fmi
 - Restored cairo dependency in spec file
 * Tue Aug 30 2016 Mikko Visa <mikko.visa@fmi.fi> - 16.8.30-1.fmi
 - Added/removed some dependencies in SConstruct and spec file
