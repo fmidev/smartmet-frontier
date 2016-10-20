@@ -51,6 +51,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libsmartmet_%{LIBNAME}.a
 
 %changelog
+* Thu Oct 20 2016 Pertti Kinnia <pertti.kinnia@fmi.fi> - Upcoming
+- Fix for SOL-4471; missing querydata caused segfault in debug mode
 * Tue Sep 6 2016 Mikko Visa <mikko.visa@fmi.fi> - 16.9.6-1.fmi
 - Restored cairo dependency in spec file
 * Tue Aug 30 2016 Mikko Visa <mikko.visa@fmi.fi> - 16.8.30-1.fmi

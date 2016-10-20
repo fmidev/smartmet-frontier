@@ -342,7 +342,7 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options
 
   ret = search_model_origintime(options,path,origintime);
 
-  if(!ret && !options.debug)
+  if(!ret)
 	throw std::runtime_error("Numerical model '"
 							 + name
 							 + "' referenced in data for origin time "
