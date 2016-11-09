@@ -14,34 +14,31 @@
 
 class PreProcessor : public NFmiPreProcessor
 {
+ public:
+  PreProcessor(const std::string& theDefineDirective,
+               const std::string& theIncludeDirective = "",
+               const std::string& theIncludePathDefine = "",
+               const std::string& theIncludeFileExtension = "",
+               bool stripPound = false,
+               bool stripDoubleSlash = true,
+               bool stripSlashAst = true,
+               bool stripSlashAstNested = true,
+               bool stripEndOfLineSpaces = true);
 
-public:
+  bool ReadAndStripFile(const std::string& theFileName);
 
-  PreProcessor(const std::string & theDefineDirective,
-		  	   const std::string & theIncludeDirective = "",
-		  	   const std::string & theIncludePathDefine = "",
-		  	   const std::string & theIncludeFileExtension = "",
-		  	   bool stripPound = false,
-		  	   bool stripDoubleSlash = true,
-		  	   bool stripSlashAst = true,
-		  	   bool stripSlashAstNested = true,
-		  	   bool stripEndOfLineSpaces = true);
+  const std::string getDefinedValue(const std::string& theDefine,
+                                    const std::string& theDefaultValue = "") const;
 
-  bool ReadAndStripFile(const std::string & theFileName);
-
-  const std::string getDefinedValue(const std::string & theDefine,const std::string & theDefaultValue = "") const;
-
-private:
-
+ private:
   PreProcessor();
 
   std::string itsDefineDirective;
   std::string itsIncludeDirective;
   std::string itsIncludePathDefine;
   std::string itsIncludeFileExtension;
-
 };
 
-#endif // PREPOCESSOR_H
+#endif  // PREPOCESSOR_H
 
 // ======================================================================

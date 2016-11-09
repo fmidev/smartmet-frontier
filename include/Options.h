@@ -12,47 +12,48 @@
 
 namespace frontier
 {
-  class Options
-  {
-  public:
-	Options();
+class Options
+{
+ public:
+  Options();
 
-	// --verbose, --quiet, --debug and --nocontours
+  // --verbose, --quiet, --debug and --nocontours
 
-	bool verbose;
-	bool quiet;
-	bool debug;
-	bool nocontours;
+  bool verbose;
+  bool quiet;
+  bool debug;
+  bool nocontours;
 
-	// -p projection | -p projectionfile
+  // -p projection | -p projectionfile
 
-	std::string projection;				// the command line description
+  std::string projection;  // the command line description
 
-	// -s svgfile
+  // -s svgfile
 
-	std::string svgfile;
+  std::string svgfile;
 
-	// -w womlfile
+  // -w womlfile
 
-	std::string womlfile;
+  std::string womlfile;
 
-	// -o outfile
+  // -o outfile
 
-	std::string outfile;
+  std::string outfile;
 
-	// -t type { conceptualmodelanalysis | conceptualmodelforecast | aerodromeforecast }
+  // -t type { conceptualmodelanalysis | conceptualmodelforecast | aerodromeforecast }
 
-	std::string type;
-	woml::documentType doctype;
+  std::string type;
+  woml::documentType doctype;
 
-	// -l locale; defaults to "" (using configuration blocks having empty ("") or non specified locale)
+  // -l locale; defaults to "" (using configuration blocks having empty ("") or non specified
+  // locale)
 
-	std::string locale;
+  std::string locale;
 
-  }; // class Options
+};  // class Options
 
-  bool parse_options(int argc, char * argv[], Options & theOptions);
+bool parse_options(int argc, char* argv[], Options& theOptions);
 
-} // namespace frontier
+}  // namespace frontier
 
-#endif // FRONTIER_OPTIONS_H
+#endif  // FRONTIER_OPTIONS_H

@@ -45,78 +45,77 @@
 #include "Point.h"
 #include <smartmet/newbase/NFmiGlobals.h>
 
-#include <algorithm>	// vector sorting
-#include <map>			// maps
-#include <set>			// sets
-#include <vector>		// vectors
-#include <utility>		// pairs
-#include <cmath>		// abs,min,max
-#include <list>			// lists
+#include <algorithm>  // vector sorting
+#include <map>        // maps
+#include <set>        // sets
+#include <vector>     // vectors
+#include <utility>    // pairs
+#include <cmath>      // abs,min,max
+#include <list>       // lists
 
 namespace frontier
 {
+// Typedefs to ease things
 
-  // Typedefs to ease things
+typedef std::vector<float> NFmiFillMapElement;
+typedef std::map<float, NFmiFillMapElement> NFmiFillMapData;
+typedef std::pair<Point, Point> NFmiFillRect;  // Bottom left and top right corner
+typedef std::list<NFmiFillRect> NFmiFillAreas;
+typedef std::list<Point> NFmiFillPositions;
 
-  typedef std::vector<float>					NFmiFillMapElement;
-  typedef std::map<float,NFmiFillMapElement>	NFmiFillMapData;
-  typedef std::pair<Point,Point>				NFmiFillRect;			// Bottom left and top right corner
-  typedef std::list<NFmiFillRect>				NFmiFillAreas;
-  typedef std::list<Point>						NFmiFillPositions;
+class NFmiFillMap
+{
+ public:
+  // Constructor
 
-  class NFmiFillMap
+  NFmiFillMap(float theLoLimit = kFloatMissing, float theHiLimit = kFloatMissing)
+      : itsData(), itsLoLimit(theLoLimit), itsHiLimit(theHiLimit)
   {
+  }
 
-  public:
+  // Data access
 
-	// Constructor
+  const NFmiFillMapData& MapData(void) const { return itsData; }
+  // Adding a line
 
-	NFmiFillMap(float theLoLimit=kFloatMissing, float theHiLimit=kFloatMissing)
-	  : itsData()
-	  , itsLoLimit(theLoLimit)
-	  , itsHiLimit(theHiLimit)
-	{ }
+  void Add(float theX1, float theY1, float theX2, float theY2);
 
-	// Data access
+  // Areas wide/tall enough for symbol filling
 
-	const NFmiFillMapData & MapData(void) const		{ return itsData; }
+  bool getFillAreas(int imageWidth,
+                    int imageHeigth,
+                    int symbolWidth,
+                    int symbolHeigth,
+                    float scale,
+                    bool verticalRects,
+                    NFmiFillAreas& fillAreas,
+                    bool retainMap = true,
+                    bool scanUpDown = false,
+                    bool getMapAreas = false);
 
-	// Adding a line
+ private:
+  template <typename T>
+  bool scanColumn(T iter,
+                  T endIter,
+                  int imageWidth,
+                  int imageHeigth,
+                  int symbolWidth,
+                  int symbolHeigth,
+                  int yMin,
+                  int xMin,
+                  int xMax,
+                  bool verticalRects,
+                  NFmiFillAreas& fillAreas);
 
-	void Add(float theX1, float theY1,
-			 float theX2, float theY2);
+  // Data-elements
 
-	// Areas wide/tall enough for symbol filling
+  NFmiFillMapData itsData;
+  float itsLoLimit;
+  float itsHiLimit;
+};
 
-	bool getFillAreas(int imageWidth, int imageHeigth,
-					  int symbolWidth, int symbolHeigth,
-					  float scale,
-					  bool verticalRects,
-					  NFmiFillAreas & fillAreas,
-					  bool retainMap = true,
-					  bool scanUpDown = false,
-					  bool getMapAreas = false);
+}  // namespace frontier
 
-  private:
-
-	template <typename T>
-	bool scanColumn(T iter,T endIter,
-					int imageWidth,int imageHeigth,
-					int symbolWidth,int symbolHeigth,
-					int yMin,int xMin,int xMax,
-					bool verticalRects,
-					NFmiFillAreas & fillAreas);
-
-	// Data-elements
-
-	NFmiFillMapData	itsData;
-	float			itsLoLimit;
-	float			itsHiLimit;
-
-  };
-
-} // namespace frontier
-
-#endif // IMAGINE_NFMIFILLMAP_H
+#endif  // IMAGINE_NFMIFILLMAP_H
 
 // ======================================================================

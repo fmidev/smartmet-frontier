@@ -11,13 +11,13 @@ class NFmiAngle;
 
 namespace frontier
 {
-  class PathTransformation
-  {
-  public:
-	virtual ~PathTransformation() { }
-	virtual void operator()(double & x, double & y,NFmiAngle * trueNorthAzimuth = NULL) const = 0;
+class PathTransformation
+{
+ public:
+  virtual ~PathTransformation() {}
+  virtual void operator()(double& x, double& y, NFmiAngle* trueNorthAzimuth = NULL) const = 0;
 
-  }; // class PathTransformation
-} // namespace frontier
+};  // class PathTransformation
+}  // namespace frontier
 
-#endif // FRONTIER_PATHTRANSFORMATION_H
+#endif  // FRONTIER_PATHTRANSFORMATION_H

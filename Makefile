@@ -92,6 +92,9 @@ install:
 test:
 	cd test && make test
 
+format:
+	clang-format -i -style=file include/*.h source/*.cpp
+
 html:
 	mkdir -p /data/local/html/lib/$(LIB)
 	doxygen $(LIB).dox

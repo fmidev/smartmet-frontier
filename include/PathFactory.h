@@ -9,24 +9,24 @@
 
 namespace woml
 {
-  class SimpleCubicSpline;
-  class CubicSplineRing;
-  class CubicSplineCurve;
-  class CubicSplineSurface;
+class SimpleCubicSpline;
+class CubicSplineRing;
+class CubicSplineCurve;
+class CubicSplineSurface;
 }
 
 namespace frontier
 {
-  class Path;
+class Path;
 
-  namespace PathFactory
-  {
-	Path create(const woml::SimpleCubicSpline & spline);
-	Path create(const woml::CubicSplineRing & spline);
-	Path create(const woml::CubicSplineCurve & spline);
-	Path create(const woml::CubicSplineSurface & spline);
+namespace PathFactory
+{
+Path create(const woml::SimpleCubicSpline& spline);
+Path create(const woml::CubicSplineRing& spline);
+Path create(const woml::CubicSplineCurve& spline);
+Path create(const woml::CubicSplineSurface& spline);
 
-  } // namespace PathFactory
-} // namespace frontier
+}  // namespace PathFactory
+}  // namespace frontier
 
-#endif // FRONTIER_PATHFACTORY_H
+#endif  // FRONTIER_PATHFACTORY_H
