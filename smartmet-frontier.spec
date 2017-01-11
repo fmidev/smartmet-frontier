@@ -1,42 +1,40 @@
-%define LIBNAME frontier
-Summary: frontier library
-Name: smartmet-%{LIBNAME}
-Version: 16.9.6
+%define BINNAME frontier
+%define RPMNAME smartmet-%{BINNAME}
+Summary: frontier
+Name: %{RPMNAME}
+Version: 17.1.11
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
-URL: http://www.weatherproof.fi
+URL: https://github.com/fmidev/smartmet-frontier
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
-BuildRequires: libsmartmet-macgyver-devel >= 16.1.23
-BuildRequires: libsmartmet-tron = 16.4.1
+BuildRequires: smartmet-library-macgyver-devel >= 16.12.20
+BuildRequires: smartmet-library-newbase-devel >= 17.1.10
+BuildRequires: smartmet-library-tron >= 17.1.4
 BuildRequires: geos >= 3.4.2
-BuildRequires: libsmartmet-woml >= 16.8.30
-Requires: libsmartmet-macgyver >= 16.4.18
-Requires: cairo >= 1.14.2
+BuildRequires: smartmet-library-woml >= 17.1.4
+Requires: smartmet-library-macgyver >= 16.12.20
+Requires: smartmet-library-newbase >= 17.1.10
+Requires: smartmet-library-woml >= 17.1.4
+Requires: cairo >= 1.12.14
 Provides: frontier
+Obsoletes: smartmet-frontier-devel
 
 %description
-FMI FRONTIER library
-
-%package -n smartmet-frontier-devel
-Summary: Frontier development headers and library
-Group: Development/Libraries
-Provides: frontier-devel
-%description -n smartmet-frontier-devel
-FMI Frontier development headers and library
+WOML weather chart renderer
 
 %prep
 rm -rf $RPM_BUILD_ROOT
 
-%setup -q -n %{LIBNAME}
+%setup -q -n %{BINNAME}
  
 %build
 make %{_smp_mflags}
 
 %install
-%makeinstall includedir=%{buildroot}%{_includedir}/smartmet
+%makeinstall
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -45,50 +43,61 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(0775,root,root,-)
 %{_bindir}/frontier
 
-%files -n smartmet-frontier-devel
-%defattr(0664,root,root,-)
-%{_includedir}/smartmet/%{LIBNAME}
-%{_libdir}/libsmartmet_%{LIBNAME}.a
-
 %changelog
-* Thu Oct 20 2016 Pertti Kinnia <pertti.kinnia@fmi.fi> - Upcoming
+* Wed Jan 11 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.1.11-1.fmi
+- Switched to FMI open source naming conventions
 - Fix for SOL-4471; missing querydata caused segfault in debug mode
+
 * Tue Sep 6 2016 Mikko Visa <mikko.visa@fmi.fi> - 16.9.6-1.fmi
 - Restored cairo dependency in spec file
+
 * Tue Aug 30 2016 Mikko Visa <mikko.visa@fmi.fi> - 16.8.30-1.fmi
 - Added/removed some dependencies in SConstruct and spec file
+
 * Mon Aug 22 2016 Mikko Visa <mikko.visa@fmi.fi> - 16.8.22-1.fmi
 - rebuild with new woml library
+
 * Mon Jan 18 2016 Mika Heiskanen <mika.heiskanen@fmi.fi> - 16.1.17-1.fmi
 - newbase API changed
+
 * Mon Nov 23 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.11.23-1.fmi
 - Rebuild with new woml library
+
 * Mon Nov 16 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.11.16-1.fmi
 - LENTOSAA-1089; Render region id as missing when name and id are equal
+
 * Mon Sep 14 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.9.14-1.fmi
 - fixed LENTOSAA-1045
+
 * Thu Jun 18 2015 Pertti Kinnia <pertti.kinnia@fmi.fi> - 15.6.18-1.fmi
 - fixed LENTOSAA-1039
+
 * Wed Jun 17 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.6.17-1.fmi
 - [LENTOSAA-1037] Using scoped configuration for cloudlayers to enable use of multiple global blocks. "symboltype" setting alone (local or global, not using bool "symbol" setting anymore) controls whether or not rendering the group/cloud as a symbol
+
 * Thu Apr 23 2015 Mika Heiskanen <mika.heiskanen@fmi.fi> - 15.4.23-1.fmi
 - Enabled contouring again!
+
 * Tue Mar 31 2015 Mika Heiskanen <mika.heiskanen@fmi.fi> - 15.3.30-1.fmi
 - Use dynamic linking of smartmet libraries
 - MIRWA-1070
 - LENTOSAA-1010
 - MIRWA-839
+
 * Thu Jan 15 2015 Mikko Visa <mikko.visa@fmi.fi> - 15.1.15-1.fmi
 - Rebuild for RHEL7
+
 * Wed Jan 7 2015 Pertti Kinnia <pertti.kinnia@fmi.fi> - 15.1.7-1.fmi
 - MIRWA-1056; Lopputuotteiden puolustusvoimien kartoissa ongelma (viivamaiset)
 - LENTOSAA-1008; Frontier kaatuu piirrettäessä pilviä 3.5 km lopputuotteeseen
 - MIRWA-1051; placing symbols primarily horizontally (ncols >= nrows)
+
 * Wed Dec 17 2014 Pertti Kinnia <pertti.kinnia@fmi.fi>) - 14.12.17-1.fmi
 - using separate factors for adjusting calculated text width/height
 - MIRWA-1051: (single point warning areas not yet gracefully handled)
 - MIRWA-1044: lämpötilan vaihteluvälin raja-arvojen tulostusjärjestyksen ohjaus
 - calculated text width/height differs from rendered result (batik ?), adjusting by a factor to avoid exceeding limits
+
 * Wed Nov 19 2014 Mikko Visa <mikko.visa@fmi.fi> - 14.11.19-1.fmi
 -using the center of the top edge as starting point to get symmetrical (ends to the) result curve for a single elevat
 -in addition to the selected position storing free half and 1/4 timestep offset positions to be used instead if marke
@@ -142,14 +151,19 @@ rm -rf $RPM_BUILD_ROOT
 -generating css class for each surface info text instead of one common class
 -surface info text placement (within or outside the area), text splitting accuracy improved (using line extent instea
 -fill symbol positioning improved for ParameterValueSetArea (warning areas)
+
 * Thu Oct 30 2014 Mika Heiskanen <mika.heiskanen@fmi.fi> - 14.10.30-2.fmi
 - Improved contour labeling algorithm
+
 * Thu Oct 30 2014 Mika Heiskanen <mika.heiskanen@fmi.fi> - 14.10.30-1.fmi
 - Added contour label support
+
 * Wed Oct 29 2014 Santeri Oksman <santeri.oksman@fmi.fi> - 14.10.29-1.fmi
 - New release to enable contouring
+
 * Wed Oct 22 2014 Santeri Oksman <santeri.oksman@fmi.fi> - 14.10.22-1.fmi
 - Added possibility to use inline images with <use> tags and to scale those images (MIRWA-998)
+
 * Mon Apr 14 2014 Mikko Visa <mikko.visa@fmi.fi> - 14.4.14-1.fmi
 -LENTOSAA-914
 -LENTOSAA-899; fixed css class names for turbulence
@@ -180,6 +194,7 @@ rm -rf $RPM_BUILD_ROOT
 -new features and fixes; LENTOSAA-734,762,773,795,800,808,837,840,852,876
 -using PreProcessor to enable usage of defined constants and include templates
 -LENTOSAA-769, LENTOSAA-792
+
 * Thu Nov 28 2013 Mikko Visa <mikko.visa@fmi.fi> - 13.11.28-1.fmi
 - modifications to support elevation hole handling (not complete)
 - code cleanup; using common method scaledCurvePositions() to get curve points for bezier creation
@@ -188,19 +203,27 @@ rm -rf $RPM_BUILD_ROOT
 - https://jira.fmi.fi:8443/LENTOSAA-753
 - https://jira.fmi.fi:8443/LENTOSAA-754
 - https://jira.fmi.fi:8443/LENTOSAA-687
+
 * Wed Jul  3 2013 Mika Heiskanen <mika.heiskanen@fmi.fi> 13.7.3-1.fmi
 - Update to boost 1.54
+
 * Wed Feb 27 2013 Mikko Visa <mikko.visa@fmi.fi> - 13.2.27-1.fmi
 - Using svgescape for header texts
+
 * Tue Aug  7 2012 Mika Heiskanen <mika.heiskanen@fmi.fi> - 12.8.7-1.fmi
 - RHEL6 recompile
+
 * Fri Jun  1 2012 Mikko Visa <mikko.visa@fmi.fi> - 12.6.1-1.fmi
 - First version supporting WOML schema instead of metobjects schema.
+
 * Fri Sep 23 2011 Mika Heiskanen <mika.heiskanen@fmi.fi> - 11.9.23-1.fmi
 - Added detection fro empty grids
+
 * Fri Sep 16 2011 Mika Heiskanen <mika.heiskanen@fmi.fi> - 11.9.16-1.fmi
 - Added possibility to configure model paths
+
 * Tue Aug  2 2011 Mika Heiskanen <mika.heiskanen@fmi.fi> - 11.8.2-1.fmi
 - Ported to use boost 1.46
+
 * Wed Apr  7 2010 Mika Heiskanen <mika.heiskanen@fmi.fi> - 10.4.7-1.fmi
 - Initial build

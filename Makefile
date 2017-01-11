@@ -1,17 +1,85 @@
-LIB = frontier
-PROG = frontier
+MODULE = frontier
+SPEC = smartmet-frontier
 
-# Using 'scons' for building (make clean|release|debug|profile)
-#
-#
-# To build serially (helps get the error messages right): make debug SCONS_FLAGS=""
+MAINFLAGS = -MMD -Wall -W -Wno-unused-parameter
 
-# SCONS_FLAGS=-j 4
-SCONS_FLAGS=
+ifeq (6, $(RHEL_VERSION))
+  MAINFLAGS += -std=c++0x
+else
+  MAINFLAGS += -std=c++11 -fdiagnostics-color=always
+endif
+
+EXTRAFLAGS = \
+	-Winline \
+	-Wpointer-arith \
+	-Wcast-qual \
+	-Wcast-align \
+	-Wwrite-strings \
+	-Wnon-virtual-dtor \
+	-Wno-pmf-conversions \
+	-Wsign-promo \
+	-Wchar-subscripts \
+	-Wredundant-decls \
+	-Woverloaded-virtual
+
+DIFFICULTFLAGS = \
+	-Wunreachable-code \
+	-Wconversion \
+	-Wctor-dtor-privacy \
+	-Weffc++ \
+	-Wold-style-cast \
+	-pedantic \
+	-Wshadow
+
+CC = g++
+
+# Default compiler flags
+
+DEFINES = -DUNIX
+
+CFLAGS = $(DEFINES) -O2 -DNDEBUG $(MAINFLAGS)
+LDFLAGS = 
+
+# Special modes
+
+CFLAGS_DEBUG = $(DEFINES) -O0 -g $(MAINFLAGS) $(EXTRAFLAGS)
+CFLAGS_PROFILE = $(DEFINES) -O2 -g -pg -DNDEBUG $(MAINFLAGS)
+
+LDFLAGS_DEBUG =
+LDFLAGS_PROFILE =
+
+INCLUDES = -I$(includedir) \
+	-I$(includedir)/smartmet \
+	-I$(includedir)/smartmet/newbase \
+	-I$(includedir)/smartmet/macgyver \
+	-I$(includedir)/smartmet/woml \
+	-I$(includedir)/smartmet/tron \
+	`pkg-config --cflags cairo` \
+	`pkg-config --cflags xerces-c` \
+	`pkg-config --cflags libconfig++`
+
+
+LIBS = -L$(libdir) \
+	-lsmartmet-newbase \
+	-lsmartmet-macgyver \
+	-lsmartmet-woml \
+	-lboost_program_options \
+	-lboost_iostreams \
+	-lboost_filesystem \
+	-lboost_regex \
+	-lboost_date_time \
+	-lboost_system \
+	-lgeos \
+	-lxqilla \
+	`pkg-config --libs cairo` \
+	`pkg-config --libs xerces-c` \
+	`pkg-config --libs libconfig++`
+
+# Common library compiling template
 
 # Installation directories
 
-prosessor := $(shell uname -p)
+processor := $(shell uname -p)
 
 ifeq ($(origin PREFIX), undefined)
   PREFIX = /usr
@@ -19,14 +87,14 @@ else
   PREFIX = $(PREFIX)
 endif
 
-ifeq ($(prosessor), x86_64)
+ifeq ($(processor), x86_64)
   libdir = $(PREFIX)/lib64
 else
   libdir = $(PREFIX)/lib
 endif
 
-includedir = $(PREFIX)/include/smartmet
 objdir = obj
+includedir = $(PREFIX)/include
 
 ifeq ($(origin BINDIR), undefined)
   bindir = $(PREFIX)/bin
@@ -36,54 +104,76 @@ endif
 
 # rpm variables
 
-#rpmsourcedir=/tmp/$(shell whoami)/rpmbuild
-rpmsourcedir=${HOME}/rpmbuild
-rpmerr = "There's no spec file ($(LIB).spec). RPM wasn't created. Please make a spec file or copy and rename it into $(LIB).spec"
+rpmsourcedir=/tmp/$(shell whoami)/rpmbuild
 
-rpmversion := $(shell grep "^Version:" $(LIB).spec  | cut -d\  -f 2 | tr . _)
-rpmrelease := $(shell grep "^Release:" $(LIB).spec  | cut -d\  -f 2 | tr . _)
+rpmexcludevcs := $(shell tar --help | grep -m 1 -o -- '--exclude-vcs')
 
-# What to install
+# Special modes
 
-LIBFILE = libsmartmet_$(LIB).a
+ifneq (,$(findstring debug,$(MAKECMDGOALS)))
+  CFLAGS = $(CFLAGS_DEBUG)
+  LDFLAGS = $(LDFLAGS_DEBUG)
+endif
+
+ifneq (,$(findstring profile,$(MAKECMDGOALS)))
+  CFLAGS = $(CFLAGS_PROFILE)
+  LDFLAGS = $(LDFLAGS_PROFILE)
+endif
+
+# Compilation directories
+
+vpath %.cpp source main
+vpath %.h include
+vpath %.o $(objdir)
+vpath %.d $(objdir)
 
 # How to install
 
 INSTALL_PROG = install -m 775
 INSTALL_DATA = install -m 664
 
+# The files to be compiled
+
+HDRS = $(patsubst include/%,%,$(wildcard *.h include/*.h))
+
+MAINSRCS     = $(patsubst main/%,%,$(wildcard main/*.cpp))
+MAINPROGS    = $(MAINSRCS:%.cpp=%)
+MAINOBJS     = $(MAINSRCS:%.cpp=%.o)
+MAINOBJFILES = $(MAINOBJS:%.o=obj/%.o)
+
+SRCS     = $(patsubst source/%,%,$(wildcard source/*.cpp))
+OBJS     = $(SRCS:%.cpp=%.o)
+OBJFILES = $(OBJS:%.o=obj/%.o)
+
+INCLUDES := -Iinclude $(INCLUDES)
+
+# For make depend:
+
+ALLSRCS = $(wildcard main/*.cpp source/*.cpp)
+
 .PHONY: test rpm
 
-#
 # The rules
-#
-SCONS_FLAGS += objdir=$(objdir)
 
-all release:
-	scons $(SCONS_FLAGS)
+all: objdir $(MAINPROGS)
+debug: objdir $(MAINPROGS)
+release: objdir $(MAINPROGS)
+profile: objdir $(MAINPROGS)
 
-debug:
-	scons $(SCONS_FLAGS) debug=1
-
-profile:
-	scons $(SCONS_FLAGS) profile=1
+.SECONDEXPANSION:
+$(MAINPROGS): % : $(OBJS) %.o 
+	$(CC) $(LDFLAGS) -o $@ obj/$@.o $(OBJFILES) $(LIBS)
 
 clean:
-	@#scons -c objdir=$(objdir)
-	-rm -f $(LIBFILE) *~ source/*~ include/*~ *.o $(PROG) .sconsign.dblite
-	-rm -rf $(objdir)
+	rm -f $(MAINPROGS) $(OBJFILES) $(MAINOBJFILES)*~ source/*~ include/*~
+	rm -f obj/*.d
+
+format:
+	clang-format -i -style=file include/*.h source/*.cpp main/*.cpp
 
 install:
-	@mkdir -p $(includedir)/$(LIB)
-	@list=`cd include && ls -1 *.h`; \
-	for hdr in $$list; do \
-	  echo $(INSTALL_DATA) include/$$hdr $(includedir)/$(LIB)/$$hdr; \
-	  $(INSTALL_DATA) include/$$hdr $(includedir)/$(LIB)/$$hdr; \
-	done
-	@mkdir -p $(libdir)
-	$(INSTALL_DATA) $(LIBFILE) $(libdir)/$(LIBFILE)
 	mkdir -p $(bindir)
-	@list='$(PROG)'; \
+	@list='$(MAINPROGS)'; \
 	for prog in $$list; do \
 	  echo $(INSTALL_PROG) $$prog $(bindir)/$$prog; \
 	  $(INSTALL_PROG) $$prog $(bindir)/$$prog; \
@@ -92,32 +182,24 @@ install:
 test:
 	cd test && make test
 
-format:
-	clang-format -i -style=file include/*.h source/*.cpp
-
-html:
-	mkdir -p /data/local/html/lib/$(LIB)
-	doxygen $(LIB).dox
+objdir:
+	@mkdir -p $(objdir)
 
 rpm: clean
-	if [ -e $(LIB).spec ]; \
+	@if [ -a $(SPEC).spec ]; \
 	then \
-	  tar --exclude-vcs -C ../ -cf $(rpmsourcedir)/smartmet-$(LIB).tar $(LIB) ; \
-	  gzip -f $(rpmsourcedir)/smartmet-$(LIB).tar ; \
-	  TAR_OPTIONS=--wildcards rpmbuild -ta $(rpmsourcedir)/smartmet-$(LIB).tar.gz ; \
+	  mkdir -p $(rpmsourcedir) ; \
+	  tar $(rpmexcludevcs) -C ../ -cf $(rpmsourcedir)/$(SPEC).tar $(MODULE) ; \
+	  gzip -f $(rpmsourcedir)/$(SPEC).tar ; \
+	  TAR_OPTIONS=--wildcards rpmbuild -ta $(rpmsourcedir)/$(SPEC).tar.gz ; \
+	  rm -f $(rpmsourcedir)/$(SPEC).tar.gz ; \
 	else \
-	  echo $(rpmerr); \
+	  echo $(SPEC).spec missing; \
 	fi;
 
-tag:
-	cvs -f tag '$(LIB)_$(rpmversion)-$(rpmrelease)' .
+.SUFFIXES: $(SUFFIXES) .cpp
 
-headertest:
-	@echo "Checking self-sufficiency of each header:"
-	@echo
-	@for hdr in $(HDRS); do \
-	echo $$hdr; \
-	echo "#include \"$$hdr\"" > /tmp/$(LIB).cpp; \
-	echo "int main() { return 0; }" >> /tmp/$(LIB).cpp; \
-	$(CC) $(CFLAGS) $(INCLUDES) -o /dev/null /tmp/$(LIB).cpp $(LIBS); \
-	done
+.cpp.o:
+	$(CC) $(CFLAGS) $(INCLUDES) -c -o $(objdir)/$@ $<
+
+-include obj/*.d
