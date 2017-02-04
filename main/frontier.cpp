@@ -36,11 +36,11 @@
 #define NEWLIBCONFIG 0
 
 #if !(NEWLIBCONFIG)
- #include <boost/lexical_cast.hpp>
- #include <fstream>
- #include <stdexcept>
- #include <sys/types.h>
- #include <unistd.h>
+#include <boost/lexical_cast.hpp>
+#include <fstream>
+#include <stdexcept>
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
 // ----------------------------------------------------------------------
@@ -49,18 +49,23 @@
  */
 // ----------------------------------------------------------------------
 
-std::string readfile(const std::string & fileName,
-					 const std::string defineDirective = "#define",
-					 const std::string includeDirective = "#include",
-					 const std::string & includePathDefine = "INCLUDEPATH",
-					 const std::string includeFileExtension = "tpl")
+std::string readfile(const std::string& fileName,
+                     const std::string defineDirective = "#define",
+                     const std::string includeDirective = "#include",
+                     const std::string& includePathDefine = "INCLUDEPATH",
+                     const std::string includeFileExtension = "tpl")
 {
-  const bool stripPound = false,stripDoubleSlash = false;
+  const bool stripPound = false, stripDoubleSlash = false;
 
-  PreProcessor processor(defineDirective,includeDirective,includePathDefine,includeFileExtension,stripPound,stripDoubleSlash);
+  PreProcessor processor(defineDirective,
+                         includeDirective,
+                         includePathDefine,
+                         includeFileExtension,
+                         stripPound,
+                         stripDoubleSlash);
 
-  if(!processor.ReadAndStripFile(fileName))
-	throw std::runtime_error("Preprocessor failed to read '"+fileName+"'");
+  if (!processor.ReadAndStripFile(fileName))
+    throw std::runtime_error("Preprocessor failed to read '" + fileName + "'");
 
   return processor.GetString();
 }
@@ -71,11 +76,11 @@ std::string readfile(const std::string & fileName,
  */
 // ----------------------------------------------------------------------
 
-void writefile(const std::string & filename, const std::string & contents)
+void writefile(const std::string& filename, const std::string& contents)
 {
   std::ofstream out(filename.c_str());
-  if(!out)
-	throw std::runtime_error("Failed to open '"+filename+"' for writing");
+  if (!out)
+    throw std::runtime_error("Failed to open '" + filename + "' for writing");
   out << contents;
   out.close();
 }
@@ -84,27 +89,24 @@ void writefile(const std::string & filename, const std::string & contents)
 /*!
  * \brief Read the configuration string
  */
-// ---------------------------------------------------------------------- 
+// ----------------------------------------------------------------------
 
-void readconfig(libconfig::Config & config,
-				const std::string & contents)
+void readconfig(libconfig::Config& config, const std::string& contents)
 {
 #if NEWLIBCONFIG
   config.readString(contents);
 #else
-  std::string filename = ("/tmp/frontier_"
-						  + boost::lexical_cast<std::string>(getpid())
-						  + ".cnf");
+  std::string filename = ("/tmp/frontier_" + boost::lexical_cast<std::string>(getpid()) + ".cnf");
   std::ofstream out(filename.c_str());
-  if(!out)
-	throw std::runtime_error("Failed to open '"+filename+"' for writing");
+  if (!out)
+    throw std::runtime_error("Failed to open '" + filename + "' for writing");
   out << contents;
   out.close();
 
   config.readFile(filename.c_str());
 
-  if(unlink(filename.c_str()) != 0)
-	throw std::runtime_error("Failed to delete '"+filename+"'");
+  if (unlink(filename.c_str()) != 0)
+    throw std::runtime_error("Failed to delete '" + filename + "'");
 #endif
 }
 
@@ -114,14 +116,14 @@ void readconfig(libconfig::Config & config,
  */
 // ----------------------------------------------------------------------
 
-boost::shared_ptr<NFmiArea> readprojection(const std::string & filename)
+boost::shared_ptr<NFmiArea> readprojection(const std::string& filename)
 {
   const bool strip_pound = false;
   NFmiPreProcessor processor(strip_pound);
-  processor.SetIncluding("include","","");
+  processor.SetIncluding("include", "", "");
   processor.SetDefine("#define");
-  if(!processor.ReadAndStripFile(filename))
-	throw std::runtime_error("Preprocessor failed to read '"+filename+"'");
+  if (!processor.ReadAndStripFile(filename))
+    throw std::runtime_error("Preprocessor failed to read '" + filename + "'");
 
   std::string text = processor.GetString();
   std::istringstream script(text);
@@ -129,22 +131,23 @@ boost::shared_ptr<NFmiArea> readprojection(const std::string & filename)
   boost::shared_ptr<NFmiArea> area;
 
   std::string token;
-  while(script >> token)
-        {
-          if(token == "#")
-			script.ignore(1000000,'\n');
-          else if(token == "projection")
-			{
-			  script >> token;
-			  area = NFmiAreaFactory::Create(token);
-			  break;
-			}
-          else
-			;
-        }
-  
-  if(!area)
-	throw std::runtime_error("Failed to find a projection from '"+filename+"'");
+  while (script >> token)
+  {
+    if (token == "#")
+      script.ignore(1000000, '\n');
+    else if (token == "projection")
+    {
+      script >> token;
+      area = NFmiAreaFactory::Create(token);
+      break;
+    }
+    else
+    {
+    }
+  }
+
+  if (!area)
+    throw std::runtime_error("Failed to find a projection from '" + filename + "'");
 
   return area;
 }
@@ -155,20 +158,19 @@ boost::shared_ptr<NFmiArea> readprojection(const std::string & filename)
  */
 // ----------------------------------------------------------------------
 
-std::string extract_section(const std::string & str,
-							const std::string & startdelim,
-							const std::string & enddelim)
+std::string extract_section(const std::string& str,
+                            const std::string& startdelim,
+                            const std::string& enddelim)
 {
   std::string::size_type pos1 = str.find(startdelim);
-  if(pos1 == std::string::npos)
-	return "";
+  if (pos1 == std::string::npos)
+    return "";
 
-  std::string::size_type pos2 = str.find(enddelim,pos1);
-  if(pos2 == std::string::npos)
-	return "";
+  std::string::size_type pos2 = str.find(enddelim, pos1);
+  if (pos2 == std::string::npos)
+    return "";
 
-  return str.substr(pos1+startdelim.size(),
-					pos2-pos1-startdelim.size());
+  return str.substr(pos1 + startdelim.size(), pos2 - pos1 - startdelim.size());
 }
 
 // ----------------------------------------------------------------------
@@ -177,25 +179,25 @@ std::string extract_section(const std::string & str,
  */
 // ----------------------------------------------------------------------
 
-std::string remove_sections(const std::string & str,
-							const std::string & startdelim,
-							const std::string & enddelim)
+std::string remove_sections(const std::string& str,
+                            const std::string& startdelim,
+                            const std::string& enddelim)
 {
   std::string ret = str;
-  while(true)
-	{
-	  std::string::size_type pos1 = ret.find(startdelim);
-	  if(pos1 == std::string::npos)
-		return ret;
+  while (true)
+  {
+    std::string::size_type pos1 = ret.find(startdelim);
+    if (pos1 == std::string::npos)
+      return ret;
 
-	  std::string::size_type pos2 = ret.find(enddelim,pos1);
-	  if(pos2 == std::string::npos)
-		return ret;
-	  
-	  std::string part1 = ret.substr(0,pos1);
-	  std::string part2 = ret.substr(pos2+enddelim.size(),ret.size());
-	  ret = part1+part2;
-	}
+    std::string::size_type pos2 = ret.find(enddelim, pos1);
+    if (pos2 == std::string::npos)
+      return ret;
+
+    std::string part1 = ret.substr(0, pos1);
+    std::string part2 = ret.substr(pos2 + enddelim.size(), ret.size());
+    ret = part1 + part2;
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -207,16 +209,17 @@ std::string remove_sections(const std::string & str,
 typedef std::set<boost::posix_time::ptime> ValidTimes;
 
 template <typename T>
-ValidTimes extract_valid_times(const T & collection)
+ValidTimes extract_valid_times(const T& collection)
 {
   ValidTimes times;
 
-  BOOST_FOREACH(const woml::Feature & f, collection) {
-	const boost::optional<boost::posix_time::ptime> theTime = f.validTime();
+  BOOST_FOREACH (const woml::Feature& f, collection)
+  {
+    const boost::optional<boost::posix_time::ptime> theTime = f.validTime();
 
-	// Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
+    // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
-    if (theTime && (! (theTime->is_not_a_date_time())))
+    if (theTime && (!(theTime->is_not_a_date_time())))
       times.insert(*theTime);
   }
 
@@ -229,16 +232,14 @@ ValidTimes extract_valid_times(const T & collection)
  */
 // ----------------------------------------------------------------------
 
-boost::posix_time::ptime to_ptime(const NFmiMetTime & theTime)
+boost::posix_time::ptime to_ptime(const NFmiMetTime& theTime)
 {
-  boost::gregorian::date date(theTime.GetYear(),
-                              theTime.GetMonth(),
-                              theTime.GetDay());
-  
+  boost::gregorian::date date(theTime.GetYear(), theTime.GetMonth(), theTime.GetDay());
+
   boost::posix_time::ptime utc(date,
-                               boost::posix_time::hours(theTime.GetHour())+
-                               boost::posix_time::minutes(theTime.GetMin())+
-                               boost::posix_time::seconds(theTime.GetSec()));
+                               boost::posix_time::hours(theTime.GetHour()) +
+                                   boost::posix_time::minutes(theTime.GetMin()) +
+                                   boost::posix_time::seconds(theTime.GetSec()));
   return utc;
 }
 
@@ -250,48 +251,43 @@ boost::posix_time::ptime to_ptime(const NFmiMetTime & theTime)
  */
 // ----------------------------------------------------------------------
 
-boost::shared_ptr<NFmiQueryData>
-search_model_origintime(const frontier::Options & options,
-						const std::string & path,
-						const boost::posix_time::ptime & origintime)
+boost::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& options,
+                                                         const std::string& path,
+                                                         const boost::posix_time::ptime& origintime)
 {
   namespace fs = boost::filesystem;
 
-  if(!fs::exists(path))
-	throw std::runtime_error("Path '"+path+"' does not exist");
+  if (!fs::exists(path))
+    throw std::runtime_error("Path '" + path + "' does not exist");
 
-  if(!fs::is_directory(path))
-	throw std::runtime_error("Path '"+path+"' is not a directory");
+  if (!fs::is_directory(path))
+    throw std::runtime_error("Path '" + path + "' is not a directory");
 
   fs::directory_iterator end_dir;
-  for(fs::directory_iterator dirptr(path); dirptr!=end_dir; ++dirptr)
-	{
-	  if(!fs::is_regular_file(dirptr->status()))
-		continue;
+  for (fs::directory_iterator dirptr(path); dirptr != end_dir; ++dirptr)
+  {
+    if (!fs::is_regular_file(dirptr->status()))
+      continue;
 
-	  try
-		{
-		  NFmiQueryInfo qi(dirptr->path().string());
+    try
+    {
+      NFmiQueryInfo qi(dirptr->path().string());
 
-		  if(to_ptime(qi.OriginTime()) == origintime)
-			{
-			  if(options.debug)
-				std::cerr << "File '"
-						  << dirptr->path()
-						  << "' matched origin time "
-						  << to_simple_string(origintime)
-						  << std::endl;
+      if (to_ptime(qi.OriginTime()) == origintime)
+      {
+        if (options.debug)
+          std::cerr << "File '" << dirptr->path() << "' matched origin time "
+                    << to_simple_string(origintime) << std::endl;
 
-			  return boost::shared_ptr<NFmiQueryData>(new NFmiQueryData(dirptr->path().string()));
-			}
-		}
-	  catch(...)
-		{
-		}
-	}
+        return boost::shared_ptr<NFmiQueryData>(new NFmiQueryData(dirptr->path().string()));
+      }
+    }
+    catch (...)
+    {
+    }
+  }
 
   return boost::shared_ptr<NFmiQueryData>();
-
 }
 
 // ----------------------------------------------------------------------
@@ -307,48 +303,45 @@ search_model_origintime(const frontier::Options & options,
 
 #ifdef CONTOURING
 
-boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options,
-											   const libconfig::Config & config,
-											   const woml::DataSource & source)
+boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
+                                               const libconfig::Config& config,
+                                               const woml::DataSource& source)
 {
   boost::shared_ptr<NFmiQueryData> ret;
 
-  if(!source.numericalModelRun())
-	return ret;
+  if (!source.numericalModelRun())
+    return ret;
 
   // Shorthand help variables
 
-  const std::string & name = source.numericalModelRun()->name();
-  const boost::posix_time::ptime & origintime = source.numericalModelRun()->analysisTime();
+  const std::string& name = source.numericalModelRun()->name();
+  const boost::posix_time::ptime& origintime = source.numericalModelRun()->analysisTime();
 
   if (name.find_first_not_of(" ") == std::string::npos)
-	return ret;
+    return ret;
 
-  std::string path = frontier::lookup<std::string>(config,"models."+name);
+  std::string path = frontier::lookup<std::string>(config, "models." + name);
 
-  if(path.empty())
-	{
-	  if(options.debug)
-		{
-		  if(options.verbose)
-			std::cerr << "Ignoring unknown model '" + name +"'" << std::endl;
-		  return ret;
-		}
-	  else
-		{
-		  throw std::runtime_error("Unknown model called '"+name+"' in WOML data");
-		}
-	}
+  if (path.empty())
+  {
+    if (options.debug)
+    {
+      if (options.verbose)
+        std::cerr << "Ignoring unknown model '" + name + "'" << std::endl;
+      return ret;
+    }
+    else
+    {
+      throw std::runtime_error("Unknown model called '" + name + "' in WOML data");
+    }
+  }
 
-  ret = search_model_origintime(options,path,origintime);
+  ret = search_model_origintime(options, path, origintime);
 
-  if(!ret)
-	throw std::runtime_error("Numerical model '"
-							 + name
-							 + "' referenced in data for origin time "
-							 + to_simple_string(origintime)
-							 + " was not found from directory "
-							 + path);
+  if (!ret)
+    throw std::runtime_error("Numerical model '" + name + "' referenced in data for origin time " +
+                             to_simple_string(origintime) + " was not found from directory " +
+                             path);
 
   return ret;
 }
@@ -361,14 +354,19 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options & options
  */
 // ----------------------------------------------------------------------
 
-int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string & outfile, bool & debug, std::ostringstream & debugoutput)
+int run(int argc,
+        char* argv[],
+        boost::shared_ptr<NFmiArea>& area,
+        std::string& outfile,
+        bool& debug,
+        std::ostringstream& debugoutput)
 {
   frontier::Options options;
 
   outfile.clear();
   debug = false;
 
-  if(!parse_options(argc,argv,options))
+  if (!parse_options(argc, argv, options))
     return 0;
 
   outfile = options.outfile;
@@ -380,87 +378,91 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
   // --DEBUGOUTPUT-- placeholder in the template sets debug mode
 
   if (!options.debug)
-	  options.debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
+    options.debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
 
   // Establish the projection
 
-  if(boost::filesystem::is_regular_file(options.projection))
-	area = readprojection(options.projection);
+  if (boost::filesystem::is_regular_file(options.projection))
+    area = readprojection(options.projection);
   else
-	area = NFmiAreaFactory::Create(options.projection);
+    area = NFmiAreaFactory::Create(options.projection);
 
   // Parse the WOML
 
-  woml::Weather weather = woml::parse(options.womlfile,options.doctype,options.debug);
-  if(weather.empty())
-	throw std::runtime_error("No MeteorologicalAnalysis to draw");
+  woml::Weather weather = woml::parse(options.womlfile, options.doctype, options.debug);
+  if (weather.empty())
+    throw std::runtime_error("No MeteorologicalAnalysis to draw");
 
   // Extract libconfig section
 
-  std::string configstring = extract_section(svg,"<frontier>","</frontier>");
+  std::string configstring = extract_section(svg, "<frontier>", "</frontier>");
 
   // Remove comments
 
-  svg = remove_sections(svg,"<!--","-->");
-  svg = remove_sections(svg,"/*","*/");
+  svg = remove_sections(svg, "<!--", "-->");
+  svg = remove_sections(svg, "/*", "*/");
 
   // Configure
 
   libconfig::Config config;
-  readconfig(config,configstring);
+  readconfig(config, configstring);
 
   // Check what data is available
 
-  if(weather.hasAnalysis() && weather.hasForecast())
-	throw std::runtime_error("WOML data contains both analysis and forecast");
+  if (weather.hasAnalysis() && weather.hasForecast())
+    throw std::runtime_error("WOML data contains both analysis and forecast");
 
   // Extract available times
 
   ValidTimes validtimes;
 
-  if(weather.hasAnalysis())
-	validtimes = extract_valid_times(weather.analysis());
+  if (weather.hasAnalysis())
+    validtimes = extract_valid_times(weather.analysis());
   else
-	validtimes = extract_valid_times(weather.forecast());
+    validtimes = extract_valid_times(weather.forecast());
 
-  if(options.debug)
-	{
-	  std::cerr << "Available valid times:" << std::endl;
-	  BOOST_FOREACH(const boost::posix_time::ptime & validtime, validtimes)
-		std::cerr << validtime << std::endl;
-	}
+  if (options.debug)
+  {
+    std::cerr << "Available valid times:" << std::endl;
+    BOOST_FOREACH (const boost::posix_time::ptime& validtime, validtimes)
+      std::cerr << validtime << std::endl;
+  }
 
-  if(validtimes.size() != 1)
-	throw std::runtime_error("Currently only one valid time can be rendered");
+  if (validtimes.size() != 1)
+    throw std::runtime_error("Currently only one valid time can be rendered");
 
   boost::posix_time::ptime validtime = *validtimes.begin();
 
-  // Determine respective numerical model
-  //
-  // == Model not used anymore; background data is handled by frontier frontend ==
+// Determine respective numerical model
+//
+// == Model not used anymore; background data is handled by frontier frontend ==
 
 #ifdef CONTOURING
 
   boost::shared_ptr<NFmiQueryData> qd;
 
-  if (!options.nocontours) {
-    const woml::DataSource & dataSource = weather.analysis().dataSource();
+  if (!options.nocontours)
+  {
+    const woml::DataSource& dataSource = weather.analysis().dataSource();
 
-    if(weather.hasAnalysis())
-  	  qd = resolve_model(options,config,dataSource);
+    if (weather.hasAnalysis())
+      qd = resolve_model(options, config, dataSource);
     else
-  	  qd = resolve_model(options,config,dataSource);
+      qd = resolve_model(options, config, dataSource);
 
-    if (!qd) {
-  	  options.nocontours = true;
+    if (!qd)
+    {
+      options.nocontours = true;
 
-	  if (options.verbose) {
-	    const boost::optional<woml::NumericalModelRun> & modelRun = dataSource.numericalModelRun();
-	    const std::string & modelName = (modelRun ? modelRun->name() : "");
-	    const std::string & name = ((modelName.find_first_not_of(" ") != std::string::npos) ? modelName : "?");
+      if (options.verbose)
+      {
+        const boost::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
+        const std::string& modelName = (modelRun ? modelRun->name() : "");
+        const std::string& name =
+            ((modelName.find_first_not_of(" ") != std::string::npos) ? modelName : "?");
 
-	    std::cerr << "Contouring omitted; model (" << name << ") not available" << std::endl;
-	  }
+        std::cerr << "Contouring omitted; model (" << name << ") not available" << std::endl;
+      }
     }
   }
 
@@ -473,7 +475,7 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
   // Render contours
 
   if (!options.nocontours)
-    renderer.contour(qd,validtime);
+    renderer.contour(qd, validtime);
 
 #endif
 
@@ -489,65 +491,73 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
 
   bool analysis = weather.hasAnalysis();
 
-  std::list<woml::TargetRegion>::const_iterator trbeg(analysis ? weather.analysis().TargetRegions_begin() : weather.forecast().TargetRegions_begin());
-  std::list<woml::TargetRegion>::const_iterator trend(analysis ? weather.analysis().TargetRegions_end() : weather.forecast().TargetRegions_end());
+  std::list<woml::TargetRegion>::const_iterator trbeg(
+      analysis ? weather.analysis().TargetRegions_begin()
+               : weather.forecast().TargetRegions_begin());
+  std::list<woml::TargetRegion>::const_iterator trend(
+      analysis ? weather.analysis().TargetRegions_end() : weather.forecast().TargetRegions_end());
 
-  std::list<std::pair<std::string,std::string> >::const_iterator lnbeg(trbeg->LocalizedNames_begin());
-  std::list<std::pair<std::string,std::string> >::const_iterator lnend(trbeg->LocalizedNames_end());
-  std::list<std::pair<std::string,std::string> >::const_iterator ribeg(trbeg->RegionIds_begin());
-  std::list<std::pair<std::string,std::string> >::const_iterator riend(trbeg->RegionIds_end());
+  std::list<std::pair<std::string, std::string> >::const_iterator lnbeg(
+      trbeg->LocalizedNames_begin());
+  std::list<std::pair<std::string, std::string> >::const_iterator lnend(
+      trbeg->LocalizedNames_end());
+  std::list<std::pair<std::string, std::string> >::const_iterator ribeg(trbeg->RegionIds_begin());
+  std::list<std::pair<std::string, std::string> >::const_iterator riend(trbeg->RegionIds_end());
 
   std::string regionName((lnbeg != lnend) ? lnbeg->second : "");
   std::string regionId((ribeg != riend) ? ribeg->second : "");
 
   std::string creator(analysis ? weather.analysis().creator() : weather.forecast().creator());
 
-  renderer.render_header(validtime,
-		  	  	  	  	 (analysis ? weather.analysis().validTime() : weather.forecast().validTime()),
-					     (analysis ? weather.analysis().analysisTime() : weather.forecast().forecastTime()),
-					     (analysis ? weather.analysis().creationTime() : weather.forecast().creationTime()),
-					     (analysis ? weather.analysis().latestModificationTime() : weather.forecast().latestModificationTime()),
-					     regionName,
-					     regionId,
-					     creator
-					    );
+  renderer.render_header(
+      validtime,
+      (analysis ? weather.analysis().validTime() : weather.forecast().validTime()),
+      (analysis ? weather.analysis().analysisTime() : weather.forecast().forecastTime()),
+      (analysis ? weather.analysis().creationTime() : weather.forecast().creationTime()),
+      (analysis ? weather.analysis().latestModificationTime()
+                : weather.forecast().latestModificationTime()),
+      regionName,
+      regionId,
+      creator);
 
   // Render woml.
   // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
-  if(weather.hasAnalysis())
-	{
-	  BOOST_FOREACH(const woml::Feature & feature, weather.analysis()) {
-		const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
+  if (weather.hasAnalysis())
+  {
+    BOOST_FOREACH (const woml::Feature& feature, weather.analysis())
+    {
+      const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
 
-		if(theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-		  feature.visit(renderer);
-	  }
-	}
+      if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
+        feature.visit(renderer);
+    }
+  }
   else
-	{
-	  BOOST_FOREACH(const woml::Feature & feature, weather.forecast()) {
-		const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
+  {
+    BOOST_FOREACH (const woml::Feature& feature, weather.forecast())
+    {
+      const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
 
-		if(theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-		  feature.visit(renderer);
-	  }
-	}
+      if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
+        feature.visit(renderer);
+    }
+  }
 
   // Output
 
-  if(options.outfile != "-")
-	{
-	  if(options.verbose)
-		std::cerr << "Writing " << options.outfile << std::endl;
-	  writefile(options.outfile,renderer.svg());
-	}
+  if (options.outfile != "-")
+  {
+    if (options.verbose)
+      std::cerr << "Writing " << options.outfile << std::endl;
+    writefile(options.outfile, renderer.svg());
+  }
   else
-	{
-	  if(options.verbose)
-		std::cerr << "Writing to stdout" << std::endl;
-	  std::cout << renderer.svg();
-	}
+  {
+    if (options.verbose)
+      std::cerr << "Writing to stdout" << std::endl;
+    std::cout << renderer.svg();
+  }
   return 0;
 }
 
@@ -559,46 +569,55 @@ int run(int argc, char * argv[], boost::shared_ptr<NFmiArea> & area, std::string
  */
 // ----------------------------------------------------------------------
 
-void generatesvg(int exitCode, const boost::shared_ptr<NFmiArea> & area, const std::string & outfile,bool debug,std::ostringstream & debugoutput)
+void generatesvg(int exitCode,
+                 const boost::shared_ptr<NFmiArea>& area,
+                 const std::string& outfile,
+                 bool debug,
+                 std::ostringstream& debugoutput)
 {
-  if (!debug) {
-	  std::cerr << debugoutput.str();
-	  exit(exitCode);
+  if (!debug)
+  {
+    std::cerr << debugoutput.str();
+    exit(exitCode);
   }
 
-  std::string sbeg("<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"--WIDTH--px\" height=\"--HEIGHT--px\" viewBox=\"0 0 --WIDTH-- --HEIGHT--\"><text x=\"10\" y=\"10\">");
+  std::string sbeg(
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" "
+      "width=\"--WIDTH--px\" height=\"--HEIGHT--px\" viewBox=\"0 0 --WIDTH-- --HEIGHT--\"><text "
+      "x=\"10\" y=\"10\">");
   std::string send("</text></svg>");
 
-  int h = static_cast<int>(std::floor(0.5+area->Height()));
-  int w = static_cast<int>(std::floor(0.5+area->Width()));
+  int h = static_cast<int>(std::floor(0.5 + area->Height()));
+  int w = static_cast<int>(std::floor(0.5 + area->Width()));
 
   std::string width = boost::lexical_cast<std::string>(w);
   std::string height = boost::lexical_cast<std::string>(h);
 
-  boost::replace_all(sbeg,"--WIDTH--",width);
-  boost::replace_all(sbeg,"--HEIGHT--",height);
+  boost::replace_all(sbeg, "--WIDTH--", width);
+  boost::replace_all(sbeg, "--HEIGHT--", height);
 
   typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
   boost::char_separator<char> sep("\n");
   std::string s(debugoutput.str());
-  tokenizer tok(s,sep);
+  tokenizer tok(s, sep);
 
   std::ostringstream output;
 
   for (tokenizer::iterator it = tok.begin(); it != tok.end(); ++it)
-	output << "<tspan x=\"10\" dy=\"20\">" << *it << "</tspan>";
+    output << "<tspan x=\"10\" dy=\"20\">" << *it << "</tspan>";
 
-  if(outfile != "-") {
-	writefile(outfile,sbeg + output.str() + send);
+  if (outfile != "-")
+  {
+    writefile(outfile, sbeg + output.str() + send);
   }
   else
-	std::cout << sbeg << output.str() << send;
+    std::cout << sbeg << output.str() << send;
 
   exit(0);
 }
 
-int main(int argc, char * argv[]) {
-
+int main(int argc, char* argv[])
+{
   std::string outfile;
   bool debug;
   std::ostringstream debugoutput;
@@ -606,27 +625,28 @@ int main(int argc, char * argv[]) {
 
   try
   {
-	run(argc,argv,area,outfile,debug,debugoutput);
-	return 0;
+    run(argc, argv, area, outfile, debug, debugoutput);
+    return 0;
   }
-  catch(libconfig::ParseException & e)
+  catch (libconfig::ParseException& e)
   {
-	debugoutput << "Frontier configuration parse error '" << e.getError() << "' at or near line " << e.getLine() << std::endl;
-	generatesvg(1,area,outfile,debug,debugoutput);
+    debugoutput << "Frontier configuration parse error '" << e.getError() << "' at or near line "
+                << e.getLine() << std::endl;
+    generatesvg(1, area, outfile, debug, debugoutput);
   }
-  catch(libconfig::ConfigException & e)
+  catch (libconfig::ConfigException& e)
   {
-	debugoutput << "Frontier configuration error" << std::endl;
-	generatesvg(2,area,outfile,debug,debugoutput);
+    debugoutput << "Frontier configuration error" << std::endl;
+    generatesvg(2, area, outfile, debug, debugoutput);
   }
-  catch(std::exception & e)
+  catch (std::exception& e)
   {
-	debugoutput << "Error: " << e.what() << std::endl;
-	generatesvg(3,area,outfile,debug,debugoutput);
+    debugoutput << "Error: " << e.what() << std::endl;
+    generatesvg(3, area, outfile, debug, debugoutput);
   }
-  catch(...)
+  catch (...)
   {
-	debugoutput << "Error: Unknown exception occurred" << std::endl;
-	generatesvg(4,area,outfile,debug,debugoutput);
+    debugoutput << "Error: Unknown exception occurred" << std::endl;
+    generatesvg(4, area, outfile, debug, debugoutput);
   }
 }

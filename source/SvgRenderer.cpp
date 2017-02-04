@@ -2194,7 +2194,8 @@ void SvgRenderer::render_surface(
                     fillSymbols.push_back(code);
 
                 if (fillSymbols.size() < areaSymbols->size())
-                  ;
+                {
+                }
               }
 
               NFmiFillRect infoTextRect(std::make_pair(Point(1, 1), Point(0, 0)));
@@ -2601,8 +2602,9 @@ void SvgRenderer::render_surface(
                     << "\"/>\n<text>\n"
                     << "<textPath class=\"" << style << "\" xlink:href=\"#" << pathId << "\">\n"
                     << glyph << "\n</textPath>"
-                    //											 << "<!--
-                    //len="
+                    //											 <<
+                    //"<!--
+                    // len="
                     //<<
                     // len << " textlength=" << textlength << " fontsize=" << fontsize << " -->"
                     << "\n</text>\n";
@@ -3688,7 +3690,7 @@ void SvgRenderer::render_symbol(const std::string &confPath,
           {
             // Note: When rendering wind symbol with wind speed, using primarily 'code' key for
             //		 symbol mapping (used conditionally to map all wind symbols to 'calm' if
-            //speed
+            // speed
             // is
             // nan)
             //
@@ -4870,7 +4872,7 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
     //		 the right end of single elevation areas tends to be taller than the left end. The
     // position half step backwards
     //		 is checked next to favour greater distance to the (given/center) primary position
-    //in
+    // in
     // case
     // another marker is already
     //		 positioned there
@@ -5566,23 +5568,27 @@ void getAreaMarkerPos(Texts &texts,
             }
             // fprintf(stderr,"\n");
 
-            //						// Note: Symbols are centered to the selected position, labels
-            //have
+            //						// Note: Symbols are centered to the selected position,
+            //labels
+            // have
             // their
             // height as the rendered y -coordinate (x is 0);
-            //						//		 adjust the position (used as tranformation offsets) for a
-            //label
+            //						//		 adjust the position (used as tranformation offsets) for
+            //a
+            // label
             // to
             // center it to the selected position
             //
             //						NFmiFillRect markerRect =
             // getCenterFillAreaRect(areas,markerWidth,1.0);
-            //						markerX.push_back(markerRect.first.x + (textOutput ?
-            //0
+            //						markerX.push_back(markerRect.first.x + (textOutput
+            //?
+            // 0
             //:
             //((markerRect.second.x - markerRect.first.x) / 2)));
-            //						markerY.push_back(markerRect.first.y + (textOutput ?
-            //0
+            //						markerY.push_back(markerRect.first.y + (textOutput
+            //?
+            // 0
             //:
             //((markerRect.second.y - markerRect.first.y) / 2)));
             //						scaleX.push_back(1.0);
@@ -5643,8 +5649,9 @@ void getAreaMarkerPos(Texts &texts,
             //
             // Note: The holes are now checked with fill areas ...
             //
-            //						n = (((_lopx[n2] - _hipx[n2]) > (_lopx[n1] - _hipx[n1])) ?
-            //n2
+            //						n = (((_lopx[n2] - _hipx[n2]) > (_lopx[n1] - _hipx[n1]))
+            //?
+            // n2
             //:
             // n1);
             //
