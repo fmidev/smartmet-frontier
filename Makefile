@@ -1,7 +1,7 @@
 MODULE = frontier
 SPEC = smartmet-frontier
 
-MAINFLAGS = -MMD -Wall -W -Wno-unused-parameter
+MAINFLAGS = -MD -Wall -W -Wno-unused-parameter
 
 ifeq (6, $(RHEL_VERSION))
   MAINFLAGS += -std=c++0x
@@ -10,6 +10,7 @@ else
 endif
 
 EXTRAFLAGS = \
+	-Werror \
 	-Winline \
 	-Wpointer-arith \
 	-Wcast-qual \
@@ -42,7 +43,7 @@ LDFLAGS =
 
 # Special modes
 
-CFLAGS_DEBUG = $(DEFINES) -O0 -g $(MAINFLAGS) $(EXTRAFLAGS)
+CFLAGS_DEBUG = $(DEFINES) -O0 -g $(MAINFLAGS) $(EXTRAFLAGS) -Werror
 CFLAGS_PROFILE = $(DEFINES) -O2 -g -pg -DNDEBUG $(MAINFLAGS)
 
 LDFLAGS_DEBUG =
@@ -155,7 +156,7 @@ release: objdir $(MAINPROGS)
 profile: objdir $(MAINPROGS)
 
 .SECONDEXPANSION:
-$(MAINPROGS): % : $(OBJS) %.o 
+$(MAINPROGS): % : obj/%.o $(OBJFILES)
 	$(CC) $(LDFLAGS) -o $@ obj/$@.o $(OBJFILES) $(LIBS)
 
 clean:
@@ -191,7 +192,7 @@ rpm: clean
 
 .SUFFIXES: $(SUFFIXES) .cpp
 
-.cpp.o:
-	$(CC) $(CFLAGS) $(INCLUDES) -c -o $(objdir)/$@ $<
+obj/%.o : %.cpp
+	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
 -include obj/*.d
