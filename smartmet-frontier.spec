@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 17.1.27
+Version: 17.2.7
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -10,13 +10,13 @@ URL: https://github.com/fmidev/smartmet-frontier
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
-BuildRequires: smartmet-library-macgyver-devel >= 16.12.20
-BuildRequires: smartmet-library-newbase-devel >= 17.1.10
-BuildRequires: smartmet-library-tron >= 17.1.4
+BuildRequires: smartmet-library-macgyver-devel >= 17.1.18
+BuildRequires: smartmet-library-newbase-devel >= 17.2.2
+BuildRequires: smartmet-library-tron >= 17.2.7
 BuildRequires: geos >= 3.4.2
 BuildRequires: smartmet-library-woml >= 17.1.4
-Requires: smartmet-library-macgyver >= 16.12.20
-Requires: smartmet-library-newbase >= 17.1.10
+Requires: smartmet-library-macgyver >= 17.1.18
+Requires: smartmet-library-newbase >= 17.2.2
 Requires: smartmet-library-woml >= 17.1.4
 Requires: cairo >= 1.12.14
 Provides: frontier
@@ -44,6 +44,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Feb  7 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.2.7-1.fmi
+- Recompiled with latest Tron fixes to isoline contouring
+
 * Fri Jan 27 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.1.27-1.fmi
 - Recompiled due to NFmiQueryData object size change
 
