@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 17.2.7
+Version: 17.2.13
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -11,12 +11,12 @@ Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel >= 1.55.0
 BuildRequires: smartmet-library-macgyver-devel >= 17.1.18
-BuildRequires: smartmet-library-newbase-devel >= 17.2.2
+BuildRequires: smartmet-library-newbase-devel >= 17.2.13
 BuildRequires: smartmet-library-tron >= 17.2.7
 BuildRequires: geos >= 3.4.2
 BuildRequires: smartmet-library-woml >= 17.1.4
 Requires: smartmet-library-macgyver >= 17.1.18
-Requires: smartmet-library-newbase >= 17.2.2
+Requires: smartmet-library-newbase >= 17.2.13
 Requires: smartmet-library-woml >= 17.1.4
 Requires: cairo >= 1.12.14
 Provides: frontier
@@ -44,6 +44,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Mon Feb 13 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.2.13-1.fmi
+- Repackaged due to newbase API changes
+
 * Tue Feb  7 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.2.7-1.fmi
 - Recompiled with latest Tron fixes to isoline contouring
 
