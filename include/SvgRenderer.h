@@ -285,6 +285,7 @@ typedef IcingGroup TurbulenceGroup;
 class CategoryValueMeasureGroup
 {
  public:
+  virtual ~CategoryValueMeasureGroup() {}
   CategoryValueMeasureGroup() : itsFirstMember(NULL) {}
   virtual bool groupMember(const woml::CategoryValueMeasure *cvm) const { return true; }
   virtual bool groupMember(bool first, const woml::CategoryValueMeasure *cvm);
