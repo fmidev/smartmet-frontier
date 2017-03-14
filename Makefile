@@ -51,10 +51,6 @@ LDFLAGS_PROFILE =
 
 INCLUDES = -I$(includedir) \
 	-I$(includedir)/smartmet \
-	-I$(includedir)/smartmet/newbase \
-	-I$(includedir)/smartmet/macgyver \
-	-I$(includedir)/smartmet/woml \
-	-I$(includedir)/smartmet/tron \
 	`pkg-config --cflags cairo` \
 	`pkg-config --cflags xerces-c` \
 	`pkg-config --cflags libconfig++`
