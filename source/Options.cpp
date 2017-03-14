@@ -5,7 +5,7 @@
 // ======================================================================
 
 #include "Options.h"
-#include "Weather.h"
+#include <woml/Weather.h>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem/operations.hpp>

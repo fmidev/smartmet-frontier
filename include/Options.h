@@ -8,7 +8,7 @@
 #define FRONTIER_OPTIONS_H
 
 #include <string>
-#include "Weather.h"
+#include <woml/Weather.h>
 
 namespace frontier
 {
