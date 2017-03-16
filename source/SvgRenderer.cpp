@@ -5568,25 +5568,31 @@ void getAreaMarkerPos(Texts &texts,
             }
             // fprintf(stderr,"\n");
 
-            //						// Note: Symbols are centered to the selected position,
-            //labels
+            //						// Note: Symbols are centered to the
+            //selected
+            // position,
+            // labels
             // have
             // their
             // height as the rendered y -coordinate (x is 0);
-            //						//		 adjust the position (used as tranformation offsets) for
-            //a
+            //						//		 adjust the position (used as tranformation
+            //offsets)
+            // for
+            // a
             // label
             // to
             // center it to the selected position
             //
             //						NFmiFillRect markerRect =
             // getCenterFillAreaRect(areas,markerWidth,1.0);
-            //						markerX.push_back(markerRect.first.x + (textOutput
+            //						markerX.push_back(markerRect.first.x +
+            //(textOutput
             //?
             // 0
             //:
             //((markerRect.second.x - markerRect.first.x) / 2)));
-            //						markerY.push_back(markerRect.first.y + (textOutput
+            //						markerY.push_back(markerRect.first.y +
+            //(textOutput
             //?
             // 0
             //:
@@ -5649,7 +5655,8 @@ void getAreaMarkerPos(Texts &texts,
             //
             // Note: The holes are now checked with fill areas ...
             //
-            //						n = (((_lopx[n2] - _hipx[n2]) > (_lopx[n1] - _hipx[n1]))
+            //						n = (((_lopx[n2] - _hipx[n2]) > (_lopx[n1] -
+            //_hipx[n1]))
             //?
             // n2
             //:
@@ -11941,7 +11948,7 @@ double SvgRenderer::getCssSize(const std::string &theCssClass,
 
   std::string num = word.substr(0, word.size() - 2);
 
-  return Fmi::number_cast<double>(num);
+  return std::stod(num);
 }
 
 // ----------------------------------------------------------------------

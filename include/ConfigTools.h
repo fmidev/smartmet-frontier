@@ -7,8 +7,6 @@
 #ifndef FRONTIER_CONFIGTOOLS_H
 #define FRONTIER_CONFIGTOOLS_H
 
-#include <smartmet/macgyver/Cast.h>
-
 #include <libconfig.h++>
 
 #include <stdexcept>
@@ -26,20 +24,83 @@ enum settings
 class SettingIdNotFoundException
 {
  public:
-  SettingIdNotFoundException(settings theId, const std::string &theMsg)
+  SettingIdNotFoundException(settings theId, const std::string& theMsg)
   {
     itsId = theId;
     itsMsg = theMsg;
   }
 
   settings id() const { return itsId; }
-  const std::string &what() const { return itsMsg; }
+  const std::string& what() const { return itsMsg; }
  private:
   SettingIdNotFoundException();
   settings itsId;
   std::string itsMsg;
 };
+// ----------------------------------------------------------------------
+/*!
+ * \brief Type information
+ */
+// ----------------------------------------------------------------------
 
+template <typename T>
+inline const char* number_name()
+{
+  return "number";
+}
+
+template <>
+inline const char* number_name<char>()
+{
+  return "char";
+}
+template <>
+inline const char* number_name<int>()
+{
+  return "int";
+}
+template <>
+inline const char* number_name<short>()
+{
+  return "short";
+}
+template <>
+inline const char* number_name<long>()
+{
+  return "long";
+}
+
+template <>
+inline const char* number_name<unsigned char>()
+{
+  return "unsigned char";
+}
+template <>
+inline const char* number_name<unsigned int>()
+{
+  return "unsigned int";
+}
+template <>
+inline const char* number_name<unsigned short>()
+{
+  return "unsigned short";
+}
+template <>
+inline const char* number_name<unsigned long>()
+{
+  return "unsigned long";
+}
+
+template <>
+inline const char* number_name<float>()
+{
+  return "float";
+}
+template <>
+inline const char* number_name<double>()
+{
+  return "double";
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Read a configuration value with proper error messages
@@ -47,28 +108,27 @@ class SettingIdNotFoundException
 // ----------------------------------------------------------------------
 
 template <typename T>
-T lookup(const libconfig::Config &config, const std::string &name)
+T lookup(const libconfig::Config& config, const std::string& name)
 {
   try
   {
     T value = config.lookup(name);
     return value;
   }
-  catch (libconfig::ConfigException &e)
+  catch (libconfig::ConfigException& e)
   {
     if (!config.exists(name))
       throw std::runtime_error("Setting for " + name + " is missing");
-    throw std::runtime_error("Failed to parse value of '" + name + "' as type " +
-                             Fmi::number_name<T>());
+    throw std::runtime_error("Failed to parse value of '" + name + "' as type " + number_name<T>());
   }
 }
 
 template <typename T>
-T lookup(const libconfig::Setting &setting,
-         const std::string &prefix,
-         const std::string &name,
+T lookup(const libconfig::Setting& setting,
+         const std::string& prefix,
+         const std::string& name,
          settings settingId = s_required,
-         bool *isSet = NULL)
+         bool* isSet = NULL)
 {
   // If 's_required' setting is not found, std::runtime_error is thrown.
   //
@@ -79,10 +139,10 @@ T lookup(const libconfig::Setting &setting,
 
   T ret = T();
   bool bSet;
-  bool *_isSet = &bSet;
-  bool **pSet = (isSet ? &isSet : &_isSet);
+  bool* _isSet = &bSet;
+  bool** pSet = (isSet ? &isSet : &_isSet);
 
-  if ((**pSet = setting.lookupValue(name, ret)) || (settingId == s_optional))
+  if ((** pSet = setting.lookupValue(name, ret)) || (settingId == s_optional))
     return ret;
 
   if (!setting.exists(name))
@@ -96,10 +156,9 @@ T lookup(const libconfig::Setting &setting,
 
   if (!prefix.empty())
     throw std::runtime_error("Failed to parse value of '" + (prefix + "." + name) + "' as type " +
-                             Fmi::number_name<T>());
+                             number_name<T>());
   else
-    throw std::runtime_error("Failed to parse value of '" + name + "' as type " +
-                             Fmi::number_name<T>());
+    throw std::runtime_error("Failed to parse value of '" + name + "' as type " + number_name<T>());
 }
 
 }  // namespace frontier
