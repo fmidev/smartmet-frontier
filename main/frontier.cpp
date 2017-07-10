@@ -6,8 +6,8 @@
 
 #include "ConfigTools.h"
 #include "Options.h"
-#include "SvgRenderer.h"
 #include "PreProcessor.h"
+#include "SvgRenderer.h"
 
 #include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/newbase/NFmiAreaFactory.h>
@@ -17,8 +17,8 @@
 #include <smartmet/woml/DataSource.h>
 #include <smartmet/woml/MeteorologicalAnalysis.h>
 #include <smartmet/woml/Parser.h>
-#include <smartmet/woml/WeatherForecast.h>
 #include <smartmet/woml/TargetRegion.h>
+#include <smartmet/woml/WeatherForecast.h>
 
 #include <libconfig.h++>
 
@@ -27,8 +27,8 @@
 #include <boost/foreach.hpp>
 #include <boost/shared_ptr.hpp>
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 
 // Does libconfig++ have readString?
@@ -37,9 +37,9 @@
 
 #if !(NEWLIBCONFIG)
 #include <boost/lexical_cast.hpp>
+#include <sys/types.h>
 #include <fstream>
 #include <stdexcept>
-#include <sys/types.h>
 #include <unistd.h>
 #endif
 
@@ -79,8 +79,7 @@ std::string readfile(const std::string& fileName,
 void writefile(const std::string& filename, const std::string& contents)
 {
   std::ofstream out(filename.c_str());
-  if (!out)
-    throw std::runtime_error("Failed to open '" + filename + "' for writing");
+  if (!out) throw std::runtime_error("Failed to open '" + filename + "' for writing");
   out << contents;
   out.close();
 }
@@ -98,8 +97,7 @@ void readconfig(libconfig::Config& config, const std::string& contents)
 #else
   std::string filename = ("/tmp/frontier_" + boost::lexical_cast<std::string>(getpid()) + ".cnf");
   std::ofstream out(filename.c_str());
-  if (!out)
-    throw std::runtime_error("Failed to open '" + filename + "' for writing");
+  if (!out) throw std::runtime_error("Failed to open '" + filename + "' for writing");
   out << contents;
   out.close();
 
@@ -146,8 +144,7 @@ boost::shared_ptr<NFmiArea> readprojection(const std::string& filename)
     }
   }
 
-  if (!area)
-    throw std::runtime_error("Failed to find a projection from '" + filename + "'");
+  if (!area) throw std::runtime_error("Failed to find a projection from '" + filename + "'");
 
   return area;
 }
@@ -163,12 +160,10 @@ std::string extract_section(const std::string& str,
                             const std::string& enddelim)
 {
   std::string::size_type pos1 = str.find(startdelim);
-  if (pos1 == std::string::npos)
-    return "";
+  if (pos1 == std::string::npos) return "";
 
   std::string::size_type pos2 = str.find(enddelim, pos1);
-  if (pos2 == std::string::npos)
-    return "";
+  if (pos2 == std::string::npos) return "";
 
   return str.substr(pos1 + startdelim.size(), pos2 - pos1 - startdelim.size());
 }
@@ -187,12 +182,10 @@ std::string remove_sections(const std::string& str,
   while (true)
   {
     std::string::size_type pos1 = ret.find(startdelim);
-    if (pos1 == std::string::npos)
-      return ret;
+    if (pos1 == std::string::npos) return ret;
 
     std::string::size_type pos2 = ret.find(enddelim, pos1);
-    if (pos2 == std::string::npos)
-      return ret;
+    if (pos2 == std::string::npos) return ret;
 
     std::string part1 = ret.substr(0, pos1);
     std::string part2 = ret.substr(pos2 + enddelim.size(), ret.size());
@@ -219,8 +212,7 @@ ValidTimes extract_valid_times(const T& collection)
 
     // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
-    if (theTime && (!(theTime->is_not_a_date_time())))
-      times.insert(*theTime);
+    if (theTime && (!(theTime->is_not_a_date_time()))) times.insert(*theTime);
   }
 
   return times;
@@ -257,17 +249,14 @@ boost::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options
 {
   namespace fs = boost::filesystem;
 
-  if (!fs::exists(path))
-    throw std::runtime_error("Path '" + path + "' does not exist");
+  if (!fs::exists(path)) throw std::runtime_error("Path '" + path + "' does not exist");
 
-  if (!fs::is_directory(path))
-    throw std::runtime_error("Path '" + path + "' is not a directory");
+  if (!fs::is_directory(path)) throw std::runtime_error("Path '" + path + "' is not a directory");
 
   fs::directory_iterator end_dir;
   for (fs::directory_iterator dirptr(path); dirptr != end_dir; ++dirptr)
   {
-    if (!fs::is_regular_file(dirptr->status()))
-      continue;
+    if (!fs::is_regular_file(dirptr->status())) continue;
 
     try
     {
@@ -309,16 +298,14 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
 {
   boost::shared_ptr<NFmiQueryData> ret;
 
-  if (!source.numericalModelRun())
-    return ret;
+  if (!source.numericalModelRun()) return ret;
 
   // Shorthand help variables
 
   const std::string& name = source.numericalModelRun()->name();
   const boost::posix_time::ptime& origintime = source.numericalModelRun()->analysisTime();
 
-  if (name.find_first_not_of(" ") == std::string::npos)
-    return ret;
+  if (name.find_first_not_of(" ") == std::string::npos) return ret;
 
   std::string path = frontier::lookup<std::string>(config, "models." + name);
 
@@ -326,8 +313,7 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
   {
     if (options.debug)
     {
-      if (options.verbose)
-        std::cerr << "Ignoring unknown model '" + name + "'" << std::endl;
+      if (options.verbose) std::cerr << "Ignoring unknown model '" + name + "'" << std::endl;
       return ret;
     }
     else
@@ -366,8 +352,7 @@ int run(int argc,
   outfile.clear();
   debug = false;
 
-  if (!parse_options(argc, argv, options))
-    return 0;
+  if (!parse_options(argc, argv, options)) return 0;
 
   outfile = options.outfile;
 
@@ -377,8 +362,7 @@ int run(int argc,
 
   // --DEBUGOUTPUT-- placeholder in the template sets debug mode
 
-  if (!options.debug)
-    options.debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
+  if (!options.debug) options.debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
 
   // Establish the projection
 
@@ -390,8 +374,7 @@ int run(int argc,
   // Parse the WOML
 
   woml::Weather weather = woml::parse(options.womlfile, options.doctype, options.debug);
-  if (weather.empty())
-    throw std::runtime_error("No MeteorologicalAnalysis to draw");
+  if (weather.empty()) throw std::runtime_error("No MeteorologicalAnalysis to draw");
 
   // Extract libconfig section
 
@@ -474,8 +457,7 @@ int run(int argc,
 
   // Render contours
 
-  if (!options.nocontours)
-    renderer.contour(qd, validtime);
+  if (!options.nocontours) renderer.contour(qd, validtime);
 
 #endif
 
@@ -548,14 +530,12 @@ int run(int argc,
 
   if (options.outfile != "-")
   {
-    if (options.verbose)
-      std::cerr << "Writing " << options.outfile << std::endl;
+    if (options.verbose) std::cerr << "Writing " << options.outfile << std::endl;
     writefile(options.outfile, renderer.svg());
   }
   else
   {
-    if (options.verbose)
-      std::cerr << "Writing to stdout" << std::endl;
+    if (options.verbose) std::cerr << "Writing to stdout" << std::endl;
     std::cout << renderer.svg();
   }
   return 0;

@@ -1,7 +1,7 @@
 MODULE = frontier
 SPEC = smartmet-frontier
 
-MAINFLAGS = -MD -Wall -W -Wno-unused-parameter
+MAINFLAGS = -DCONTOURING -MD -Wall -W -Wno-unused-parameter
 
 ifeq (6, $(RHEL_VERSION))
   MAINFLAGS += -std=c++0x
@@ -60,6 +60,7 @@ LIBS = -L$(libdir) \
 	-lsmartmet-newbase \
 	-lsmartmet-macgyver \
 	-lsmartmet-woml \
+	-lsmartmet-tron \
 	-lboost_program_options \
 	-lboost_iostreams \
 	-lboost_filesystem \
