@@ -9,6 +9,7 @@ Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-frontier
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel >= 1.55.0
 BuildRequires: smartmet-library-macgyver-devel >= 17.1.18
