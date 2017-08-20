@@ -32,8 +32,6 @@ DIFFICULTFLAGS = \
 	-pedantic \
 	-Wshadow
 
-CC = g++
-
 # Default compiler flags
 
 DEFINES = -DUNIX
@@ -154,7 +152,7 @@ profile: objdir $(MAINPROGS)
 
 .SECONDEXPANSION:
 $(MAINPROGS): % : obj/%.o $(OBJFILES)
-	$(CC) $(LDFLAGS) -o $@ obj/$@.o $(OBJFILES) $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ obj/$@.o $(OBJFILES) $(LIBS)
 
 clean:
 	rm -f $(MAINPROGS) $(OBJFILES) $(MAINOBJFILES)*~ source/*~ include/*~
@@ -190,6 +188,6 @@ rpm: clean
 .SUFFIXES: $(SUFFIXES) .cpp
 
 obj/%.o : %.cpp
-	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
+	$(CXX) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
 -include obj/*.d
