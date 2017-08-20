@@ -1169,12 +1169,16 @@ void getFillPositions(NFmiFillAreas &areas,
   // Erase reserved areas (areas which overlap reserved area)
 
   if (reservedArea.second.x > reservedArea.first.x)
+  {
     for (NFmiFillAreas::iterator iter = areas.begin(); (iter != areas.end());)
+    {
       if ((iter->first.x < reservedArea.second.x) && (iter->second.x > reservedArea.first.x) &&
           (iter->first.y < reservedArea.second.y) && (iter->second.y > reservedArea.first.y))
         iter = areas.erase(iter);
       else
         iter++;
+    }
+  }
 
   if (symbolCnt < areas.size())
   {
