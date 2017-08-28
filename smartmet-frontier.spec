@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 17.7.10
+Version: 17.8.28
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -11,15 +11,15 @@ Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++
 BuildRequires: make
-BuildRequires: boost-devel >= 1.55.0
-BuildRequires: smartmet-library-macgyver-devel >= 17.1.18
-BuildRequires: smartmet-library-newbase-devel >= 17.2.13
-BuildRequires: smartmet-library-tron >= 17.2.7
-BuildRequires: geos >= 3.4.2
-BuildRequires: smartmet-library-woml >= 17.1.4
-Requires: smartmet-library-macgyver >= 17.1.18
-Requires: smartmet-library-newbase >= 17.2.13
-Requires: smartmet-library-woml >= 17.1.4
+BuildRequires: boost-devel >= 1.65.0
+BuildRequires: smartmet-library-macgyver-devel >= 17.8.28
+BuildRequires: smartmet-library-newbase-devel >= 17.8.28
+BuildRequires: smartmet-library-tron >= 17.8.28
+BuildRequires: geos >= 3.5.0
+BuildRequires: smartmet-library-woml >= 17.8.28
+Requires: smartmet-library-macgyver >= 17.8.28
+Requires: smartmet-library-newbase >= 17.8.28
+Requires: smartmet-library-woml >= 17.8.28
 Requires: cairo >= 1.12.14
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
@@ -46,6 +46,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Mon Aug 28 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.8.28-1.fmi
+- Upgrade to boost 1.65
+
 * Mon Jul 10 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.7.10-1.fmi
 - Enabled contouring again (SOL-5406)
 
