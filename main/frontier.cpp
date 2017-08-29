@@ -22,6 +22,7 @@
 
 #include <libconfig.h++>
 
+#define BOOST_FILESYSTEM_NO_DEPRECATED
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/foreach.hpp>

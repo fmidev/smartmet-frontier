@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 17.8.28
+Version: 17.8.29
 Release: 1%{?dist}.fmi
 License: FMI
 Group: Development/Libraries
@@ -46,6 +46,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Aug 29 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.8.29-1.fmi
+- Using define BOOST_FILESYSTEM_NO_DEPRECATED to avoid crashes with boost 1.65
+
 * Mon Aug 28 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.8.28-1.fmi
 - Upgrade to boost 1.65
 
