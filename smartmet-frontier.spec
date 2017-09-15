@@ -21,6 +21,12 @@ Requires: smartmet-library-macgyver >= 17.8.28
 Requires: smartmet-library-newbase >= 17.8.28
 Requires: smartmet-library-woml >= 17.8.28
 Requires: cairo >= 1.12.14
+Requires: boost-program-options
+Requires: boost-iostreams
+Requires: boost-filesystem
+Requires: boost-regex
+Requires: boost-date-time
+Requires: boost-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 
