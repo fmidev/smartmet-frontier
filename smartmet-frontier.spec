@@ -17,6 +17,10 @@ BuildRequires: smartmet-library-newbase-devel >= 17.8.28
 BuildRequires: smartmet-library-tron >= 17.8.28
 BuildRequires: geos >= 3.5.0
 BuildRequires: smartmet-library-woml >= 17.8.28
+BuildRequires: libconfig-devel
+BuildRequires: cairo-devel
+BuildRequires: xerces-c-devel
+BuildRequires: xqilla-devel
 Requires: smartmet-library-macgyver >= 17.8.28
 Requires: smartmet-library-newbase >= 17.8.28
 Requires: smartmet-library-woml >= 17.8.28
