@@ -2,9 +2,9 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 17.8.29
+Version: 17.10.3
 Release: 1%{?dist}.fmi
-License: FMI
+License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-frontier
 Source0: %{name}.tar.gz
@@ -13,18 +13,18 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel >= 1.65.0
 BuildRequires: smartmet-library-macgyver-devel >= 17.8.28
-BuildRequires: smartmet-library-newbase-devel >= 17.8.28
-BuildRequires: smartmet-library-tron >= 17.8.28
+BuildRequires: smartmet-library-newbase-devel >= 17.9.27
+BuildRequires: smartmet-library-tron >= 17.9.20
 BuildRequires: geos >= 3.5.0
-BuildRequires: smartmet-library-woml >= 17.8.28
+BuildRequires: smartmet-library-woml >= 17.10.3
 BuildRequires: libconfig-devel
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-library-macgyver >= 17.8.28
-Requires: smartmet-library-newbase >= 17.8.28
-Requires: smartmet-library-woml >= 17.8.28
-Requires: cairo >= 1.12.14
+Requires: smartmet-library-newbase >= 17.9.27
+Requires: smartmet-library-woml >= 17.10.3
+Requires: cairo >= 1.14.8
 Requires: boost-program-options
 Requires: boost-iostreams
 Requires: boost-filesystem
@@ -56,6 +56,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Oct  3 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.10.3-1.fmi
+- Change to MIT license
+
 * Tue Aug 29 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.8.29-1.fmi
 - Using define BOOST_FILESYSTEM_NO_DEPRECATED to avoid crashes with boost 1.65
 
