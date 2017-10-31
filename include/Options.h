@@ -7,8 +7,8 @@
 #ifndef FRONTIER_OPTIONS_H
 #define FRONTIER_OPTIONS_H
 
-#include <string>
 #include <woml/Weather.h>
+#include <string>
 
 namespace frontier
 {
@@ -17,12 +17,11 @@ class Options
  public:
   Options();
 
-  // --verbose, --quiet, --debug and --nocontours
+  // --verbose, --quiet, --debug
 
   bool verbose;
   bool quiet;
   bool debug;
-  bool nocontours;
 
   // -p projection | -p projectionfile
 

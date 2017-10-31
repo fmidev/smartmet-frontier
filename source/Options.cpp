@@ -7,10 +7,10 @@
 #include "Options.h"
 #include <woml/Weather.h>
 
-#include <boost/program_options.hpp>
-#include <boost/filesystem/operations.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/filesystem/operations.hpp>
+#include <boost/program_options.hpp>
 #include <iostream>
 
 namespace frontier
@@ -25,7 +25,6 @@ Options::Options()
     : verbose(false),
       quiet(false),
       debug(false),
-      nocontours(false),
       projection(),
       svgfile(),
       womlfile(),
@@ -58,18 +57,20 @@ bool parse_options(int argc, char* argv[], Options& theOptions)
        "'aerodromeforecast'");
   std::string msglocale = ("locale");
 
+  bool dummy = false;
+
   desc.add_options()("help,h", "print out help message")(
       "debug,d", po::bool_switch(&theOptions.debug), "debug mode")(
       "verbose,v", po::bool_switch(&theOptions.verbose), "verbose mode")(
-      "quiet,q", po::bool_switch(&theOptions.quiet), "quiet mode")(
-      "nocontours,n", po::bool_switch(&theOptions.nocontours), "no contours -mode")(
-      "version,V", "display version number")(
+      "quiet,q", po::bool_switch(&theOptions.quiet), "quiet mode")("version,V",
+                                                                   "display version number")(
       "woml,w", po::value(&theOptions.womlfile), msgwoml.c_str())(
       "svg,s", po::value(&theOptions.svgfile), msgsvg.c_str())(
       "proj,p", po::value(&theOptions.projection), msgproj.c_str())(
       "outfile,o", po::value(&theOptions.outfile), msgoutfile.c_str())(
       "type,t", po::value(&theOptions.type), msgtype.c_str())(
-      "locale,l", po::value(&theOptions.locale), msglocale.c_str());
+      "locale,l", po::value(&theOptions.locale), msglocale.c_str())(
+      "nocontours,n", po::bool_switch(&dummy), "deprecated options which have no effect");
 
   po::positional_options_description p;
   p.add("woml", 1);
@@ -97,19 +98,17 @@ bool parse_options(int argc, char* argv[], Options& theOptions)
     return false;
   }
 
-  if (theOptions.womlfile.empty())
-    throw std::runtime_error("WOML file not specified");
+  if (dummy && !theOptions.quiet)
+    std::cerr << "Warning:: option --nocontours (-n) is deprecated" << std::endl;
 
-  if (theOptions.svgfile.empty())
-    throw std::runtime_error("SVG file not specified");
+  if (theOptions.womlfile.empty()) throw std::runtime_error("WOML file not specified");
 
-  if (theOptions.projection.empty())
-    throw std::runtime_error("Projection not specified");
+  if (theOptions.svgfile.empty()) throw std::runtime_error("SVG file not specified");
 
-  if (theOptions.quiet)
-    theOptions.verbose = false;
-  if (theOptions.verbose)
-    theOptions.quiet = false;
+  if (theOptions.projection.empty()) throw std::runtime_error("Projection not specified");
+
+  if (theOptions.quiet) theOptions.verbose = false;
+  if (theOptions.verbose) theOptions.quiet = false;
 
   if (theOptions.type == "conceptualmodelanalysis")
     theOptions.doctype = woml::conceptualmodelanalysis;

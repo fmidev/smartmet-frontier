@@ -3,7 +3,7 @@
 Summary: frontier
 Name: %{RPMNAME}
 Version: 17.10.31
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-frontier
@@ -56,6 +56,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Oct 31 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.10.31-2.fmi
+- Deprecated option --nocontours (-n), the need for a model is now detected from the template
+
 * Tue Oct 31 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.10.31-1.fmi
 - Allow model data to be missing
 

@@ -337,6 +337,18 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Test if contouring is requested in the template
+ */
+// ----------------------------------------------------------------------
+
+bool needs_contours(const libconfig::Config& config)
+{
+  bool requires = config.exists("contourlines");
+  return requires;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Main program without exception handling
  */
 // ----------------------------------------------------------------------
@@ -417,18 +429,19 @@ int run(int argc,
 
   boost::posix_time::ptime validtime = *validtimes.begin();
 
+  frontier::SvgRenderer renderer(options, config, svg, area, validtime, &debugoutput);
+
 // Determine respective numerical model
 //
 // == Model not used anymore; background data is handled by frontier frontend ==
 
 #ifdef CONTOURING
 
-  boost::shared_ptr<NFmiQueryData> qd;
-
-  if (!options.nocontours)
+  if (needs_contours(config))
   {
     const woml::DataSource& dataSource = weather.analysis().dataSource();
 
+    boost::shared_ptr<NFmiQueryData> qd;
     try
     {
       if (weather.hasAnalysis())
@@ -441,31 +454,20 @@ int run(int argc,
       if (!options.quiet) std::cerr << "Warning: " << e.what() << std::endl;
     }
 
-    if (!qd)
+    if (!qd && !options.quiet)
     {
-      options.nocontours = true;
+      const boost::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
+      const std::string& modelName = (modelRun ? modelRun->name() : "");
+      const std::string& name =
+          ((modelName.find_first_not_of(" ") != std::string::npos) ? modelName : "?");
 
-      if (!options.quiet)
-      {
-        const boost::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
-        const std::string& modelName = (modelRun ? modelRun->name() : "");
-        const std::string& name =
-            ((modelName.find_first_not_of(" ") != std::string::npos) ? modelName : "?");
-
-        std::cerr << "Contouring omitted; model (" << name << ") not available" << std::endl;
-      }
+      throw std::runtime_error("Contouring omitted; model (" + name + ") not available");
     }
+
+    // Render contours
+
+    renderer.contour(qd, validtime);
   }
-
-#endif
-
-  frontier::SvgRenderer renderer(options, config, svg, area, validtime, &debugoutput);
-
-#ifdef CONTOURING
-
-  // Render contours
-
-  if (!options.nocontours) renderer.contour(qd, validtime);
 
 #endif
 
