@@ -429,16 +429,23 @@ int run(int argc,
   {
     const woml::DataSource& dataSource = weather.analysis().dataSource();
 
-    if (weather.hasAnalysis())
-      qd = resolve_model(options, config, dataSource);
-    else
-      qd = resolve_model(options, config, dataSource);
+    try
+    {
+      if (weather.hasAnalysis())
+        qd = resolve_model(options, config, dataSource);
+      else
+        qd = resolve_model(options, config, dataSource);
+    }
+    catch (std::exception& e)
+    {
+      if (!options.quiet) std::cerr << "Warning: " << e.what() << std::endl;
+    }
 
     if (!qd)
     {
       options.nocontours = true;
 
-      if (options.verbose)
+      if (!options.quiet)
       {
         const boost::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
         const std::string& modelName = (modelRun ? modelRun->name() : "");

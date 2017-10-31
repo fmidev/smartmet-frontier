@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 17.10.3
+Version: 17.10.31
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -56,6 +56,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Oct 31 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.10.31-1.fmi
+- Allow model data to be missing
+
 * Tue Oct  3 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.10.3-1.fmi
 - Change to MIT license
 
