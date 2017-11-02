@@ -90,10 +90,7 @@ inline Point& Point::operator/=(double theValue)
 
 }  // namespace frontier
 
-inline frontier::Point operator-(const frontier::Point& p)
-{
-  return frontier::Point(-p.x, -p.y);
-}
+inline frontier::Point operator-(const frontier::Point& p) { return frontier::Point(-p.x, -p.y); }
 
 inline frontier::Point operator+(const frontier::Point& p1, const frontier::Point& p2)
 {

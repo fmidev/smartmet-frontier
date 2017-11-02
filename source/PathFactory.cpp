@@ -9,11 +9,11 @@
 #include "Path.h"
 #include "PathFactory.h"
 #include "Point.h"
-#include <smartmet/woml/SimpleCubicSpline.h>
-#include <smartmet/woml/CubicSplineRing.h>
-#include <smartmet/woml/CubicSplineCurve.h>
-#include <smartmet/woml/CubicSplineSurface.h>
 #include <boost/foreach.hpp>
+#include <smartmet/woml/CubicSplineCurve.h>
+#include <smartmet/woml/CubicSplineRing.h>
+#include <smartmet/woml/CubicSplineSurface.h>
+#include <smartmet/woml/SimpleCubicSpline.h>
 #include <stdexcept>
 
 namespace frontier
@@ -73,13 +73,11 @@ Path create(const woml::CubicSplineRing& spline)
 
   // Handle special cases of 0, 1 or 2 points
 
-  if (spline.empty())
-    return path;
+  if (spline.empty()) return path;
 
   path.moveto(spline[0].lon(), spline[0].lat());
 
-  if (spline.size() == 1)
-    return path;
+  if (spline.size() == 1) return path;
 
   if (spline.size() == 2)
   {
@@ -186,13 +184,11 @@ Path create(const woml::SimpleCubicSpline& spline)
 
   // Handle special cases of 0, 1 or 2 points
 
-  if (spline.empty())
-    return path;
+  if (spline.empty()) return path;
 
   path.moveto(spline[0].lon(), spline[0].lat());
 
-  if (spline.size() == 1)
-    return path;
+  if (spline.size() == 1) return path;
 
   if (spline.size() == 2)
   {

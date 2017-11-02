@@ -32,6 +32,7 @@ class SettingIdNotFoundException
 
   settings id() const { return itsId; }
   const std::string& what() const { return itsMsg; }
+
  private:
   SettingIdNotFoundException();
   settings itsId;
@@ -117,8 +118,7 @@ T lookup(const libconfig::Config& config, const std::string& name)
   }
   catch (libconfig::ConfigException& e)
   {
-    if (!config.exists(name))
-      throw std::runtime_error("Setting for " + name + " is missing");
+    if (!config.exists(name)) throw std::runtime_error("Setting for " + name + " is missing");
     throw std::runtime_error("Failed to parse value of '" + name + "' as type " + number_name<T>());
   }
 }
@@ -142,8 +142,7 @@ T lookup(const libconfig::Setting& setting,
   bool* _isSet = &bSet;
   bool** pSet = (isSet ? &isSet : &_isSet);
 
-  if ((** pSet = setting.lookupValue(name, ret)) || (settingId == s_optional))
-    return ret;
+  if ((** pSet = setting.lookupValue(name, ret)) || (settingId == s_optional)) return ret;
 
   if (!setting.exists(name))
   {

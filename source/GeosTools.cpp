@@ -4,16 +4,16 @@
 
 #include "PathAdapter.h"
 
-#include <geos/geom/Coordinate.h>
-#include <geos/geom/Point.h>
-#include <geos/geom/LinearRing.h>
-#include <geos/geom/LineString.h>
-#include <geos/geom/Polygon.h>
-#include <geos/geom/MultiPoint.h>
-#include <geos/geom/MultiLineString.h>
-#include <geos/geom/MultiPolygon.h>
-#include <geos/geom/CoordinateSequence.h>
 #include <boost/numeric/conversion/cast.hpp>
+#include <geos/geom/Coordinate.h>
+#include <geos/geom/CoordinateSequence.h>
+#include <geos/geom/LineString.h>
+#include <geos/geom/LinearRing.h>
+#include <geos/geom/MultiLineString.h>
+#include <geos/geom/MultiPoint.h>
+#include <geos/geom/MultiPolygon.h>
+#include <geos/geom/Point.h>
+#include <geos/geom/Polygon.h>
 #include <stdexcept>
 
 using namespace geos::geom;
@@ -29,8 +29,7 @@ namespace
 
 void contourFromLinearRing(const LinearRing *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty())
-    return;
+  if (geom == NULL || geom->isEmpty()) return;
 
   for (unsigned long i = 0, n = geom->getNumPoints(); i < n - 1; ++i)
   {
@@ -49,8 +48,7 @@ void contourFromLinearRing(const LinearRing *geom, PathAdapter &pathAdapter)
 
 void contourFromLineString(const LineString *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty())
-    return;
+  if (geom == NULL || geom->isEmpty()) return;
 
   unsigned long n = geom->getNumPoints();
 
@@ -74,8 +72,7 @@ void contourFromLineString(const LineString *geom, PathAdapter &pathAdapter)
 
 void contoursFromPolygon(const Polygon *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty())
-    return;
+  if (geom == NULL || geom->isEmpty()) return;
 
   contourFromLineString(geom->getExteriorRing(), pathAdapter);
 
@@ -91,8 +88,7 @@ void contoursFromPolygon(const Polygon *geom, PathAdapter &pathAdapter)
 
 void contoursFromMultiLineString(const MultiLineString *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty())
-    return;
+  if (geom == NULL || geom->isEmpty()) return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     contourFromLineString(dynamic_cast<const LineString *>(geom->getGeometryN(i)), pathAdapter);
@@ -106,8 +102,7 @@ void contoursFromMultiLineString(const MultiLineString *geom, PathAdapter &pathA
 
 void contoursFromMultiPolygon(const MultiPolygon *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty())
-    return;
+  if (geom == NULL || geom->isEmpty()) return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     contoursFromPolygon(dynamic_cast<const Polygon *>(geom->getGeometryN(i)), pathAdapter);
@@ -121,8 +116,7 @@ void contoursFromMultiPolygon(const MultiPolygon *geom, PathAdapter &pathAdapter
 
 void contoursFromGeometryCollection(const GeometryCollection *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty())
-    return;
+  if (geom == NULL || geom->isEmpty()) return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     frontier::GeosTools::getContours(geom->getGeometryN(i), pathAdapter);

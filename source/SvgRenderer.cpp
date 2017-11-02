@@ -32,7 +32,6 @@
 #include <smartmet/newbase/NFmiArea.h>
 #include <smartmet/newbase/NFmiStringTools.h>
 
-#ifdef CONTOURING
 #include "PathAdapter.h"
 #include <smartmet/newbase/NFmiDataMatrix.h>
 #include <smartmet/newbase/NFmiEnumConverter.h>
@@ -47,7 +46,6 @@
 #include <smartmet/tron/LinearInterpolation.h>
 #include <smartmet/tron/SavitzkyGolay2D.h>
 #include <smartmet/tron/Traits.h>
-#endif
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
@@ -96,8 +94,6 @@ const double textHeightFactor = 0.96;  //
  */
 // ----------------------------------------------------------------------
 
-#ifdef CONTOURING
-
 NFmiMetTime to_mettime(const boost::posix_time::ptime &theTime)
 {
   return NFmiMetTime(theTime.date().year(),
@@ -108,8 +104,6 @@ NFmiMetTime to_mettime(const boost::posix_time::ptime &theTime)
                      static_cast<short>(theTime.time_of_day().seconds()),
                      1);
 }
-
-#endif
 
 // ----------------------------------------------------------------------
 /*!
@@ -6287,8 +6281,8 @@ void SvgRenderer::render_cloudSymbols(const std::string confPath,
  */
 // ----------------------------------------------------------------------
 
-void addCurvePosition(List<DirectPosition> &curvePositions,
-                      List<DirectPosition> &curvePositions0,
+void addCurvePosition(std::vector<DirectPosition> &curvePositions,
+                      std::vector<DirectPosition> &curvePositions0,
                       const DirectPosition &pos,
                       const DirectPosition &pos0)
 {
@@ -6297,8 +6291,8 @@ void addCurvePosition(List<DirectPosition> &curvePositions,
   if (&curvePositions != &curvePositions0) curvePositions0.push_back(pos0);
 }
 
-void addCurvePosition(List<DirectPosition> &curvePositions,
-                      List<DirectPosition> &curvePositions0,
+void addCurvePosition(std::vector<DirectPosition> &curvePositions,
+                      std::vector<DirectPosition> &curvePositions0,
                       double x,
                       double y,
                       double y0,
@@ -6338,7 +6332,7 @@ void addCurvePosition(List<DirectPosition> &curvePositions,
                      DirectPosition(x + xOffset, y0));
 }
 
-void addCurvePosition(List<DirectPosition> &curvePositions,
+void addCurvePosition(std::vector<DirectPosition> &curvePositions,
                       double x,
                       double y,
                       double xOffset = 0.0,
@@ -6367,7 +6361,7 @@ void addCurvePosition(List<DirectPosition> &curvePositions,
   if (fabs(xOffset) >= 1.0) curvePositions.push_back(DirectPosition(x + xOffset, y));
 }
 
-void smoothenCurve(List<DirectPosition> &curvePositions,
+void smoothenCurve(std::vector<DirectPosition> &curvePositions,
                    double x,
                    double y,
                    double height,
@@ -6406,8 +6400,8 @@ void smoothenCurve(List<DirectPosition> &curvePositions,
 bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
                                        const boost::posix_time::ptime &bt,
                                        const boost::posix_time::ptime &et,
-                                       List<DirectPosition> &curvePositions,
-                                       List<DirectPosition> &curvePositions0,
+                                       std::vector<DirectPosition> &curvePositions,
+                                       std::vector<DirectPosition> &curvePositions0,
                                        std::vector<double> &scaledLo,
                                        std::vector<double> &scaledHi,
                                        std::vector<bool> &hasHole,
@@ -6881,7 +6875,7 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
   ElevGrp eGrp;
   int nGroups = 0;
 
-  List<DirectPosition> curvePositions, curvePositions0;
+  std::vector<DirectPosition> curvePositions, curvePositions0;
   std::list<DirectPosition> curvePoints, curvePoints0;
   std::list<DoubleArr> decoratorPoints;
 
@@ -6978,14 +6972,14 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
 
     // std::ostringstream pnts; pnts << std::fixed << std::setprecision(3);
     //{
-    // List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
+    // std::vector<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
     // curvePositions.end(),itcp;
     // for (itcp = cpbeg; (itcp != cpend); itcp++) {
     // pnts << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY(); }
     //}
     //--
     //{ std::cerr << std::fixed << std::setprecision(1);
-    // List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
+    // std::vector<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
     // curvePositions.end(),itcp; size_t n = 0;
     // for (itcp = cpbeg; (itcp != cpend); itcp++, n++) {
     // if ((n % 10) == 0) std::cerr << std::endl << n << ": "; else std::cerr << " "; std::cerr <<
@@ -8635,7 +8629,7 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot> &ts,
   bool visible = false, aboveTop = false;
   int nGroups = 0;
 
-  List<DirectPosition> curvePositions;
+  std::vector<DirectPosition> curvePositions;
   std::list<DirectPosition> curvePoints;
 
   // Set unique group number for members of each overlapping group of elevations
@@ -8750,7 +8744,7 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot> &ts,
                      << "\" id=\"" << FEATURE << nGroups << "\" d=\"" << path.str() << "\"/>\n";
       // std::ostringstream pnts; pnts << std::fixed << std::setprecision(3);
       //{
-      // List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
+      // std::vector<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
       // curvePositions.end(),itcp;
       // for (itcp = cpbeg; (itcp != cpend); itcp++) {
       ////pnts << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY(); }
@@ -9727,7 +9721,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
     ElevGrp &eGrp = eGrpGen;
     int nGroups = 0;
 
-    List<DirectPosition> curvePositions;
+    std::vector<DirectPosition> curvePositions;
     std::list<DirectPosition> curvePoints;
 
     // Set unique group number for members of each overlapping group of elevations
@@ -9818,7 +9812,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
                                       << "\"/>\n";
 
       // fprintf(stderr,"> Cpos:\n"); {
-      // List<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
+      // std::vector<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
       // curvePositions.end(),itcp;
       // for (itcp = cpbeg; (itcp != cpend); itcp++) fprintf(stderr,"> Cpos x=%.1f,
       // y=%.1f\n",itcp->getX(),itcp->getY());
@@ -10261,16 +10255,12 @@ std::string SvgRenderer::svg() const
     std::cerr << debugoutput.str();
   }
 
-// BOOST_FOREACH does not work nicely with ptr_map
-
-#ifdef CONTOURING
+  // BOOST_FOREACH does not work nicely with ptr_map
 
   if (options.verbose) std::cerr << "Generating " << contours.size() << " contours" << std::endl;
 
   for (Contours::const_iterator it = contours.begin(); it != contours.end(); ++it)
     replace_all(ret, it->first, it->second->str());
-
-#endif
 
   for (Texts::const_iterator it = texts.begin(); it != texts.end(); ++it)
     replace_all(ret, "--" + it->first + "--", it->second->str());
@@ -11698,8 +11688,6 @@ T SvgRenderer::getSetting(const std::string &theConfigClass,
   return lookup<T>(config, theConfigClass + "." + theAttribute);
 }
 
-#ifdef CONTOURING
-
 // ----------------------------------------------------------------------
 /*
  * TODO: This part should be refactored when finished
@@ -11925,7 +11913,5 @@ void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
     }
   }
 }
-
-#endif
 
 }  // namespace frontier

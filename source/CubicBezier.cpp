@@ -71,13 +71,11 @@ double CubicBezier::length(
   // Safety check which also guarantees arc>0 and termination
   // even if eps is way too small
 
-  if (chord == 0)
-    return 0;
+  if (chord == 0) return 0;
 
   // Safety check which guarantees termination if chord is way too small
 
-  if ((chord / arc) < eps)
-    return chord;
+  if ((chord / arc) < eps) return chord;
 
   // If the relative difference is small, return good length estimate
   if ((arc - chord) / arc < eps)

@@ -291,8 +291,6 @@ boost::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options
  */
 // ----------------------------------------------------------------------
 
-#ifdef CONTOURING
-
 boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
                                                const libconfig::Config& config,
                                                const woml::DataSource& source)
@@ -332,8 +330,6 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
 
   return ret;
 }
-
-#endif
 
 // ----------------------------------------------------------------------
 /*!
@@ -431,11 +427,9 @@ int run(int argc,
 
   frontier::SvgRenderer renderer(options, config, svg, area, validtime, &debugoutput);
 
-// Determine respective numerical model
-//
-// == Model not used anymore; background data is handled by frontier frontend ==
-
-#ifdef CONTOURING
+  // Determine respective numerical model
+  //
+  // == Model not used anymore; background data is handled by frontier frontend ==
 
   if (needs_contours(config))
   {
@@ -468,8 +462,6 @@ int run(int argc,
 
     renderer.contour(qd, validtime);
   }
-
-#endif
 
   // Synchronize some aerodrome forecast features (SurfaceWeather and SurfaceVisibility)
   // to have common time serie

@@ -37,6 +37,7 @@ class DoubleArr
   double& operator[](const int i) { return itsArr[i ? 1 : 0]; }
   const double& getX() const { return itsArr[0]; }
   const double& getY() const { return itsArr[1]; }
+
  private:
   double itsArr[2];
 };

@@ -9,8 +9,6 @@
 #ifndef FRONTIER_BEZSEG_H
 #define FRONTIER_BEZSEG_H
 
-#define List std::vector
-
 #include "DoubleArr.h"
 #include <vector>
 
@@ -27,6 +25,7 @@ class DirectPosition
   DoubleArr& getCoordinates() { return itsArr; }
   const double& getX() const { return itsArr.getX(); }
   const double& getY() const { return itsArr.getY(); }
+
  private:
   DoubleArr itsArr;
 };
@@ -46,12 +45,12 @@ typedef DirectPosition GeneralDirectPosition;
 class BezSeg
 {
  public:
-  BezSeg(const List<DirectPosition>& theCurvePositions,
+  BezSeg(const std::vector<DirectPosition>& theCurvePositions,
          int theSegmentIndex,
          boolean isClosedCurve,
          double theTightness = -1.0);
 
-  void init(const List<DirectPosition>& theCurvePositions,
+  void init(const std::vector<DirectPosition>& theCurvePositions,
             int theSegmentIndex,
             boolean isClosedCurve);
   void setTightness(double theTightness);
@@ -88,7 +87,7 @@ class BezSeg
 
   int segmentIndex;
   double segmentLength;
-  List<DirectPosition> curvePositions;
+  std::vector<DirectPosition> curvePositions;
 
   DoubleArr start;
   DoubleArr end;

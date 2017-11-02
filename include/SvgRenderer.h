@@ -7,14 +7,14 @@
 #ifndef FRONTIER_SVGRENDERER_H
 #define FRONTIER_SVGRENDERER_H
 
+#include "BezSeg.h"
 #include "Options.h"
 #include "Path.h"
-#include "BezSeg.h"
 
 #include "smartmet/woml/FeatureVisitor.h"
-#include <smartmet/woml/Point.h>
-#include <smartmet/woml/MeasureValue.h>
 #include <smartmet/woml/GeophysicalParameterValueSet.h>
+#include <smartmet/woml/MeasureValue.h>
+#include <smartmet/woml/Point.h>
 #include <smartmet/woml/TimeSeriesSlot.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -52,6 +52,7 @@ class Elevation
   void factor(double theFactor) { itsFactor = theFactor; }
   double factor() const { return itsFactor; }
   bool line() const { return renderLine; }
+
  private:
   Elevation();
 
@@ -99,6 +100,7 @@ class AxisManager
 
   // Min elevation value to be taken as nonzero
   double nonZeroElevation() { return 10.0; }
+
  private:
   double itsAxisHeight;
   double itsMinElevation;
@@ -157,6 +159,7 @@ class ConfigGroup
   const libconfig::Setting *localScope() const { return itsLocalScope; }
   const libconfig::Setting *globalScope() const { return itsGlobalScope; }
   const std::list<const libconfig::Setting *> &scope() const { return itsScope; };
+
  private:
   ConfigGroup();
 
@@ -233,6 +236,7 @@ class CloudGroup : public ConfigGroup
   int scaleHeightRandom() const { return itsScaleHeightRandom; }
   int controlMin() const { return itsControlMin; }
   int controlRandom() const { return itsControlRandom; }
+
  private:
   CloudGroup();
 
@@ -273,6 +277,7 @@ class IcingGroup : public ConfigGroup
 
   const std::string &symbol() const { return itsSymbol; }
   bool symbolOnly() const { return renderSymbolOnly; }
+
  private:
   IcingGroup();
 
@@ -290,6 +295,7 @@ class CategoryValueMeasureGroup
   virtual bool groupMember(const woml::CategoryValueMeasure *cvm) const { return true; }
   virtual bool groupMember(bool first, const woml::CategoryValueMeasure *cvm);
   virtual bool standalone() { return false; }
+
  protected:
   const woml::CategoryValueMeasure *itsFirstMember;
 };
@@ -498,10 +504,8 @@ class SvgRenderer : public woml::FeatureVisitor
   virtual void visit(const woml::Winds &theFeature);
   virtual void visit(const woml::ZeroTolerance &theFeature);
 
-#ifdef CONTOURING
   void contour(const boost::shared_ptr<NFmiQueryData> &theQD,
                const boost::posix_time::ptime &theTime);
-#endif
 
   void render_header(boost::posix_time::ptime &validTime,
                      const boost::posix_time::time_period &timePeriod,
@@ -590,23 +594,8 @@ class SvgRenderer : public woml::FeatureVisitor
                     double lat,
                     bool asValue = false);
 
-  typedef enum
-  {
-    fst,
-    fwd,
-    vup,
-    eup,
-    bwd,
-    vdn,
-    edn,
-    lst
-  } Phase;
-  typedef enum
-  {
-    t_ground,
-    t_nonground,
-    t_mixed
-  } ElevationGroupType;
+  typedef enum { fst, fwd, vup, eup, bwd, vdn, edn, lst } Phase;
+  typedef enum { t_ground, t_nonground, t_mixed } ElevationGroupType;
   ElevationGroupType elevationGroup(const std::list<woml::TimeSeriesSlot> &ts,
                                     boost::posix_time::ptime &bt,
                                     boost::posix_time::ptime &et,
@@ -682,8 +671,8 @@ class SvgRenderer : public woml::FeatureVisitor
   bool scaledCurvePositions(ElevGrp &eGrp,
                             const boost::posix_time::ptime &bt,
                             const boost::posix_time::ptime &et,
-                            List<DirectPosition> &curvePositions,
-                            List<DirectPosition> &curvePositions0,
+                            std::vector<DirectPosition> &curvePositions,
+                            std::vector<DirectPosition> &curvePositions0,
                             std::vector<double> &scaledLo,
                             std::vector<double> &scaledHi,
                             std::vector<bool> &hasHole,

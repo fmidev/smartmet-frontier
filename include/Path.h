@@ -20,8 +20,8 @@
 #include "NFmiFillMap.h"
 
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 namespace frontier
 {

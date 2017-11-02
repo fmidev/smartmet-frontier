@@ -81,8 +81,7 @@ bool NFmiFillMap::scanColumn(T iter,
   {
     float y = iter->first;
 
-    if (y < 0 || y >= imageHeight)
-      break;
+    if (y < 0 || y >= imageHeight) break;
 
     yLast = static_cast<int>(y);
 
@@ -112,8 +111,7 @@ bool NFmiFillMap::scanColumn(T iter,
         // If intersection has integer X coordinate, x1 would be
         // interior, x2 exterior
 
-        if (x2 == i2)
-          i2--;
+        if (x2 == i2) i2--;
 
         if ((i1 < imageWidth) && (i2 > 0) && (i2 > i1))
         {
@@ -149,8 +147,7 @@ bool NFmiFillMap::scanColumn(T iter,
       }
     }  // for dataiter
 
-    if ((!validRow) || ((!verticalRects) && (h == 0)))
-      break;
+    if ((!validRow) || ((!verticalRects) && (h == 0))) break;
   }  // for iter
 
   if (h <= 0)
@@ -218,8 +215,7 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
                                bool scanUpDown,
                                bool getMapAreas)
 {
-  if (itsData.empty())
-    return false;
+  if (itsData.empty()) return false;
 
   if (getMapAreas)
   {
@@ -267,8 +263,7 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
 
   NFmiFillMapData _data;
 
-  if (retainMap)
-    _data = itsData;
+  if (retainMap) _data = itsData;
 
   NFmiFillMapData& data = (retainMap ? _data : itsData);
   NFmiFillMapData::iterator iter = data.begin(), enditer = data.end();
@@ -277,8 +272,7 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
   for (; iter != enditer; ++iter)
     if (iter->second.size() == 2)
     {
-      if (iter->second[0] > iter->second[1])
-        swap(iter->second[0], iter->second[1]);
+      if (iter->second[0] > iter->second[1]) swap(iter->second[0], iter->second[1]);
     }
     else
       sort(iter->second.begin(), iter->second.end());
@@ -341,8 +335,7 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
         // If intersection has integer X coordinate, x1 would be
         // interior, x2 exterior
 
-        if (x2 == i2)
-          i2--;
+        if (x2 == i2) i2--;
 
         if ((i1 < imageWidth) && (i2 > 0) && (i2 > i1))
         {
@@ -405,11 +398,9 @@ void NFmiFillMap::Add(float theX1, float theY1, float theX2, float theY2)
 
   // Ignore lines completely outside the area
 
-  if (itsLoLimit != kFloatMissing && std::max(theY1, theY2) < itsLoLimit)
-    return;
+  if (itsLoLimit != kFloatMissing && std::max(theY1, theY2) < itsLoLimit) return;
 
-  if (itsHiLimit != kFloatMissing && std::min(theY1, theY2) > itsHiLimit)
-    return;
+  if (itsHiLimit != kFloatMissing && std::min(theY1, theY2) > itsHiLimit) return;
 
   // The parametric equation of the line is:
   //
@@ -435,8 +426,7 @@ void NFmiFillMap::Add(float theX1, float theY1, float theX2, float theY2)
   // First, we ignore horizontal lines, they are meaningless
   // when filling with horizontal lines.
 
-  if (y1 == y2)
-    return;
+  if (y1 == y2) return;
 
   if (y1 > y2)
   {
@@ -449,21 +439,17 @@ void NFmiFillMap::Add(float theX1, float theY1, float theX2, float theY2)
 
   // If limits are active, we can speed things up by clipping the limits
 
-  if (itsLoLimit != kFloatMissing && lo < itsLoLimit)
-    lo = static_cast<int>(ceil(itsLoLimit));
+  if (itsLoLimit != kFloatMissing && lo < itsLoLimit) lo = static_cast<int>(ceil(itsLoLimit));
 
-  if (itsHiLimit != kFloatMissing && hi > itsHiLimit)
-    hi = static_cast<int>(floor(itsHiLimit));
+  if (itsHiLimit != kFloatMissing && hi > itsHiLimit) hi = static_cast<int>(floor(itsHiLimit));
 
   // We don't want to intersect ymin, it is handled
   // by the line connected to this one, except at
   // the bottom!
 
-  if (y2 <= 0)
-    return;
+  if (y2 <= 0) return;
 
-  if (static_cast<float>(lo) == y1 && y1 > 0)
-    lo++;
+  if (static_cast<float>(lo) == y1 && y1 > 0) lo++;
 
   // We precalculate k and x1+k*y1 for speed
   // Should in principle remove the multiplication too,

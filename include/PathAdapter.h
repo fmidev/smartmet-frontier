@@ -16,6 +16,7 @@ class PathAdapter
   void moveto(const geos::geom::Coordinate& coordinate) { path.moveto(coordinate.x, coordinate.y); }
   void lineto(const geos::geom::Coordinate& coordinate) { path.lineto(coordinate.x, coordinate.y); }
   const Path& getPath() { return path; }
+
  private:
   Path path;
 };

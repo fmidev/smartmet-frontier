@@ -9,8 +9,8 @@
 #ifndef FRONTIER_BEZIERMODEL_H
 #define FRONTIER_BEZIERMODEL_H
 
-#include <list>
 #include "BezSeg.h"
+#include <list>
 
 namespace frontier
 {
@@ -28,15 +28,15 @@ class BezierModel
   // sdk)
 
  public:
-  BezierModel(const List<DirectPosition>& theCurvePositions,
+  BezierModel(const std::vector<DirectPosition>& theCurvePositions,
               boolean isClosedCurve,
               double theTightness = -1.0);
 
-  void init(const List<DirectPosition>& theCurvePositions, boolean isClosedCurve);
+  void init(const std::vector<DirectPosition>& theCurvePositions, boolean isClosedCurve);
 
   void addCurvePosition(DirectPosition curvePosition, boolean isClosedCurve);
   double getCumulatedCurveLength(int i);
-  const List<DirectPosition>& getCurvePositions();
+  const std::vector<DirectPosition>& getCurvePositions();
   const std::list<BezSeg>& getBezierSegments();
   int getBezierSegmentCount();
   DirectPosition getStartPointOfLastBezierSegment();
@@ -57,9 +57,9 @@ class BezierModel
   //	void setCurveDecorator(BezierCurve curveDecorator);
   BezSeg getLastBezierSegment();
   boolean isEmpty();
-  //	List<Integer> getEvaluatedCurvePositionSegmentIndices();
+  //	std::vector<Integer> getEvaluatedCurvePositionSegmentIndices();
   //	DirectPosition getEvaluatedCurvePosition(double cumulatedPathLength);
-  //	List<DirectPosition> getEvaluatedCurvePositions(double pathLengthIncrement);
+  //	std::vector<DirectPosition> getEvaluatedCurvePositions(double pathLengthIncrement);
   boolean isClosedCurve();
   void setTightness(double theTightness);
   double getTightness();
@@ -77,7 +77,7 @@ class BezierModel
                      std::list<DoubleArr>& decoratorPoints);
 
  private:
-  List<DirectPosition> curvePositions;
+  std::vector<DirectPosition> curvePositions;
   std::list<BezSeg> bezierSegments;
   Orientation orientation;
   double totalCurveLength;

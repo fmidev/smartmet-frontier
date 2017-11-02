@@ -46,12 +46,12 @@
 #include <smartmet/newbase/NFmiGlobals.h>
 
 #include <algorithm>  // vector sorting
-#include <map>        // maps
-#include <set>        // sets
-#include <vector>     // vectors
-#include <utility>    // pairs
 #include <cmath>      // abs,min,max
 #include <list>       // lists
+#include <map>        // maps
+#include <set>        // sets
+#include <utility>    // pairs
+#include <vector>     // vectors
 
 namespace frontier
 {

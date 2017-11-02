@@ -18,8 +18,7 @@ DoubleArr Vector2Dee::getUnitVectorFromScalars(double x, double y)
   double len = sqrt(x * x + y * y);
   DoubleArr norm(0., 0.);
 
-  if (len == 0)
-    return norm;
+  if (len == 0) return norm;
 
   norm[X] = x / len;
   norm[Y] = y / len;

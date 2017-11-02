@@ -12,7 +12,7 @@
 
 namespace frontier
 {
-BezSeg::BezSeg(const List<DirectPosition>& theCurvePositions,
+BezSeg::BezSeg(const std::vector<DirectPosition>& theCurvePositions,
                int theSegmentIndex,
                boolean isClosedCurve,
                double theTightness)
@@ -21,7 +21,7 @@ BezSeg::BezSeg(const List<DirectPosition>& theCurvePositions,
   init(theCurvePositions, theSegmentIndex, isClosedCurve);
 }
 
-void BezSeg::init(const List<DirectPosition>& theCurvePositions,
+void BezSeg::init(const std::vector<DirectPosition>& theCurvePositions,
                   int theSegmentIndex,
                   boolean isClosedCurve)
 {
@@ -36,22 +36,16 @@ void BezSeg::init(const List<DirectPosition>& theCurvePositions,
   bIsLastSegment = false;
 
   curvePositions = theCurvePositions;
-  //	this.curvePositions = new ArrayList<DirectPosition>();
+  //	this.curvePositions = new Arraystd::vector<DirectPosition>();
   //	for(DirectPosition pos : curvePositions)
   //		this.curvePositions.add(pos);
 
   computeGeometry();
 }
 
-void BezSeg::setTightness(double theTightness)
-{
-  tightness = theTightness;
-}
+void BezSeg::setTightness(double theTightness) { tightness = theTightness; }
 
-double BezSeg::getTightness()
-{
-  return tightness;
-}
+double BezSeg::getTightness() { return tightness; }
 
 boolean BezSeg::isChanged()
 {
@@ -77,8 +71,7 @@ void BezSeg::computeSegmentPointPositions()
 
   int numberOfCurvePoints = curvePositions.size();
 
-  if (numberOfCurvePoints == 0)
-    return;
+  if (numberOfCurvePoints == 0) return;
 
   if (numberOfCurvePoints == 1)
   {
@@ -119,16 +112,14 @@ void BezSeg::computeSegmentPointPositions()
     endIndex = (startIndex + 1) % numberOfCurvePoints;
 
     aStartIndex = startIndex - 1;
-    if (aStartIndex < 0)
-      aStartIndex += numberOfCurvePoints;
+    if (aStartIndex < 0) aStartIndex += numberOfCurvePoints;
 
     aStartIndex = aStartIndex % numberOfCurvePoints;
     bStartIndex = startIndex % numberOfCurvePoints;
     cStartIndex = (startIndex + 1) % numberOfCurvePoints;
 
     aEndIndex = endIndex - 1;
-    if (aEndIndex < 0)
-      aEndIndex += numberOfCurvePoints;
+    if (aEndIndex < 0) aEndIndex += numberOfCurvePoints;
 
     aEndIndex = aEndIndex % numberOfCurvePoints;
     bEndIndex = endIndex % numberOfCurvePoints;
@@ -246,10 +237,7 @@ DoubleArr BezSeg::createControlPoint(DoubleArr& a, DoubleArr& b, DoubleArr& c, i
   return DoubleArr(b[X] + dist * ma[X], b[Y] + dist * ma[Y]);
 }
 
-int BezSeg::getSegmentIndex()
-{
-  return segmentIndex;
-}
+int BezSeg::getSegmentIndex() { return segmentIndex; }
 
 void BezSeg::setControlPoint1(DirectPosition _c1)
 {
@@ -396,15 +384,9 @@ DoubleArr BezSeg::getPosition(double t)
   return pos;
 }
 
-void BezSeg::setOrientation(Orientation theOrientation)
-{
-  orientation = theOrientation;
-}
+void BezSeg::setOrientation(Orientation theOrientation) { orientation = theOrientation; }
 
-Orientation BezSeg::getOrientation()
-{
-  return orientation;
-}
+Orientation BezSeg::getOrientation() { return orientation; }
 
 // PositionAndUnitNormal BezSeg::getPositionAndNormal(double t)
 //{
@@ -531,8 +513,7 @@ DoubleArr BezSeg::getRotatedUnitVector(DoubleArr p1, DoubleArr p2, double rotati
 
 void BezSeg::computeSegmentLength()
 {
-  if (curvePositions.size() == 1)
-    return;
+  if (curvePositions.size() == 1) return;
 
   if (curvePositions.size() == 2)
   {
@@ -555,41 +536,24 @@ void BezSeg::computeSegmentLength()
   segmentLength = len;
 }
 
-double BezSeg::getSegmentLength()
-{
-  return segmentLength;
-}
+double BezSeg::getSegmentLength() { return segmentLength; }
 
-void BezSeg::isSecondLastSegment(boolean yesOrNo)
-{
-  bIsSecondLastSegment = yesOrNo;
-}
+void BezSeg::isSecondLastSegment(boolean yesOrNo) { bIsSecondLastSegment = yesOrNo; }
 
-boolean BezSeg::isSecondLastSegment()
-{
-  return bIsSecondLastSegment;
-}
+boolean BezSeg::isSecondLastSegment() { return bIsSecondLastSegment; }
 
-void BezSeg::isLastSegment(boolean yesOrNo)
-{
-  bIsLastSegment = yesOrNo;
-}
+void BezSeg::isLastSegment(boolean yesOrNo) { bIsLastSegment = yesOrNo; }
 
-boolean BezSeg::isLastSegment()
-{
-  return bIsLastSegment;
-}
+boolean BezSeg::isLastSegment() { return bIsLastSegment; }
 
 boolean BezSeg::isMiddleSegment()
 {
   // NB! Assumption: number of Bézier segments equals number of given curve points !
 
   int maxSegmentIndex = curvePositions.size() - 1;
-  if ((segmentIndex <= 1) && (maxSegmentIndex <= 1))
-    return true;
+  if ((segmentIndex <= 1) && (maxSegmentIndex <= 1)) return true;
 
-  if (segmentIndex == maxSegmentIndex / 2)
-    return true;
+  if (segmentIndex == maxSegmentIndex / 2) return true;
 
   return false;
 }

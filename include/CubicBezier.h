@@ -7,10 +7,10 @@
 #ifndef FRONTIER_CUBICBEZIER_H
 #define FRONTIER_CUBICBEZIER_H
 
-#include "Point.h"
 #include "NFmiFillMap.h"
-#include <utility>
+#include "Point.h"
 #include "clipper.hpp"
+#include <utility>
 
 namespace frontier
 {
