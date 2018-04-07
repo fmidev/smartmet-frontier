@@ -2,8 +2,8 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 17.10.31
-Release: 2%{?dist}.fmi
+Version: 18.4.7
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-frontier
@@ -11,19 +11,19 @@ Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++
 BuildRequires: make
-BuildRequires: boost-devel >= 1.65.0
-BuildRequires: smartmet-library-macgyver-devel >= 17.8.28
-BuildRequires: smartmet-library-newbase-devel >= 17.9.27
+BuildRequires: boost-devel
+BuildRequires: smartmet-library-macgyver-devel >= 18.4.7
+BuildRequires: smartmet-library-newbase-devel >= 18.4.7
 BuildRequires: smartmet-library-tron >= 17.9.20
 BuildRequires: geos >= 3.5.0
-BuildRequires: smartmet-library-woml >= 17.10.3
+BuildRequires: smartmet-library-woml >= 18.4.7
 BuildRequires: libconfig-devel
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 17.8.28
-Requires: smartmet-library-newbase >= 17.9.27
-Requires: smartmet-library-woml >= 17.10.3
+Requires: smartmet-library-macgyver >= 18.4.7
+Requires: smartmet-library-newbase >= 18.4.7
+Requires: smartmet-library-woml >= 18.4.7
 Requires: cairo >= 1.14.8
 Requires: boost-program-options
 Requires: boost-iostreams
@@ -56,6 +56,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Sat Apr  7 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.4.7-1.fmi
+- Upgrade to boost 1.66
+
 * Tue Oct 31 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.10.31-2.fmi
 - Deprecated option --nocontours (-n), the need for a model is now detected from the template
 
