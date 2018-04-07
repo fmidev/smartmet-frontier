@@ -25,4 +25,4 @@ namespace GeosTools
 {
 const Path& getContours(const geos::geom::Geometry* geom, PathAdapter& pathAdapter);
 }
-}
+}  // namespace frontier

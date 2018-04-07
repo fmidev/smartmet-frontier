@@ -291,5 +291,5 @@ Path create(const woml::CubicSplineSurface& spline)
 
   return path;
 }
-}
-}  // namespace frontier::PathFactory
+}  // namespace PathFactory
+}  // namespace frontier

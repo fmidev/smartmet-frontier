@@ -360,7 +360,10 @@ class ElevationGroupItem
   bool hasHole() const;
   void isHole(bool hole);
   bool isHole() const;
-  bool assHole() { /* K.W.H */ return (hasHole() && isHole()); }
+  bool assHole()
+  { /* K.W.H */
+    return (hasHole() && isHole());
+  }
   void isGenerated(bool generated) { itsGenerated = generated; }
   bool isGenerated() const { return itsGenerated; }
   void isDeleted(bool deleted) { itsDeleted = deleted; }
@@ -594,8 +597,23 @@ class SvgRenderer : public woml::FeatureVisitor
                     double lat,
                     bool asValue = false);
 
-  typedef enum { fst, fwd, vup, eup, bwd, vdn, edn, lst } Phase;
-  typedef enum { t_ground, t_nonground, t_mixed } ElevationGroupType;
+  typedef enum
+  {
+    fst,
+    fwd,
+    vup,
+    eup,
+    bwd,
+    vdn,
+    edn,
+    lst
+  } Phase;
+  typedef enum
+  {
+    t_ground,
+    t_nonground,
+    t_mixed
+  } ElevationGroupType;
   ElevationGroupType elevationGroup(const std::list<woml::TimeSeriesSlot> &ts,
                                     boost::posix_time::ptime &bt,
                                     boost::posix_time::ptime &et,

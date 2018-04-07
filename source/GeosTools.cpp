@@ -121,7 +121,7 @@ void contoursFromGeometryCollection(const GeometryCollection *geom, PathAdapter 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     frontier::GeosTools::getContours(geom->getGeometryN(i), pathAdapter);
 }
-}
+}  // namespace
 
 namespace frontier
 {
@@ -129,8 +129,8 @@ namespace GeosTools
 {
 // ----------------------------------------------------------------------
 /*!
-* \brief Extract contours from geos geometry
-*/
+ * \brief Extract contours from geos geometry
+ */
 // ----------------------------------------------------------------------
 
 const Path &getContours(const Geometry *geom, PathAdapter &pathAdapter)
@@ -156,5 +156,5 @@ const Path &getContours(const Geometry *geom, PathAdapter &pathAdapter)
 
   return pathAdapter.getPath();
 }
-}
-}
+}  // namespace GeosTools
+}  // namespace frontier

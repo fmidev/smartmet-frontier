@@ -13,7 +13,7 @@ class SimpleCubicSpline;
 class CubicSplineRing;
 class CubicSplineCurve;
 class CubicSplineSurface;
-}
+}  // namespace woml
 
 namespace frontier
 {

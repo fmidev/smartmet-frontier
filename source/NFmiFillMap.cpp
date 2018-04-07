@@ -35,7 +35,7 @@ float myround(float theValue)
   else
     return theValue;
 }
-}
+}  // namespace
 
 namespace frontier
 {

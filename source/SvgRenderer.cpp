@@ -128,8 +128,8 @@ std::string svgescape(const std::string &theURI)
 
 std::string svgescapetext(const std::string &theText, bool wrapScands = false)
 {
-  using boost::algorithm::replace_all_copy;
   using boost::algorithm::replace_all;
+  using boost::algorithm::replace_all_copy;
 
   std::string ret = replace_all_copy(theText, "&", "&amp;");
   replace_all(ret, "\"", "&quot;");
@@ -1569,8 +1569,9 @@ void SvgRenderer::render_text(Texts &texts,
           std::string font = configValue<std::string>(scope, textName, "font-family");
 
           // Font size
-          int fSize = (fontSize && (*fontSize > 0)) ? *fontSize : configValue<unsigned int>(
-                                                                      scope, textName, "font-size");
+          int fSize = (fontSize && (*fontSize > 0))
+                          ? *fontSize
+                          : configValue<unsigned int>(scope, textName, "font-size");
 
           // Font style
           cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
@@ -2544,7 +2545,8 @@ void SvgRenderer::render_surface(
                 surfaces
                     << "\"/>\n<text>\n"
                     << "<textPath class=\"" << style << "\" xlink:href=\"#" << pathId << "\">\n"
-                    << glyph << "\n</textPath>"
+                    << glyph
+                    << "\n</textPath>"
                     //											 <<
                     //"<!--
                     // len="
@@ -5518,7 +5520,8 @@ void getAreaMarkerPos(Texts &texts,
       int nN = n0 + nX - 1;              // Last elevation
       int n2 = n + ((nX > 1) ? 1 : 0);   // Right side elevation
       int n1 = n2 - ((nX > 1) ? 1 : 0);  // Left side elevation
-                                         //			int selhoff = -1;					// Index of
+                                         //			int selhoff = -1;
+                                         //// Index of
       // selected marker position
       //			int selfroff = -1;					// Index
       // of heighest free marker position
@@ -9955,9 +9958,9 @@ void SvgRenderer::render_value(const std::string &confPath,
           // Note: When rendering (wind symbol with) wind speed asValue is true; block's 'type'
           // setting
           // (for the symbol; svg) is ignored
-          std::string type =
-              (asValue ? "value" : configValue<std::string>(
-                                       specs, valClass, "type", globalScope, s_optional));
+          std::string type = (asValue ? "value"
+                                      : configValue<std::string>(
+                                            specs, valClass, "type", globalScope, s_optional));
 
           if (type.empty() || (type == "value"))
           {
