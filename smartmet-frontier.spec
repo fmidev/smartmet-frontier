@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 18.4.7
+Version: 18.5.2
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -14,7 +14,7 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
 BuildRequires: smartmet-library-macgyver-devel >= 18.4.7
-BuildRequires: smartmet-library-newbase-devel >= 18.4.7
+BuildRequires: smartmet-library-newbase-devel >= 18.5.2
 BuildRequires: smartmet-library-tron >= 17.9.20
 BuildRequires: geos >= 3.5.0
 BuildRequires: smartmet-library-woml >= 18.4.7
@@ -23,7 +23,7 @@ BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-library-macgyver >= 18.4.7
-Requires: smartmet-library-newbase >= 18.4.7
+Requires: smartmet-library-newbase >= 18.5.2
 Requires: smartmet-library-woml >= 18.4.7
 Requires: cairo >= 1.14.8
 Requires: boost-program-options
@@ -57,6 +57,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Wed May  2 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.5.2-1.fmi
+- Repackaged since newbase NFmiEnumConverter ABI changed
+
 * Sat Apr  7 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.4.7-1.fmi
 - Upgrade to boost 1.66
 
