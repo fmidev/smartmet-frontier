@@ -13,18 +13,18 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.4.7
-BuildRequires: smartmet-library-newbase-devel >= 18.5.2
+BuildRequires: smartmet-library-macgyver-devel >= 18.7.26
+BuildRequires: smartmet-library-newbase-devel >= 18.7.23
 BuildRequires: smartmet-library-tron >= 17.9.20
 BuildRequires: geos >= 3.5.0
-BuildRequires: smartmet-library-woml >= 18.4.7
+BuildRequires: smartmet-library-woml >= 18.7.26
 BuildRequires: libconfig-devel
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 18.4.7
-Requires: smartmet-library-newbase >= 18.5.2
-Requires: smartmet-library-woml >= 18.4.7
+Requires: smartmet-library-macgyver >= 18.7.26
+Requires: smartmet-library-newbase >= 18.7.23
+Requires: smartmet-library-woml >= 18.7.26
 Requires: cairo >= 1.14.8
 Requires: boost-program-options
 Requires: boost-iostreams

@@ -128,7 +128,7 @@ T lookup(const libconfig::Setting& setting,
          const std::string& prefix,
          const std::string& name,
          settings settingId = s_required,
-         bool* isSet = NULL)
+         bool* isSet = nullptr)
 {
   // If 's_required' setting is not found, std::runtime_error is thrown.
   //

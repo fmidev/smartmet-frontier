@@ -38,7 +38,7 @@ class Path
   Path& operator+=(const Path& path);
 
   bool empty() const;
-  double length(NFmiFillMap* fmap = NULL) const;
+  double length(NFmiFillMap* fmap = nullptr) const;
   std::string svg() const;
   void transform(const PathTransformation& transformation);
   bool scale(double offset, Path& scaledPath) const;

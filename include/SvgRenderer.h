@@ -94,7 +94,7 @@ class AxisManager
   const std::list<Elevation> &elevations() { return itsElevations; }
   // Scaled elevation
   double scaledElevation(double elevation,
-                         bool *above = NULL,
+                         bool *above = nullptr,
                          double belowZero = 50.0,
                          double aboveTop = 100.0);
 
@@ -131,8 +131,8 @@ class ConfigGroup
               int theEOffset,
               std::set<size_t> &theMemberSet,
               const libconfig::Setting *localScope,
-              const libconfig::Setting *globalScope = NULL,
-              const std::list<const libconfig::Setting *> *scope = NULL);
+              const libconfig::Setting *globalScope = nullptr,
+              const std::list<const libconfig::Setting *> *scope = nullptr);
 
   const std::string &classDef() const { return itsClass; }
   const std::string &textClassDef() const { return itsTextClass; }
@@ -273,7 +273,7 @@ class IcingGroup : public ConfigGroup
              int theEOffset,
              std::set<size_t> &theIcingSet,
              const libconfig::Setting *localScope,
-             const libconfig::Setting *globalScope = NULL);
+             const libconfig::Setting *globalScope = nullptr);
 
   const std::string &symbol() const { return itsSymbol; }
   bool symbolOnly() const { return renderSymbolOnly; }
@@ -291,7 +291,7 @@ class CategoryValueMeasureGroup
 {
  public:
   virtual ~CategoryValueMeasureGroup() {}
-  CategoryValueMeasureGroup() : itsFirstMember(NULL) {}
+  CategoryValueMeasureGroup() : itsFirstMember(nullptr) {}
   virtual bool groupMember(const woml::CategoryValueMeasure *cvm) const { return true; }
   virtual bool groupMember(bool first, const woml::CategoryValueMeasure *cvm);
   virtual bool standalone() { return false; }
@@ -465,7 +465,7 @@ class SvgRenderer : public woml::FeatureVisitor
               const std::string &theTemplate,
               const boost::shared_ptr<NFmiArea> &theArea,
               const boost::posix_time::ptime &theValidTime,
-              std::ostringstream *theDebugOutput = NULL);
+              std::ostringstream *theDebugOutput = nullptr);
 
   virtual void visit(const woml::CloudArea &theFeature);
   virtual void visit(const woml::ColdAdvection &theFeature);
@@ -550,16 +550,16 @@ class SvgRenderer : public woml::FeatureVisitor
                    bool centerToStartX = false,
                    const std::string &TEXTPOSid = "",
                    bool useTextName = false,
-                   int *maxTextWidth = NULL,  // I
-                   int *fontSize = NULL,      // I
-                   int *tXOffset = NULL,      // I/O: area text's border x -offset
-                   int *tYOffset = NULL);     // I/O: area text's border y -offset
+                   int *maxTextWidth = nullptr,  // I
+                   int *fontSize = nullptr,      // I
+                   int *tXOffset = nullptr,      // I/O: area text's border x -offset
+                   int *tYOffset = nullptr);     // I/O: area text's border y -offset
   void render_surface(Path &path,
                       std::ostringstream &surfaceOutput,
                       const std::string &id,
                       const std::string &surfaceName,
-                      const woml::Feature *feature = NULL,
-                      const std::list<std::string> *areaSymbols = NULL);
+                      const woml::Feature *feature = nullptr,
+                      const std::list<std::string> *areaSymbols = nullptr);
   void render_aerodromeSymbol(const std::string &confPath,
                               const std::string &symClass,
                               const std::string &classNameExt,
@@ -581,11 +581,11 @@ class SvgRenderer : public woml::FeatureVisitor
                      const std::string &symCode,
                      double lon,
                      double lat,
-                     const woml::Feature *feature = NULL,
+                     const woml::Feature *feature = nullptr,
                      bool trueNorthAdjustment = false,
-                     const woml::NumericalSingleValueMeasure *svm = NULL,
-                     NFmiFillPositions *fpos = NULL,
-                     const std::list<std::string> *areaSymbols = NULL,
+                     const woml::NumericalSingleValueMeasure *svm = nullptr,
+                     NFmiFillPositions *fpos = nullptr,
+                     const std::list<std::string> *areaSymbols = nullptr,
                      int width = 0,
                      int height = 0);
   void render_value(const std::string &path,
@@ -621,7 +621,7 @@ class SvgRenderer : public woml::FeatureVisitor
                                     bool all = true,
                                     bool join = true,
                                     bool getHole = false,
-                                    CategoryValueMeasureGroup *categoryGroup = NULL);
+                                    CategoryValueMeasureGroup *categoryGroup = nullptr);
   unsigned int getLeftSideGroupNumber(ElevGrp &eGrp,
                                       ElevGrp::iterator &iteg,
                                       unsigned int nextGroupNumber,
@@ -633,29 +633,29 @@ class SvgRenderer : public woml::FeatureVisitor
   void setGroupNumbers(const std::list<woml::TimeSeriesSlot> &ts, bool mixed = true);
   void checkLeftSide(ElevGrp &eGrp,
                      ElevationHole &hole,
-                     CategoryValueMeasureGroup *groupCategory = NULL);
+                     CategoryValueMeasureGroup *groupCategory = nullptr);
   bool checkLeftSideHoles(ElevationHoles &holes,
                           ElevationHoles::iterator &iteh,
-                          CategoryValueMeasureGroup *groupCategory = NULL);
+                          CategoryValueMeasureGroup *groupCategory = nullptr);
   void checkRightSide(ElevGrp &eGrp,
                       ElevationHoles::iterator &iteh,
-                      CategoryValueMeasureGroup *groupCategory = NULL);
+                      CategoryValueMeasureGroup *groupCategory = nullptr);
   bool checkRightSideHoles(ElevationHoles &holes,
                            ElevationHoles::reverse_iterator iteh,
-                           CategoryValueMeasureGroup *groupCategory = NULL);
+                           CategoryValueMeasureGroup *groupCategory = nullptr);
   bool checkBothSideHoles(ElevationHoles &holes,
                           ElevationHoles::iterator &iteh,
-                          CategoryValueMeasureGroup *groupCategory = NULL);
+                          CategoryValueMeasureGroup *groupCategory = nullptr);
   bool checkHoles(ElevGrp &eGrp,
                   ElevationHoles &holes,
-                  CategoryValueMeasureGroup *groupCategory = NULL,
+                  CategoryValueMeasureGroup *groupCategory = nullptr,
                   bool setNegative = true);
   bool checkCategory(CategoryValueMeasureGroup *groupCategory, ElevGrp::iterator &e) const;
   bool checkCategory(CategoryValueMeasureGroup *groupCategory,
                      ElevGrp::iterator &e1,
                      ElevGrp::iterator &e2) const;
   bool searchHoles(const std::list<woml::TimeSeriesSlot> &ts,
-                   CategoryValueMeasureGroup *groupCategory = NULL,
+                   CategoryValueMeasureGroup *groupCategory = nullptr,
                    bool setNegative = true);
   Phase uprightdown(
       ElevGrp &eGrp, ElevGrp::iterator &iteg, double lo, double hi, bool nonGndFwd2Gnd = true);
@@ -704,7 +704,7 @@ class SvgRenderer : public woml::FeatureVisitor
                             int scaleHeightMin,
                             int scaleHeightRandom,
                             std::ostringstream &path,
-                            bool *isVisible = NULL,
+                            bool *isVisible = nullptr,
                             bool checkGround = false,
                             bool nonGndFwd2Gnd = true,
                             bool nonGndVdn2Gnd = false);
@@ -739,7 +739,7 @@ class SvgRenderer : public woml::FeatureVisitor
                        int textHeight,
                        int tXOffset,
                        int tYOffset,
-                       Path::BBox *boundingBox = NULL);
+                       Path::BBox *boundingBox = nullptr);
   void renderAreaLabels(const std::list<DirectPosition> &curvePoints,
                         NFmiFillAreas &holeAreas,
                         const std::string &confPath,

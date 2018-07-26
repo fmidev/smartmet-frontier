@@ -299,7 +299,7 @@ bool Path::scale(double offset, Path& scaledPath) const
                         pathdata[i + 4],
                         pathdata[i + 5]);
         double eps = 0.001;
-        bez.length(eps, NULL, NULL, NULL, &srcPath);
+        bez.length(eps, nullptr, nullptr, nullptr, &srcPath);
         lastx = pathdata[i + 4];
         lasty = pathdata[i + 5];
         i += 6;

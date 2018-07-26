@@ -29,7 +29,7 @@ namespace
 
 void contourFromLinearRing(const LinearRing *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   for (unsigned long i = 0, n = geom->getNumPoints(); i < n - 1; ++i)
   {
@@ -48,7 +48,7 @@ void contourFromLinearRing(const LinearRing *geom, PathAdapter &pathAdapter)
 
 void contourFromLineString(const LineString *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   unsigned long n = geom->getNumPoints();
 
@@ -72,7 +72,7 @@ void contourFromLineString(const LineString *geom, PathAdapter &pathAdapter)
 
 void contoursFromPolygon(const Polygon *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   contourFromLineString(geom->getExteriorRing(), pathAdapter);
 
@@ -88,7 +88,7 @@ void contoursFromPolygon(const Polygon *geom, PathAdapter &pathAdapter)
 
 void contoursFromMultiLineString(const MultiLineString *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     contourFromLineString(dynamic_cast<const LineString *>(geom->getGeometryN(i)), pathAdapter);
@@ -102,7 +102,7 @@ void contoursFromMultiLineString(const MultiLineString *geom, PathAdapter &pathA
 
 void contoursFromMultiPolygon(const MultiPolygon *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     contoursFromPolygon(dynamic_cast<const Polygon *>(geom->getGeometryN(i)), pathAdapter);
@@ -116,7 +116,7 @@ void contoursFromMultiPolygon(const MultiPolygon *geom, PathAdapter &pathAdapter
 
 void contoursFromGeometryCollection(const GeometryCollection *geom, PathAdapter &pathAdapter)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     frontier::GeosTools::getContours(geom->getGeometryN(i), pathAdapter);

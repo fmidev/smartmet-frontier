@@ -15,7 +15,7 @@ class PathTransformation
 {
  public:
   virtual ~PathTransformation() {}
-  virtual void operator()(double& x, double& y, NFmiAngle* trueNorthAzimuth = NULL) const = 0;
+  virtual void operator()(double& x, double& y, NFmiAngle* trueNorthAzimuth = nullptr) const = 0;
 
 };  // class PathTransformation
 }  // namespace frontier

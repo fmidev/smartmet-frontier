@@ -174,7 +174,7 @@ class PathProjector : public PathTransformation
 {
  public:
   PathProjector(const boost::shared_ptr<NFmiArea> &theArea) : area(theArea) {}
-  void operator()(double &x, double &y, NFmiAngle *trueNorthAzimuth = NULL) const
+  void operator()(double &x, double &y, NFmiAngle *trueNorthAzimuth = nullptr) const
   {
     NFmiPoint ll(x, y);
     NFmiPoint xy = area->ToXY(ll);
@@ -243,7 +243,7 @@ T _lookup(const libconfig::Setting &scope,
           const std::string &scopeName,
           const std::string &param,
           settings settingId = s_required,
-          bool *isSet = NULL)
+          bool *isSet = nullptr)
 {
   T value = lookup<T>(scope, scopeName, param, settingId, isSet);
 
@@ -264,10 +264,10 @@ template <typename T, typename T2>
 T configValue(const libconfig::Setting &localScope,
               const std::string &localScopeName,
               const std::string &param,
-              const libconfig::Setting *globalScope = NULL,
+              const libconfig::Setting *globalScope = nullptr,
               settings settingId = s_required,
-              bool *isSet = NULL,
-              const libconfig::Setting **matchingScope = NULL)
+              bool *isSet = nullptr,
+              const libconfig::Setting **matchingScope = nullptr)
 {
   // If 's_required' setting is not found, std::runtime_error is thrown.
   //
@@ -307,7 +307,7 @@ T configValue(const libconfig::Setting &localScope,
 
   if (isSet) *isSet = _isSet;
 
-  if (matchingScope) *matchingScope = (_isSet ? scope : NULL);
+  if (matchingScope) *matchingScope = (_isSet ? scope : nullptr);
 
   if (_isSet || (settingId == s_optional)) return value;
 
@@ -324,10 +324,10 @@ template <typename T>
 T configValue(const libconfig::Setting &localScope,
               const std::string &localScopeName,
               const std::string &param,
-              const libconfig::Setting *globalScope = NULL,
+              const libconfig::Setting *globalScope = nullptr,
               settings settingId = s_required,
-              bool *isSet = NULL,
-              const libconfig::Setting **matchingScope = NULL)
+              bool *isSet = nullptr,
+              const libconfig::Setting **matchingScope = nullptr)
 {
   return configValue<T, T>(
       localScope, localScopeName, param, globalScope, settingId, isSet, matchingScope);
@@ -344,11 +344,11 @@ T configValue(std::list<const libconfig::Setting *> &scope,
               const std::string &localScopeName,
               const std::string &param,
               settings settingId = s_required,
-              bool *isSet = NULL,
+              bool *isSet = nullptr,
               bool truncate = false)
 {
   T value = T();
-  const libconfig::Setting *matchingScope = NULL;
+  const libconfig::Setting *matchingScope = nullptr;
   bool _isSet = false;
 
   std::list<const libconfig::Setting *>::reverse_iterator rbegiter(scope.end()),
@@ -368,7 +368,7 @@ T configValue(std::list<const libconfig::Setting *> &scope,
     value = configValue<T, T2>(**it,
                                localScopeName,
                                param,
-                               ((git != renditer) ? *git : NULL),
+                               ((git != renditer) ? *git : nullptr),
                                (riter != renditer) ? s_optional : settingId,
                                &_isSet,
                                &matchingScope);
@@ -394,7 +394,7 @@ T configValue(std::list<const libconfig::Setting *> &scope,
               const std::string &localScopeName,
               const std::string &param,
               settings settingId = s_required,
-              bool *isSet = NULL,
+              bool *isSet = nullptr,
               bool truncate = false)
 {
   return configValue<T, T>(scope, localScopeName, param, settingId, isSet, truncate);
@@ -581,7 +581,7 @@ void SvgRenderer::render_timeAxis(const boost::posix_time::time_period &theTimeP
     // utc (default: false)
 
     bool isSet;
-    bool utc = configValue<bool>(timeSpecs, confPath, "utc", NULL, s_optional, &isSet);
+    bool utc = configValue<bool>(timeSpecs, confPath, "utc", nullptr, s_optional, &isSet);
     if (!isSet) utc = false;
     axisManager->utc(utc);
 
@@ -715,7 +715,7 @@ void SvgRenderer::render_header(const std::string &hdrClass,
           // Locale
           //
           std::string locale(
-              toLower(configValue<std::string>(specs, hdrClass, "locale", NULL, s_optional)));
+              toLower(configValue<std::string>(specs, hdrClass, "locale", nullptr, s_optional)));
           bool localeMatch = (locale == options.locale);
 
           if (localeMatch || (locale == ""))
@@ -1552,7 +1552,7 @@ void SvgRenderer::render_text(Texts &texts,
             //
             std::string locale(
                 options
-                    .locale /*toLower(configValue<std::string>(specs,textName,"locale",NULL,s_optional))*/);
+                    .locale /*toLower(configValue<std::string>(specs,textName,"locale",nullptr,s_optional))*/);
             bool localeMatch = (locale == options.locale);
 
             if (localeMatch || (locale == ""))
@@ -1789,7 +1789,7 @@ bool symbolMapping(const libconfig::Config &config,
                    const std::string &symCode,
                    settings s_code,
                    std::string &mappedCode,
-                   std::list<const libconfig::Setting *> *scope = NULL)
+                   std::list<const libconfig::Setting *> *scope = nullptr)
 {
   // Symbol's <code>; code_<symCode> = <code>
   //
@@ -1814,7 +1814,7 @@ bool symbolMapping(const libconfig::Config &config,
 
     mappedCode =
         scope ? configValue<std::string>(*scope, confPath, mappedCode, s_code, &isSet)
-              : configValue<std::string>(symbolSpecs, confPath, mappedCode, NULL, s_code, &isSet);
+              : configValue<std::string>(symbolSpecs, confPath, mappedCode, nullptr, s_code, &isSet);
   }
 
   return (isSet && (!mappedCode.empty()));
@@ -1843,11 +1843,11 @@ void textSettings(std::string &infoText,
       "<topright>",   "<tr>", "<left>",        "<l>",  "<right>", "<r>", "<bottom>",  "<b>",
       "<bottomleft>", "<bl>", "<bottomright>", "<br>", "<width=", "<w=",  // unsigned
       "<fontsize=",   "<f=",                                              // unsigned
-      "<xoffset=",    "<x=",  "<yoffset=",     "<y=",  NULL};
+      "<xoffset=",    "<x=",  "<yoffset=",     "<y=",  nullptr};
 
   size_t n = 0;
 
-  for (const char **s = settings, **ps = NULL; *s;)
+  for (const char **s = settings, **ps = nullptr; *s;)
     if (infoText.find(*s) == 0)
     {
       // Get the setting and erase it from the text. Just give up on invalid setting (e.g.
@@ -1884,7 +1884,7 @@ void textSettings(std::string &infoText,
       boost::algorithm::trim(infoText);
 
       s = settings;
-      ps = NULL;
+      ps = nullptr;
       n = 0;
     }
     else
@@ -2514,11 +2514,11 @@ void SvgRenderer::render_surface(
                             "",
                             0,
                             0,
-                            NULL,
+                            nullptr,
                             false,
-                            NULL,
+                            nullptr,
                             &fpos,
-                            (fillSymbols.size() > 0) ? &fillSymbols : NULL,
+                            (fillSymbols.size() > 0) ? &fillSymbols : nullptr,
                             width,
                             height);
             }
@@ -2591,7 +2591,7 @@ void SvgRenderer::render_surface(
 // ----------------------------------------------------------------------
 /*!
  * \brief Utility function for getting conditional settings based on numerical value.
- * 		Returns the configuration group/block on success or NULL on not found.
+ * 		Returns the configuration group/block on success or nullptr on not found.
  */
 // ----------------------------------------------------------------------
 
@@ -2702,13 +2702,13 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
     return &(condSpecs[idx]);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 // ----------------------------------------------------------------------
 /*!
  * \brief Utility function for getting conditional settings based on datetime value.
- * 		Returns the configuration group/block on success or NULL on not found.
+ * 		Returns the configuration group/block on success or nullptr on not found.
  */
 // ----------------------------------------------------------------------
 
@@ -2729,7 +2729,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
     const libconfig::Setting &conds = condSpecs[i];
     if (!conds.isGroup()) throw std::runtime_error(confPath + ".conditions" + typeMsg);
 
-    std::string refix(configValue<std::string>(conds, className, "refix", NULL, s_optional));
+    std::string refix(configValue<std::string>(conds, className, "refix", nullptr, s_optional));
     std::string condValue(configValue<std::string>(conds, className, "value"));
     std::string rngErr;
 
@@ -2809,13 +2809,13 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
       throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 // ----------------------------------------------------------------------
 /*!
  * \brief Utility function for getting conditional settings based on string value.
- * 		Returns the configuration group/block on success or NULL on not found.
+ * 		Returns the configuration group/block on success or nullptr on not found.
  */
 // ----------------------------------------------------------------------
 
@@ -2864,7 +2864,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
 
   if (i < condSpecs.getLength()) return &(condSpecs[i]);
 
-  return NULL;
+  return nullptr;
 }
 
 // ----------------------------------------------------------------------
@@ -2888,7 +2888,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
       ((specsIdx >= 0) ? (".[" + boost::lexical_cast<std::string>(specsIdx) + "]") : "") +
       ".conditions");
 
-  if (!config.exists(condPath)) return NULL;
+  if (!config.exists(condPath)) return nullptr;
 
   const libconfig::Setting &condSpecs = config.lookup(condPath);
   if (!condSpecs.isList()) throw std::runtime_error(confPath + ".conditions" + typeMsg);
@@ -2923,10 +2923,10 @@ std::string getFolderAndSymbol(const libconfig::Config &config,
   std::string code;
 
   if (scope && commonCode)
-    code = configValue<std::string, int>(*scope, symClass, "code", s_optional, NULL, true);
+    code = configValue<std::string, int>(*scope, symClass, "code", s_optional, nullptr, true);
 
   if (code.empty())
-    code = (scope ? configValue<std::string, int>(*scope, symClass, symCode, s_code, NULL, true)
+    code = (scope ? configValue<std::string, int>(*scope, symClass, symCode, s_code, nullptr, true)
                   : symCode);
 
   std::vector<std::string> cols;
@@ -2955,9 +2955,9 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure *lowerLimit,
                            const woml::NumericalSingleValueMeasure *upperLimit,
                            const std::string &confPath,
                            const std::string &pref,
-                           double *scale = NULL,
-                           const libconfig::Setting *specs = NULL,
-                           libconfig::Setting *globalScope = NULL)
+                           double *scale = nullptr,
+                           const libconfig::Setting *specs = nullptr,
+                           libconfig::Setting *globalScope = nullptr)
 {
   if (pref.empty())
     return upperLimit ? (lowerLimit->value() + ".." + upperLimit->value())
@@ -2969,7 +2969,7 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure *lowerLimit,
 
   std::ostringstream os;
 
-  if (scale && (*scale == 0.0)) scale = NULL;
+  if (scale && (*scale == 0.0)) scale = nullptr;
 
   try
   {
@@ -3130,7 +3130,7 @@ void SvgRenderer::render_aerodromeSymbol(const std::string &confPath,
 
     bool hasScale;
     double scale = (double)configValue<double, int>(
-               symbolSpecs, confPath, "scale", NULL, s_optional, &hasScale),
+               symbolSpecs, confPath, "scale", nullptr, s_optional, &hasScale),
            scaleX, scaleY;
 
     if (xScale > 0.0)
@@ -3285,7 +3285,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
       const woml::CategoryValueMeasure *cvm =
           dynamic_cast<const woml::CategoryValueMeasure *>(iteg->Pv()->value());
       const woml::NumericalSingleValueMeasure *nsv =
-          (cvm ? NULL
+          (cvm ? nullptr
                : dynamic_cast<const woml::NumericalSingleValueMeasure *>(iteg->Pv()->value()));
 
       if ((!cvm) && (!nsv))
@@ -3306,7 +3306,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
         // symbols;
         //		 visibility related flags are not set if condition exists.
         //
-        const libconfig::Setting *condSpecs = NULL;
+        const libconfig::Setting *condSpecs = nullptr;
         int yPos = 0;
 
         if (cvm)
@@ -3319,7 +3319,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
 
             bool isSet;
             bool absolute =
-                configValue<bool>(*condSpecs, confPath, "absolute", NULL, s_optional, &isSet);
+                configValue<bool>(*condSpecs, confPath, "absolute", nullptr, s_optional, &isSet);
 
             if ((!isSet) || absolute)
             {
@@ -3330,7 +3330,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
             else
               // Position is relative; clear condSpecs to use the elevation
               //
-              condSpecs = NULL;
+              condSpecs = nullptr;
           }
         }
 
@@ -3371,7 +3371,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
           // Offset in px for moving first time instant's symbols to the right
           //
           bool isSet;
-          int sOffset = configValue<int>(specs, confPath, "soffset", NULL, s_optional, &isSet);
+          int sOffset = configValue<int>(specs, confPath, "soffset", nullptr, s_optional, &isSet);
 
           if (isSet) x += sOffset;
         }
@@ -3380,7 +3380,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
           // Offset in px for moving last time instant's symbols to the left
           //
           bool isSet;
-          int eOffset = configValue<int>(specs, confPath, "eoffset", NULL, s_optional, &isSet);
+          int eOffset = configValue<int>(specs, confPath, "eoffset", nullptr, s_optional, &isSet);
 
           if (isSet) x -= eOffset;
         }
@@ -3407,7 +3407,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
         if (condSpecs)
           pref = configValue<std::string>(*condSpecs, confPath, "pref", &specs);
         else
-          pref = configValue<std::string>(specs, confPath, "pref", NULL, s_optional);
+          pref = configValue<std::string>(specs, confPath, "pref", nullptr, s_optional);
 
         if (pref.empty())
         {
@@ -3418,7 +3418,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
         render_aerodromeSymbol(confPath,
                                symClass,
                                theFeature.classNameExt(),
-                               formattedValue(nsv, NULL, confPath, pref, &scale),
+                               formattedValue(nsv, nullptr, confPath, pref, &scale),
                                x,
                                y,
                                false);
@@ -3509,7 +3509,7 @@ void SvgRenderer::render_symbol(const std::string &confPath,
   if (!fpos)
   {
     PathProjector proj(area);
-    proj(lon, lat, trueNorthAdjustment ? &trueNorthAzimuth : NULL);
+    proj(lon, lat, trueNorthAdjustment ? &trueNorthAzimuth : nullptr);
   }
 
   ++npointsymbols;
@@ -3569,7 +3569,7 @@ void SvgRenderer::render_symbol(const std::string &confPath,
           // Locale
           //
           std::string locale(
-              toLower(configValue<std::string>(specs, symClass, "locale", NULL, s_optional)));
+              toLower(configValue<std::string>(specs, symClass, "locale", nullptr, s_optional)));
           bool localeMatch = (locale == options.locale);
 
           if (localeMatch || (locale == ""))
@@ -3778,7 +3778,7 @@ void SvgRenderer::render_symbol(const std::string &confPath,
 
                   std::string symFolder(folder);
                   code = getFolderAndSymbol(
-                      config, NULL, symClass, symClass, *siter, s_code, validtime, symFolder);
+                      config, nullptr, symClass, symClass, *siter, s_code, validtime, symFolder);
 
                   boost::algorithm::replace_all(u, "%folder%", symFolder);
                   boost::algorithm::replace_all(u, "%symbol%", code + "." + type);
@@ -4229,7 +4229,7 @@ const libconfig::Setting &SvgRenderer::cloudLayerConfig(const std::string &_conf
 
     bool isSet;
     tightness =
-        (double)configValue<double, int>(specs, confPath, "tightness", NULL, s_optional, &isSet);
+        (double)configValue<double, int>(specs, confPath, "tightness", nullptr, s_optional, &isSet);
 
     if (!isSet)
       // Using the default by setting a negative value
@@ -4240,19 +4240,19 @@ const libconfig::Setting &SvgRenderer::cloudLayerConfig(const std::string &_conf
     // baseline at the right level
 
     borderCompensation =
-        configValue<bool>(specs, confPath, "bordercompensation", NULL, s_optional, &isSet);
+        configValue<bool>(specs, confPath, "bordercompensation", nullptr, s_optional, &isSet);
 
     if (!isSet) borderCompensation = true;
 
     // Minimum absolute/relative height for the label position
 
     minLabelPosHeight =
-        configValue<int>(specs, confPath, "minlabelposheight", NULL, s_optional, &isSet);
+        configValue<int>(specs, confPath, "minlabelposheight", nullptr, s_optional, &isSet);
 
     if ((!isSet) || (minLabelPosHeight < (int)labelPosHeightMin))
     {
       labelPosHeightFactor =
-          configValue<double>(specs, confPath, "labelposheightfactor", NULL, s_optional, &isSet);
+          configValue<double>(specs, confPath, "labelposheightfactor", nullptr, s_optional, &isSet);
 
       if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
         labelPosHeightFactor = defaultLabelPosHeightFactor;
@@ -4265,7 +4265,7 @@ const libconfig::Setting &SvgRenderer::cloudLayerConfig(const std::string &_conf
     // otherwise using 1 or 2 elevations in the middle of the cloud in x -direction
 
     bool bbCenterLabel =
-        configValue<bool>(specs, confPath, "bbcenterlabel", NULL, s_optional, &isSet);
+        configValue<bool>(specs, confPath, "bbcenterlabel", nullptr, s_optional, &isSet);
     if (!isSet) bbCenterLabel = false;
 
     // Cloud groups
@@ -4285,7 +4285,7 @@ const libconfig::Setting &SvgRenderer::cloudLayerConfig(const std::string &_conf
       // Cloud types
 
       std::string cloudTypes(boost::algorithm::to_upper_copy(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "types", NULL, s_optional))));
+          configValue<std::string>(group, confPath, "types", nullptr, s_optional))));
 
       if (!cloudTypes.empty())
       {
@@ -4330,7 +4330,7 @@ const libconfig::Setting &SvgRenderer::cloudLayerConfig(const std::string &_conf
       // If empty label is given, no label.
 
       std::string label(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "label", NULL, s_optional, &isSet)));
+          configValue<std::string>(group, confPath, "label", nullptr, s_optional, &isSet)));
       bool hasLabel = isSet;
 
       // Output placeholders; default label placeholder is the cloud placeholder + "TEXT"
@@ -4436,7 +4436,7 @@ const libconfig::Setting &SvgRenderer::cloudLayerConfig(const std::string &_conf
       cloudGroups.push_back(CloudGroup(cloudClass.empty() ? classDef : cloudClass,
                                        cloudTypes,
                                        symbolType,
-                                       hasLabel ? &label : NULL,
+                                       hasLabel ? &label : nullptr,
                                        bbCenterLabel,
                                        placeHolder,
                                        labelPlaceHolder,
@@ -4605,7 +4605,7 @@ void eraseReservedAreas(const std::string &markerId,
                         const NFmiFillAreas &reservedAreas,
                         FillAreas &candidateAreas,
                         NFmiFillAreas &fillAreas,
-                        std::list<std::pair<double, double> > *scales = NULL,
+                        std::list<std::pair<double, double> > *scales = nullptr,
                         bool isHole = false,
                         bool storeCandidates = true,
                         bool eraseReserved = true)
@@ -4664,7 +4664,7 @@ void eraseReservedAreas(const std::string &markerId,
                         const FillAreas &reservedAreas,
                         FillAreas &candidateAreas,
                         NFmiFillAreas &fillAreas,
-                        std::list<std::pair<double, double> > *scales = NULL,
+                        std::list<std::pair<double, double> > *scales = nullptr,
                         bool isHole = false,
                         bool storeCandidates = true)
 {
@@ -4725,9 +4725,9 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
   markerArea.push_back(std::make_pair(Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
                                       Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0))));
 
-  eraseReservedAreas("hole", "hole", holeAreas, candidateAreas, markerArea, NULL, true);
+  eraseReservedAreas("hole", "hole", holeAreas, candidateAreas, markerArea, nullptr, true);
   eraseReservedAreas(
-      markerId, reservedAreas, candidateAreas, markerArea, NULL, false, storeCandidates);
+      markerId, reservedAreas, candidateAreas, markerArea, nullptr, false, storeCandidates);
 
   return markerArea;
 }
@@ -5017,9 +5017,9 @@ bool arrangeMarkers(Texts &texts,
                     std::list<std::pair<double, double> > &scales,
                     std::list<std::string> &markerChain,
                     int RC = 1,
-                    std::list<std::string>::iterator *mit2 = NULL,
-                    NFmiFillAreas::iterator *it2 = NULL,
-                    std::list<std::pair<double, double> >::iterator *sit2 = NULL)
+                    std::list<std::string>::iterator *mit2 = nullptr,
+                    NFmiFillAreas::iterator *it2 = nullptr,
+                    std::list<std::pair<double, double> >::iterator *sit2 = nullptr)
 {
   // fprintf(stderr,"\n>> [%d] MARKER: %s\n",RC,(cit == candidateAreas.end()) ? "END" :
   // cit->first.c_str());
@@ -5290,7 +5290,7 @@ void getAreaMarkerPos(Texts &texts,
                       std::list<double> &markerY,
                       std::list<double> &scaleX,
                       std::list<double> &scaleY,
-                      boost::ptr_map<std::string, std::ostringstream> *areasOut = NULL,
+                      boost::ptr_map<std::string, std::ostringstream> *areasOut = nullptr,
                       const std::string &areaPlaceHolder = "")
 {
   // Get fill areas. axisWidth (instead of windowWidth) is passed to getFillAreas() to ignore
@@ -5334,7 +5334,7 @@ void getAreaMarkerPos(Texts &texts,
     // Move reserved fill areas into candidate container
     //
     splitFillAreas(fillAreas, markerWidth, 1.0);
-    eraseReservedAreas("hole", "hole", holeAreas, candidateAreas, fillAreas, NULL, true);
+    eraseReservedAreas("hole", "hole", holeAreas, candidateAreas, fillAreas, nullptr, true);
     fillAreas.sort(sortFillAreas);
     // if (TRAP != 0)
     // fillAreas.clear();
@@ -5917,7 +5917,7 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition> &curvePoints,
                    labelY,
                    scaleX,
                    scaleY,
-                   areaPlaceHolder.empty() ? NULL : &texts,
+                   areaPlaceHolder.empty() ? nullptr : &texts,
                    areaPlaceHolder);
 
   if (label.empty()) return;
@@ -6050,7 +6050,7 @@ void SvgRenderer::renderAreaSymbols(const T &cg,
                    symbolY,
                    scaleX,
                    scaleY,
-                   options.debug ? &texts : NULL,
+                   options.debug ? &texts : nullptr,
                    options.debug ? cg.placeHolder() + "FILLAREAS" : "");
 
   // Render the symbol
@@ -6433,7 +6433,7 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
   double axisWidth = axisManager->axisWidth(), xStep = axisManager->xStep(),
          nonZ = axisManager->nonZeroElevation();
 
-  srand(time(NULL));
+  srand(time(nullptr));
 
   // x -offset for additional points generated on both sides of the elevation's lo/hi range points
   // can't exceed
@@ -7225,7 +7225,7 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
   std::list<woml::TimeSeriesSlot>::const_iterator tsend = ts.end();
   std::list<woml::TimeSeriesSlot>::const_iterator itts, pitts;
 
-  bool byCategory = (categoryGroup != NULL), groundGrp = false, nonGroundGrp = false,
+  bool byCategory = (categoryGroup != nullptr), groundGrp = false, nonGroundGrp = false,
        hole = getHole;
   double nonZ = axisManager->nonZeroElevation();
 
@@ -8368,14 +8368,14 @@ const libconfig::Setting &SvgRenderer::groupConfig(const std::string &groupConfP
     const libconfig::Setting &specs = config.lookup(confPath);
     if (!specs.isGroup()) throw std::runtime_error(confPath + grouptypeMsg);
 
-    std::string classDef = configValue<std::string>(specs, confPath, "class", NULL, s_optional);
+    std::string classDef = configValue<std::string>(specs, confPath, "class", nullptr, s_optional);
 
     // Bezier curve tightness
 
     bool isSet;
 
     tightness =
-        (double)configValue<double, int>(specs, confPath, "tightness", NULL, s_optional, &isSet);
+        (double)configValue<double, int>(specs, confPath, "tightness", nullptr, s_optional, &isSet);
     if (!isSet)
       // Using the default by setting a negative value
       //
@@ -8384,12 +8384,12 @@ const libconfig::Setting &SvgRenderer::groupConfig(const std::string &groupConfP
     // Minimum absolute/relative height for the label position
 
     minLabelPosHeight =
-        configValue<int>(specs, confPath, "minlabelposheight", NULL, s_optional, &isSet);
+        configValue<int>(specs, confPath, "minlabelposheight", nullptr, s_optional, &isSet);
 
     if ((!isSet) || (minLabelPosHeight < (int)labelPosHeightMin))
     {
       labelPosHeightFactor =
-          configValue<double>(specs, confPath, "labelposheightfactor", NULL, s_optional, &isSet);
+          configValue<double>(specs, confPath, "labelposheightfactor", nullptr, s_optional, &isSet);
 
       if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
         labelPosHeightFactor = defaultLabelPosHeightFactor;
@@ -8402,7 +8402,7 @@ const libconfig::Setting &SvgRenderer::groupConfig(const std::string &groupConfP
     // otherwise using 1 or 2 elevations in the middle of the area in x -direction
 
     bool bbCenterLabel =
-        configValue<bool>(specs, confPath, "bbcenterlabel", NULL, s_optional, &isSet);
+        configValue<bool>(specs, confPath, "bbcenterlabel", nullptr, s_optional, &isSet);
     if (!isSet) bbCenterLabel = false;
 
     // Grouping
@@ -8420,7 +8420,7 @@ const libconfig::Setting &SvgRenderer::groupConfig(const std::string &groupConfP
       // Types (icing or turbulence magnitudes)
 
       std::string types(boost::algorithm::to_upper_copy(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "types", NULL, s_optional))));
+          configValue<std::string>(group, confPath, "types", nullptr, s_optional))));
 
       if (!types.empty())
       {
@@ -8456,7 +8456,7 @@ const libconfig::Setting &SvgRenderer::groupConfig(const std::string &groupConfP
 
       // Missing settings from globals when available
 
-      libconfig::Setting *globalScope = ((globalsIdx >= 0) ? &groupSpecs[globalsIdx] : NULL);
+      libconfig::Setting *globalScope = ((globalsIdx >= 0) ? &groupSpecs[globalsIdx] : nullptr);
 
       // If symbolonly is true (default: false), single elevation is rendered as symbol (or label)
       // only
@@ -8521,14 +8521,14 @@ const libconfig::Setting &SvgRenderer::groupConfig(const std::string &groupConfP
       // Output symbol
 
       std::string symbol(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "symbol", NULL, s_optional)));
+          configValue<std::string>(group, confPath, "symbol", nullptr, s_optional)));
 
       // Output label; if symbol is not defined, default label is the types concatenated with ',' as
       // separator.
       // If empty label is given, no label.
 
       std::string label(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "label", NULL, s_optional, &isSet)));
+          configValue<std::string>(group, confPath, "label", nullptr, s_optional, &isSet)));
       bool hasLabel = isSet;
 
       // Output placeholders; default label placeholder is the group placeholder + "TEXT"
@@ -8550,9 +8550,9 @@ const libconfig::Setting &SvgRenderer::groupConfig(const std::string &groupConfP
 
       groups.push_back(T(classDef,
                          types,
-                         (!symbol.empty()) ? &symbol : NULL,
+                         (!symbol.empty()) ? &symbol : nullptr,
                          symbolOnly,
-                         hasLabel ? &label : NULL,
+                         hasLabel ? &label : nullptr,
                          bbCenterLabel,
                          placeHolder,
                          labelPlaceHolder,
@@ -8977,7 +8977,7 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
 
     // Symbol background
 
-    std::string href = configValue<std::string>(specs, confPath, "href", NULL, s_optional);
+    std::string href = configValue<std::string>(specs, confPath, "href", nullptr, s_optional);
 
     // Controls to render all winds or only at elevation line heights (default: true; render all)
     // and if the wind at the highest elevation line height is rendered or not (default: true)
@@ -8988,10 +8988,10 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
 
     bool isSet;
 
-    bool renderAll = configValue<bool>(specs, confPath, "renderall", NULL, s_optional, &isSet);
+    bool renderAll = configValue<bool>(specs, confPath, "renderall", nullptr, s_optional, &isSet);
     if (!isSet) renderAll = true;
 
-    bool renderTop = configValue<bool>(specs, confPath, "rendertop", NULL, s_optional, &isSet);
+    bool renderTop = configValue<bool>(specs, confPath, "rendertop", nullptr, s_optional, &isSet);
     if (!isSet) renderTop = true;
 
     // Controls to render first wind time instant by using the x -coordinate of document's first
@@ -9007,11 +9007,11 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
     //
     // usewindbase			false					-3-
 
-    bool useWindBase = configValue<bool>(specs, confPath, "usewindbase", NULL, s_optional, &isSet);
+    bool useWindBase = configValue<bool>(specs, confPath, "usewindbase", nullptr, s_optional, &isSet);
     if (!isSet) useWindBase = true;
 
     bool autoWindBase =
-        configValue<bool>(specs, confPath, "autowindbase", NULL, s_optional, &isSet);
+        configValue<bool>(specs, confPath, "autowindbase", nullptr, s_optional, &isSet);
     if ((!isSet) || (!useWindBase)) autoWindBase = false;
 
     std::string WINDAUTO("WINDAUTO");
@@ -9237,7 +9237,7 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
         // Time (hour) of earliest rendered wind values
         //
         std::string windBaseHour =
-            configValue<std::string>(specs, confPath, "windbasehour", NULL, s_optional, &isSet);
+            configValue<std::string>(specs, confPath, "windbasehour", nullptr, s_optional, &isSet);
 
         if (!windBaseHour.empty())
           texts[WINDBASEHOUR] << boost::algorithm::replace_first_copy(
@@ -9618,19 +9618,19 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
     std::string posLabel, negLabel, labelPlaceHolder;
 
     posLabel = boost::algorithm::trim_copy(
-        configValue<std::string>(specs, confPath, "poslabel", NULL, s_optional, &isSet));
+        configValue<std::string>(specs, confPath, "poslabel", nullptr, s_optional, &isSet));
     if (!isSet) posLabel = "+deg";
     negLabel = boost::algorithm::trim_copy(
-        configValue<std::string>(specs, confPath, "neglabel", NULL, s_optional, &isSet));
+        configValue<std::string>(specs, confPath, "neglabel", nullptr, s_optional, &isSet));
     if (!isSet) negLabel = "-deg";
 
     if ((!posLabel.empty()) || (!negLabel.empty()))
     {
-      bbCenterLabel = configValue<bool>(specs, confPath, "bbcenterlabel", NULL, s_optional, &isSet);
+      bbCenterLabel = configValue<bool>(specs, confPath, "bbcenterlabel", nullptr, s_optional, &isSet);
       if (!isSet) bbCenterLabel = false;
 
       labelPlaceHolder = boost::algorithm::trim_copy(
-          configValue<std::string>(specs, confPath, "labeloutput", NULL, s_optional));
+          configValue<std::string>(specs, confPath, "labeloutput", nullptr, s_optional));
       if (labelPlaceHolder.empty()) labelPlaceHolder = ZEROTOLERANCE + "TEXT";
     }
 
@@ -9643,7 +9643,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
     // Bezier curve tightness
 
     double tightness =
-        (double)configValue<double, int>(specs, confPath, "tightness", NULL, s_optional, &isSet);
+        (double)configValue<double, int>(specs, confPath, "tightness", nullptr, s_optional, &isSet);
 
     if (!isSet)
       // Using the default by setting a negative value
@@ -9652,20 +9652,20 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
 
     // Offsets for intermediate curve points on both sides of the elevation's hi/lo range point
 
-    double xOffset = configValue<double>(specs, confPath, "xoffset", NULL, s_optional, &isSet);
+    double xOffset = configValue<double>(specs, confPath, "xoffset", nullptr, s_optional, &isSet);
     if (!isSet)
       xOffset = 0.0;
     else
       xOffset *= xStep;
 
     double yOffset =
-        (double)configValue<int, double>(specs, confPath, "yoffset", NULL, s_optional, &isSet);
+        (double)configValue<int, double>(specs, confPath, "yoffset", nullptr, s_optional, &isSet);
     if ((!isSet) || (yOffset < 0.0)) yOffset = 0.0;
 
     // Relative offset for intermediate curve points (controls how much the ends of the area
     // are extended horizontally)
 
-    double vOffset = configValue<double>(specs, confPath, "voffset", NULL, s_optional, &isSet);
+    double vOffset = configValue<double>(specs, confPath, "voffset", nullptr, s_optional, &isSet);
     if (!isSet)
       vOffset = 0.0;
     else
@@ -9675,13 +9675,13 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
     // (controls how much the
     // ends of the area are extended horizontally)
 
-    double vSOffset = configValue<double>(specs, confPath, "vsoffset", NULL, s_optional, &isSet);
+    double vSOffset = configValue<double>(specs, confPath, "vsoffset", nullptr, s_optional, &isSet);
     if (!isSet)
       vSOffset = xStep / 3;
     else
       vSOffset *= xStep;
 
-    double vSSOffset = configValue<double>(specs, confPath, "vssoffset", NULL, s_optional, &isSet);
+    double vSSOffset = configValue<double>(specs, confPath, "vssoffset", nullptr, s_optional, &isSet);
     if (!isSet)
       vSSOffset = vSOffset;
     else
@@ -9689,24 +9689,24 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
 
     // Max offset in px for extending first time instant's elevations to the left
 
-    int sOffset = configValue<int>(specs, confPath, "soffset", NULL, s_optional, &isSet);
+    int sOffset = configValue<int>(specs, confPath, "soffset", nullptr, s_optional, &isSet);
     if (!isSet) sOffset = 0;
 
     // Max offset in px for extending last time instant's elevations to the right
 
-    int eOffset = configValue<int>(specs, confPath, "eoffset", NULL, s_optional, &isSet);
+    int eOffset = configValue<int>(specs, confPath, "eoffset", nullptr, s_optional, &isSet);
     if (!isSet) eOffset = 0;
 
     // Minimum absolute/relative height for the label position
 
     int minLabelPosHeight =
-        configValue<int>(specs, confPath, "minlabelposheight", NULL, s_optional, &isSet);
+        configValue<int>(specs, confPath, "minlabelposheight", nullptr, s_optional, &isSet);
     double labelPosHeightFactor = 0.0;
 
     if ((!isSet) || (minLabelPosHeight < (int)labelPosHeightMin))
     {
       labelPosHeightFactor =
-          configValue<double>(specs, confPath, "labelposheightfactor", NULL, s_optional, &isSet);
+          configValue<double>(specs, confPath, "labelposheightfactor", nullptr, s_optional, &isSet);
 
       if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
         labelPosHeightFactor = defaultLabelPosHeightFactor;
@@ -9802,7 +9802,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
                            0,
                            0,
                            path,
-                           NULL,
+                           nullptr,
                            true,
                            false,
                            true);
@@ -9951,7 +9951,7 @@ void SvgRenderer::render_value(const std::string &confPath,
           valIdx = i;
 
           // Missing settings from globals when available
-          libconfig::Setting *globalScope = ((globalsIdx >= 0) ? &valSpecs[globalsIdx] : NULL);
+          libconfig::Setting *globalScope = ((globalsIdx >= 0) ? &valSpecs[globalsIdx] : nullptr);
 
           // Value type; value (the default) or svg.
           //
@@ -10006,7 +10006,7 @@ void SvgRenderer::render_value(const std::string &confPath,
             const libconfig::Setting *condSpecs =
                 (!upperLimit) ? matchingCondition(
                                     config, confPath, valClass, "", i, lowerLimit->numericValue())
-                              : NULL;
+                              : nullptr;
 
             if (condSpecs)
             {
@@ -10015,15 +10015,15 @@ void SvgRenderer::render_value(const std::string &confPath,
               classDef = configValue<std::string>(*condSpecs, valClass, "class", &specs);
 
               std::string cpref = configValue<std::string>(
-                  *condSpecs, valClass, "pref" + vtype, NULL, s_optional, &isSet);
+                  *condSpecs, valClass, "pref" + vtype, nullptr, s_optional, &isSet);
               if (isSet) pref = cpref;
 
               std::string chref = configValue<std::string>(
-                  *condSpecs, valClass, "href" + vtype, NULL, s_optional, &isSet);
+                  *condSpecs, valClass, "href" + vtype, nullptr, s_optional, &isSet);
               if (isSet) href = chref;
 
               std::string ph = configValue<std::string>(
-                  *condSpecs, valClass, "output", NULL, s_optional, &isSet);
+                  *condSpecs, valClass, "output", nullptr, s_optional, &isSet);
               if (isSet) placeHolder = ph;
 
               if (asValue)
@@ -10031,11 +10031,11 @@ void SvgRenderer::render_value(const std::string &confPath,
                 int cxoffset = 0, cyoffset = 0;
 
                 cxoffset = static_cast<int>(floor(configValue<float, int>(
-                    *condSpecs, valClass, "vxoffset", NULL, s_optional, &isSet)));
+                    *condSpecs, valClass, "vxoffset", nullptr, s_optional, &isSet)));
                 if (isSet) xoffset = cxoffset;
 
                 cyoffset = static_cast<int>(floor(configValue<float, int>(
-                    *condSpecs, valClass, "vyoffset", NULL, s_optional, &isSet)));
+                    *condSpecs, valClass, "vyoffset", nullptr, s_optional, &isSet)));
                 if (isSet) yoffset = cyoffset;
               }
             }
@@ -10056,7 +10056,7 @@ void SvgRenderer::render_value(const std::string &confPath,
                      << "\" text-anchor=\"middle\" x=\"" << std::fixed << std::setprecision(1)
                      << lon << "\" y=\"" << std::fixed << std::setprecision(1) << lat << "\">"
                      << formattedValue(
-                            lowerLimit, upperLimit, confPath, pref, NULL, &specs, globalScope)
+                            lowerLimit, upperLimit, confPath, pref, nullptr, &specs, globalScope)
                      << "</text>\n";
             else
               values << "<g transform=\"translate(" << std::fixed << std::setprecision(1) << lon
@@ -10065,7 +10065,7 @@ void SvgRenderer::render_value(const std::string &confPath,
                      << "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
                      << "\" text-anchor=\"middle\">"
                      << formattedValue(
-                            lowerLimit, upperLimit, confPath, pref, NULL, &specs, globalScope)
+                            lowerLimit, upperLimit, confPath, pref, nullptr, &specs, globalScope)
                      << "</text>\n"
                      << "</g>\n";
 
@@ -10362,14 +10362,14 @@ AxisManager::AxisManager(const libconfig::Config &config)
       double elevation = configValue<double, int>(specs, confPath, "elevation");  // Meters
       double scale = configValue<double, int>(specs, confPath, "scale");          // [0,1]
       std::string lLabel =
-          configValue<std::string>(specs, confPath, "llabel", NULL, s_optional);  // Left side label
+          configValue<std::string>(specs, confPath, "llabel", nullptr, s_optional);  // Left side label
       std::string rLabel = configValue<std::string>(
-          specs, confPath, "rlabel", NULL, s_optional);  // Right side label
+          specs, confPath, "rlabel", nullptr, s_optional);  // Right side label
 
       // If 'line' is set (the default), render the elevation line
 
       bool isSet;
-      bool line = configValue<bool>(specs, confPath, "line", NULL, s_optional, &isSet);
+      bool line = configValue<bool>(specs, confPath, "line", nullptr, s_optional, &isSet);
       if (!isSet) line = true;
 
       if ((scale < 0.0) || (scale > 1.0))
@@ -10759,8 +10759,8 @@ CloudGroup::CloudGroup(const std::string &theClass,
                   theSOffset,
                   theEOffset,
                   theCloudSet,
-                  NULL,
-                  NULL,
+                  nullptr,
+                  nullptr,
                   &theScope)
 {
   itsSymbolType = (standalone() ? theSymbolType : "");
@@ -11175,8 +11175,8 @@ void SvgRenderer::visit(const woml::ParameterValueSetPoint &theFeature)
   // Pass the value to symbol rendering so value based conditional settings can be used.
 
   const woml::GeophysicalParameterValueSet *params = theFeature.parameters().get();
-  const woml::FlowDirectionMeasure *fdm = NULL;
-  const woml::NumericalSingleValueMeasure *svm = NULL;
+  const woml::FlowDirectionMeasure *fdm = nullptr;
+  const woml::NumericalSingleValueMeasure *svm = nullptr;
   woml::GeophysicalParameterValueList::const_iterator itvfdm = params->values().end(),
                                                       itvsvm = params->values().end();
   woml::GeophysicalParameterValueList::const_iterator itv;
@@ -11219,7 +11219,7 @@ void SvgRenderer::visit(const woml::ParameterValueSetPoint &theFeature)
                  pointvalues,
                  theValue.parameter().name(),
                  svm,
-                 NULL,
+                 nullptr,
                  theFeature.point()->lon(),
                  theFeature.point()->lat(),
                  fdm ? true : false);

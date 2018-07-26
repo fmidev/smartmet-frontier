@@ -234,7 +234,7 @@ int BezierModel::getSteppedCurvePoints(
   // Number of points
   int nPoints = 0;
 
-  srand(time(NULL));
+  srand(time(nullptr));
 
   curvePoints.clear();
 
@@ -315,7 +315,7 @@ void BezierModel::decorateCurve(
   ritcp = litcp;
   if (ritcp != cpend) ritcp++;
 
-  srand(time(NULL));
+  srand(time(nullptr));
 
   decoratorPoints.clear();
 
