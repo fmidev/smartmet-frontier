@@ -3,8 +3,8 @@ obj
 *~
 *.xml
 *.png
-*.svg
 .sconsign.dblite
 frontier
 libsmartmet_frontier.a
 NOTES
+compile_commands.json
