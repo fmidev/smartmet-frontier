@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 19.9.27
+Version: 19.10.31
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -14,17 +14,17 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
 BuildRequires: smartmet-library-macgyver-devel >= 19.9.26
-BuildRequires: smartmet-library-newbase-devel >= 19.9.26
+BuildRequires: smartmet-library-newbase-devel >= 19.10.31
 BuildRequires: smartmet-library-tron >= 19.9.26
 BuildRequires: geos >= 3.5.0
-BuildRequires: smartmet-library-woml >= 18.7.26
+BuildRequires: smartmet-library-woml >= 19.9.27
 BuildRequires: libconfig-devel
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-library-macgyver >= 19.9.26
-Requires: smartmet-library-newbase >= 19.9.26
-Requires: smartmet-library-woml >= 18.7.26
+Requires: smartmet-library-newbase >= 19.10.31
+Requires: smartmet-library-woml >= 19.9.27
 Requires: cairo >= 1.15.12
 Requires: boost-program-options
 Requires: boost-iostreams
@@ -57,6 +57,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Thu Oct 31 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.10.31-1.fmi
+- Rebuilt due to newbase API/ABI changes
+
 * Fri Sep 27 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.27-1.fmi
 - Repackaged due to ABI changes in SmartMet libraries
 
