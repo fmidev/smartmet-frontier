@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 19.11.20
+Version: 19.11.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -25,7 +25,7 @@ BuildRequires: xqilla-devel
 Requires: smartmet-library-macgyver >= 19.9.26
 Requires: smartmet-library-newbase >= 19.11.20
 Requires: smartmet-library-woml >= 19.9.27
-Requires: cairo >= 1.15.12
+Requires: cairo
 Requires: boost-program-options
 Requires: boost-iostreams
 Requires: boost-filesystem
@@ -57,6 +57,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Thu Nov 21 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.11.21-1.fmi
+- Removed explicit cairo version dependency
+
 * Wed Nov 20 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.11.20-1.fmi
 - Repackaged due to newbase API changes
 
