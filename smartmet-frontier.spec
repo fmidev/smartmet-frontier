@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 19.11.21
+Version: 20.4.18
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -12,26 +12,26 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
-BuildRequires: boost-devel
-BuildRequires: smartmet-library-macgyver-devel >= 19.9.26
-BuildRequires: smartmet-library-newbase-devel >= 19.11.20
-BuildRequires: smartmet-library-tron >= 19.10.31
+BuildRequires: boost169-devel
+BuildRequires: smartmet-library-macgyver-devel >= 20.4.18
+BuildRequires: smartmet-library-newbase-devel >= 20.4.18
+BuildRequires: smartmet-library-tron >= 20.4.18
 BuildRequires: geos >= 3.5.0
-BuildRequires: smartmet-library-woml >= 19.9.27
+BuildRequires: smartmet-library-woml >= 20.4.18
 BuildRequires: libconfig-devel
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 19.9.26
-Requires: smartmet-library-newbase >= 19.11.20
-Requires: smartmet-library-woml >= 19.9.27
+Requires: smartmet-library-macgyver >= 20.4.18
+Requires: smartmet-library-newbase >= 20.4.18
+Requires: smartmet-library-woml >= 20.4.18
 Requires: cairo
-Requires: boost-program-options
-Requires: boost-iostreams
-Requires: boost-filesystem
-Requires: boost-regex
-Requires: boost-date-time
-Requires: boost-system
+Requires: boost169-program-options
+Requires: boost169-iostreams
+Requires: boost169-filesystem
+Requires: boost169-regex
+Requires: boost169-date-time
+Requires: boost169-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 
@@ -57,6 +57,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Sat Apr 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.18-1.fmi
+- Upgrade to Boost 1.69
+
 * Thu Nov 21 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.11.21-1.fmi
 - Removed explicit cairo version dependency
 
