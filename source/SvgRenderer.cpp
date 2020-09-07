@@ -4610,9 +4610,14 @@ void eraseReservedAreas(const std::string &markerId,
                         bool storeCandidates = true,
                         bool eraseReserved = true)
 {
-  // Allow some overlap for nonholes
+  // Ignore own areas
 
-  int overlap = (isHole ? -fillAreaOverlapMax : fillAreaOverlapMax);
+  if ((!isHole) && markerId.find(reserver) == 0)
+    return;
+
+  // Require some offset for holes
+
+  int overlap = (isHole ? (int) -fillAreaOverlapMax : 0 /*fillAreaOverlapMax*/);
 
   std::list<std::pair<double, double> >::iterator siter;
 
@@ -5349,6 +5354,32 @@ void getAreaMarkerPos(Texts &texts,
 
     fillMap.getFillAreas(windowWidth, windowHeight, 0, 0, 0.0, false, holeFillAreas, false, true);
     holeAreas.insert(holeAreas.end(), holeFillAreas.begin(), holeFillAreas.end());
+  }
+  else
+  {
+      // Store smaller fill areas as reserved to be able to roughly avoid feature's area when
+      // processing other possibly overlapping feature's labels/symbols
+      //
+      NFmiFillAreas fA;
+      fillMap.getFillAreas(axisWidth,
+                           windowHeight,
+                           3,
+                           3,
+                           1.0,
+                           false,
+                           fA,
+                           false,
+                           false,
+                           false);
+
+      std::string mId(markerId);
+      reservedAreas[mId].x = 0;
+      reservedAreas[mId].y = 0;
+      reservedAreas[mId].centered = false;
+      reservedAreas[mId].fillAreas.insert(reservedAreas[mId].fillAreas.begin(),
+                                          fA.begin(), fA.end());
+      reservedAreas[mId].scale = markerScale;
+      reservedAreas[mId].scales.push_back(std::make_pair(markerScale, markerScale));
   }
 
   NFmiFillAreas::iterator area = fillAreas.begin();
