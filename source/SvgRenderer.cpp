@@ -4510,6 +4510,8 @@ void SvgRenderer::render_cloudSymbol(const std::string &confPath,
   boost::algorithm::replace_all(uri, "%width%", boost::lexical_cast<std::string>(width));
 
   // Vertical and horizontal scale
+  //
+  // Cloud label is rendered later based on free fill positions within the cloud's area
 
   double vs = (hpx / height);
   double hs = (axisManager->xStep() / width);
@@ -4520,36 +4522,6 @@ void SvgRenderer::render_cloudSymbol(const std::string &confPath,
                           << "<use transform=\"scale(" << hs << "," << vs << ")\" "
                           << "xlink:href=\"" << uri << "\"/>\n"
                           << "</g>\n";
-
-  std::string label = cg.label();
-
-  if (!label.empty())
-  {
-    // Render cloud label. The label is rendered to (starting from) coordinate (0,0).
-    // The final position is set as transformation offsets to the center of the symbol.
-    //
-    // Note: The key for position must sort after the key for the text (the key/text
-    //		 containing the position key must be handled/outputted prior the position key/text);
-    //		 therefore the position key starts with "Z0"
-    //
-    std::string TEXTPOSid("Z0TEXTPOS_" + confPath + boost::lexical_cast<std::string>(nGroups));
-    int textWidth = 0, textHeight = 0;
-
-    render_text(texts,
-                areaLabels,
-                "CLOUDSYMBOLLABEL",
-                label,
-                textWidth,
-                textHeight,
-                false,
-                false,
-                false,
-                TEXTPOSid,
-                true);
-
-    texts[TEXTPOSid] << std::fixed << std::setprecision(1) << (x - (textWidth / 2)) + cg.xOffset()
-                     << "," << (lopx - ((lopx - hipx) / 2)) - (textHeight / 2) + cg.yOffset();
-  }
 }
 
 // ----------------------------------------------------------------------
@@ -6278,6 +6250,9 @@ void SvgRenderer::render_cloudSymbols(const std::string confPath,
     double x = axisManager->xOffset(vt);
 
     // Render cloud symbol
+    //
+    // Group's elevations are removed later from the collection when building curve
+    // for the cloud to reserve it's area
 
     render_cloudSymbol(confPath, *itcg, nGroups, x, lopx, hipx);
 
@@ -6291,11 +6266,6 @@ void SvgRenderer::render_cloudSymbols(const std::string confPath,
         aboveTop = true;
     }
   }
-
-  // Remove group's elevations from the collection
-
-  for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
-    iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
 }
 
 // ----------------------------------------------------------------------
@@ -6951,13 +6921,14 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
 
     std::list<CloudGroup>::const_iterator itcg = cloudGroupCategory.currentGroup();
     bool isHole = eGrp.front().isHole();
+    bool asSymbol = ((!isHole) && !(itcg->symbolType().empty()));
 
-    if ((!isHole) && !(itcg->symbolType().empty()))
+    if (asSymbol)
     {
-      // Rendering the group as cloud symbols
+      // Rendering the group as cloud symbols. Go on to build curve too (output to debug
+      // placeholder) and get area fill positions to reserve the cloud area
       //
       render_cloudSymbols(confPath, eGrp, itcg, nGroups, visible, aboveTop);
-      continue;
     }
 
     // Rendering the group as bezier curve; get curve positions for bezier creation.
@@ -7056,41 +7027,44 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
       path.str("");
     }
 
-    for (itcp = cpbeg; (itcp != cpend); itcp++)
+    if (!asSymbol)
     {
-      if (itcp == cpbeg)
-        path << "M";
-      else
+      for (itcp = cpbeg; (itcp != cpend); itcp++)
       {
-        path << " Q" << itdp->getX() << "," << itdp->getY();
-        // pnts << "<circle cx=\"" << (*itdp)[0] << "\" cy=\"" << (*itdp)[1]+150 << "\" r=\"5\"
-        // stroke=\"black\" stroke-width=\"1\" fill=\"yellow\"/>";
-        itdp++;
-      }
-
-      double x = itcp->getX(), y = itcp->getY();
-
-      if ((!isHole) && (x >= 0) && (x < (axisWidth + 1)))
-      {
-        if (y > 0)
-          visible = true;
+        if (itcp == cpbeg)
+          path << "M";
         else
-          aboveTop = true;
+        {
+          path << " Q" << itdp->getX() << "," << itdp->getY();
+          // pnts << "<circle cx=\"" << (*itdp)[0] << "\" cy=\"" << (*itdp)[1]+150 << "\" r=\"5\"
+          // stroke=\"black\" stroke-width=\"1\" fill=\"yellow\"/>";
+          itdp++;
+        }
+
+        double x = itcp->getX(), y = itcp->getY();
+
+        if ((!isHole) && (x >= 0) && (x < (axisWidth + 1)))
+        {
+          if (y > 0)
+            visible = true;
+          else
+            aboveTop = true;
+        }
+
+        path << " " << x << "," << y;
+        // pnts << "<circle cx=\"" << x << "\" cy=\"" << y/*+150*/ << "\" r=\"3\" stroke=\"black\"
+        // stroke-width=\"1\" fill=\"red\"/>";
       }
 
-      path << " " << x << "," << y;
-      // pnts << "<circle cx=\"" << x << "\" cy=\"" << y/*+150*/ << "\" r=\"3\" stroke=\"black\"
-      // stroke-width=\"1\" fill=\"red\"/>";
+      texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef() << "\" id=\""
+                                 << "CloudLayers" << nGroups << "\" d=\"" << path.str() << "\"/>\n";
+      // texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef()
+      //						   << "\" id=\"" << "CloudLayers" << nGroups
+      //						   << "\" d=\""
+      //						   << pnts.str()
+      //						   << "\"/>\n";
+      // texts[itcg->placeHolder()] << pnts.str();
     }
-
-    texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef() << "\" id=\""
-                               << "CloudLayers" << nGroups << "\" d=\"" << path.str() << "\"/>\n";
-    // texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef()
-    //						   << "\" id=\"" << "CloudLayers" << nGroups
-    //						   << "\" d=\""
-    //						   << pnts.str()
-    //						   << "\"/>\n";
-    // texts[itcg->placeHolder()] << pnts.str();
 
     std::string label = cloudGroupCategory.groupLabel();
 
