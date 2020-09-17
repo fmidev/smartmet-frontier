@@ -50,12 +50,12 @@ LDFLAGS_PROFILE =
 # Boost 1.69
 
 ifneq "$(wildcard /usr/include/boost169)" ""
-  INCLUDES += -I/usr/include/boost169
+  INCLUDES += -isystem /usr/include/boost169
   LIBS += -L/usr/lib64/boost169
 endif
 
 
-INCLUDES += -I$(includedir) \
+INCLUDES += \
 	-I$(includedir)/smartmet \
 	`pkg-config --cflags cairo` \
 	`pkg-config --cflags xerces-c` \
