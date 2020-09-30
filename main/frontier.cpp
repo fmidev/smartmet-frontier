@@ -519,12 +519,25 @@ int run(int argc,
   }
   else
   {
+    // Render cloud layers first to ensure labels can be positioned within clouds
+    // and using preferred position (near the center of the clouds) when ever possible
+
     BOOST_FOREACH (const woml::Feature& feature, weather.forecast())
     {
       const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-        feature.visit(renderer);
+        if (feature.classNameExt() == "cloudLayers")
+          feature.visit(renderer);
+    }
+
+    BOOST_FOREACH (const woml::Feature& feature, weather.forecast())
+    {
+      const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
+
+      if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
+        if (feature.classNameExt() != "cloudLayers")
+          feature.visit(renderer);
     }
   }
 
