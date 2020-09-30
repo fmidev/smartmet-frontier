@@ -757,6 +757,7 @@ class SvgRenderer : public woml::FeatureVisitor
                         std::vector<double> &loPx,
                         std::vector<double> &hiPx,
                         std::vector<bool> &hasHole,
+                        bool reserveFillAreas,
                         const std::string &areaPlaceHolder = "");
   template <typename T>
   void renderAreaSymbols(const T &cg,

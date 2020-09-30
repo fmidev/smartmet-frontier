@@ -5267,6 +5267,7 @@ void getAreaMarkerPos(Texts &texts,
                       std::list<double> &markerY,
                       std::list<double> &scaleX,
                       std::list<double> &scaleY,
+                      bool reserveFillAreas,
                       boost::ptr_map<std::string, std::ostringstream> *areasOut = nullptr,
                       const std::string &areaPlaceHolder = "")
 {
@@ -5327,7 +5328,7 @@ void getAreaMarkerPos(Texts &texts,
     fillMap.getFillAreas(windowWidth, windowHeight, 0, 0, 0.0, false, holeFillAreas, false, true);
     holeAreas.insert(holeAreas.end(), holeFillAreas.begin(), holeFillAreas.end());
   }
-  else
+  else if (reserveFillAreas)
   {
       // Store smaller fill areas as reserved to be able to roughly avoid feature's area when
       // processing other possibly overlapping feature's labels/symbols
@@ -5856,6 +5857,7 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition> &curvePoints,
                                    std::vector<double> &loPx,
                                    std::vector<double> &hiPx,
                                    std::vector<bool> &hasHole,
+                                   bool reserveFillAreas,
                                    const std::string &areaPlaceHolder)
 {
   using boost::algorithm::replace_all_copy;
@@ -5920,6 +5922,7 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition> &curvePoints,
                    labelY,
                    scaleX,
                    scaleY,
+                   reserveFillAreas,
                    areaPlaceHolder.empty() ? nullptr : &texts,
                    areaPlaceHolder);
 
@@ -6053,6 +6056,7 @@ void SvgRenderer::renderAreaSymbols(const T &cg,
                    symbolY,
                    scaleX,
                    scaleY,
+                   true,
                    options.debug ? &texts : nullptr,
                    options.debug ? cg.placeHolder() + "FILLAREAS" : "");
 
@@ -7095,6 +7099,7 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
                        scaledLo,
                        scaledHi,
                        hasHole,
+                       true,
                        options.debug ? itcg->placeHolder() + "FILLAREAS" : "");
     }
   }  // for group
@@ -8809,6 +8814,7 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot> &ts,
                        scaledLo,
                        scaledHi,
                        hasHole,
+                       true,
                        options.debug ? itcg->placeHolder() + "FILLAREAS" : "");
   }  // for group
 
@@ -9889,6 +9895,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
                          scaledLo,
                          scaledHi,
                          hasHole,
+                         false,
                          options.debug ? ZEROTOLERANCE + "FILLAREAS" : "");
       }
     }
