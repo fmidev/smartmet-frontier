@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 20.9.17
+Version: 20.10.20
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -13,18 +13,18 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.9.15
-BuildRequires: smartmet-library-newbase-devel >= 20.9.11
+BuildRequires: smartmet-library-macgyver-devel >= 20.10.9
+BuildRequires: smartmet-library-newbase-devel >= 20.10.16
 BuildRequires: smartmet-library-tron >= 20.4.18
 BuildRequires: geos >= 3.5.0
-BuildRequires: smartmet-library-woml >= 20.8.21
+BuildRequires: smartmet-library-woml >= 20.9.30
 BuildRequires: libconfig-devel
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 20.9.15
-Requires: smartmet-library-newbase >= 20.9.11
-Requires: smartmet-library-woml >= 20.8.21
+Requires: smartmet-library-macgyver >= 20.10.9
+Requires: smartmet-library-newbase >= 20.10.16
+Requires: smartmet-library-woml >= 20.9.30
 Requires: cairo
 Requires: boost169-program-options
 Requires: boost169-iostreams
@@ -57,6 +57,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Oct 20 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.10.20-1.fmi
+- Repackaged with the latest libconfig
+
 * Thu Sep 17 2020 Pertti Kinnia <pertti.kinnia@fmi.fi> - 20.9.17-1.fmi
 - Instead of using fixed (center) position for cloud labels for clouds rendered as symbols, build curve paths too to reserve cloud areas to be able to position labels to free areas in case of overlapping clouds (LENTOSAA-1143)
 - Store all feature fillareas as reserved to be able to roughly avoid feature's area when processing other possibly overlapping feature's labels/symbols (LENTOSAA-1143)
