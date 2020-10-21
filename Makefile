@@ -1,65 +1,20 @@
 MODULE = frontier
 SPEC = smartmet-frontier
 
+REQUIRES = configpp
+
+include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
+
+
 MAINFLAGS = -MD -Wall -W -Wno-unused-parameter
-
-ifeq (6, $(RHEL_VERSION))
-  MAINFLAGS += -std=c++0x
-else
-  MAINFLAGS += -std=c++11 -fdiagnostics-color=always
-endif
-
-EXTRAFLAGS = \
-	-Werror \
-	-Winline \
-	-Wpointer-arith \
-	-Wcast-qual \
-	-Wcast-align \
-	-Wwrite-strings \
-	-Wno-pmf-conversions \
-	-Wsign-promo \
-	-Wchar-subscripts \
-	-Woverloaded-virtual
-
-DIFFICULTFLAGS = \
-	-Wunreachable-code \
-	-Wconversion \
-	-Wredundant-decls \
-	-Wnon-virtual-dtor \
-	-Wctor-dtor-privacy \
-	-Weffc++ \
-	-Wold-style-cast \
-	-pedantic \
-	-Wshadow
 
 # Default compiler flags
 
 DEFINES = -DUNIX
 
-CFLAGS = $(DEFINES) -O2 -DNDEBUG $(MAINFLAGS)
-LDFLAGS = 
-
-# Special modes
-
-CFLAGS_DEBUG = $(DEFINES) -O0 -g $(MAINFLAGS) $(EXTRAFLAGS) -Werror
-CFLAGS_PROFILE = $(DEFINES) -O2 -g -pg -DNDEBUG $(MAINFLAGS)
-
-LDFLAGS_DEBUG =
-LDFLAGS_PROFILE =
-
-# Boost 1.69
-
-ifneq "$(wildcard /usr/include/boost169)" ""
-  INCLUDES += -isystem /usr/include/boost169
-  LIBS += -L/usr/lib64/boost169
-endif
-
-
 INCLUDES += \
-	-I$(includedir)/smartmet \
-	`pkg-config --cflags cairo` \
-	`pkg-config --cflags xerces-c` \
-	`pkg-config --cflags libconfig++`
+	$(shell pkg-config --cflags cairo) \
+	$(shell pkg-config --cflags xerces-c)
 
 
 LIBS += -L$(libdir) \
@@ -75,48 +30,9 @@ LIBS += -L$(libdir) \
 	-lboost_system \
 	-lgeos \
 	-lxqilla \
-	`pkg-config --libs cairo` \
-	`pkg-config --libs xerces-c` \
-	`pkg-config --libs libconfig++`
-
-# Common library compiling template
-
-# Installation directories
-
-processor := $(shell uname -p)
-
-ifeq ($(origin PREFIX), undefined)
-  PREFIX = /usr
-else
-  PREFIX = $(PREFIX)
-endif
-
-ifeq ($(processor), x86_64)
-  libdir = $(PREFIX)/lib64
-else
-  libdir = $(PREFIX)/lib
-endif
-
-objdir = obj
-includedir = $(PREFIX)/include
-
-ifeq ($(origin BINDIR), undefined)
-  bindir = $(PREFIX)/bin
-else
-  bindir = $(BINDIR)
-endif
-
-# Special modes
-
-ifneq (,$(findstring debug,$(MAKECMDGOALS)))
-  CFLAGS = $(CFLAGS_DEBUG)
-  LDFLAGS = $(LDFLAGS_DEBUG)
-endif
-
-ifneq (,$(findstring profile,$(MAKECMDGOALS)))
-  CFLAGS = $(CFLAGS_PROFILE)
-  LDFLAGS = $(LDFLAGS_PROFILE)
-endif
+	$(shell pkg-config --libs cairo) \
+	$(shell pkg-config --libs xerces-c) \
+	$(CONFIGPP_LIBS)
 
 # Compilation directories
 
@@ -124,11 +40,6 @@ vpath %.cpp source main
 vpath %.h include
 vpath %.o $(objdir)
 vpath %.d $(objdir)
-
-# How to install
-
-INSTALL_PROG = install -m 775
-INSTALL_DATA = install -m 664
 
 # The files to be compiled
 
