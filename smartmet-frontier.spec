@@ -18,7 +18,7 @@ BuildRequires: smartmet-library-newbase-devel >= 20.10.16
 BuildRequires: smartmet-library-tron >= 20.4.18
 BuildRequires: geos >= 3.5.0
 BuildRequires: smartmet-library-woml >= 20.9.30
-BuildRequires: libconfig-devel
+BuildRequires: libconfig-devel >= 1.7.2
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
@@ -26,6 +26,7 @@ Requires: smartmet-library-macgyver >= 20.10.9
 Requires: smartmet-library-newbase >= 20.10.16
 Requires: smartmet-library-woml >= 20.9.30
 Requires: cairo
+Requires: libconfig >= 1.7.2
 Requires: boost169-program-options
 Requires: boost169-iostreams
 Requires: boost169-filesystem
