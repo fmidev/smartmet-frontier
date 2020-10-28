@@ -4059,7 +4059,7 @@ SvgRenderer::Phase SvgRenderer::downleftup(
   double dlo = 0.0;
   double dhi = 0.0;
   double nonZ = axisManager->nonZeroElevation();
-  bool downopen = false, leftopen = false, upopen = false;
+  bool downopen = false, leftopen = false, upopen = false, upchk = true;
 
   if (iteg != eGrp.begin())
   {
@@ -4116,10 +4116,12 @@ SvgRenderer::Phase SvgRenderer::downleftup(
 
       if (dh == 0)
       {
-        if (liteg->topConnected() && (!(liteg->bottomConnected())))
+        if (upchk && liteg->topConnected() && (!(liteg->bottomConnected())))
           // Upper elevation having only it's top connected
           //
           upopen = true;
+
+        upchk = false;
 
         continue;
       }
