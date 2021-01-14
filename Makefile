@@ -1,7 +1,7 @@
 MODULE = frontier
 SPEC = smartmet-frontier
 
-REQUIRES = configpp
+REQUIRES = configpp geos cairo xerces-c
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
@@ -10,14 +10,10 @@ MAINFLAGS = -MD -Wall -W -Wno-unused-parameter
 
 # Default compiler flags
 
-DEFINES = -DUNIX
+DEFINES = -DUNIX -DUSE_UNSTABLE_GEOS_CPP_API
 
-INCLUDES += \
-	$(shell pkg-config --cflags cairo) \
-	$(shell pkg-config --cflags xerces-c)
-
-
-LIBS += -L$(libdir) \
+LIBS += $(REQUIRED_LIBS) \
+	-L$(libdir) \
 	-lsmartmet-newbase \
 	-lsmartmet-macgyver \
 	-lsmartmet-woml \
@@ -28,11 +24,7 @@ LIBS += -L$(libdir) \
 	-lboost_regex \
 	-lboost_date_time \
 	-lboost_system \
-	-lgeos \
-	-lxqilla \
-	$(shell pkg-config --libs cairo) \
-	$(shell pkg-config --libs xerces-c) \
-	$(CONFIGPP_LIBS)
+	-lxqilla
 
 # Compilation directories
 
