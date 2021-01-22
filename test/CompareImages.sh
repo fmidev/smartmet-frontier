@@ -45,17 +45,19 @@ DIFFERENCE_PNG="failures/${NAME}_difference.png"
 
 # Handle XML failures
 
-if [[ "$MIME" == "application/xml" ]]; then
-   echo "FAIL: XML output differs: $RESULT <> $EXPECTED"
-   exit 1
+if [[ "$MIME" == "application/xml" || "$MIME" == "text/xml" ]]; then
+    echo "FAIL: XML output differs: $RESULT <> $EXPECTED"
+    echo "diff $EXPECTED $RESULT | head -n 100 | cut -c 1-80"
+    diff $EXPECTED $RESULT | head -n 100 | cut -c 1-80
+    exit 1
 fi
 
 # Handle text/plain failures
 
 if [[ "$MIME" == "text/plain" ]]; then
     echo "FAIL: text output differs: $RESULT <> $EXPECTED"
-    echo diff $EXPECTED $RESULT
-    diff $EXPECTED $RESULT
+    echo "diff $EXPECTED $RESULT | head -n 100 | cut -c 1-80"
+    diff $EXPECTED $RESULT | head -n 100 | cut -c 1-80
     exit 1
 fi
 
@@ -63,9 +65,9 @@ fi
 # Create the PNGs for comparisons.
 # Note: sometimes 'file' reports text/x-asm instead of html due to dots in css class names
 
-if [[ "$MIME" == "text/html" || "$MIME" == "text/x-asm" ]]; then
-    rsvg-convert -u -b white -f png -o $EXPECTED_PNG $EXPECTED
-    rsvg-convert -u -b white -f png -o $RESULT_PNG $RESULT
+if [[ "$MIME" == "text/html" || "$MIME" == "text/x-asm" || "$MIME" == "image/svg" ]]; then
+    rsvg-convert -b white -f png -o $EXPECTED_PNG $EXPECTED
+    rsvg-convert -b white -f png -o $RESULT_PNG $RESULT
 
 elif [[ "$MIME" == "application/pdf" ]]; then
     convert $EXPECTED $EXPECTED_PNG
@@ -83,10 +85,12 @@ fi
 
 DBZ=$((compare 2>&1 -metric PSNR $EXPECTED_PNG $RESULT_PNG /dev/null | head -1 | sed "-es/ dB//") || echo PNG COMPARISON FAILED && exit 1)
 
-if [ "$DBZ" = inf ]; then
+if ! echo "$DBZ" | grep -Eq '^(inf|[\+\-]?[0-9][0-9]*(\.[0-9]*)?)$' ; then
+    echo -e "FAIL\t\t$DBZ"
+    exit 1
+elif [ "$DBZ" = inf ]; then
     echo -e "OK\t\tPSNR = inf"
-    composite $EXPECTED_PNG $RESULT_PNG -compose DIFFERENCE png:- | \
-	convert - -contrast-stretch 0 $DIFFERENCE_PNG
+    rm -f $EXPECTED_PNG $RESULT_PNG $DIFFERENCE_PNG
     exit 0
 elif [ $(echo "$DBZ >= 50" | bc) = 1 ]; then
     echo -e "OK\t\tPNSR = $DBZ dB"
