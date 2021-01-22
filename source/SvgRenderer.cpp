@@ -2697,7 +2697,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
 
       eqNan = true;
     }
-    catch (std::runtime_error ex)
+    catch (std::runtime_error& ex)
     {
       if (badNan)
         throw;
