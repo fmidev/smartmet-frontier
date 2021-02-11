@@ -24,7 +24,8 @@ LIBS += $(REQUIRED_LIBS) \
 	-lboost_regex \
 	-lboost_date_time \
 	-lboost_system \
-	-lxqilla
+	-lxqilla \
+        -lgeos
 
 # Compilation directories
 
