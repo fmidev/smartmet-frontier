@@ -3540,16 +3540,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
   catch (libconfig::ConfigException &ex)
   {
     if (!config.exists(confPath))
-    {
-      // No settings for confPath
-      //
-      //			if (options.debug)s
-      //				debugoutput << "Settings for "
-      //							<< confPath
-      //							<< " not found\n";
-
       throw std::runtime_error("Settings for " + confPath + " are missing");
-    }
 
     throw ex;
   }
@@ -7246,8 +7237,18 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
   }  // for group
 
   // Visibility information
+  //
+  // CB clouds are rendered separately; set/unset visibility by taking both CB and nonCB
+  // clouds (i.e. possibly already set data) into account
 
-  if (!visible)
+  auto itv = texts.find(CLOUDLAYERS + "VISIBILITYSET");
+  auto itn = texts.find(CLOUDLAYERS + "NOCLOUDLAYERS");
+  auto itu = texts.find(CLOUDLAYERS + "INTHEUPPER");
+  bool visibilitySet = (itv != texts.end());
+  bool noCloudsSet = (itn != texts.end());
+  bool inTheUpperSet = (itu != texts.end());
+
+  if ((!visible) && (!visibilitySet))
   {
     const std::string &classDef =
         ((cloudGroupCategory.groups().size() > 0) ? cloudGroupCategory.groups().front().classDef()
@@ -7268,6 +7269,16 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
       texts[CLOUDLAYERSUPPER] << classDef << "Visible";
     }
   }
+  else if (visible && visibilitySet)
+  {
+    if (noCloudsSet)
+      texts.erase(itn);
+    else if (inTheUpperSet)
+      texts.erase(itu);
+  }
+
+  if (!visibilitySet)
+    texts[CLOUDLAYERS + "VISIBILITYSET"] << "Set";
 
   return;
 }
@@ -12078,7 +12089,7 @@ void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
 
 #if GEOS_VERSION_MAJOR == 3
 #if GEOS_VERSION_MINOR < 7
-    boost::shared_ptr<GeometryFactory> geomFactory = boost::make_shared<GeometryFactory>();
+    boost::shared_ptr<geos::geom::GeometryFactory> geomFactory = boost::make_shared<geos::geom::GeometryFactory>();
     Tron::FmiBuilder builder(geomFactory);
 #else
     geos::geom::GeometryFactory::Ptr geomFactory(geos::geom::GeometryFactory::create());
