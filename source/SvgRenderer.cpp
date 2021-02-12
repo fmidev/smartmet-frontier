@@ -7248,6 +7248,14 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
   bool noCloudsSet = (itn != texts.end());
   bool inTheUpperSet = (itu != texts.end());
 
+  if (visibilitySet && noCloudsSet && (!visible) && aboveTop)
+  {
+    // Change SKC to Upper
+
+    visibilitySet = false;
+    texts.erase(itn);
+  }
+
   if ((!visible) && (!visibilitySet))
   {
     const std::string &classDef =
