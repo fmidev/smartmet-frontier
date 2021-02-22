@@ -5,48 +5,11 @@
 // ======================================================================
 
 #include "SvgRenderer.h"
+#include "BezierModel.h"
 #include "ConfigTools.h"
+#include "PathAdapter.h"
 #include "PathFactory.h"
 #include "PathTransformation.h"
-
-#include "BezierModel.h"
-
-#include <smartmet/woml/CubicSplineSurface.h>
-#include <smartmet/woml/GeophysicalParameterValueSet.h>
-#include <smartmet/woml/JetStream.h>
-#include <smartmet/woml/OccludedFront.h>
-#include <smartmet/woml/ParameterTimeSeriesPoint.h>
-
-#include <smartmet/woml/ParameterValueSetPoint.h>
-#include <smartmet/woml/PointMeteorologicalSymbol.h>
-#include <smartmet/woml/PressureCenterType.h>
-#include <smartmet/woml/StormType.h>
-
-#include <smartmet/woml/CloudArea.h>
-#include <smartmet/woml/ParameterValueSetArea.h>
-#include <smartmet/woml/SurfacePrecipitationArea.h>
-
-#include <smartmet/woml/InfoText.h>
-
-#include <smartmet/newbase/NFmiAngle.h>
-#include <smartmet/newbase/NFmiArea.h>
-#include <smartmet/newbase/NFmiStringTools.h>
-
-#include "PathAdapter.h"
-#include <smartmet/newbase/NFmiDataMatrix.h>
-#include <smartmet/newbase/NFmiEnumConverter.h>
-#include <smartmet/newbase/NFmiFastQueryInfo.h>
-#include <smartmet/newbase/NFmiQueryData.h>
-
-// clang-format off
-#include <smartmet/tron/FmiBuilder.h>
-#include <smartmet/tron/Contourer.h>
-// clang-format on
-
-#include <smartmet/tron/LinearInterpolation.h>
-#include <smartmet/tron/SavitzkyGolay2D.h>
-#include <smartmet/tron/Traits.h>
-
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -56,19 +19,44 @@
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/regex.hpp>
-
 #include <geos/version.h>
-
+#include <gis/CoordinateMatrix.h>
+#include <smartmet/newbase/NFmiAngle.h>
+#include <smartmet/newbase/NFmiArea.h>
+#include <smartmet/newbase/NFmiDataMatrix.h>
+#include <smartmet/newbase/NFmiEnumConverter.h>
+#include <smartmet/newbase/NFmiFastQueryInfo.h>
+#include <smartmet/newbase/NFmiMetTime.h>
+#include <smartmet/newbase/NFmiQueryData.h>
+#include <smartmet/newbase/NFmiString.h>
+#include <smartmet/newbase/NFmiStringTools.h>
+#include <smartmet/tron/LinearInterpolation.h>
+#include <smartmet/tron/SavitzkyGolay2D.h>
+#include <smartmet/tron/Traits.h>
+#include <smartmet/woml/CloudArea.h>
+#include <smartmet/woml/CubicSplineSurface.h>
+#include <smartmet/woml/GeophysicalParameterValueSet.h>
+#include <smartmet/woml/InfoText.h>
+#include <smartmet/woml/JetStream.h>
+#include <smartmet/woml/OccludedFront.h>
+#include <smartmet/woml/ParameterTimeSeriesPoint.h>
+#include <smartmet/woml/ParameterValueSetArea.h>
+#include <smartmet/woml/ParameterValueSetPoint.h>
+#include <smartmet/woml/PointMeteorologicalSymbol.h>
+#include <smartmet/woml/PressureCenterType.h>
+#include <smartmet/woml/StormType.h>
+#include <smartmet/woml/SurfacePrecipitationArea.h>
+#include <cairo.h>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <list>
 
-#include <cairo.h>
-
-#include <smartmet/newbase/NFmiMetTime.h>
-#include <smartmet/newbase/NFmiString.h>
+// clang-format off
+#include <smartmet/tron/FmiBuilder.h>
+#include <smartmet/tron/Contourer.h>
+// clang-format on
 
 namespace frontier
 {
@@ -2697,7 +2685,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
 
       eqNan = true;
     }
-    catch (std::runtime_error& ex)
+    catch (std::runtime_error &ex)
     {
       if (badNan)
         throw;
@@ -12016,15 +12004,16 @@ class DataMatrixAdapter
   typedef NFmiDataMatrix<value_type>::size_type size_type;
 
   DataMatrixAdapter(const NFmiDataMatrix<value_type> &theMatrix,
-                    const NFmiDataMatrix<NFmiPoint> &theCoordinates)
+                    const Fmi::CoordinateMatrix &theCoordinates)
       : itsMatrix(theMatrix), itsCoordinates(theCoordinates)
   {
   }
 
   const value_type &operator()(size_type i, size_type j) const { return itsMatrix[i][j]; }
   value_type &operator()(size_type i, size_type j) { return itsMatrix[i][j]; }
-  coord_type x(size_type i, size_type j) const { return itsCoordinates[i][j].X(); }
-  coord_type y(size_type i, size_type j) const { return itsCoordinates[i][j].Y(); }
+  coord_type x(size_type i, size_type j) const { return itsCoordinates.x(i, j); }
+  coord_type y(size_type i, size_type j) const { return itsCoordinates.y(i, j); }
+  bool valid(size_type i, size_type j) const { return true; }
   size_type width() const { return itsMatrix.NX(); }
   size_type height() const { return itsMatrix.NY(); }
   void swap(DataMatrixAdapter &other)
@@ -12044,7 +12033,7 @@ class DataMatrixAdapter
  private:
   DataMatrixAdapter();
   NFmiDataMatrix<float> itsMatrix;
-  NFmiDataMatrix<NFmiPoint> itsCoordinates;
+  Fmi::CoordinateMatrix itsCoordinates;
 };
 
 typedef Tron::Traits<float, float, Tron::NanMissing> MyTraits;
@@ -12073,8 +12062,7 @@ void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
 
   // Coordinates
 
-  NFmiDataMatrix<NFmiPoint> coordinates;
-  qi->LocationsXY(coordinates, *area);
+  auto coordinates = qi->LocationsXY(*area);
 
   // Parameter identification
 
@@ -12097,7 +12085,8 @@ void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
 
 #if GEOS_VERSION_MAJOR == 3
 #if GEOS_VERSION_MINOR < 7
-    boost::shared_ptr<geos::geom::GeometryFactory> geomFactory = boost::make_shared<geos::geom::GeometryFactory>();
+    boost::shared_ptr<geos::geom::GeometryFactory> geomFactory =
+        boost::make_shared<geos::geom::GeometryFactory>();
     Tron::FmiBuilder builder(geomFactory);
 #else
     geos::geom::GeometryFactory::Ptr geomFactory(geos::geom::GeometryFactory::create());
@@ -12164,8 +12153,7 @@ void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
 
       // Get data values and replace kFmiMissing with NaN
 
-      NFmiDataMatrix<float> matrix;
-      qi->Values(matrix, validtime);
+      auto matrix = qi->Values(validtime);
 
       if (matrix.NX() == 0 || matrix.NY() == 0)
         throw std::runtime_error("Could not extract set valid time " +
@@ -12194,7 +12182,7 @@ void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
 
       for (float value = start; value <= stop; value += step)
       {
-        MyContourer::line(builder, grid, value, false, hints);
+        MyContourer::line(builder, grid, value, hints);
 
         PathAdapter pathAdapter;
         const Path &path = GeosTools::getContours(&(*builder.result()), pathAdapter);
