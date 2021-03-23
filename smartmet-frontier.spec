@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 21.2.22
+Version: 21.3.23
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -58,6 +58,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Mar 23 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.3.23-1.fmi
+- Repackaged due to geos39 updates
+
 * Mon Feb 22 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.22-1.fmi
 - Updated to use new Tron and Newbase APIs
 
