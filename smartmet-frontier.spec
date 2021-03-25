@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 21.3.23
+Version: 21.3.25
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,14 +17,14 @@ BuildRequires: smartmet-library-macgyver-devel >= 21.1.25
 BuildRequires: smartmet-library-newbase-devel >= 21.2.20
 BuildRequires: smartmet-library-tron >= 21.2.10
 BuildRequires: geos39
-BuildRequires: smartmet-library-woml >= 21.1.14
+BuildRequires: smartmet-library-woml >= 21.3.25
 BuildRequires: libconfig-devel >= 1.7.2
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-library-macgyver >= 21.1.25
 Requires: smartmet-library-newbase >= 21.2.20
-Requires: smartmet-library-woml >= 21.1.14
+Requires: smartmet-library-woml >= 21.3.25
 Requires: cairo
 Requires: libconfig >= 1.7.2
 Requires: boost169-program-options
@@ -58,6 +58,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Thu Mar 25 2021 Pertti Kinnia <pertti.kinnia@fmi.fi> - 21.3.25-1.fmi
+- CB clouds are stored separately in woml (LENTOSAA-1155)
+
 * Tue Mar 23 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.3.23-1.fmi
 - Repackaged due to geos39 updates
 
