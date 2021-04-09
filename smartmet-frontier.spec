@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 21.3.25
+Version: 21.4.9
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -13,17 +13,17 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.25
-BuildRequires: smartmet-library-newbase-devel >= 21.2.20
-BuildRequires: smartmet-library-tron >= 21.2.10
+BuildRequires: smartmet-library-macgyver-devel >= 21.2.25
+BuildRequires: smartmet-library-newbase-devel >= 21.3.20
+BuildRequires: smartmet-library-tron >= 21.4.9
 BuildRequires: geos39
 BuildRequires: smartmet-library-woml >= 21.3.25
 BuildRequires: libconfig-devel >= 1.7.2
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 21.1.25
-Requires: smartmet-library-newbase >= 21.2.20
+Requires: smartmet-library-macgyver >= 21.2.25
+Requires: smartmet-library-newbase >= 21.3.20
 Requires: smartmet-library-woml >= 21.3.25
 Requires: cairo
 Requires: libconfig >= 1.7.2
@@ -58,6 +58,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Fri Apr  9 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.4.9-1.fmi
+- Repackaged with the latest Tron library for improved contouring speed
+
 * Thu Mar 25 2021 Pertti Kinnia <pertti.kinnia@fmi.fi> - 21.3.25-1.fmi
 - CB clouds are stored separately in woml (LENTOSAA-1155)
 
