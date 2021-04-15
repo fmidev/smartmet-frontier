@@ -13,9 +13,10 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
+BuildRequires: smartmet-library-gis-devel >= 21.4.13
 BuildRequires: smartmet-library-macgyver-devel >= 21.2.25
 BuildRequires: smartmet-library-newbase-devel >= 21.3.20
-BuildRequires: smartmet-library-tron-devel >= 21.4.9
+BuildRequires: smartmet-library-tron-devel >= 21.4.15
 BuildRequires: geos39
 BuildRequires: smartmet-library-woml >= 21.3.25
 BuildRequires: libconfig-devel >= 1.7.2
@@ -24,7 +25,7 @@ BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-library-macgyver >= 21.2.25
 Requires: smartmet-library-newbase >= 21.3.20
-Requires: smartmet-library-tron >= 21.4.9
+Requires: smartmet-library-tron >= 21.4.15
 Requires: smartmet-library-woml >= 21.3.25
 Requires: cairo
 Requires: libconfig >= 1.7.2
