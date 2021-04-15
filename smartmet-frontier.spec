@@ -37,6 +37,8 @@ Requires: boost169-date-time
 Requires: boost169-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
+#TestRequires: gcc-c++
+#TestRequires: smartmet-library-macgyver-devel >= 21.1.14
 
 %description
 WOML weather chart renderer
