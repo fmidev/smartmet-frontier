@@ -42,6 +42,8 @@ Obsoletes: smartmet-frontier-devel
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
+#TestRequires: cairo-devel
+#TestRequires: librsvg2-tools
 
 %description
 WOML weather chart renderer
