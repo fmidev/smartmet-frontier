@@ -39,6 +39,9 @@ Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
 #TestRequires: smartmet-library-macgyver-devel >= 21.1.14
+#TestRequires: ImageMagick
+#TestRequires: bc
+#TestRequires: coreutils
 
 %description
 WOML weather chart renderer
