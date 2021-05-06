@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 21.4.9
+Version: 21.5.6
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -13,9 +13,9 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-gis-devel >= 21.4.13
+BuildRequires: smartmet-library-gis-devel >= 21.5.5
 BuildRequires: smartmet-library-macgyver-devel >= 21.2.25
-BuildRequires: smartmet-library-newbase-devel >= 21.3.20
+BuildRequires: smartmet-library-newbase-devel >= 21.5.6
 BuildRequires: smartmet-library-tron-devel >= 21.4.15
 BuildRequires: geos39
 BuildRequires: smartmet-library-woml >= 21.3.25
@@ -24,7 +24,7 @@ BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-library-macgyver >= 21.2.25
-Requires: smartmet-library-newbase >= 21.3.20
+Requires: smartmet-library-newbase >= 21.5.6
 Requires: smartmet-library-tron >= 21.4.15
 Requires: smartmet-library-woml >= 21.3.25
 Requires: cairo
@@ -67,6 +67,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Thu May  6 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.6-1.fmi
+- Repackaged due to NFmiAzimuthalArea ABI changes
+
 * Fri Apr  9 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.4.9-1.fmi
 - Repackaged with the latest Tron library for improved contouring speed
 
