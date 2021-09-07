@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 21.5.6
+Version: 21.9.7
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -19,7 +19,7 @@ BuildRequires: smartmet-library-newbase-devel >= 21.5.6
 BuildRequires: smartmet-library-tron-devel >= 21.4.15
 BuildRequires: geos39
 BuildRequires: smartmet-library-woml >= 21.3.25
-BuildRequires: libconfig-devel >= 1.7.2
+BuildRequires: libconfig17-devel >= 1.7.2
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
@@ -28,7 +28,7 @@ Requires: smartmet-library-newbase >= 21.5.6
 Requires: smartmet-library-tron >= 21.4.15
 Requires: smartmet-library-woml >= 21.3.25
 Requires: cairo
-Requires: libconfig >= 1.7.2
+Requires: libconfig17 >= 1.7.2
 Requires: boost169-program-options
 Requires: boost169-iostreams
 Requires: boost169-filesystem
@@ -67,6 +67,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Sep  7 2021 Andris Pavēnis <andris.pavenis@fmi.fi> 21.9.7-1.fmi
+- Use libconfig17 and libconfig17-devel
+
 * Thu May  6 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.6-1.fmi
 - Repackaged due to NFmiAzimuthalArea ABI changes
 
