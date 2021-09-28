@@ -527,7 +527,10 @@ int run(int argc,
       const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-        if (feature.classNameExt() == "cloudLayers")
+        if (
+            (feature.classNameExt() == "cloudLayers") ||
+            (feature.classNameExt() == "cloudLayersCB")
+           )
           feature.visit(renderer);
     }
 
@@ -536,7 +539,10 @@ int run(int argc,
       const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-        if (feature.classNameExt() != "cloudLayers")
+        if (
+            (feature.classNameExt() != "cloudLayers") &&
+            (feature.classNameExt() != "cloudLayersCB")
+           )
           feature.visit(renderer);
     }
   }

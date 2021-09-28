@@ -272,30 +272,66 @@ T configValue(const libconfig::Setting &localScope,
 
   // Read the setting as optional. If the reading fails, try to read with secondary type
 
+  T value = T();
   const libconfig::Setting *scope = &localScope;
-  bool _isSet;
+  bool _isSet = false;
 
-  T value = _lookup<T>(localScope, localScopeName, param, s_optional, &_isSet);
-  if ((!_isSet) && (typeid(T) != typeid(T2)))
+  try
   {
-    T2 value2 = _lookup<T2>(localScope, localScopeName, param, s_optional, &_isSet);
-
-    if (_isSet)
-      value = boost::lexical_cast<T>(value2);
+    try
+    {
+      value = _lookup<T>(localScope, localScopeName, param, s_optional, &_isSet);
+    }
+    catch (const libconfig::SettingTypeException&)
+    {
+      if (typeid(T) != typeid(T2))
+      {
+        T2 value2 = _lookup<T2>(localScope, localScopeName, param, s_optional, &_isSet);
+        value = boost::lexical_cast<T>(value2);
+      }
+      else
+        throw;
+    }
+  }
+  catch (const libconfig::SettingNotFoundException&)
+  {
+    _isSet = false;
+  }
+  catch (const libconfig::SettingTypeException&)
+  {
+    throw std::runtime_error("Setting for " + localScopeName + "." + param + " has wrong type, " +
+                             type_names<T,T2>() + " expected");
   }
 
   // Try global scope if available
 
-  if ((!_isSet) && (scope = globalScope))
+  if ((!_isSet) && globalScope)
   {
-    value = _lookup<T>(*globalScope, localScopeName, param, s_optional, &_isSet);
-
-    if ((!_isSet) && (typeid(T) != typeid(T2)))
+    try
     {
-      T2 value2 = _lookup<T2>(*globalScope, localScopeName, param, s_optional, &_isSet);
-
-      if (_isSet)
-        value = boost::lexical_cast<T>(value2);
+      try
+      {
+        value = _lookup<T>(*globalScope, localScopeName, param, s_optional, &_isSet);
+      }
+      catch (const libconfig::SettingTypeException&)
+      {
+        if (typeid(T) != typeid(T2))
+        {
+          T2 value2 = _lookup<T2>(*globalScope, localScopeName, param, s_optional, &_isSet);
+          value = boost::lexical_cast<T>(value2);
+        }
+        else
+          throw;
+      }
+    }
+    catch (const libconfig::SettingNotFoundException&)
+    {
+      _isSet = false;
+    }
+    catch (const libconfig::SettingTypeException&)
+    {
+      throw std::runtime_error("Setting for " + localScopeName + "." + param + " has wrong type, " +
+                               type_names<T,T2>() + " expected");
     }
   }
 
@@ -2668,29 +2704,32 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
 
     std::string refix(configValue<std::string>(conds, className, "refix"));
     double condValue = 0.0;
-    bool eqNan = false, badNan = false;
+    bool eqNan = false;
 
     // Check for equal to NaN condition.
 
     try
     {
-      badNan =
-          (boost::algorithm::to_lower_copy(lookup<std::string>(conds, confPath, "value")) != "nan");
+      try
+      {
+        if (boost::algorithm::to_lower_copy(lookup<std::string>(conds, confPath, "value")) != "nan")
+          throw std::runtime_error(confPath + ".conditions" + valMsg);
 
-      if (badNan)
-        throw std::runtime_error(confPath + ".conditions" + valMsg);
+        if (!isnan(numericValue))
+          continue;
 
-      if (!isnan(numericValue))
-        continue;
+        eqNan = true;
+      }
+      catch (libconfig::SettingTypeException &ex)
+      {
+        // Value is (should be) then numeric
 
-      eqNan = true;
-    }
-    catch (std::runtime_error &ex)
-    {
-      if (badNan)
+        condValue = configValue<double>(conds, className, "value");
+      }
+      catch (...)
+      {
         throw;
-
-      condValue = configValue<double>(conds, className, "value");
+      }
     }
     catch (...)
     {

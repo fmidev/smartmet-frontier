@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 21.9.7
+Version: 21.9.28
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -13,22 +13,22 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-gis-devel >= 21.5.5
-BuildRequires: smartmet-library-macgyver-devel >= 21.2.25
-BuildRequires: smartmet-library-newbase-devel >= 21.5.6
-BuildRequires: smartmet-library-tron-devel >= 21.4.15
+BuildRequires: smartmet-library-gis-devel >= 21.9.24
+BuildRequires: smartmet-library-macgyver-devel >= 21.9.13
+BuildRequires: smartmet-library-newbase-devel >= 21.9.22
+BuildRequires: smartmet-library-tron-devel >= 21.6.21
 BuildRequires: geos39
-BuildRequires: smartmet-library-woml >= 21.3.25
-BuildRequires: libconfig17-devel >= 1.7.2
+BuildRequires: smartmet-library-woml >= 21.5.6
+BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 21.2.25
-Requires: smartmet-library-newbase >= 21.5.6
-Requires: smartmet-library-tron >= 21.4.15
-Requires: smartmet-library-woml >= 21.3.25
+Requires: smartmet-library-macgyver >= 21.9.13
+Requires: smartmet-library-newbase >= 21.9.22
+Requires: smartmet-library-tron >= 21.6.21
+Requires: smartmet-library-woml >= 21.5.6
 Requires: cairo
-Requires: libconfig17 >= 1.7.2
+Requires: libconfig17 >= 1.7.3
 Requires: boost169-program-options
 Requires: boost169-iostreams
 Requires: boost169-filesystem
@@ -67,6 +67,10 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Sep 28 2021 Pertti Kinnia <pertti.kinnia@fmi.fi> 21.9.28-1.fmi
+- Handle exceptions thrown by libconfig::Setting::lookupValue (BRAINSTORM-2161)
+- Fixed processing of CB clouds (LENTOSAA-1155)
+
 * Tue Sep  7 2021 Andris Pavēnis <andris.pavenis@fmi.fi> 21.9.7-1.fmi
 - Use libconfig17 and libconfig17-devel
 

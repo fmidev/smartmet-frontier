@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <typeinfo>
+
 namespace frontier
 {
 enum settings
@@ -102,6 +104,33 @@ inline const char* number_name<double>()
 {
   return "double";
 }
+
+template <typename T, typename T2>
+std::string type_names()
+{
+  std::string t;
+
+  if (typeid(T) == typeid(t))
+    t = "string";
+  else if (typeid(T) == typeid(bool))
+    t = "bool";
+  else
+  {
+    t = number_name<T>();
+
+    if (typeid(T) != typeid(T2))
+      t += (std::string(" or ") + std::string(number_name<T2>()));
+  }
+
+  return t;
+}
+
+template <typename T>
+std::string type_name()
+{
+  return type_names<T,T>();
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Read a configuration value with proper error messages
@@ -119,7 +148,7 @@ T lookup(const libconfig::Config& config, const std::string& name)
   catch (libconfig::ConfigException& e)
   {
     if (!config.exists(name)) throw std::runtime_error("Setting for " + name + " is missing");
-    throw std::runtime_error("Failed to parse value of '" + name + "' as type " + number_name<T>());
+    throw std::runtime_error("Failed to parse value of '" + name + "' as type " + type_name<T>());
   }
 }
 
@@ -141,23 +170,39 @@ T lookup(const libconfig::Setting& setting,
   bool bSet;
   bool* _isSet = &bSet;
   bool** pSet = (isSet ? &isSet : &_isSet);
+  std::string prefixName(prefix.empty() ? name : (prefix + "." + name));
 
-  if ((** pSet = setting.lookupValue(name, ret)) || (settingId == s_optional)) return ret;
+  // lookupValue throws on missing setting etc, even though it shouldn't ?
 
-  if (!setting.exists(name))
+  try
   {
-    if ((settingId != s_optional) && (settingId != s_required))
-      throw SettingIdNotFoundException(settingId, prefix.empty() ? name : (prefix + "." + name));
-    else
-      throw std::runtime_error("Setting for " + (prefix.empty() ? name : (prefix + "." + name)) +
-                               " is missing");
+    **pSet = setting.lookupValue(name, ret);
+  }
+  catch (const libconfig::SettingNotFoundException&)
+  {
+    **pSet = false;
+  }
+  catch (const libconfig::SettingTypeException&)
+  {
+    throw;
+  }
+  catch (const libconfig::ParseException&)
+  {
+    throw std::runtime_error("Failed to parse value of '" + prefixName + "' as type " +
+                             type_name<T>());
+  }
+  catch (...)
+  {
+    throw std::runtime_error("Failed to get value of '" + prefixName + "'");
   }
 
-  if (!prefix.empty())
-    throw std::runtime_error("Failed to parse value of '" + (prefix + "." + name) + "' as type " +
-                             number_name<T>());
+  if (**pSet || (settingId == s_optional))
+    return ret;
+
+  if (settingId == s_required)
+    throw std::runtime_error("Setting for " + prefixName + " is missing");
   else
-    throw std::runtime_error("Failed to parse value of '" + name + "' as type " + number_name<T>());
+    throw SettingIdNotFoundException(settingId, prefixName);
 }
 
 }  // namespace frontier
