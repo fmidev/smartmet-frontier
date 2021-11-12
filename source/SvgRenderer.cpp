@@ -305,7 +305,7 @@ T configValue(const libconfig::Setting &localScope,
 
   // Try global scope if available
 
-  if ((!_isSet) && globalScope)
+  if ((!_isSet) && (scope = globalScope))
   {
     try
     {
