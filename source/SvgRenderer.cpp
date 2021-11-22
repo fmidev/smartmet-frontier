@@ -5243,11 +5243,14 @@ bool arrangeMarkers(Texts &texts,
     }
 
     // Use the candidate if released above or recurse with reserving marker's candidates
+    //
+    // Disabled recursing since the (first level of) reserving markers candidates still overlap
+    // the candite and current recursing/logic might result into poor placement for them (PAK-2121)
 
     if (fit == freeAreas.end())
       markerChain.push_back(*mit);
 
-    if ((fit != freeAreas.end()) || arrangeMarkers(texts,
+    if ((fit != freeAreas.end()) /* || arrangeMarkers(texts,
                                                    reservedAreas,
                                                    freeAreas,
                                                    candidateAreas,
@@ -5255,7 +5258,7 @@ bool arrangeMarkers(Texts &texts,
                                                    fillAreas,
                                                    scales,
                                                    markerChain,
-                                                   RC + 1))
+                                                   RC + 1) */)
     {
       // Store the candidate
       //
@@ -5882,8 +5885,8 @@ void getAreaMarkerPos(Texts &texts,
         yScale = csit->second;
         // if (areasOut && (!areaPlaceHolder.empty())) {
         // boost::ptr_map<std::string,std::ostringstream> & texts = *areasOut;
-        // texts[areaPlaceHolder] << "<circle cx=\"" << selmx << "\" cy=\"" << selmy << "\" r=\"5\"
-        // stroke=\"black\" stroke-width=\"1\" fill=\"blue\"/>"; }
+        // texts[areaPlaceHolder] << "<circle cx=\"" << selmx << "\" cy=\"" << selmy << "\" r=\"10\""
+        // << " stroke=\"black\" stroke-width=\"1\" fill=\"red\"/>"; }
       }
       //			else if ((selhoff >= 0) || (selfroff >= 0)) {
       //				// Using the last (selh; selh > minh), favoured (selfvh) or
