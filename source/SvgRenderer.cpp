@@ -78,6 +78,19 @@ const double textWitdhFactor =
     0.94;  // Calculated text width/height is inaccurate, using factors not to exceed limits
 const double textHeightFactor = 0.96;  //
 
+struct ElevInfo
+{
+  std::pair<double, double> loHi;
+  bool hasHole;
+
+  ElevInfo(double lopx, double hipx, const bool _hasHole)
+  {
+    loHi = std::make_pair(lopx, hipx);
+    hasHole = _hasHole;
+  }
+};
+typedef std::map<int, std::list<ElevInfo>> ElevInfoMap;
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Convert ptime NFmiMetTime
@@ -4671,34 +4684,49 @@ void SvgRenderer::render_cloudSymbol(const std::string &confPath,
 
 void trackAreaLabelPos(ElevGrp::iterator iteg,
                        double x,
-                       double &maxx,
                        double lopx,
-                       std::vector<double> &_lopx,
                        double hipx,
-                       std::vector<double> &_hipx,
-                       std::vector<bool> &hasHole)
+                       ElevInfoMap &elevInfoMap)
 {
-  // Keep track of elevations (when travelling forwards)
-
-  int nX = _lopx.size();
-
-  if ((nX == 0) || (x > (maxx + 0.01)))
+  if (iteg->hasHole())
   {
-    if (iteg->hasHole())
-    {
-      // Elevation has hole(s); use the tallest part.
-      //
-      const boost::optional<woml::Elevation> &labelElevation = iteg->Pv()->labelElevation();
+    // Elevation has hole(s); use the tallest part.
+    //
+    const boost::optional<woml::Elevation> &labelElevation = iteg->Pv()->labelElevation();
 
-      lopx = labelElevation->lowerLimit()->numericValue();
-      hipx = labelElevation->upperLimit()->numericValue();
-    }
+    lopx = labelElevation->lowerLimit()->numericValue();
+    hipx = labelElevation->upperLimit()->numericValue();
+  }
 
-    _lopx.push_back(lopx);
-    _hipx.push_back(hipx);
-    hasHole.push_back(iteg->hasHole());
+  elevInfoMap[ceil(x)].push_back(ElevInfo(lopx, hipx, iteg->hasHole()));
+}
 
-    maxx = x;
+// ----------------------------------------------------------------------
+/*!
+ * \brief Utility function for selecting candidate elevations for area's label(s)
+ */
+// ----------------------------------------------------------------------
+
+void selectAreaLabelPosElevations(ElevInfoMap &elevInfoMap,
+                                  std::vector<double> &scaledLo,
+                                  std::vector<double> &scaledHi,
+                                  std::vector<bool> &hasHole)
+{
+  // Sort visible elevations by height (lo-hi range)
+
+  for (auto iter = elevInfoMap.begin(); (iter != elevInfoMap.end()); iter++)
+  {
+    iter->second.sort([](const ElevInfo &l, const ElevInfo &r) {
+      if (l.loHi.first < 0)
+        return false;
+      else if (r.loHi.first < 0)
+        return true;
+      else
+        return (l.loHi.first - l.loHi.second) >= (r.loHi.first - r.loHi.second); });
+
+    scaledLo.push_back(iter->second.front().loHi.first);
+    scaledHi.push_back(iter->second.front().loHi.second);
+    hasHole.push_back(iter->second.front().hasHole);
   }
 }
 
@@ -5724,8 +5752,16 @@ void getAreaMarkerPos(Texts &texts,
         }
         else
         {
+          // Elevations must overlap. y -axis grows downwards
+
           double lo2 = std::min(_lopx[n2], axisHeight), hi2 = std::max(_hipx[n2], 0.0);
           double lo1 = std::min(_lopx[n1], axisHeight), hi1 = std::max(_hipx[n1], 0.0);
+
+          if ((lo1 <= hi2) || (hi1 >= lo2))
+          {
+            nearest = true;
+            continue;
+          }
 
           mx = minx + (n1 * xStep) + (xStep / 2);
 
@@ -6581,10 +6617,10 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
                                        bool nonGndVdn2Gnd)
 {
   ElevGrp::iterator egbeg = eGrp.begin(), egend = eGrp.end(), iteg;
+  ElevInfoMap elevInfoMap;
   Phase phase, pphase;
   double lopx = 0.0, plopx, lopx0 = 0.0, plopx0;
   double hipx = 0.0, phipx, hipx0 = 0.0, phipx0;
-  double maxx = 0.0;
   bool single = true, smoothen = false;
 
   double axisWidth = axisManager->axisWidth(), xStep = axisManager->xStep(),
@@ -6663,10 +6699,10 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
     const boost::posix_time::ptime &vt = iteg->validTime();
     double x = axisManager->xOffset(vt);
 
-    // Keep track of elevations to calculate the label position(s)
+    // Keep track of elevations to later select/calculate the label position(s)
 
     if ((x >= 0) && (x < (axisWidth + 1)))
-      trackAreaLabelPos(iteg, x, maxx, lopx0, scaledLo, hipx0, scaledHi, hasHole);
+      trackAreaLabelPos(iteg, x, lopx, hipx, elevInfoMap);
 
 #define STEPSS
 
@@ -6971,6 +7007,11 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
       pphase = phase;
     }
   }  // for iteg
+
+  // Select tallest elevation (scaled lo and hi values) for each time instant
+  // as candidate for label positioning
+
+  selectAreaLabelPosElevations(elevInfoMap, scaledLo, scaledHi, hasHole);
 
   if (!single)
   {
@@ -9655,6 +9696,13 @@ unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp &eGrp,
   double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
   double nonZ = axisManager->nonZeroElevation();
 
+  // BRAINSTORM-2212
+  //
+  // Use separate group for invisible elevations to handle the area separately
+  // to label areas which are partially invisible
+
+  if (axisManager->scaledElevation(lo) <= 0) return groupNumber;
+
   for (; (liteg != egend); liteg++)
   {
     int dh = (liteg->validTime() - vt).hours();
@@ -9723,6 +9771,13 @@ unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp &eGrp,
   double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
   double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
   double nonZ = axisManager->nonZeroElevation();
+
+  // BRAINSTORM-2212
+  //
+  // Use separate group for invisible elevations to handle the area separately
+  // to label areas which are partially invisible
+
+  if (axisManager->scaledElevation(lo) <= 0) return groupNumber;
 
   for (; (riteg != egend); riteg++)
   {
