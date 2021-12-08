@@ -4137,10 +4137,21 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
           upopen = true;
         }
 
+        // Why riteg->bottomConnected() is tested here ? For ZeroTolerance ? Bug ?
+
         if (((triteg == iteg) || riteg->bottomConnected()) && (!(riteg->topConnected())))
+        {
           // Can go right
           //
           triteg = riteg;
+
+          if (nonGndFwd2Gnd)
+            // BRAINSTORM-2210
+            //
+            // Select the topmost right side elevation
+            //
+            break;
+        }
       }
     }
     else
@@ -6707,7 +6718,7 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
 #define STEPSS
 
 #ifdef STEPS
-    std::string cs;
+    std::string cs(" " + boost::posix_time::to_iso_string(vt));
     if (iteg->topConnected())
       cs = " top";
     if (iteg->bottomConnected())
