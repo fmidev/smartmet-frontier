@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 21.11.12
+Version: 22.1.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -13,9 +13,9 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-gis-devel >= 21.9.24
-BuildRequires: smartmet-library-macgyver-devel >= 21.10.4
-BuildRequires: smartmet-library-newbase-devel >= 21.10.13
+BuildRequires: smartmet-library-gis-devel >= 21.12.7
+BuildRequires: smartmet-library-macgyver-devel >= 22.1.10
+BuildRequires: smartmet-library-newbase-devel >= 21.12.7
 BuildRequires: smartmet-library-tron-devel >= 21.6.21
 BuildRequires: geos39
 BuildRequires: smartmet-library-woml >= 21.5.6
@@ -23,8 +23,8 @@ BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 21.10.4
-Requires: smartmet-library-newbase >= 21.10.13
+Requires: smartmet-library-macgyver >= 22.1.10
+Requires: smartmet-library-newbase >= 21.12.7
 Requires: smartmet-library-tron >= 21.6.21
 Requires: smartmet-library-woml >= 21.5.6
 Requires: cairo
@@ -67,6 +67,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Fri Jan 14 2022 Pertti Kinnia <pertti.kinnia@fmi.fi> 22.1.14-1.fmi
+- Marker (symbol/label) positioning improved (PAK-2121)
+
 * Fri Nov 12 2021 Pertti Kinnia <pertti.kinnia@fmi.fi> 21.11.12-1.fmi
 - Fixed bug causing use of unrelated global configuration blocks (succeeding named blocks) to be used when reading config settings, messing up e.g. symbol rendering (BRAINSTORM-2199)
 

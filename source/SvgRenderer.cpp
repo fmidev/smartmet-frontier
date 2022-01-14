@@ -4750,6 +4750,7 @@ void selectAreaLabelPosElevations(ElevInfoMap &elevInfoMap,
 
 void eraseReservedAreas(const std::string &markerId,
                         const std::string &reserver,
+                        const std::string &areaId,
                         const NFmiFillAreas &reservedAreas,
                         FillAreas &candidateAreas,
                         NFmiFillAreas &fillAreas,
@@ -4769,6 +4770,11 @@ void eraseReservedAreas(const std::string &markerId,
 
   std::list<std::pair<double, double> >::iterator siter;
 
+  // Positions/scales reserved by an area (e.g. cloud) to be used if free areas do not exist
+
+  NFmiFillAreas fA;
+  std::list<std::pair<double, double>> sc;
+
   for (NFmiFillAreas::const_iterator riter = reservedAreas.begin(); (riter != reservedAreas.end());
        riter++)
   {
@@ -4786,7 +4792,7 @@ void eraseReservedAreas(const std::string &markerId,
           (fiter->second.x >= (riter->first.x + overlap)) && (fiter->first.y < riter->second.y) &&
           (fiter->second.y >= (riter->first.y + overlap)))
       {
-        if ((!isHole) && storeCandidates)
+        if (areaId.empty() && (!isHole) && storeCandidates)
         {
           candidateAreas[markerId].fillAreas.push_back(*fiter);
           candidateAreas[markerId].markers.push_back(reserver);
@@ -4798,10 +4804,18 @@ void eraseReservedAreas(const std::string &markerId,
         // "keep",fiter->first.x,fiter->first.y,fiter->second.x,fiter->second.y,riter->first.x,riter->first.y,riter->second.x,riter->second.y);
         if (eraseReserved)
         {
+          if (!areaId.empty())
+            fA.push_back(*fiter);
+
           fiter = fillAreas.erase(fiter);
 
           if (scales)
+          {
+            if (!areaId.empty())
+              sc.push_back(*siter);
+
             siter = scales->erase(siter);
+          }
 
           continue;
         }
@@ -4812,6 +4826,14 @@ void eraseReservedAreas(const std::string &markerId,
       if (scales)
         siter++;
     }
+  }
+
+  if (!fA.empty())
+  {
+    fillAreas.insert(fillAreas.end(),fA.begin(),fA.end());
+
+    if (scales)
+      scales->insert(scales->end(),sc.begin(),sc.end());
   }
 }
 
@@ -4834,6 +4856,7 @@ void eraseReservedAreas(const std::string &markerId,
       //
       eraseReservedAreas(markerId,
                          riter->first,
+                         riter->second.areaId,
                          riter->second.fillAreas,
                          candidateAreas,
                          fillAreas,
@@ -4849,6 +4872,7 @@ void eraseReservedAreas(const std::string &markerId,
        riter++)
     eraseReservedAreas(markerId,
                        riter->first,
+                       riter->second.areaId,
                        riter->second.fillAreas,
                        candidateAreas,
                        fillAreas,
@@ -4880,7 +4904,7 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
   markerArea.push_back(std::make_pair(Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
                                       Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0))));
 
-  eraseReservedAreas("hole", "hole", holeAreas, candidateAreas, markerArea, nullptr, true);
+  eraseReservedAreas("hole", "hole", "", holeAreas, candidateAreas, markerArea, nullptr, true);
   eraseReservedAreas(
       markerId, reservedAreas, candidateAreas, markerArea, nullptr, false, storeCandidates);
 
@@ -4896,8 +4920,10 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
                             double my,
                             int &markerWidth,
                             int &markerHeight,
+                            double markerScaleMin,
                             bool checkBwd,
                             bool checkFwd,
+                            double axisWidth,
                             double xStep)
 {
   NFmiFillAreas markerArea, ma;
@@ -4907,20 +4933,19 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
   do
   {
     // Check the given position and positions half and 1/4 timestep backwards and forwards. Return
-    // the first available position,
-    // and store the other available positions as free and the reserved positions as candidates.
+    // the first available position, and store the other available positions as free and the
+    // reserved positions as candidates.
     //
-    // Note: When checking the half and 1/4 offset positions, the position half step forwards is
-    // checked first because currently
-    //		 the right end of single elevation areas tends to be taller than the left end. The
-    // position half step backwards
-    //		 is checked next to favour greater distance to the (given/center) primary position
-    // in
-    // case
-    // another marker is already
-    //		 positioned there
+    // Note: When checking the offset positions, the position forwards is checked first because
+    // currently the right end of single elevation areas tends to be taller than the left end.
+    //
+    // Checking 1/4 step offset first to better keep the marker within it's area
 
     double x = x0;
+    uint div = (
+                ((checkBwd && (x < (xStep / 2))) || (checkFwd && (x > (axisWidth - (xStep / 2)))))
+                ? 4 : 4 // 2
+               );
 
     markerArea = getMarkerArea(markerId,
                                holeAreas,
@@ -4935,9 +4960,9 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
 
     if (checkFwd)
     {
-      // Check half timestep forwards
+      // Check half or 1/4 timestep forwards
       //
-      x = x0 + (xStep / 2);
+      x = x0 + (xStep / div);
       mx = (ma.empty() ? x : mx);
       markerArea = getMarkerArea(markerId,
                                  holeAreas,
@@ -4953,9 +4978,9 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
 
     if (checkBwd)
     {
-      // Check half timestep backwards
+      // Check half or 1/4 timestep backwards
       //
-      x = x0 - (xStep / 2);
+      x = x0 - (xStep / div);
       mx = (ma.empty() ? x : mx);
       markerArea = getMarkerArea(markerId,
                                  holeAreas,
@@ -4968,12 +4993,17 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
                                  storeCandidates);
       ma.insert(ma.end(), markerArea.begin(), markerArea.end());
     }
+
+    div = ((div == 2) ? 4 : 2);
+
+//  if ((div == 2) && (!ma.empty()))
+//    checkFwd = checkBwd = false;
 
     if (checkFwd)
     {
-      // Check 1/4 timestep forwards
+      // Check half or 1/4 timestep forwards
       //
-      x = x0 + (xStep / 4);
+      x = x0 + (xStep / div);
       mx = (ma.empty() ? x : mx);
       markerArea = getMarkerArea(markerId,
                                  holeAreas,
@@ -4989,9 +5019,9 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
 
     if (checkBwd)
     {
-      // Check 1/4 timestep backwards
+      // Check half or 1/4 timestep backwards
       //
-      x = x0 - (xStep / 4);
+      x = x0 - (xStep / div);
       mx = (ma.empty() ? x : mx);
       markerArea = getMarkerArea(markerId,
                                  holeAreas,
@@ -5026,8 +5056,8 @@ NFmiFillAreas getMarkerArea(const std::string &markerId,
 
       storeCandidates = false;
     }
-  } while (markerArea.empty() && (markerWidth >= floor(w * markerScaleFactorMin)) &&
-           (markerHeight >= floor(h * markerScaleFactorMin)));
+  } while (markerArea.empty() && (markerWidth >= floor(w * markerScaleMin)) &&
+           (markerHeight >= floor(h * markerScaleMin)));
 
   return markerArea;
 }
@@ -5445,6 +5475,7 @@ void getAreaMarkerPos(Texts &texts,
                       int markerWidth,
                       int markerHeight,
                       double markerScale,
+                      double markerScaleMin,
                       std::vector<double> &_lopx,
                       std::vector<double> &_hipx,
                       std::vector<bool> &hasHole,
@@ -5471,16 +5502,30 @@ void getAreaMarkerPos(Texts &texts,
   for (itcp++; (itcp != cpend); itcp++, pitcp++)
     fillMap.Add(pitcp->getX(), pitcp->getY(), itcp->getX(), itcp->getY());
 
-  fillMap.getFillAreas(axisWidth,
-                       windowHeight,
-                       markerWidth,
-                       markerHeight,
-                       1.0,
-                       false,
-                       fillAreas,
-                       isHole && textOutput,
-                       false,
-                       isHole && (!textOutput));
+  double minW = mw * markerScaleMin, minH = mh * markerScaleMin;
+
+  for (; (fillAreas.empty() && (mw >= minW) && (mh >= minH)); )
+  {
+    fillMap.getFillAreas(axisWidth,
+                         windowHeight,
+                         mw,
+                         mh,
+                         1.0,
+                         false,
+                         fillAreas,
+                         isHole && textOutput,
+                         false,
+                         isHole && (!textOutput));
+
+    if (fillAreas.empty())
+    {
+      mw -= 2;
+      mh -= 2;
+    }
+  }
+
+  mw = markerWidth;
+  mh = markerHeight;
 
   if (isHole && (!textOutput))
   {
@@ -5497,7 +5542,7 @@ void getAreaMarkerPos(Texts &texts,
     // Move reserved fill areas into candidate container
     //
     splitFillAreas(fillAreas, markerWidth, 1.0);
-    eraseReservedAreas("hole", "hole", holeAreas, candidateAreas, fillAreas, nullptr, true);
+    eraseReservedAreas("hole", "hole", "", holeAreas, candidateAreas, fillAreas, nullptr, true);
     fillAreas.sort(sortFillAreas);
     // if (TRAP != 0)
     // fillAreas.clear();
@@ -5522,6 +5567,7 @@ void getAreaMarkerPos(Texts &texts,
     fillMap.getFillAreas(axisWidth, windowHeight, 3, 3, 1.0, false, fA, false, false, false);
 
     std::string mId(markerId);
+    reservedAreas[mId].areaId = mId;
     reservedAreas[mId].x = 0;
     reservedAreas[mId].y = 0;
     reservedAreas[mId].centered = false;
@@ -5583,7 +5629,7 @@ void getAreaMarkerPos(Texts &texts,
           for (int idx = npx; ((idx < ((int)_lopx.size())) && (_lopx[idx] <= 0)); idx++)
             timeSteps++;
 
-        for (; ((area != fillAreas.end()) && (area->first.x < (minx + ((n0 + timeSteps) * xStep))));
+        for (; ((area != fillAreas.end()) && (area->second.x < (minx + ((n0 + timeSteps) * xStep))));
              area++)
         {
           // Ignore areas going below 0 over 1/3'rd
@@ -5609,10 +5655,12 @@ void getAreaMarkerPos(Texts &texts,
             {
               boost::ptr_map<std::string, std::ostringstream> &texts = *areasOut;
 
+              /*
               texts[areaPlaceHolder]
                   << "<line x1=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y1=\"0\""
                   << " x2=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y2=\"" << axisHeight
                   << "\" style=\"stroke:rgb(255,0,0);stroke-width:2\"/>";
+              */
 
               const char *clrs[] = {"red", "blue", "green", "orange", "brown", "yellow"};
 
@@ -5815,8 +5863,10 @@ void getAreaMarkerPos(Texts &texts,
                                                  my,
                                                  markerWidth,
                                                  markerHeight,
+                                                 markerScaleMin,
                                                  checkBwd,
                                                  checkFwd,
+                                                 axisWidth,
                                                  xStep);
 
         if (!markerArea.empty())
@@ -6102,6 +6152,7 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition> &curvePoints,
                    textWidth,
                    textHeight,
                    1.0,
+                   1.0,
                    loPx,
                    hiPx,
                    hasHole,
@@ -6211,6 +6262,14 @@ void SvgRenderer::renderAreaSymbols(const T &cg,
     minSymbolPosHeight = height * scale * symbolPosHeightFactor;
   }
 
+  double minScale =
+      configValue<double,int>(scope, confPath, "minscale", s_optional, &isSet);
+
+  if (!isSet)
+    minScale = markerScaleFactorMin;
+  else
+    minScale = std::min(minScale, 0.99);
+
   // Get and reserve symbol position for each separate visible part of the area
 
   std::list<double> symbolX, symbolY, scaleX, scaleY;
@@ -6242,6 +6301,7 @@ void SvgRenderer::renderAreaSymbols(const T &cg,
                    width * scale,
                    height * scale,
                    scale,
+                   minScale,
                    loPx,
                    hiPx,
                    hasHole,
@@ -8913,6 +8973,8 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot> &ts,
 
   double axisWidth = axisManager->axisWidth(), axisHeight = axisManager->axisHeight(), x, y;
 
+  // Note: does not work if classNameExt is set (by woml library; use just confPath then)
+
   const std::string symClass(boost::algorithm::to_upper_copy(confPath + classNameExt));
 
   // Elevation group and curve point data
@@ -9070,7 +9132,7 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot> &ts,
                         scaledHi,
                         hasHole,
                         symClass,
-                        classNameExt,
+                        classNameExt, // Note: does not work if set (by woml library; use "" then)
                         symbol,
                         asSymbol,
                         visible,

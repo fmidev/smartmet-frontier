@@ -444,6 +444,7 @@ typedef boost::ptr_map<std::string, std::ostringstream> Texts;
 
 typedef struct
 {
+  std::string areaId;              // Area id for area reservation
   std::list<std::string> markers;  // Marker names of reserved fill areas for candidate fill areas
   double x;
   double y;       // Marker position for reserved fill area (the nearest (free) fill area is used)
