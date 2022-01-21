@@ -13,19 +13,19 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-gis-devel >= 21.12.7
-BuildRequires: smartmet-library-macgyver-devel >= 22.1.10
-BuildRequires: smartmet-library-newbase-devel >= 21.12.7
-BuildRequires: smartmet-library-tron-devel >= 21.6.21
-BuildRequires: geos39
+BuildRequires: smartmet-library-gis-devel >= 21.1.21
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.21
+BuildRequires: smartmet-library-newbase-devel >= 21.1.21
+BuildRequires: smartmet-library-tron-devel >= 21.1.21
+BuildRequires: geos310
 BuildRequires: smartmet-library-woml >= 21.5.6
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 22.1.10
-Requires: smartmet-library-newbase >= 21.12.7
-Requires: smartmet-library-tron >= 21.6.21
+Requires: smartmet-library-macgyver >= 21.1.21
+Requires: smartmet-library-newbase >= 21.1.21
+Requires: smartmet-library-tron >= 21.1.21
 Requires: smartmet-library-woml >= 21.5.6
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
@@ -38,7 +38,7 @@ Requires: boost169-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 21.1.14
+#TestRequires: smartmet-library-macgyver-devel >= 21.1.21
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
