@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 22.1.21
+Version: 22.2.1
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -67,6 +67,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue Feb  1 2022 Andris Pavenis <andris.pavenis@fmi.fi> 22.2.1-1.fmi
+- Repackage due to incorrect RPM dependencies in last build
+
 * Fri Jan 21 2022 Andris Pavēnis <andris.pavenis@fmi.fi> 22.1.21-1.fmi
 - Repackage due to upgrade of packages from PGDG repo: gdal-3.4, geos-3.10, proj-8.2
 
