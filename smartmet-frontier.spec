@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 22.2.1
+Version: 22.5.24
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -13,20 +13,20 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-gis-devel >= 21.1.21
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.21
-BuildRequires: smartmet-library-newbase-devel >= 21.1.21
-BuildRequires: smartmet-library-tron-devel >= 21.1.21
+BuildRequires: smartmet-library-gis-devel >= 22.5.4
+BuildRequires: smartmet-library-macgyver-devel >= 22.3.28
+BuildRequires: smartmet-library-newbase-devel >= 22.5.24
+BuildRequires: smartmet-library-tron-devel >= 22.5.23
 BuildRequires: geos310
-BuildRequires: smartmet-library-woml >= 21.5.6
+BuildRequires: smartmet-library-woml >= 22.5.23
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 21.1.21
-Requires: smartmet-library-newbase >= 21.1.21
-Requires: smartmet-library-tron >= 21.1.21
-Requires: smartmet-library-woml >= 21.5.6
+Requires: smartmet-library-macgyver >= 22.3.28
+Requires: smartmet-library-newbase >= 22.5.24
+Requires: smartmet-library-tron >= 22.5.23
+Requires: smartmet-library-woml >= 22.5.23
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
 Requires: boost169-program-options
@@ -38,7 +38,7 @@ Requires: boost169-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 21.1.21
+#TestRequires: smartmet-library-macgyver-devel >= 22.3.28
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
@@ -67,6 +67,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Tue May 24 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.5.24-1.fmi
+- Repackaged due to NFmiArea ABI changes
+
 * Tue Feb  1 2022 Andris Pavenis <andris.pavenis@fmi.fi> 22.2.1-1.fmi
 - Repackage due to incorrect RPM dependencies in last build
 
