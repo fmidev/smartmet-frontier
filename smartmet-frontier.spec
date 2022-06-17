@@ -9,13 +9,20 @@ Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-frontier
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+%if 0%{?rhel} && 0%{rhel} < 9
+%define smartmet_boost boost169
+%else
+%define smartmet_boost boost
+%endif
+
 BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
-BuildRequires: boost169-devel
-BuildRequires: smartmet-library-gis-devel >= 22.5.4
-BuildRequires: smartmet-library-macgyver-devel >= 22.3.28
-BuildRequires: smartmet-library-newbase-devel >= 22.5.24
+BuildRequires: %{smartmet_boost}-devel
+BuildRequires: smartmet-library-gis-devel >= 22.6.16
+BuildRequires: smartmet-library-macgyver-devel >= 22.6.16
+BuildRequires: smartmet-library-newbase-devel >= 22.6.16
 BuildRequires: smartmet-library-tron-devel >= 22.5.23
 BuildRequires: geos310
 BuildRequires: smartmet-library-woml >= 22.5.23
@@ -23,22 +30,22 @@ BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 22.3.28
-Requires: smartmet-library-newbase >= 22.5.24
+Requires: smartmet-library-macgyver >= 22.6.16
+Requires: smartmet-library-newbase >= 22.6.16
 Requires: smartmet-library-tron >= 22.5.23
 Requires: smartmet-library-woml >= 22.5.23
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
-Requires: boost169-program-options
-Requires: boost169-iostreams
-Requires: boost169-filesystem
-Requires: boost169-regex
-Requires: boost169-date-time
-Requires: boost169-system
+Requires: %{smartmet_boost}-program-options
+Requires: %{smartmet_boost}-iostreams
+Requires: %{smartmet_boost}-filesystem
+Requires: %{smartmet_boost}-regex
+Requires: %{smartmet_boost}-date-time
+Requires: %{smartmet_boost}-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 22.3.28
+#TestRequires: smartmet-library-macgyver-devel >= 22.6.16
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
