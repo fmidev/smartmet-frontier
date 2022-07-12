@@ -339,8 +339,8 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
 
 bool needs_contours(const libconfig::Config& config)
 {
-  bool requires = config.exists("contourlines");
-  return requires;
+  bool result = config.exists("contourlines");
+  return result;
 }
 
 // ----------------------------------------------------------------------
