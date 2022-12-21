@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 22.6.17
+Version: 22.12.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -20,20 +20,21 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-gis-devel >= 22.6.16
-BuildRequires: smartmet-library-macgyver-devel >= 22.6.16
-BuildRequires: smartmet-library-newbase-devel >= 22.6.16
-BuildRequires: smartmet-library-tron-devel >= 22.5.23
+BuildRequires: smartmet-library-gis-devel >= 22.12.14
+BuildRequires: smartmet-library-macgyver-devel >= 22.12.16
+BuildRequires: smartmet-library-newbase-devel >= 22.11.14
+BuildRequires: smartmet-library-tron-devel >= 22.6.17
 BuildRequires: geos310
-BuildRequires: smartmet-library-woml >= 22.5.23
+BuildRequires: smartmet-library-woml >= 22.6.17
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
-Requires: smartmet-library-macgyver >= 22.6.16
-Requires: smartmet-library-newbase >= 22.6.16
-Requires: smartmet-library-tron >= 22.5.23
-Requires: smartmet-library-woml >= 22.5.23
+Requires: smartmet-fonts
+Requires: smartmet-library-macgyver >= 22.12.16
+Requires: smartmet-library-newbase >= 22.11.14
+Requires: smartmet-library-tron >= 22.6.17
+Requires: smartmet-library-woml >= 22.6.17
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
 Requires: %{smartmet_boost}-program-options
@@ -45,7 +46,7 @@ Requires: %{smartmet_boost}-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 22.6.16
+#TestRequires: smartmet-library-macgyver-devel >= 22.12.16
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
@@ -74,6 +75,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Wed Dec 21 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.12.21-1.fmi
+- Require smartmet-fonts
+
 * Fri Jun 17 2022 Andris Pavēnis <andris.pavenis@fmi.fi> 22.6.17-1.fmi
 - Add support for RHEL9. Update libpqxx to 7.7.0 (rhel8+) and fmt to 8.1.1
 
