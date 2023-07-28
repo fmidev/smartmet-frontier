@@ -21,8 +21,8 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-gis-devel >= 23.7.10
-BuildRequires: smartmet-library-macgyver-devel >= 22.12.16
-BuildRequires: smartmet-library-newbase-devel >= 23.7.10
+BuildRequires: smartmet-library-macgyver-devel >= 23.7.28
+BuildRequires: smartmet-library-newbase-devel >= 23.7.28
 BuildRequires: smartmet-library-tron-devel >= 22.6.17
 BuildRequires: geos311
 BuildRequires: smartmet-library-woml >= 22.6.17
@@ -31,8 +31,8 @@ BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-fonts
-Requires: smartmet-library-macgyver >= 22.12.16
-Requires: smartmet-library-newbase >= 23.7.10
+Requires: smartmet-library-macgyver >= 23.7.28
+Requires: smartmet-library-newbase >= 23.7.28
 Requires: smartmet-library-tron >= 22.6.17
 Requires: smartmet-library-woml >= 22.6.17
 Requires: cairo
@@ -46,7 +46,7 @@ Requires: %{smartmet_boost}-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 22.12.16
+#TestRequires: smartmet-library-macgyver-devel >= 23.7.28
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
