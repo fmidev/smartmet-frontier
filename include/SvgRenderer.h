@@ -17,7 +17,7 @@
 #include <smartmet/woml/Point.h>
 #include <smartmet/woml/TimeSeriesSlot.h>
 
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include <macgyver/DateTime.h>
 #include <boost/ptr_container/ptr_map.hpp>
 #include <boost/shared_ptr.hpp>
 
@@ -82,7 +82,7 @@ class AxisManager
   }
   const boost::posix_time::time_period &timePeriod() { return itsTimePeriod; }
   // X -axis offset
-  double xOffset(const boost::posix_time::ptime &validTime) const;
+  double xOffset(const Fmi::DateTime &validTime) const;
 
   // X -axis step
   double xStep() const;
@@ -327,12 +327,12 @@ class ElevationGroupItem
 {
  public:
   ElevationGroupItem(
-      boost::posix_time::ptime theValidTime,
+      Fmi::DateTime theValidTime,
       const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator
           &thePvs,
       const std::list<woml::GeophysicalParameterValue>::iterator &thePv);
 
-  const boost::posix_time::ptime &validTime() const { return itsValidTime; }
+  const Fmi::DateTime &validTime() const { return itsValidTime; }
   const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator &Pvs()
       const
   {
@@ -388,7 +388,7 @@ class ElevationGroupItem
  private:
   ElevationGroupItem();
 
-  boost::posix_time::ptime itsValidTime;
+  Fmi::DateTime itsValidTime;
   std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator itsPvs;
   std::list<woml::GeophysicalParameterValue>::iterator itsPv;
   bool itsTopConnected;
@@ -465,7 +465,7 @@ class SvgRenderer : public woml::FeatureVisitor
               const libconfig::Config &theConfig,
               const std::string &theTemplate,
               const boost::shared_ptr<NFmiArea> &theArea,
-              const boost::posix_time::ptime &theValidTime,
+              const Fmi::DateTime &theValidTime,
               std::ostringstream *theDebugOutput = nullptr);
 
   virtual void visit(const woml::CloudArea &theFeature);
@@ -509,13 +509,13 @@ class SvgRenderer : public woml::FeatureVisitor
   virtual void visit(const woml::ZeroTolerance &theFeature);
 
   void contour(const boost::shared_ptr<NFmiQueryData> &theQD,
-               const boost::posix_time::ptime &theTime);
+               const Fmi::DateTime &theTime);
 
-  void render_header(boost::posix_time::ptime &validTime,
+  void render_header(Fmi::DateTime &validTime,
                      const boost::posix_time::time_period &timePeriod,
-                     const boost::posix_time::ptime &forecastTime,
-                     const boost::posix_time::ptime &creationTime,
-                     const boost::optional<boost::posix_time::ptime> &modificationTime,
+                     const Fmi::DateTime &forecastTime,
+                     const Fmi::DateTime &creationTime,
+                     const boost::optional<Fmi::DateTime> &modificationTime,
                      const std::string &regionName,
                      const std::string &regionId,
                      const std::string &creator);
@@ -536,7 +536,7 @@ class SvgRenderer : public woml::FeatureVisitor
                T theDefaultValue);
 
   void render_header(const std::string &hdrClass,
-                     const boost::posix_time::ptime &datetime,
+                     const Fmi::DateTime &datetime,
                      bool useDate = false,
                      const std::string &text = "",
                      const std::string &confPath = "Header");
@@ -616,8 +616,8 @@ class SvgRenderer : public woml::FeatureVisitor
     t_mixed
   } ElevationGroupType;
   ElevationGroupType elevationGroup(const std::list<woml::TimeSeriesSlot> &ts,
-                                    boost::posix_time::ptime &bt,
-                                    boost::posix_time::ptime &et,
+                                    Fmi::DateTime &bt,
+                                    Fmi::DateTime &et,
                                     ElevGrp &eGrp,
                                     bool all = true,
                                     bool join = true,
@@ -688,8 +688,8 @@ class SvgRenderer : public woml::FeatureVisitor
                            bool &visible,
                            bool &aboveTop);
   bool scaledCurvePositions(ElevGrp &eGrp,
-                            const boost::posix_time::ptime &bt,
-                            const boost::posix_time::ptime &et,
+                            const Fmi::DateTime &bt,
+                            const Fmi::DateTime &et,
                             std::vector<DirectPosition> &curvePositions,
                             std::vector<DirectPosition> &curvePositions0,
                             std::vector<double> &scaledLo,
@@ -781,7 +781,7 @@ class SvgRenderer : public woml::FeatureVisitor
   const libconfig::Config &config;
   std::string svgbase;
   boost::shared_ptr<NFmiArea> area;
-  const boost::posix_time::ptime validtime;
+  const Fmi::DateTime validtime;
   std::ostringstream _debugoutput;
   boost::shared_ptr<AxisManager> axisManager;
   bool initAerodrome;

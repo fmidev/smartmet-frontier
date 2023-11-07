@@ -23,7 +23,7 @@
 #include <libconfig.h++>
 
 #define BOOST_FILESYSTEM_NO_DEPRECATED
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include <macgyver/DateTime.h>
 #include <boost/filesystem/operations.hpp>
 #include <boost/foreach.hpp>
 #include <boost/shared_ptr.hpp>
@@ -200,7 +200,7 @@ std::string remove_sections(const std::string& str,
  */
 // ----------------------------------------------------------------------
 
-typedef std::set<boost::posix_time::ptime> ValidTimes;
+typedef std::set<Fmi::DateTime> ValidTimes;
 
 template <typename T>
 ValidTimes extract_valid_times(const T& collection)
@@ -209,7 +209,7 @@ ValidTimes extract_valid_times(const T& collection)
 
   BOOST_FOREACH (const woml::Feature& f, collection)
   {
-    const boost::optional<boost::posix_time::ptime> theTime = f.validTime();
+    const boost::optional<Fmi::DateTime> theTime = f.validTime();
 
     // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
@@ -221,18 +221,18 @@ ValidTimes extract_valid_times(const T& collection)
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Convert NFmiMetTime to ptime
+ * \brief Convert NFmiMetTime to Fmi::DateTime
  */
 // ----------------------------------------------------------------------
 
-boost::posix_time::ptime to_ptime(const NFmiMetTime& theTime)
+Fmi::DateTime to_ptime(const NFmiMetTime& theTime)
 {
-  boost::gregorian::date date(theTime.GetYear(), theTime.GetMonth(), theTime.GetDay());
+  Fmi::Date date(theTime.GetYear(), theTime.GetMonth(), theTime.GetDay());
 
-  boost::posix_time::ptime utc(date,
-                               boost::posix_time::hours(theTime.GetHour()) +
-                                   boost::posix_time::minutes(theTime.GetMin()) +
-                                   boost::posix_time::seconds(theTime.GetSec()));
+  Fmi::DateTime utc(date,
+                               Fmi::Hours(theTime.GetHour()) +
+                                   Fmi::Minutes(theTime.GetMin()) +
+                                   Fmi::Seconds(theTime.GetSec()));
   return utc;
 }
 
@@ -246,7 +246,7 @@ boost::posix_time::ptime to_ptime(const NFmiMetTime& theTime)
 
 boost::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& options,
                                                          const std::string& path,
-                                                         const boost::posix_time::ptime& origintime)
+                                                         const Fmi::DateTime& origintime)
 {
   namespace fs = boost::filesystem;
 
@@ -302,7 +302,7 @@ boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
   // Shorthand help variables
 
   const std::string& name = source.numericalModelRun()->name();
-  const boost::posix_time::ptime& origintime = source.numericalModelRun()->analysisTime();
+  const Fmi::DateTime& origintime = source.numericalModelRun()->analysisTime();
 
   if (name.find_first_not_of(" ") == std::string::npos) return ret;
 
@@ -416,14 +416,14 @@ int run(int argc,
   if (options.debug)
   {
     std::cerr << "Available valid times:" << std::endl;
-    BOOST_FOREACH (const boost::posix_time::ptime& validtime, validtimes)
+    BOOST_FOREACH (const Fmi::DateTime& validtime, validtimes)
       std::cerr << validtime << std::endl;
   }
 
   if (validtimes.size() != 1)
     throw std::runtime_error("Currently only one valid time can be rendered");
 
-  boost::posix_time::ptime validtime = *validtimes.begin();
+  Fmi::DateTime validtime = *validtimes.begin();
 
   frontier::SvgRenderer renderer(options, config, svg, area, validtime, &debugoutput);
 
@@ -511,7 +511,7 @@ int run(int argc,
   {
     BOOST_FOREACH (const woml::Feature& feature, weather.analysis())
     {
-      const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
+      const boost::optional<Fmi::DateTime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         feature.visit(renderer);
@@ -524,7 +524,7 @@ int run(int argc,
 
     BOOST_FOREACH (const woml::Feature& feature, weather.forecast())
     {
-      const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
+      const boost::optional<Fmi::DateTime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         if (
@@ -536,7 +536,7 @@ int run(int argc,
 
     BOOST_FOREACH (const woml::Feature& feature, weather.forecast())
     {
-      const boost::optional<boost::posix_time::ptime> theTime = feature.validTime();
+      const boost::optional<Fmi::DateTime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         if (

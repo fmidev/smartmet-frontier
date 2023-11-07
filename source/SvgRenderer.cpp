@@ -93,11 +93,11 @@ typedef std::map<int, std::list<ElevInfo>> ElevInfoMap;
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Convert ptime NFmiMetTime
+ * \brief Convert Fmi::DateTime NFmiMetTime
  */
 // ----------------------------------------------------------------------
 
-NFmiMetTime to_mettime(const boost::posix_time::ptime &theTime)
+NFmiMetTime to_mettime(const Fmi::DateTime &theTime)
 {
   return NFmiMetTime(theTime.date().year(),
                      theTime.date().month(),
@@ -483,18 +483,18 @@ std::string toLower(std::string theString)
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Utility function for converting boost::ptime to utc or localized
+ * \brief Utility function for converting Fmi::DateTime to utc or localized
  *		formatted datum string
  */
 // ----------------------------------------------------------------------
 
-NFmiString toFormattedString(const boost::posix_time::ptime &pt,
+NFmiString toFormattedString(const Fmi::DateTime &pt,
                              const std::string &pref,
                              bool utc,
                              FmiLanguage language = kFinnish)
 
 {
-  // Convert from ptime (to_iso_string() format YYYYMMDDTHHMMSS,fffffffff
+  // Convert from Fmi::DateTime (to_iso_string() format YYYYMMDDTHHMMSS,fffffffff
   // where T is the date-time separator) to NFmiMetTime (utc) and further
   // to local time if (utc not) requested
 
@@ -537,11 +537,11 @@ void SvgRenderer::render_aerodromeFrame(const boost::posix_time::time_period &th
   if (options.debug)
     std::cerr << "Rendering AerodromeFrame" << std::endl;
 
-  boost::posix_time::ptime bt = theTimePeriod.begin();
-  boost::posix_time::ptime et = theTimePeriod.end();
+  Fmi::DateTime bt = theTimePeriod.begin();
+  Fmi::DateTime et = theTimePeriod.end();
 
   if ((bt.is_not_a_date_time() || et.is_not_a_date_time()) ||
-      (et < (bt + boost::posix_time::hours(1))) || (et > (bt + boost::posix_time::hours(240))))
+      (et < (bt + Fmi::Hours(1))) || (et > (bt + Fmi::Hours(240))))
     throw std::runtime_error("render_aerodromeFrame: invalid time period");
 
   // Initialize axis manager and render y -axis labels
@@ -642,8 +642,8 @@ void SvgRenderer::render_timeAxis(const boost::posix_time::time_period &theTimeP
 
     // Output the labels
 
-    boost::posix_time::ptime bt = theTimePeriod.begin(), et = theTimePeriod.end();
-    boost::posix_time::time_iterator it(bt, boost::posix_time::hours(step));
+    Fmi::DateTime bt = theTimePeriod.begin(), et = theTimePeriod.end();
+    boost::posix_time::time_iterator it(bt, Fmi::Hours(step));
 
     double x = 0.0, xStep = (step * axisManager->xStep());
 
@@ -691,7 +691,7 @@ void SvgRenderer::render_timeAxis(const boost::posix_time::time_period &theTimeP
 // ----------------------------------------------------------------------
 
 void SvgRenderer::render_header(const std::string &hdrClass,
-                                const boost::posix_time::ptime &datetime,
+                                const Fmi::DateTime &datetime,
                                 bool useDate,
                                 const std::string &text,
                                 const std::string &confPath)
@@ -2824,7 +2824,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
                                             const std::string &className,
                                             int specsIdx,
                                             const std::string &parameter,
-                                            const boost::posix_time::ptime &dateTimeValue)
+                                            const Fmi::DateTime &dateTimeValue)
 {
   const char *typeMsg = " must contain a list of groups in parenthesis";
   const char *condMsg = ": refix must be 'range'";
@@ -2873,12 +2873,12 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
             {
               // Build lo and hi range timestamps using validtime's date and given time range
               //
-              boost::posix_time::ptime ldt(
+              Fmi::DateTime ldt(
                   dateTimeValue.date(),
-                  boost::posix_time::hours(lh) + boost::posix_time::minutes(lm));
-              boost::posix_time::ptime hdt(
+                  Fmi::Hours(lh) + Fmi::Minutes(lm));
+              Fmi::DateTime hdt(
                   dateTimeValue.date(),
-                  boost::posix_time::hours(hh) + boost::posix_time::minutes(hm));
+                  Fmi::Hours(hh) + Fmi::Minutes(hm));
 
               // Advance hi range to next day if less than or equal to lo range (eg. range 18-06)
 
@@ -2887,7 +2887,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
 
               // Advance validtime to next day if less than lo range
 
-              boost::posix_time::ptime vdt(dateTimeValue);
+              Fmi::DateTime vdt(dateTimeValue);
               if (vdt < ldt)
                 vdt += boost::gregorian::days(1);
 
@@ -3023,7 +3023,7 @@ std::string getFolderAndSymbol(const libconfig::Config &config,
                                const std::string &symClass,
                                const std::string &symCode,
                                settings s_code,
-                               const boost::posix_time::ptime &dateTimeValue,
+                               const Fmi::DateTime &dateTimeValue,
                                std::string &folder,
                                bool commonCode = false)
 {
@@ -3355,7 +3355,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
   // Get the elevations from the time serie
 
   ElevGrp eGrp;
-  boost::posix_time::ptime bt, et;
+  Fmi::DateTime bt, et;
 
   bool ground = (elevationGroup(theFeature.timeseries(), bt, et, eGrp) == t_ground);
 
@@ -3391,7 +3391,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
       // Note: Using the lo-hi range average value for "nonground" elevations (MigratoryBirds) and
       // 		 0 for "ground" elevation (SurfaceVisibility, SurfaceWeather)
       //
-      boost::posix_time::ptime vt = iteg->validTime();
+      Fmi::DateTime vt = iteg->validTime();
 
       if (vt < tp.begin())
         continue;
@@ -4065,7 +4065,7 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
     ElevGrp &eGrp, ElevGrp::iterator &iteg, double lo, double hi, bool nonGndFwd2Gnd)
 {
   ElevGrp::iterator uiteg = iteg, riteg = iteg, triteg = iteg;
-  const boost::posix_time::ptime &vt = iteg->validTime();
+  const Fmi::DateTime &vt = iteg->validTime();
   double ulo = 0.0;
   double uhi = 0.0;
   double nonZ = axisManager->nonZeroElevation();
@@ -4194,7 +4194,7 @@ SvgRenderer::Phase SvgRenderer::downleftup(
     ElevGrp &eGrp, ElevGrp::iterator &iteg, double lo, double hi, bool nonGndVdn2Gnd)
 {
   ElevGrp::iterator diteg = iteg, liteg = iteg, bliteg = iteg;
-  const boost::posix_time::ptime &vt = iteg->validTime();
+  const Fmi::DateTime &vt = iteg->validTime();
   double dlo = 0.0;
   double dhi = 0.0;
   double nonZ = axisManager->nonZeroElevation();
@@ -6503,7 +6503,7 @@ void SvgRenderer::render_cloudSymbols(const std::string confPath,
 
     // x -coord of this time instant
 
-    const boost::posix_time::ptime &vt = iteg->validTime();
+    const Fmi::DateTime &vt = iteg->validTime();
     double x = axisManager->xOffset(vt);
 
     // Render cloud symbol
@@ -6665,8 +6665,8 @@ void smoothenCurve(std::vector<DirectPosition> &curvePositions,
 }
 
 bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
-                                       const boost::posix_time::ptime &bt,
-                                       const boost::posix_time::ptime &et,
+                                       const Fmi::DateTime &bt,
+                                       const Fmi::DateTime &et,
                                        std::vector<DirectPosition> &curvePositions,
                                        std::vector<DirectPosition> &curvePositions0,
                                        std::vector<double> &scaledLo,
@@ -6767,7 +6767,7 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
 
     // x -coord of this time instant
 
-    const boost::posix_time::ptime &vt = iteg->validTime();
+    const Fmi::DateTime &vt = iteg->validTime();
     double x = axisManager->xOffset(vt);
 
     // Keep track of elevations to later select/calculate the label position(s)
@@ -7170,7 +7170,7 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
   NFmiFillAreas holeAreas;
   bool hasHole = searchHoles(ts, &cloudGroupCategory);
 
-  boost::posix_time::ptime bt, et;
+  Fmi::DateTime bt, et;
 
   for (;;)
   {
@@ -7353,7 +7353,7 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers &cloudlayers)
       //
       // x -coord of group's first visible time instant
       //
-      const boost::posix_time::ptime &vt = eGrp.front().validTime();
+      const Fmi::DateTime &vt = eGrp.front().validTime();
       double minX = std::max(axisManager->xOffset(vt), 0.0);
 
       renderAreaLabels(borderCompensation ? curvePoints0 : curvePoints,
@@ -7510,8 +7510,8 @@ bool joinElevations(ElevGrp &eGrp)
 
 SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
     const std::list<woml::TimeSeriesSlot> &ts,
-    boost::posix_time::ptime &bt,
-    boost::posix_time::ptime &et,
+    Fmi::DateTime &bt,
+    Fmi::DateTime &et,
     ElevGrp &eGrp,
     bool all,
     bool join,
@@ -7557,7 +7557,7 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
     // only the visible parts of
     // the clouds, icing etc. are used when positioning labels/symbols.
 
-    const boost::posix_time::ptime &vt = itts->validTime();
+    const Fmi::DateTime &vt = itts->validTime();
 
     if (vt < bt)
     {
@@ -7689,7 +7689,7 @@ void SvgRenderer::checkLeftSide(ElevGrp &eGrp,
                                 CategoryValueMeasureGroup *groupCategory)
 {
   std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin()), liteg(hole.aboveElev);
-  boost::posix_time::ptime vt = hole.aboveElev->validTime();
+  Fmi::DateTime vt = hole.aboveElev->validTime();
 
   // Check if the left side of the hole is closed or bounded above.
 
@@ -7755,7 +7755,7 @@ bool SvgRenderer::checkLeftSideHoles(ElevationHoles &holes,
                                      CategoryValueMeasureGroup *groupCategory)
 {
   std::reverse_iterator<ElevationHoles::iterator> ehend(holes.begin()), liteh(iteh);
-  boost::posix_time::ptime vt = iteh->aboveElev->validTime();
+  Fmi::DateTime vt = iteh->aboveElev->validTime();
 
   // Check if the holes on the left side (if any) are closed.
 
@@ -7807,7 +7807,7 @@ void SvgRenderer::checkRightSide(ElevGrp &eGrp,
   // Check if the right side of the hole is closed.
 
   ElevGrp::iterator egend = eGrp.end(), riteg = iteh->belowElev;
-  boost::posix_time::ptime vt = riteg->validTime();
+  Fmi::DateTime vt = riteg->validTime();
 
   for (riteg++; (riteg != egend); riteg++)
   {
@@ -7872,7 +7872,7 @@ bool SvgRenderer::checkRightSideHoles(ElevationHoles &holes,
                                       CategoryValueMeasureGroup *groupCategory)
 {
   ElevationHoles::iterator ehend(holes.end()), riteh = iteh.base();
-  boost::posix_time::ptime vt = iteh->aboveElev->validTime();
+  Fmi::DateTime vt = iteh->aboveElev->validTime();
 
   // Check if the holes on the right side (if any) are closed.
 
@@ -7922,7 +7922,7 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles &holes,
                                      CategoryValueMeasureGroup *groupCategory)
 {
   std::reverse_iterator<ElevationHoles::iterator> lehend(holes.begin()), liteh(iteh);
-  boost::posix_time::ptime vt = iteh->aboveElev->validTime();
+  Fmi::DateTime vt = iteh->aboveElev->validTime();
 
   // Check if the holes on the left side (if any) are closed.
 
@@ -8270,7 +8270,7 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot> &ts,
   //		 type/magnitude have first been extracted.
 
   ElevGrp eGrp;
-  boost::posix_time::ptime bt, et;
+  Fmi::DateTime bt, et;
 
   elevationGroup(ts, bt, et, eGrp, true, false);
 
@@ -8455,7 +8455,7 @@ void SvgRenderer::render_timeserie(const woml::Contrails &contrails)
 
     setGroupNumbers(ts, false);
 
-    boost::posix_time::ptime bt, et;
+    Fmi::DateTime bt, et;
 
     for (;;)
     {
@@ -8995,7 +8995,7 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot> &ts,
   NFmiFillAreas holeAreas;
   bool hasHole = searchHoles(ts, &groupCategory);
 
-  boost::posix_time::ptime bt, et;
+  Fmi::DateTime bt, et;
 
   for (;;)
   {
@@ -9116,7 +9116,7 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot> &ts,
     //
     // x -coord of group's first time instant
     //
-    const boost::posix_time::ptime &vt = eGrp.front().validTime();
+    const Fmi::DateTime &vt = eGrp.front().validTime();
     double minX = std::max(axisManager->xOffset(vt), 0.0);
 
     const std::string &symbol = groupCategory.groupSymbol();
@@ -9399,7 +9399,7 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
     {
       // Skip time instants outside the document's time period.
       //
-      const boost::posix_time::ptime &vt = itts->validTime();
+      const Fmi::DateTime &vt = itts->validTime();
 
       if ((vt < tp.begin()) || (vt > tp.end()))
       {
@@ -9754,7 +9754,7 @@ unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp &eGrp,
                                                  bool mixed)
 {
   std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin()), liteg(iteg);
-  boost::posix_time::ptime vt = iteg->validTime();
+  Fmi::DateTime vt = iteg->validTime();
 
   const woml::Elevation &e = iteg->Pv()->elevation();
   boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
@@ -9828,7 +9828,7 @@ unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp &eGrp,
                                                   bool mixed)
 {
   ElevGrp::iterator egend = eGrp.end(), riteg = itegrev.base(), iteg = itegrev.base();
-  boost::posix_time::ptime vt = itegrev->validTime();
+  Fmi::DateTime vt = itegrev->validTime();
 
   iteg--;
 
@@ -9912,7 +9912,7 @@ void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot> &ts, boo
   //		 type/magnitude have first been extracted.
 
   ElevGrp eGrp;
-  boost::posix_time::ptime bt, et;
+  Fmi::DateTime bt, et;
 
   elevationGroup(ts, bt, et, eGrp, true, false);
 
@@ -10131,7 +10131,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
     NFmiFillAreas holeAreas;
     bool hasHole = searchHoles(ts);
 
-    boost::posix_time::ptime bt, et;
+    Fmi::DateTime bt, et;
 
     for (;;)
     {
@@ -10260,7 +10260,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance &zerotolerance)
       {
         // x -coord of group's first time instant
         //
-        const boost::posix_time::ptime &vt = eGrp.front().validTime();
+        const Fmi::DateTime &vt = eGrp.front().validTime();
         double minX = std::max(axisManager->xOffset(vt), 0.0);
 
         renderAreaLabels(curvePoints,
@@ -10526,7 +10526,7 @@ SvgRenderer::SvgRenderer(const Options &theOptions,
                          const libconfig::Config &theConfig,
                          const std::string &theTemplate,
                          const boost::shared_ptr<NFmiArea> &theArea,
-                         const boost::posix_time::ptime &theValidTime,
+                         const Fmi::DateTime &theValidTime,
                          std::ostringstream *theDebugOutput)
     : options(theOptions),
       config(theConfig),
@@ -10556,11 +10556,11 @@ SvgRenderer::SvgRenderer(const Options &theOptions,
  */
 // ----------------------------------------------------------------------
 
-void SvgRenderer::render_header(boost::posix_time::ptime &validTime,
+void SvgRenderer::render_header(Fmi::DateTime &validTime,
                                 const boost::posix_time::time_period &timePeriod,
-                                const boost::posix_time::ptime &forecastTime,
-                                const boost::posix_time::ptime &creationTime,
-                                const boost::optional<boost::posix_time::ptime> &modificationTime,
+                                const Fmi::DateTime &forecastTime,
+                                const Fmi::DateTime &creationTime,
+                                const boost::optional<Fmi::DateTime> &modificationTime,
                                 const std::string &regionName,
                                 const std::string &regionId,
                                 const std::string &creator)
@@ -10568,14 +10568,14 @@ void SvgRenderer::render_header(boost::posix_time::ptime &validTime,
   const char *missingRegionId = "--";
 
   // Target region name and id. If name and id are equal, render the id as missing
-  render_header("regionName", boost::posix_time::ptime(), false, regionName);
+  render_header("regionName", Fmi::DateTime(), false, regionName);
   render_header("regionId",
-                boost::posix_time::ptime(),
+                Fmi::DateTime(),
                 false,
                 (regionId != regionName) ? regionId : missingRegionId);
 
   // Creator
-  render_header("creator", boost::posix_time::ptime(), false, creator);
+  render_header("creator", Fmi::DateTime(), false, creator);
 
   // Feature validtime
   render_header("validTime", validTime);
@@ -10597,9 +10597,9 @@ void SvgRenderer::render_header(boost::posix_time::ptime &validTime,
   bool useDate = (modificationTime && ((*modificationTime).date() != timePeriod.begin().date()));
 
   render_header("modificationTimeDate",
-                modificationTime ? *modificationTime : boost::posix_time::ptime());
+                modificationTime ? *modificationTime : Fmi::DateTime());
   render_header("modificationTimeTime",
-                modificationTime ? *modificationTime : boost::posix_time::ptime(),
+                modificationTime ? *modificationTime : Fmi::DateTime(),
                 useDate);
 
   // Approval date and time
@@ -10734,8 +10734,8 @@ AxisManager::AxisManager(const libconfig::Config &config)
       itsMaxElevation(0.0),
       itsAxisWidth(0),
       itsUtc(false),
-      itsTimePeriod(boost::posix_time::ptime(boost::posix_time::not_a_date_time),
-                    boost::posix_time::ptime(boost::posix_time::not_a_date_time)),
+      itsTimePeriod(Fmi::DateTime(boost::posix_time::not_a_date_time),
+                    Fmi::DateTime(boost::posix_time::not_a_date_time)),
       itsElevations()
 {
   std::string confPath("ElevationAxis");
@@ -10894,7 +10894,7 @@ double AxisManager::scaledElevation(double elevation,
  */
 // ----------------------------------------------------------------------
 
-double AxisManager::xOffset(const boost::posix_time::ptime &validTime) const
+double AxisManager::xOffset(const Fmi::DateTime &validTime) const
 {
   if (validTime < itsTimePeriod.begin())
     return -xStep();
@@ -10926,7 +10926,7 @@ double AxisManager::xStep() const
 // ----------------------------------------------------------------------
 
 ElevationGroupItem::ElevationGroupItem(
-    boost::posix_time::ptime theValidTime,
+    Fmi::DateTime theValidTime,
     const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator &thePvs,
     const std::list<woml::GeophysicalParameterValue>::iterator &thePv)
     : itsValidTime(theValidTime),
@@ -11048,7 +11048,7 @@ bool ElevationHole::operator<(const ElevationHole &theOther) const
 {
   // Order by validtime asc, hirange desc
 
-  const boost::posix_time::ptime &vt1 = aboveElev->validTime(),
+  const Fmi::DateTime &vt1 = aboveElev->validTime(),
                                  &vt2 = theOther.aboveElev->validTime();
 
   if (vt1 < vt2)
@@ -12220,7 +12220,7 @@ typedef Tron::Hints<DataMatrixAdapter, MyTraits> MyHints;
 // ----------------------------------------------------------------------
 
 void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
-                          const boost::posix_time::ptime &theTime)
+                          const Fmi::DateTime &theTime)
 {
   // Fast access iterator
 
