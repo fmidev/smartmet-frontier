@@ -24,9 +24,11 @@
 
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 #include <macgyver/DateTime.h>
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/foreach.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/tokenizer.hpp>
 
 #include <fstream>
 #include <iostream>

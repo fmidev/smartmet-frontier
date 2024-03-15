@@ -76,11 +76,11 @@ class AxisManager
   void axisWidth(double theWidth) { itsAxisWidth = theWidth; }
   double axisWidth() const { return itsAxisWidth; }
   // Time period
-  void timePeriod(const boost::posix_time::time_period &theTimePeriod)
+  void timePeriod(const Fmi::TimePeriod &theTimePeriod)
   {
     itsTimePeriod = theTimePeriod;
   }
-  const boost::posix_time::time_period &timePeriod() { return itsTimePeriod; }
+  const Fmi::TimePeriod &timePeriod() { return itsTimePeriod; }
   // X -axis offset
   double xOffset(const Fmi::DateTime &validTime) const;
 
@@ -107,7 +107,7 @@ class AxisManager
   double itsMaxElevation;
   double itsAxisWidth;
   bool itsUtc;
-  boost::posix_time::time_period itsTimePeriod;
+  Fmi::TimePeriod itsTimePeriod;
 
   std::list<Elevation> itsElevations;
 };
@@ -512,7 +512,7 @@ class SvgRenderer : public woml::FeatureVisitor
                const Fmi::DateTime &theTime);
 
   void render_header(Fmi::DateTime &validTime,
-                     const boost::posix_time::time_period &timePeriod,
+                     const Fmi::TimePeriod &timePeriod,
                      const Fmi::DateTime &forecastTime,
                      const Fmi::DateTime &creationTime,
                      const boost::optional<Fmi::DateTime> &modificationTime,
@@ -665,9 +665,9 @@ class SvgRenderer : public woml::FeatureVisitor
 
   template <typename T>
   void render_aerodrome(const T &theFeature);
-  void render_aerodromeFrame(const boost::posix_time::time_period &theTimePeriod);
+  void render_aerodromeFrame(const Fmi::TimePeriod &theTimePeriod);
   void render_elevationAxis();
-  void render_timeAxis(const boost::posix_time::time_period &theTimePeriod);
+  void render_timeAxis(const Fmi::TimePeriod &theTimePeriod);
   const libconfig::Setting &cloudLayerConfig(const std::string &confPath,
                                              double &tightness,
                                              bool &borderCompensation,

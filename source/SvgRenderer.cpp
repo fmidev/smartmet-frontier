@@ -532,7 +532,7 @@ void SvgRenderer::render_aerodrome(const T &theFeature)
  */
 // ----------------------------------------------------------------------
 
-void SvgRenderer::render_aerodromeFrame(const boost::posix_time::time_period &theTimePeriod)
+void SvgRenderer::render_aerodromeFrame(const Fmi::TimePeriod &theTimePeriod)
 {
   if (options.debug)
     std::cerr << "Rendering AerodromeFrame" << std::endl;
@@ -601,7 +601,7 @@ void SvgRenderer::render_elevationAxis()
  */
 // ----------------------------------------------------------------------
 
-void SvgRenderer::render_timeAxis(const boost::posix_time::time_period &theTimePeriod)
+void SvgRenderer::render_timeAxis(const Fmi::TimePeriod &theTimePeriod)
 {
   const std::string confPath("TimeAxis");
 
@@ -642,14 +642,12 @@ void SvgRenderer::render_timeAxis(const boost::posix_time::time_period &theTimeP
 
     // Output the labels
 
-    Fmi::DateTime bt = theTimePeriod.begin(), et = theTimePeriod.end();
-    boost::posix_time::time_iterator it(bt, Fmi::Hours(step));
-
+    const Fmi::DateTime bt = theTimePeriod.begin(), et = theTimePeriod.end();
+    Fmi::DateTime current = bt;
     double x = 0.0, xStep = (step * axisManager->xStep());
-
-    for (; (it <= et); ++it, x += xStep)
+    for (; (current <= et); current += Fmi::Hours(step), x += xStep)
       texts["TIMELABELS"] << "<text x=\"" << std::fixed << std::setprecision(1) << x
-                          << "\" y=\"0\">" << toFormattedString(*it, "HH", utc).CharPtr()
+                          << "\" y=\"0\">" << toFormattedString(current, "HH", utc).CharPtr()
                           << "</text>\n";
 
     // Output elevation lines
@@ -2883,13 +2881,13 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
               // Advance hi range to next day if less than or equal to lo range (eg. range 18-06)
 
               if (hdt <= ldt)
-                hdt += boost::gregorian::days(1);
+                hdt += Fmi::Days(1);
 
               // Advance validtime to next day if less than lo range
 
               Fmi::DateTime vdt(dateTimeValue);
               if (vdt < ldt)
-                vdt += boost::gregorian::days(1);
+                vdt += Fmi::Days(1);
 
               if ((vdt >= ldt) && (vdt <= hdt))
               {
@@ -3350,7 +3348,7 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
 {
   // Document's time period
 
-  const boost::posix_time::time_period &tp = axisManager->timePeriod();
+  const Fmi::TimePeriod &tp = axisManager->timePeriod();
 
   // Get the elevations from the time serie
 
@@ -7529,7 +7527,7 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
 
   CategoryValueMeasureGroup overlappingGroup;
 
-  const boost::posix_time::time_period &tp = axisManager->timePeriod();
+  const Fmi::TimePeriod &tp = axisManager->timePeriod();
   bt = tp.begin();
   et = tp.end();
 
@@ -9389,7 +9387,7 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
     bool singleTime = true;
     int nSymbols = 0;
 
-    const boost::posix_time::time_period &tp = axisManager->timePeriod();
+    const Fmi::TimePeriod &tp = axisManager->timePeriod();
 
     std::list<woml::TimeSeriesSlot>::const_iterator tsbeg = winds.timeseries().begin();
     std::list<woml::TimeSeriesSlot>::const_iterator tsend = winds.timeseries().end();
@@ -10557,7 +10555,7 @@ SvgRenderer::SvgRenderer(const Options &theOptions,
 // ----------------------------------------------------------------------
 
 void SvgRenderer::render_header(Fmi::DateTime &validTime,
-                                const boost::posix_time::time_period &timePeriod,
+                                const Fmi::TimePeriod &timePeriod,
                                 const Fmi::DateTime &forecastTime,
                                 const Fmi::DateTime &creationTime,
                                 const boost::optional<Fmi::DateTime> &modificationTime,
@@ -10734,8 +10732,8 @@ AxisManager::AxisManager(const libconfig::Config &config)
       itsMaxElevation(0.0),
       itsAxisWidth(0),
       itsUtc(false),
-      itsTimePeriod(Fmi::DateTime(boost::posix_time::not_a_date_time),
-                    Fmi::DateTime(boost::posix_time::not_a_date_time)),
+      itsTimePeriod(Fmi::DateTime(Fmi::DateTime::NOT_A_DATE_TIME),
+                    Fmi::DateTime(Fmi::DateTime::NOT_A_DATE_TIME)),
       itsElevations()
 {
   std::string confPath("ElevationAxis");
