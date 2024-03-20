@@ -14,7 +14,6 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
-#include <boost/date_time/local_time/local_time.hpp>
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
@@ -6776,7 +6775,7 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
 #define STEPSS
 
 #ifdef STEPS
-    std::string cs(" " + boost::posix_time::to_iso_string(vt));
+    std::string cs(" " + Fmi::date_time::to_iso_string(vt));
     if (iteg->topConnected())
       cs = " top";
     if (iteg->bottomConnected())
