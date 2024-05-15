@@ -22,7 +22,6 @@ LIBS += $(REQUIRED_LIBS) \
 	-lboost_iostreams \
 	-lboost_filesystem \
 	-lboost_regex \
-	-lboost_date_time \
 	-lboost_system \
 	-lxqilla \
         -lgeos
