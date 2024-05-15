@@ -41,7 +41,6 @@ Requires: %{smartmet_boost}-program-options
 Requires: %{smartmet_boost}-iostreams
 Requires: %{smartmet_boost}-filesystem
 Requires: %{smartmet_boost}-regex
-Requires: %{smartmet_boost}-date-time
 Requires: %{smartmet_boost}-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
