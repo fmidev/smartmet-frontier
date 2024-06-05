@@ -24,7 +24,7 @@ BuildRequires: smartmet-library-gis-devel >= 24.1.3
 BuildRequires: smartmet-library-macgyver-devel >= 24.5.6
 BuildRequires: smartmet-library-newbase-devel >= 24.5.6
 BuildRequires: smartmet-library-tron-devel >= 23.7.28
-BuildRequires: geos311
+BuildRequires: geos312
 BuildRequires: smartmet-library-woml >= 24.5.6
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
