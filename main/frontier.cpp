@@ -27,7 +27,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/foreach.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/tokenizer.hpp>
 
 #include <fstream>
@@ -117,7 +117,7 @@ void readconfig(libconfig::Config& config, const std::string& contents)
  */
 // ----------------------------------------------------------------------
 
-boost::shared_ptr<NFmiArea> readprojection(const std::string& filename)
+std::shared_ptr<NFmiArea> readprojection(const std::string& filename)
 {
   const bool strip_pound = false;
   NFmiPreProcessor processor(strip_pound);
@@ -129,7 +129,7 @@ boost::shared_ptr<NFmiArea> readprojection(const std::string& filename)
   std::string text = processor.GetString();
   std::istringstream script(text);
 
-  boost::shared_ptr<NFmiArea> area;
+  std::shared_ptr<NFmiArea> area;
 
   std::string token;
   while (script >> token)
@@ -211,7 +211,7 @@ ValidTimes extract_valid_times(const T& collection)
 
   BOOST_FOREACH (const woml::Feature& f, collection)
   {
-    const boost::optional<Fmi::DateTime> theTime = f.validTime();
+    const std::optional<Fmi::DateTime> theTime = f.validTime();
 
     // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
@@ -246,7 +246,7 @@ Fmi::DateTime to_ptime(const NFmiMetTime& theTime)
  */
 // ----------------------------------------------------------------------
 
-boost::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& options,
+std::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& options,
                                                          const std::string& path,
                                                          const Fmi::DateTime& origintime)
 {
@@ -271,7 +271,7 @@ boost::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options
           std::cerr << "File '" << dirptr->path() << "' matched origin time "
                     << to_simple_string(origintime) << std::endl;
 
-        return boost::shared_ptr<NFmiQueryData>(new NFmiQueryData(dirptr->path().string()));
+        return std::shared_ptr<NFmiQueryData>(new NFmiQueryData(dirptr->path().string()));
       }
     }
     catch (...)
@@ -279,7 +279,7 @@ boost::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options
     }
   }
 
-  return boost::shared_ptr<NFmiQueryData>();
+  return std::shared_ptr<NFmiQueryData>();
 }
 
 // ----------------------------------------------------------------------
@@ -293,11 +293,11 @@ boost::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options
  */
 // ----------------------------------------------------------------------
 
-boost::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
+std::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
                                                const libconfig::Config& config,
                                                const woml::DataSource& source)
 {
-  boost::shared_ptr<NFmiQueryData> ret;
+  std::shared_ptr<NFmiQueryData> ret;
 
   if (!source.numericalModelRun()) return ret;
 
@@ -353,7 +353,7 @@ bool needs_contours(const libconfig::Config& config)
 
 int run(int argc,
         char* argv[],
-        boost::shared_ptr<NFmiArea>& area,
+        std::shared_ptr<NFmiArea>& area,
         std::string& outfile,
         bool& debug,
         std::ostringstream& debugoutput)
@@ -437,7 +437,7 @@ int run(int argc,
   {
     const woml::DataSource& dataSource = weather.analysis().dataSource();
 
-    boost::shared_ptr<NFmiQueryData> qd;
+    std::shared_ptr<NFmiQueryData> qd;
     try
     {
       if (weather.hasAnalysis())
@@ -452,7 +452,7 @@ int run(int argc,
 
     if (!qd && !options.quiet)
     {
-      const boost::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
+      const std::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
       const std::string& modelName = (modelRun ? modelRun->name() : "");
       const std::string& name =
           ((modelName.find_first_not_of(" ") != std::string::npos) ? modelName : "?");
@@ -513,7 +513,7 @@ int run(int argc,
   {
     BOOST_FOREACH (const woml::Feature& feature, weather.analysis())
     {
-      const boost::optional<Fmi::DateTime> theTime = feature.validTime();
+      const std::optional<Fmi::DateTime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         feature.visit(renderer);
@@ -526,7 +526,7 @@ int run(int argc,
 
     BOOST_FOREACH (const woml::Feature& feature, weather.forecast())
     {
-      const boost::optional<Fmi::DateTime> theTime = feature.validTime();
+      const std::optional<Fmi::DateTime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         if (
@@ -538,7 +538,7 @@ int run(int argc,
 
     BOOST_FOREACH (const woml::Feature& feature, weather.forecast())
     {
-      const boost::optional<Fmi::DateTime> theTime = feature.validTime();
+      const std::optional<Fmi::DateTime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         if (
@@ -573,7 +573,7 @@ int run(int argc,
 // ----------------------------------------------------------------------
 
 void generatesvg(int exitCode,
-                 const boost::shared_ptr<NFmiArea>& area,
+                 const std::shared_ptr<NFmiArea>& area,
                  const std::string& outfile,
                  bool debug,
                  std::ostringstream& debugoutput)
@@ -624,7 +624,7 @@ int main(int argc, char* argv[])
   std::string outfile;
   bool debug;
   std::ostringstream debugoutput;
-  boost::shared_ptr<NFmiArea> area;
+  std::shared_ptr<NFmiArea> area;
 
   try
   {
