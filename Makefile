@@ -20,7 +20,6 @@ LIBS += $(REQUIRED_LIBS) \
 	-lsmartmet-tron \
 	-lboost_program_options \
 	-lboost_iostreams \
-	-lboost_filesystem \
 	-lboost_regex \
 	-lboost_system \
 	-lxqilla \

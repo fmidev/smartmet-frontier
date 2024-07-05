@@ -250,7 +250,7 @@ std::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& 
                                                          const std::string& path,
                                                          const Fmi::DateTime& origintime)
 {
-  namespace fs = boost::filesystem;
+  namespace fs = std::filesystem;
 
   if (!fs::exists(path)) throw std::runtime_error("Path '" + path + "' does not exist");
 
@@ -377,7 +377,7 @@ int run(int argc,
 
   // Establish the projection
 
-  if (boost::filesystem::is_regular_file(options.projection))
+  if (std::filesystem::is_regular_file(options.projection))
     area = readprojection(options.projection);
   else
     area = NFmiAreaFactory::Create(options.projection);
