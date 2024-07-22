@@ -3,7 +3,7 @@
 Summary: frontier
 Name: %{RPMNAME}
 Version: 24.7.22
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-frontier
@@ -73,6 +73,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Mon Jul 22 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.22-2.fmi
+- Replace BOOST_FOREACH and boost::array
+
 * Mon Jul 22 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.22-1.fmi
 - Replace BOOST_FOREACH and boost::array
 
