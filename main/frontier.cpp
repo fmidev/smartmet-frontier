@@ -26,7 +26,6 @@
 #include <macgyver/DateTime.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem/operations.hpp>
-#include <boost/foreach.hpp>
 #include <memory>
 #include <boost/tokenizer.hpp>
 

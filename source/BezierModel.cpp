@@ -8,7 +8,6 @@
 
 #include "BezierModel.h"
 #include "Vector2Dee.h"
-#include <boost/foreach.hpp>
 #include <math.h>
 
 namespace frontier

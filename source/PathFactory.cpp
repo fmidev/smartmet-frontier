@@ -9,7 +9,6 @@
 #include "Path.h"
 #include "PathFactory.h"
 #include "Point.h"
-#include <boost/foreach.hpp>
 #include <smartmet/woml/CubicSplineCurve.h>
 #include <smartmet/woml/CubicSplineRing.h>
 #include <smartmet/woml/CubicSplineSurface.h>
