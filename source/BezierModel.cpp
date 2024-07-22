@@ -8,7 +8,8 @@
 
 #include "BezierModel.h"
 #include "Vector2Dee.h"
-#include <math.h>
+#include <cmath>
+#include <ctime>
 
 namespace frontier
 {
