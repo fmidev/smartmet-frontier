@@ -209,7 +209,7 @@ ValidTimes extract_valid_times(const T& collection)
 {
   ValidTimes times;
 
-  for (const woml::Feature& f, collection)
+  for (const woml::Feature& f : collection)
   {
     const std::optional<Fmi::DateTime> theTime = f.validTime();
 
@@ -418,7 +418,7 @@ int run(int argc,
   if (options.debug)
   {
     std::cerr << "Available valid times:" << std::endl;
-    for (const Fmi::DateTime& validtime, validtimes)
+    for (const Fmi::DateTime& validtime : validtimes)
       std::cerr << validtime << std::endl;
   }
 
@@ -511,7 +511,7 @@ int run(int argc,
 
   if (weather.hasAnalysis())
   {
-    for (const woml::Feature& feature, weather.analysis())
+    for (const woml::Feature& feature : weather.analysis())
     {
       const std::optional<Fmi::DateTime> theTime = feature.validTime();
 
@@ -524,7 +524,7 @@ int run(int argc,
     // Render cloud layers first to ensure labels can be positioned within clouds
     // and using preferred position (near the center of the clouds) when ever possible
 
-    for (const woml::Feature& feature, weather.forecast())
+    for (const woml::Feature& feature : weather.forecast())
     {
       const std::optional<Fmi::DateTime> theTime = feature.validTime();
 
@@ -536,7 +536,7 @@ int run(int argc,
           feature.visit(renderer);
     }
 
-    for (const woml::Feature& feature, weather.forecast())
+    for (const woml::Feature& feature : weather.forecast())
     {
       const std::optional<Fmi::DateTime> theTime = feature.validTime();
 
