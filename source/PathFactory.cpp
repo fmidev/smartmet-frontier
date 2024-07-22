@@ -266,7 +266,7 @@ Path create(const woml::CubicSplineCurve& spline)
 {
   Path path;
 
-  BOOST_FOREACH (const woml::SimpleCubicSpline& simplespline, spline)
+  for (const woml::SimpleCubicSpline& simplespline, spline)
     path += create(simplespline);
 
   return path;
@@ -286,7 +286,7 @@ Path create(const woml::CubicSplineSurface& spline)
   path += create(spline.exterior());
 
   // Interior part
-  BOOST_FOREACH (const woml::CubicSplineRing& ring, spline)
+  for (const woml::CubicSplineRing& ring, spline)
     path += create(ring);
 
   return path;

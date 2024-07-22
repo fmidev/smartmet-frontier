@@ -10663,7 +10663,7 @@ std::string SvgRenderer::svg() const
     std::cerr << debugoutput.str();
   }
 
-  // BOOST_FOREACH does not work nicely with ptr_map
+  // for does not work nicely with ptr_map
 
   if (options.verbose)
     std::cerr << "Generating " << contours.size() << " contours" << std::endl;
