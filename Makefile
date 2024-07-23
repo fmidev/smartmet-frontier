@@ -13,7 +13,7 @@ MAINFLAGS = -MD -Wall -W -Wno-unused-parameter
 DEFINES = -DUNIX -DUSE_UNSTABLE_GEOS_CPP_API
 
 LIBS += $(REQUIRED_LIBS) \
-	-L$(libdir) \
+	$(PREFIX_LDFLAGS) \
 	-lsmartmet-newbase \
 	-lsmartmet-macgyver \
 	-lsmartmet-woml \
