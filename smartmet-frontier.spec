@@ -2,8 +2,8 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 24.5.16
-Release: 1%{?dist}.fmi
+Version: 24.7.22
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-frontier
@@ -20,32 +20,31 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-gis-devel >= 24.1.3
-BuildRequires: smartmet-library-macgyver-devel >= 24.5.6
-BuildRequires: smartmet-library-newbase-devel >= 24.5.6
-BuildRequires: smartmet-library-tron-devel >= 23.7.28
+BuildRequires: smartmet-library-gis-devel >= 24.7.12
+BuildRequires: smartmet-library-macgyver-devel >= 24.7.12
+BuildRequires: smartmet-library-newbase-devel >= 24.7.12
+BuildRequires: smartmet-library-tron-devel >= 24.7.12
 BuildRequires: geos312
-BuildRequires: smartmet-library-woml >= 24.5.6
+BuildRequires: smartmet-library-woml >= 24.7.12
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-fonts
-Requires: smartmet-library-macgyver >= 24.5.6
-Requires: smartmet-library-newbase >= 24.5.6
-Requires: smartmet-library-tron >= 23.7.28
-Requires: smartmet-library-woml >= 24.5.6
+Requires: smartmet-library-macgyver >= 24.7.12
+Requires: smartmet-library-newbase >= 24.7.12
+Requires: smartmet-library-tron >= 24.7.12
+Requires: smartmet-library-woml >= 24.7.12
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
 Requires: %{smartmet_boost}-program-options
 Requires: %{smartmet_boost}-iostreams
-Requires: %{smartmet_boost}-filesystem
 Requires: %{smartmet_boost}-regex
 Requires: %{smartmet_boost}-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 24.5.6
+#TestRequires: smartmet-library-macgyver-devel >= 24.7.12
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
@@ -74,6 +73,15 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Mon Jul 22 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.22-2.fmi
+- Replace BOOST_FOREACH and boost::array
+
+* Mon Jul 22 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.22-1.fmi
+- Replace BOOST_FOREACH and boost::array
+
+* Fri Jul 12 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.12-1.fmi
+- Replace many boost library types with C++ standard library ones
+
 * Thu May 16 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.5.16-1.fmi
 - Clean up boost date-time uses
 

@@ -14,7 +14,6 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/regex.hpp>
@@ -175,7 +174,7 @@ std::string svgescapetext(const std::string &theText, bool wrapScands = false)
 class PathProjector : public PathTransformation
 {
  public:
-  PathProjector(const boost::shared_ptr<NFmiArea> &theArea) : area(theArea) {}
+  PathProjector(const std::shared_ptr<NFmiArea> &theArea) : area(theArea) {}
   void operator()(double &x, double &y, NFmiAngle *trueNorthAzimuth = nullptr) const
   {
     NFmiPoint ll(x, y);
@@ -188,7 +187,7 @@ class PathProjector : public PathTransformation
   }
 
  private:
-  boost::shared_ptr<NFmiArea> area;
+  std::shared_ptr<NFmiArea> area;
   PathProjector();
 };
 
@@ -3454,13 +3453,13 @@ void SvgRenderer::render_aerodromeSymbols(const T &theFeature,
         if (!condSpecs)
         {
           const woml::Elevation &e = iteg->Pv()->elevation();
-          boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+          std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
               (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-          const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+          const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
               (e.bounded() ? itsBoundedLo : e.value());
-          boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+          std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
               (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-          const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+          const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
               (e.bounded() ? itsBoundedHi : e.value());
 
           double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -4075,13 +4074,13 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
     if ((uiteg->validTime() == vt) && (!(uiteg->bottomConnected())))
     {
       const woml::Elevation &e = uiteg->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
           (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
           (e.bounded() ? itsBoundedHi : e.value());
 
       ulo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -4107,13 +4106,13 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
     else if (dh == 1)
     {
       const woml::Elevation &e = riteg->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
           (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
           (e.bounded() ? itsBoundedHi : e.value());
 
       double rlo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -4204,13 +4203,13 @@ SvgRenderer::Phase SvgRenderer::downleftup(
     if ((diteg != eGrp.end()) && (diteg->validTime() == vt) && (!(diteg->topConnected())))
     {
       const woml::Elevation &e = diteg->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
           (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
           (e.bounded() ? itsBoundedHi : e.value());
 
       dlo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -4224,13 +4223,13 @@ SvgRenderer::Phase SvgRenderer::downleftup(
           // elevation
           //
           const woml::Elevation &e = *(iteg->bottomConnection());
-          boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+          std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
               (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-          const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+          const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
               (e.bounded() ? itsBoundedLo : e.value());
-          boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+          std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
               (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-          const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+          const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
               (e.bounded() ? itsBoundedHi : e.value());
 
           double bclo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -4265,13 +4264,13 @@ SvgRenderer::Phase SvgRenderer::downleftup(
       else if (dh == -1)
       {
         const woml::Elevation &e = liteg->elevation();
-        boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+        std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
             (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-        const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+        const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
             (e.bounded() ? itsBoundedLo : e.value());
-        boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+        std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
             (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-        const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+        const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
             (e.bounded() ? itsBoundedHi : e.value());
 
         double llo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -4700,7 +4699,7 @@ void trackAreaLabelPos(ElevGrp::iterator iteg,
   {
     // Elevation has hole(s); use the tallest part.
     //
-    const boost::optional<woml::Elevation> &labelElevation = iteg->Pv()->labelElevation();
+    const std::optional<woml::Elevation> &labelElevation = iteg->Pv()->labelElevation();
 
     lopx = labelElevation->lowerLimit()->numericValue();
     hipx = labelElevation->upperLimit()->numericValue();
@@ -6484,13 +6483,13 @@ void SvgRenderer::render_cloudSymbols(const std::string confPath,
     // Get elevation's lo and hi range values
     //
     const woml::Elevation &e = iteg->elevation();
-    boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+    std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
         (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-    const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+    const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
         (e.bounded() ? itsBoundedLo : e.value());
-    boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+    std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
         (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-    const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+    const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
         (e.bounded() ? itsBoundedHi : e.value());
 
     double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -6712,13 +6711,13 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
     // Get elevation's lo and hi range values
     //
     const woml::Elevation &e = iteg->elevation();
-    boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+    std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
         (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-    const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+    const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
         (e.bounded() ? itsBoundedLo : e.value());
-    boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+    std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
         (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-    const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+    const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
         (e.bounded() ? itsBoundedHi : e.value());
 
     double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -7451,13 +7450,13 @@ bool joinElevations(ElevGrp &eGrp)
     }
 
     const woml::Elevation &e = iteg->Pv()->elevation();
-    boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+    std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
         (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-    const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+    const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
         (e.bounded() ? itsBoundedLo : e.value());
-    boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+    std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
         (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-    const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+    const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
         (e.bounded() ? itsBoundedHi : e.value());
     double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
     double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
@@ -7472,11 +7471,11 @@ bool joinElevations(ElevGrp &eGrp)
       lo = std::min(plo, lo);
       hi = phi;
 
-      boost::optional<woml::NumericalValueRangeMeasure> joinedRng(
+      std::optional<woml::NumericalValueRangeMeasure> joinedRng(
           woml::NumericalValueRangeMeasure(woml::NumericalSingleValueMeasure(lo, "", ""),
                                            woml::NumericalSingleValueMeasure(hi, "", "")));
       woml::Elevation jElev(joinedRng);
-      boost::optional<woml::Elevation> eJoined(jElev);
+      std::optional<woml::Elevation> eJoined(jElev);
 
       piteg->Pv()->elevation(*eJoined);
 
@@ -7584,7 +7583,7 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
 
     // Loop thru the parameter sets and their parameters
 
-    std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator
+    std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator
         pvsend = itts->values().end(),
         itpvs;
 
@@ -7604,9 +7603,9 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
           continue;
 
         const woml::Elevation &e = itpv->elevation();
-        boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+        std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
             (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-        const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+        const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
             (e.bounded() ? itsBoundedLo : e.value());
         double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
 
@@ -7709,13 +7708,13 @@ void SvgRenderer::checkLeftSide(ElevGrp &eGrp,
       }
 
       const woml::Elevation &e = liteg->Pv()->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
           (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
           (e.bounded() ? itsBoundedHi : e.value());
 
       double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -7822,13 +7821,13 @@ void SvgRenderer::checkRightSide(ElevGrp &eGrp,
       }
 
       const woml::Elevation &e = riteg->Pv()->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
           (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
           (e.bounded() ? itsBoundedHi : e.value());
 
       double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -8072,41 +8071,41 @@ bool SvgRenderer::checkHoles(ElevGrp &eGrp,
 
       // Keep track of elevation's tallest part for labeling
 
-      boost::optional<woml::NumericalValueRangeMeasure> labelRng(woml::NumericalValueRangeMeasure(
+      std::optional<woml::NumericalValueRangeMeasure> labelRng(woml::NumericalValueRangeMeasure(
           woml::NumericalSingleValueMeasure(axisManager->scaledElevation(iteh->hi), "", ""),
           woml::NumericalSingleValueMeasure(axisManager->scaledElevation(iteh->hiHi), "", "")));
       woml::Elevation lElev(labelRng);
-      boost::optional<woml::Elevation> eLabel(lElev);
+      std::optional<woml::Elevation> eLabel(lElev);
 
       iteh->aboveElev->Pv()->labelElevation(*eLabel);
     }
 
-    boost::optional<woml::NumericalValueRangeMeasure> joinedRng(
+    std::optional<woml::NumericalValueRangeMeasure> joinedRng(
         woml::NumericalValueRangeMeasure(woml::NumericalSingleValueMeasure(iteh->loLo, "", ""),
                                          woml::NumericalSingleValueMeasure(piteh->hiHi, "", "")));
     woml::Elevation jElev(joinedRng);
-    boost::optional<woml::Elevation> eJoined(jElev);
+    std::optional<woml::Elevation> eJoined(jElev);
 
     iteh->aboveElev->Pv()->elevation(*eJoined);
     iteh->aboveElev->hasHole(true);
 
     // Keep track of elevation's tallest part for labeling
 
-    boost::optional<woml::NumericalValueRangeMeasure> labelRng(woml::NumericalValueRangeMeasure(
+    std::optional<woml::NumericalValueRangeMeasure> labelRng(woml::NumericalValueRangeMeasure(
         woml::NumericalSingleValueMeasure(axisManager->scaledElevation(iteh->loLo), "", ""),
         woml::NumericalSingleValueMeasure(axisManager->scaledElevation(iteh->lo), "", "")));
     woml::Elevation lElev(labelRng);
-    boost::optional<woml::Elevation> eLabel(lElev);
+    std::optional<woml::Elevation> eLabel(lElev);
 
     iteh->aboveElev->Pv()->labelElevation(*eLabel);
 
     // Store the hole
 
-    boost::optional<woml::NumericalValueRangeMeasure> holeRng(
+    std::optional<woml::NumericalValueRangeMeasure> holeRng(
         woml::NumericalValueRangeMeasure(woml::NumericalSingleValueMeasure(iteh->lo, "", ""),
                                          woml::NumericalSingleValueMeasure(iteh->hi, "", "")));
     woml::Elevation hElev(holeRng);
-    boost::optional<woml::Elevation> eHole(hElev);
+    std::optional<woml::Elevation> eHole(hElev);
 
     (holeElev = iteh->belowElev)->Pv()->elevation(*eHole);
     holeElev->isHole(hasHole = true);
@@ -8141,7 +8140,7 @@ void generateHoleElevation(ElevGrp &eGrp, ElevGrp::iterator &piteg, ElevGrp::ite
   woml::GeophysicalParameter p;
   woml::CategoryValueMeasure *cvm =
       new woml::CategoryValueMeasure(cvmA->category(), cvmA->codebase());
-  boost::optional<woml::NumericalValueRangeMeasure> holeR(woml::NumericalValueRangeMeasure(
+  std::optional<woml::NumericalValueRangeMeasure> holeR(woml::NumericalValueRangeMeasure(
       woml::NumericalSingleValueMeasure(0, "", ""), woml::NumericalSingleValueMeasure(0, "", "")));
   woml::Elevation holeE(holeR);
   woml::GeophysicalParameterValue pv(p, cvm, holeE);
@@ -8325,13 +8324,13 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot> &ts,
         // Get elevation's lo and hi range values
 
         const woml::Elevation &e = iteg->Pv()->elevation();
-        boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+        std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
             (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-        const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+        const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
             (e.bounded() ? itsBoundedLo : e.value());
-        boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+        std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
             (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-        const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+        const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
             (e.bounded() ? itsBoundedHi : e.value());
 
         lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -8487,13 +8486,13 @@ void SvgRenderer::render_timeserie(const woml::Contrails &contrails)
           // Get elevation's lo and hi range values
           //
           const woml::Elevation &e = iteg->Pv()->elevation();
-          boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+          std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
               (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-          const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+          const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
               (e.bounded() ? itsBoundedLo : e.value());
-          boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+          std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
               (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-          const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+          const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
               (e.bounded() ? itsBoundedHi : e.value());
 
           lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -8529,9 +8528,9 @@ void SvgRenderer::render_timeserie(const woml::Contrails &contrails)
               // Connect the hi range point to the lo range point.
               //
               const woml::Elevation &e = prevIteg->Pv()->elevation();
-              boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+              std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
                   (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-              const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+              const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
                   (e.bounded() ? itsBoundedLo : e.value());
 
               lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -9408,7 +9407,7 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
 
       // Loop thru the parameter sets
 
-      std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator
+      std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator
           pvsend = itts->values().end(),
           itpvs;
 
@@ -9480,9 +9479,9 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
               arrowArmLength = 0;
 
             const woml::Elevation &e = itpv->elevation();
-            boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLower =
+            std::optional<woml::NumericalSingleValueMeasure> itsBoundedLower =
                 (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-            const boost::optional<woml::NumericalSingleValueMeasure> &itsLowerLimit =
+            const std::optional<woml::NumericalSingleValueMeasure> &itsLowerLimit =
                 (e.bounded() ? itsBoundedLower : e.value());
 
             double height = itsLowerLimit->numericValue();
@@ -9668,9 +9667,9 @@ void SvgRenderer::checkZeroToleranceGroup(ElevGrp &eGrpIn, ElevGrp &eGrpOut, boo
     if ((riteg == rbegiter) || (riteg->validTime() != priteg->validTime()))
     {
       const woml::Elevation &e = riteg->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
 
       double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -9698,9 +9697,9 @@ void SvgRenderer::checkZeroToleranceGroup(ElevGrp &eGrpIn, ElevGrp &eGrpOut, boo
       // Get elevation's lo range value
       //
       const woml::Elevation &e = iteg->Pv()->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
 
       lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -9716,12 +9715,12 @@ void SvgRenderer::checkZeroToleranceGroup(ElevGrp &eGrpIn, ElevGrp &eGrpOut, boo
         //
         eGrpOut.push_back(*piteg);
 
-        boost::optional<woml::NumericalValueRangeMeasure> gR(
+        std::optional<woml::NumericalValueRangeMeasure> gR(
             woml::NumericalValueRangeMeasure(woml::NumericalSingleValueMeasure(-1200, "", ""),
                                              woml::NumericalSingleValueMeasure(-1100, "", "")));
 
         woml::Elevation gE(gR);
-        boost::optional<woml::Elevation> eG(gE);
+        std::optional<woml::Elevation> eG(gE);
 
         eGrpOut.back().elevation(eG);
         eGrpOut.back().isGenerated(true);
@@ -9754,13 +9753,13 @@ unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp &eGrp,
   Fmi::DateTime vt = iteg->validTime();
 
   const woml::Elevation &e = iteg->Pv()->elevation();
-  boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+  std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
       (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-  const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+  const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
       (e.bounded() ? itsBoundedLo : e.value());
-  boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+  std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
       (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-  const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+  const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
       (e.bounded() ? itsBoundedHi : e.value());
   double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
   double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
@@ -9780,13 +9779,13 @@ unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp &eGrp,
     if (dh == -1)
     {
       const woml::Elevation &e = liteg->Pv()->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
           (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
           (e.bounded() ? itsBoundedHi : e.value());
 
       double llo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -9830,13 +9829,13 @@ unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp &eGrp,
   iteg--;
 
   const woml::Elevation &e = iteg->Pv()->elevation();
-  boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+  std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
       (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-  const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+  const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
       (e.bounded() ? itsBoundedLo : e.value());
-  boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+  std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
       (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-  const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+  const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
       (e.bounded() ? itsBoundedHi : e.value());
   double lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
   double hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
@@ -9856,13 +9855,13 @@ unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp &eGrp,
     if (dh == 1)
     {
       const woml::Elevation &e = riteg->Pv()->elevation();
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
           (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsLoLimit =
           (e.bounded() ? itsBoundedLo : e.value());
-      boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
+      std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi =
           (e.bounded() ? e.upperLimit() : woml::NumericalSingleValueMeasure());
-      const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
+      const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit =
           (e.bounded() ? itsBoundedHi : e.value());
 
       double rlo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
@@ -10522,7 +10521,7 @@ void SvgRenderer::render_value(const std::string &confPath,
 SvgRenderer::SvgRenderer(const Options &theOptions,
                          const libconfig::Config &theConfig,
                          const std::string &theTemplate,
-                         const boost::shared_ptr<NFmiArea> &theArea,
+                         const std::shared_ptr<NFmiArea> &theArea,
                          const Fmi::DateTime &theValidTime,
                          std::ostringstream *theDebugOutput)
     : options(theOptions),
@@ -10557,7 +10556,7 @@ void SvgRenderer::render_header(Fmi::DateTime &validTime,
                                 const Fmi::TimePeriod &timePeriod,
                                 const Fmi::DateTime &forecastTime,
                                 const Fmi::DateTime &creationTime,
-                                const boost::optional<Fmi::DateTime> &modificationTime,
+                                const std::optional<Fmi::DateTime> &modificationTime,
                                 const std::string &regionName,
                                 const std::string &regionId,
                                 const std::string &creator)
@@ -10663,7 +10662,7 @@ std::string SvgRenderer::svg() const
     std::cerr << debugoutput.str();
   }
 
-  // BOOST_FOREACH does not work nicely with ptr_map
+  // for does not work nicely with ptr_map
 
   if (options.verbose)
     std::cerr << "Generating " << contours.size() << " contours" << std::endl;
@@ -10924,7 +10923,7 @@ double AxisManager::xStep() const
 
 ElevationGroupItem::ElevationGroupItem(
     Fmi::DateTime theValidTime,
-    const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator &thePvs,
+    const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator &thePvs,
     const std::list<woml::GeophysicalParameterValue>::iterator &thePv)
     : itsValidTime(theValidTime),
       itsPvs(thePvs),
@@ -11054,16 +11053,16 @@ bool ElevationHole::operator<(const ElevationHole &theOther) const
     return false;
 
   const woml::Elevation &e1 = aboveElev->Pv()->elevation();
-  boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi1 =
+  std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi1 =
       (e1.bounded() ? e1.upperLimit() : woml::NumericalSingleValueMeasure());
-  const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit1 =
+  const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit1 =
       (e1.bounded() ? itsBoundedHi1 : e1.value());
   double hi1 = ((!itsHiLimit1) ? 0.0 : itsHiLimit1->numericValue());
 
   const woml::Elevation &e2 = theOther.aboveElev->Pv()->elevation();
-  boost::optional<woml::NumericalSingleValueMeasure> itsBoundedHi2 =
+  std::optional<woml::NumericalSingleValueMeasure> itsBoundedHi2 =
       (e2.bounded() ? e2.upperLimit() : woml::NumericalSingleValueMeasure());
-  const boost::optional<woml::NumericalSingleValueMeasure> &itsHiLimit2 =
+  const std::optional<woml::NumericalSingleValueMeasure> &itsHiLimit2 =
       (e2.bounded() ? itsBoundedHi2 : e2.value());
   double hi2 = ((!itsHiLimit2) ? 0.0 : itsHiLimit2->numericValue());
 
@@ -11832,7 +11831,7 @@ RenderStormTypeDerivedClass(woml::ConvectiveStorm) RenderStormTypeDerivedClass(w
 
 void getAreaSymbols(const woml::ParameterValueSetArea &theFeature, std::list<std::string> &symbols)
 {
-  const boost::shared_ptr<woml::GeophysicalParameterValueSet> &parameters = theFeature.parameters();
+  const std::shared_ptr<woml::GeophysicalParameterValueSet> &parameters = theFeature.parameters();
 
   std::list<woml::GeophysicalParameterValue>::iterator pvend = parameters->editableValues().end(),
                                                        itpv;
@@ -12216,12 +12215,12 @@ typedef Tron::Hints<DataMatrixAdapter, MyTraits> MyHints;
  */
 // ----------------------------------------------------------------------
 
-void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
+void SvgRenderer::contour(const std::shared_ptr<NFmiQueryData> &theQD,
                           const Fmi::DateTime &theTime)
 {
   // Fast access iterator
 
-  boost::shared_ptr<NFmiFastQueryInfo> qi(new NFmiFastQueryInfo(theQD.get()));
+  std::shared_ptr<NFmiFastQueryInfo> qi(new NFmiFastQueryInfo(theQD.get()));
 
   // newbase time
 
@@ -12252,8 +12251,8 @@ void SvgRenderer::contour(const boost::shared_ptr<NFmiQueryData> &theQD,
 
 #if GEOS_VERSION_MAJOR == 3
 #if GEOS_VERSION_MINOR < 7
-    boost::shared_ptr<geos::geom::GeometryFactory> geomFactory =
-        boost::make_shared<geos::geom::GeometryFactory>();
+    std::shared_ptr<geos::geom::GeometryFactory> geomFactory =
+        std::make_shared<geos::geom::GeometryFactory>();
     Tron::FmiBuilder builder(geomFactory);
 #else
     geos::geom::GeometryFactory::Ptr geomFactory(geos::geom::GeometryFactory::create());

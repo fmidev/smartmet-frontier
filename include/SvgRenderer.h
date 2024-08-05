@@ -19,7 +19,7 @@
 
 #include <macgyver/DateTime.h>
 #include <boost/ptr_container/ptr_map.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include <libconfig.h++>
 
@@ -328,12 +328,12 @@ class ElevationGroupItem
  public:
   ElevationGroupItem(
       Fmi::DateTime theValidTime,
-      const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator
+      const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator
           &thePvs,
       const std::list<woml::GeophysicalParameterValue>::iterator &thePv);
 
   const Fmi::DateTime &validTime() const { return itsValidTime; }
-  const std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator &Pvs()
+  const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator &Pvs()
       const
   {
     return itsPvs;
@@ -349,7 +349,7 @@ class ElevationGroupItem
   {
     itsBottomConnection = theBottomConnection;
   }
-  const boost::optional<woml::Elevation> &bottomConnection() const { return itsBottomConnection; }
+  const std::optional<woml::Elevation> &bottomConnection() const { return itsBottomConnection; }
   void isScanned(bool scanned);
   bool isScanned() const;
   void isGroundConnected(bool connected);
@@ -370,7 +370,7 @@ class ElevationGroupItem
   bool isDeleted() const { return itsDeleted; }
   void groupNumber(unsigned int group);
   unsigned int groupNumber() const;
-  void elevation(boost::optional<woml::Elevation> &theElevation) { itsElevation = theElevation; }
+  void elevation(std::optional<woml::Elevation> &theElevation) { itsElevation = theElevation; }
   const woml::Elevation &elevation() const
   {
     return (itsElevation ? *itsElevation : Pv()->elevation());
@@ -389,15 +389,15 @@ class ElevationGroupItem
   ElevationGroupItem();
 
   Fmi::DateTime itsValidTime;
-  std::list<boost::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator itsPvs;
+  std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator itsPvs;
   std::list<woml::GeophysicalParameterValue>::iterator itsPv;
   bool itsTopConnected;
   bool itsBottomConnected;
   bool itsLeftOpen;
-  boost::optional<woml::Elevation> itsBottomConnection;  // Rigth side elevation
+  std::optional<woml::Elevation> itsBottomConnection;  // Rigth side elevation
   bool itsGenerated;                                     // Set for generated (below 0) elevation
   bool itsDeleted;  // Set when elevation is deleted from the underlying woml object collection
-  boost::optional<woml::Elevation> itsElevation;  // ZeroTolerance; generated below zero elevation
+  std::optional<woml::Elevation> itsElevation;  // ZeroTolerance; generated below zero elevation
 };
 
 typedef std::list<ElevationGroupItem> ElevGrp;
@@ -464,7 +464,7 @@ class SvgRenderer : public woml::FeatureVisitor
   SvgRenderer(const Options &theOptions,
               const libconfig::Config &theConfig,
               const std::string &theTemplate,
-              const boost::shared_ptr<NFmiArea> &theArea,
+              const std::shared_ptr<NFmiArea> &theArea,
               const Fmi::DateTime &theValidTime,
               std::ostringstream *theDebugOutput = nullptr);
 
@@ -508,14 +508,14 @@ class SvgRenderer : public woml::FeatureVisitor
   virtual void visit(const woml::Winds &theFeature);
   virtual void visit(const woml::ZeroTolerance &theFeature);
 
-  void contour(const boost::shared_ptr<NFmiQueryData> &theQD,
+  void contour(const std::shared_ptr<NFmiQueryData> &theQD,
                const Fmi::DateTime &theTime);
 
   void render_header(Fmi::DateTime &validTime,
                      const Fmi::TimePeriod &timePeriod,
                      const Fmi::DateTime &forecastTime,
                      const Fmi::DateTime &creationTime,
-                     const boost::optional<Fmi::DateTime> &modificationTime,
+                     const std::optional<Fmi::DateTime> &modificationTime,
                      const std::string &regionName,
                      const std::string &regionId,
                      const std::string &creator);
@@ -780,10 +780,10 @@ class SvgRenderer : public woml::FeatureVisitor
   const Options &options;
   const libconfig::Config &config;
   std::string svgbase;
-  boost::shared_ptr<NFmiArea> area;
+  std::shared_ptr<NFmiArea> area;
   const Fmi::DateTime validtime;
   std::ostringstream _debugoutput;
-  boost::shared_ptr<AxisManager> axisManager;
+  std::shared_ptr<AxisManager> axisManager;
   bool initAerodrome;
 
   // defs
