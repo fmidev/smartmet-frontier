@@ -24,8 +24,8 @@
 
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 #include <macgyver/DateTime.h>
+#include <macgyver/StringConversion.h>
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/filesystem/operations.hpp>
 #include <memory>
 #include <boost/tokenizer.hpp>
 
@@ -38,7 +38,6 @@
 #define NEWLIBCONFIG 0
 
 #if !(NEWLIBCONFIG)
-#include <boost/lexical_cast.hpp>
 #include <sys/types.h>
 #include <fstream>
 #include <stdexcept>
@@ -97,7 +96,7 @@ void readconfig(libconfig::Config& config, const std::string& contents)
 #if NEWLIBCONFIG
   config.readString(contents);
 #else
-  std::string filename = ("/tmp/frontier_" + boost::lexical_cast<std::string>(getpid()) + ".cnf");
+  std::string filename = ("/tmp/frontier_" + Fmi::to_string(getpid()) + ".cnf");
   std::ofstream out(filename.c_str());
   if (!out) throw std::runtime_error("Failed to open '" + filename + "' for writing");
   out << contents;
@@ -592,8 +591,8 @@ void generatesvg(int exitCode,
   int h = static_cast<int>(std::floor(0.5 + area->Height()));
   int w = static_cast<int>(std::floor(0.5 + area->Width()));
 
-  std::string width = boost::lexical_cast<std::string>(w);
-  std::string height = boost::lexical_cast<std::string>(h);
+  std::string width = Fmi::to_string(w);
+  std::string height = Fmi::to_string(h);
 
   boost::replace_all(sbeg, "--WIDTH--", width);
   boost::replace_all(sbeg, "--HEIGHT--", height);

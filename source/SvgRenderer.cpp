@@ -14,10 +14,10 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
-#include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/regex.hpp>
 #include <geos/version.h>
+#include <fmt/format.h>
+#include <macgyver/StringConversion.h>
 #include <gis/CoordinateMatrix.h>
 #include <smartmet/newbase/NFmiAngle.h>
 #include <smartmet/newbase/NFmiArea.h>
@@ -624,7 +624,7 @@ void SvgRenderer::render_timeAxis(const Fmi::TimePeriod &theTimePeriod)
 
     if (step < 1)
       throw std::runtime_error(confPath + ": " + l + ": '" +
-                               boost::lexical_cast<std::string>(step) + "'" + stepMsg);
+                               Fmi::to_string(step) + "'" + stepMsg);
 
     // utc (default: false)
 
@@ -2189,7 +2189,7 @@ void SvgRenderer::render_surface(
 
               if (_scale < symbolBBoxFactorMin)
                 throw std::runtime_error(confPath + ": minimum scale is " +
-                                         boost::lexical_cast<std::string>(symbolBBoxFactorMin));
+                                         Fmi::to_string(symbolBBoxFactorMin));
 
               // If autoscale is true (default: false) symbol is shrinken until
               // at least one symbol or all area symbols can be placed on the surface
@@ -2724,7 +2724,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
         if (boost::algorithm::to_lower_copy(lookup<std::string>(conds, confPath, "value")) != "nan")
           throw std::runtime_error(confPath + ".conditions" + valMsg);
 
-        if (!isnan(numericValue))
+        if (!std::isnan(numericValue))
           continue;
 
         eqNan = true;
@@ -2893,9 +2893,9 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
                 //
                 std::string condPath(
                     confPath +
-                    ((specsIdx >= 0) ? (".[" + boost::lexical_cast<std::string>(specsIdx) + "]")
+                    ((specsIdx >= 0) ? (".[" + Fmi::to_string(specsIdx) + "]")
                                      : "") +
-                    ".conditions" + ".[" + boost::lexical_cast<std::string>(i) + "]." + parameter);
+                    ".conditions" + ".[" + Fmi::to_string(i) + "]." + parameter);
 
                 if (parameter.empty() || config.exists(condPath))
                   return &(condSpecs[i]);
@@ -2994,7 +2994,7 @@ const libconfig::Setting *matchingCondition(const libconfig::Config &config,
 
   std::string condPath(
       confPath +
-      ((specsIdx >= 0) ? (".[" + boost::lexical_cast<std::string>(specsIdx) + "]") : "") +
+      ((specsIdx >= 0) ? (".[" + Fmi::to_string(specsIdx) + "]") : "") +
       ".conditions");
 
   if (!config.exists(condPath))
@@ -3073,7 +3073,7 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure *lowerLimit,
 {
   if (pref.empty())
     return upperLimit ? (lowerLimit->value() + ".." + upperLimit->value())
-                      : (isnan(lowerLimit->numericValue()) ? "" : lowerLimit->value());
+                      : (std::isnan(lowerLimit->numericValue()) ? "" : lowerLimit->value());
   else if (pref.find('%') == std::string::npos)
     // Static/literal format
     //
@@ -3121,9 +3121,9 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure *lowerLimit,
         // no
         // fractional part.
         //
-        os << boost::format(pref) %
-                  (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue()) %
-                  lowerLimit->numericValue();
+        os << fmt::format(fmt::runtime(pref),
+                  (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue()),
+                  lowerLimit->numericValue());
         std::string valStr = boost::algorithm::trim_copy(os.str()), rangeType;
         const char *p = valStr.c_str();
 
@@ -3134,9 +3134,9 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure *lowerLimit,
 
         os.str("");
         os.clear();
-        os << boost::format(pref) %
-                  (scale ? (upperLimit->numericValue() / *scale) : upperLimit->numericValue()) %
-                  upperLimit->numericValue();
+        os << fmt::format(fmt::runtime(pref),
+                  (scale ? (upperLimit->numericValue() / *scale) : upperLimit->numericValue()),
+                  upperLimit->numericValue());
         valStr = boost::algorithm::trim_copy(os.str());
         p = valStr.c_str();
 
@@ -3161,13 +3161,12 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure *lowerLimit,
       }
 
       if (scale)
-        os << boost::format(pref) % (v1->numericValue() / *scale) % (v2->numericValue() / *scale);
+        os << fmt::format(fmt::runtime(pref), (v1->numericValue() / *scale), (v2->numericValue() / *scale));
       else
-        os << boost::format(pref) % v1->numericValue() % v2->numericValue();
+        os << fmt::format(fmt::runtime(pref), v1->numericValue(), v2->numericValue());
     }
     else
-      os << boost::format(pref) %
-                (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue());
+      os << fmt::format(fmt::runtime(pref), (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue()));
 
     return svgescapetext(os.str(), true);
   }
@@ -3280,7 +3279,7 @@ void SvgRenderer::render_aerodromeSymbol(const std::string &confPath,
         transf << " --" << scaleIdN << "--";
     }
 
-    std::string id = confPath + boost::lexical_cast<std::string>(npointsymbols);
+    std::string id = confPath + Fmi::to_string(npointsymbols);
     npointsymbols++;
 
     if (codeValue)
@@ -3931,7 +3930,7 @@ void SvgRenderer::render_symbol(const std::string &confPath,
 
           std::string class2((class1.empty() ? "" : " ") + classes[classes.size() - 1] +
                              (symCode.empty() ? symClass : symCode));
-          std::string id = "symbol" + boost::lexical_cast<std::string>(npointsymbols);
+          std::string id = "symbol" + Fmi::to_string(npointsymbols);
 
           if (!fpos)
             symbols << "<text class=\"" << class1 << class2 << "\" id=\"" << id << "\" x=\""
@@ -3967,7 +3966,7 @@ void SvgRenderer::render_symbol(const std::string &confPath,
             //		 therefore the position key starts with "Z0"
             //
             std::string TEXTPOSid("Z0TEXTPOS_" + symClass +
-                                  boost::lexical_cast<std::string>(npointsymbols));
+                                  Fmi::to_string(npointsymbols));
             std::string textPosition =
                 configValue<std::string>(scope, symClass, "textposition", s_optional);
             int textWidth = 0, textHeight = 0, maxTextWidth = 0, fontSize = 0, tXOffset = 0,
@@ -4663,8 +4662,8 @@ void SvgRenderer::render_cloudSymbol(const std::string &confPath,
   int width = configValue<int>(scope, confPath, "width");
 
   boost::algorithm::replace_all(uri, "%symboltype%", symbolType);
-  boost::algorithm::replace_all(uri, "%height%", boost::lexical_cast<std::string>(height));
-  boost::algorithm::replace_all(uri, "%width%", boost::lexical_cast<std::string>(width));
+  boost::algorithm::replace_all(uri, "%height%", Fmi::to_string(height));
+  boost::algorithm::replace_all(uri, "%width%", Fmi::to_string(width));
 
   // Vertical and horizontal scale
   //
@@ -5608,7 +5607,7 @@ void getAreaMarkerPos(Texts &texts,
       continue;
 
     nMarkers++;
-    std::string mId(markerId + boost::lexical_cast<std::string>(nMarkers));
+    std::string mId(markerId + Fmi::to_string(nMarkers));
 
     if (!bbCenterMarker)
     {
@@ -6122,7 +6121,7 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition> &curvePoints,
   // Get and reserve label positions for each separate visible part of the area
 
   std::list<double> labelX, labelY, scaleX, scaleY;
-  std::string tId(textPosId + boost::lexical_cast<std::string>(npointsymbols));
+  std::string tId(textPosId + Fmi::to_string(npointsymbols));
   npointsymbols++;
   // fprintf(stderr,">> LABEL %s1 %s\n",tId.c_str(),label.c_str());
 
@@ -6178,7 +6177,7 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition> &curvePoints,
        (itX != labelX.end());
        itX++, itY++, sitX++, sitY++, placeHolderIndex++)
   {
-    std::string textPosIdN(tId + boost::lexical_cast<std::string>(placeHolderIndex));
+    std::string textPosIdN(tId + Fmi::to_string(placeHolderIndex));
     std::string scaleIdN(textPosIdN + "SCALE");
     std::string s(replace_first_copy(svg, textPosId0, "--" + textPosIdN + "--"));
 
@@ -6271,7 +6270,7 @@ void SvgRenderer::renderAreaSymbols(const T &cg,
   std::list<double> symbolX, symbolY, scaleX, scaleY;
   std::list<double>::const_iterator itx, ity, sitx, sity;
   double axisHeight = axisManager->axisHeight(), x, y;
-  std::string sId(symbolPosId + boost::lexical_cast<std::string>(npointsymbols));
+  std::string sId(symbolPosId + Fmi::to_string(npointsymbols));
   npointsymbols++;
   // fprintf(stderr,">> SYMBOL %s1 %s\n",sId.c_str(),symbol.c_str());
 
@@ -6327,7 +6326,7 @@ void SvgRenderer::renderAreaSymbols(const T &cg,
                            true,
                            *sitx,
                            *sity,
-                           sId + boost::lexical_cast<std::string>(placeHolderIndex));
+                           sId + Fmi::to_string(placeHolderIndex));
 
     if (asSymbol)
     {
@@ -6779,7 +6778,7 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp &eGrp,
       cs = " top";
     if (iteg->bottomConnected())
       cs += " bot";
-    cs += (" sz=" + boost::lexical_cast<std::string>(eGrp.size()));
+    cs += (" sz=" + Fmi::to_string(eGrp.size()));
 #endif
 
     if (phase == fst)
@@ -9533,10 +9532,10 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
               if ((!useWindBase) || autoWindBase || (arrowArmLength > 0))
               {
                 firstXPos = (((!useWindBase) || autoWindBase) ? axisManager->xOffset(vt) : 0.0);
-                bgXPos = (autoWindBase ? WINDXPOS : boost::lexical_cast<std::string>(firstXPos));
+                bgXPos = (autoWindBase ? WINDXPOS : Fmi::to_string(firstXPos));
                 windXPos =
                     (autoWindBase ? WINDXPOS
-                                  : boost::lexical_cast<std::string>(
+                                  : Fmi::to_string(
                                         firstXPos + (scale * windArrowOffsets.horizontalOffsetPx)));
 
                 if (autoWindBase)
@@ -9618,12 +9617,12 @@ void SvgRenderer::render_timeserie(const woml::Winds &winds)
         std::string textOut = texts[WINDAUTO].str();
 
         boost::algorithm::replace_first(
-            textOut, WINDXPOS, boost::lexical_cast<std::string>(singleTime ? 0.0 : firstXPos));
+            textOut, WINDXPOS, Fmi::to_string(singleTime ? 0.0 : firstXPos));
 
         for (; (itoff != ofend); itoff++)
         {
           double x = ((singleTime ? 0.0 : firstXPos) + (itoff->scale * itoff->horizontalOffsetPx));
-          boost::algorithm::replace_first(textOut, WINDXPOS, boost::lexical_cast<std::string>(x));
+          boost::algorithm::replace_first(textOut, WINDXPOS, Fmi::to_string(x));
         }
 
         texts[singleTime ? WINDBASEOUT : WINDEXTRAOUT] << textOut;
@@ -10456,7 +10455,7 @@ void SvgRenderer::render_value(const std::string &confPath,
             values << "<g class=\"" << classDef << "\">\n";
 
             if (href.empty())
-              values << "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
+              values << "<text id=\"text" << Fmi::to_string(npointvalues)
                      << "\" text-anchor=\"middle\" x=\"" << std::fixed << std::setprecision(1)
                      << lon << "\" y=\"" << std::fixed << std::setprecision(1) << lat << "\">"
                      << formattedValue(
@@ -10466,7 +10465,7 @@ void SvgRenderer::render_value(const std::string &confPath,
               values << "<g transform=\"translate(" << std::fixed << std::setprecision(1) << lon
                      << " " << std::fixed << std::setprecision(1) << lat << ")\">\n"
                      << "<use xlink:href=\"#" << href << "\"/>\n"
-                     << "<text id=\"text" << boost::lexical_cast<std::string>(npointvalues)
+                     << "<text id=\"text" << Fmi::to_string(npointvalues)
                      << "\" text-anchor=\"middle\">"
                      << formattedValue(
                             lowerLimit, upperLimit, confPath, pref, nullptr, &specs, globalScope)
@@ -10618,10 +10617,10 @@ std::string SvgRenderer::svg() const
   int w = static_cast<int>(std::floor(0.5 + area->Width()));
   int hw = static_cast<int>(w / 2);
 
-  std::string width = boost::lexical_cast<std::string>(w);
-  std::string hwidth = boost::lexical_cast<std::string>(hw);
-  std::string height = boost::lexical_cast<std::string>(h);
-  std::string hheight = boost::lexical_cast<std::string>(hh);
+  std::string width = Fmi::to_string(w);
+  std::string hwidth = Fmi::to_string(hw);
+  std::string height = Fmi::to_string(h);
+  std::string hheight = Fmi::to_string(hh);
 
   using boost::algorithm::replace_all;
 
@@ -10782,7 +10781,7 @@ AxisManager::AxisManager(const libconfig::Config &config)
 
       if ((scale < 0.0) || (scale > 1.0))
         throw std::runtime_error(confPath + ": " +
-                                 boost::lexical_cast<std::string>(boost::format("%.3f") % scale) +
+                                 fmt::format("%.3f", scale) +
                                  valueMsg);
 
       boost::algorithm::trim(lLabel);
@@ -10821,7 +10820,7 @@ AxisManager::AxisManager(const libconfig::Config &config)
       if (it2->scale() >= it->scale())
         throw std::runtime_error(
             confPath + ": " +
-            boost::lexical_cast<std::string>(boost::format("%.3f") % it->scale()) + scaleMsg);
+            fmt::format("%.3f", it->scale()) + scaleMsg);
       else
         it2->factor((it->scale() - it2->scale()) / (it->elevation() - it2->elevation()));
   }
@@ -11349,7 +11348,7 @@ void SvgRenderer::visit(const woml::CloudArea &theFeature)
     std::cerr << "Visiting CloudArea" << std::endl;
 
   ++ncloudareas;
-  std::string id = "cloudarea" + boost::lexical_cast<std::string>(ncloudareas);
+  std::string id = "cloudarea" + Fmi::to_string(ncloudareas);
 
   const woml::CubicSplineSurface surface = theFeature.controlSurface();
 
@@ -11390,7 +11389,7 @@ void SvgRenderer::visit(const woml::ColdAdvection &theFeature)
     return;
 
   ++ncoldadvections;
-  std::string id = "coldadvection" + boost::lexical_cast<std::string>(ncoldadvections);
+  std::string id = "coldadvection" + Fmi::to_string(ncoldadvections);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -11431,7 +11430,7 @@ void SvgRenderer::visit(const woml::ColdFront &theFeature)
     return;
 
   ++ncoldfronts;
-  std::string id = "coldfront" + boost::lexical_cast<std::string>(ncoldfronts);
+  std::string id = "coldfront" + Fmi::to_string(ncoldfronts);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -11531,7 +11530,7 @@ void SvgRenderer::visit(const woml::JetStream &theFeature)
 
   ++njets;
 
-  std::string id = "jet" + boost::lexical_cast<std::string>(njets);
+  std::string id = "jet" + Fmi::to_string(njets);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -11575,7 +11574,7 @@ void SvgRenderer::visit(const woml::OccludedFront &theFeature)
     return;
 
   ++noccludedfronts;
-  std::string id = "occludedfront" + boost::lexical_cast<std::string>(noccludedfronts);
+  std::string id = "occludedfront" + Fmi::to_string(noccludedfronts);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -11774,7 +11773,7 @@ RenderPressureCenterTypeDerivedClass(woml::AntiCyclone)
 
   ++nridges;
 
-  std::string id = "ridge" + boost::lexical_cast<std::string>(nridges);
+  std::string id = "ridge" + Fmi::to_string(nridges);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -11811,7 +11810,7 @@ RenderStormTypeDerivedClass(woml::ConvectiveStorm) RenderStormTypeDerivedClass(w
     std::cerr << "Visiting SurfacePrecipitationArea" << std::endl;
 
   ++nprecipitationareas;
-  std::string id = "precipitation" + boost::lexical_cast<std::string>(nprecipitationareas);
+  std::string id = "precipitation" + Fmi::to_string(nprecipitationareas);
 
   const woml::CubicSplineSurface surface = theFeature.controlSurface();
 
@@ -11863,7 +11862,7 @@ void SvgRenderer::visit(const woml::ParameterValueSetArea &theFeature)
     std::cerr << "Visiting ParameterValueSetArea" << std::endl;
 
   ++nprecipitationareas;
-  std::string id = "paramvalsetarea" + boost::lexical_cast<std::string>(nprecipitationareas);
+  std::string id = "paramvalsetarea" + Fmi::to_string(nprecipitationareas);
 
   const woml::CubicSplineSurface surface = theFeature.controlSurface();
 
@@ -11930,7 +11929,7 @@ void SvgRenderer::visit(const woml::Trough &theFeature)
 
   ++ntroughs;
 
-  std::string id = "trough" + boost::lexical_cast<std::string>(ntroughs);
+  std::string id = "trough" + Fmi::to_string(ntroughs);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -11961,7 +11960,7 @@ void SvgRenderer::visit(const woml::UpperTrough &theFeature)
 
   ++nuppertroughs;
 
-  std::string id = "uppertrough" + boost::lexical_cast<std::string>(nuppertroughs);
+  std::string id = "uppertrough" + Fmi::to_string(nuppertroughs);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -12000,7 +11999,7 @@ void SvgRenderer::visit(const woml::WarmAdvection &theFeature)
     return;
 
   ++nwarmadvections;
-  std::string id = "warmadvection" + boost::lexical_cast<std::string>(nwarmadvections);
+  std::string id = "warmadvection" + Fmi::to_string(nwarmadvections);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -12041,7 +12040,7 @@ void SvgRenderer::visit(const woml::WarmFront &theFeature)
     return;
 
   ++nwarmfronts;
-  std::string id = "warmfront" + boost::lexical_cast<std::string>(nwarmfronts);
+  std::string id = "warmfront" + Fmi::to_string(nwarmfronts);
 
   const woml::CubicSplineCurve splines = theFeature.controlCurve();
 
@@ -12356,7 +12355,7 @@ void SvgRenderer::contour(const std::shared_ptr<NFmiQueryData> &theQD,
         if (!path.empty())
         {
           ++linenumber;
-          std::string id = ("contourline" + boost::lexical_cast<std::string>(linenumber));
+          std::string id = ("contourline" + Fmi::to_string(linenumber));
           paths << "<path id=\"" << id << "\" d=\"" << path.svg() << "\"/>\n";
 
           contours[outputname] << "<use class=\"" << classname << "\" xlink:href=\"#" << id

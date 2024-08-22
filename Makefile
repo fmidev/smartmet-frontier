@@ -1,7 +1,7 @@
 MODULE = frontier
 SPEC = smartmet-frontier
 
-REQUIRES = configpp geos cairo xerces-c
+REQUIRES = configpp geos cairo xerces-c fmt
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
