@@ -24,13 +24,10 @@ class DoubleArr
     itsArr[0] = d1;
     itsArr[1] = d2;
   }
-  DoubleArr& operator=(const DoubleArr& d)
-  {
-    itsArr[0] = d.itsArr[0];
-    itsArr[1] = d.itsArr[1];
-    return *this;
-  }
-  bool operator==(const DoubleArr& d)
+  DoubleArr(const DoubleArr& d) = default;
+  DoubleArr& operator=(const DoubleArr& d) = default;
+
+  bool operator==(const DoubleArr& d) const
   {
     return ((itsArr[0] == d.itsArr[0]) && (itsArr[1] == d.itsArr[1]));
   }
