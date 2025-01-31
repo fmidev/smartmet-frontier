@@ -32,7 +32,7 @@ class DoubleArr
   }
   bool operator==(const DoubleArr& d)
   {
-    return ((itsArr[0] == d.itsArr[0]) && (itsArr[1] = d.itsArr[1]));
+    return ((itsArr[0] == d.itsArr[0]) && (itsArr[1] == d.itsArr[1]));
   }
   double& operator[](const int i) { return itsArr[i ? 1 : 0]; }
   const double& getX() const { return itsArr[0]; }
