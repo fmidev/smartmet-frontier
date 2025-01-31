@@ -46,6 +46,7 @@
 #include <smartmet/woml/SurfacePrecipitationArea.h>
 #include <cairo.h>
 #include <cmath>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -55,6 +56,8 @@
 #include <smartmet/tron/FmiBuilder.h>
 #include <smartmet/tron/Contourer.h>
 // clang-format on
+
+namespace p = std::placeholders;
 
 namespace frontier
 {
@@ -6383,7 +6386,7 @@ bool GroupCategory<T>::groupMember(const woml::CategoryValueMeasure *cvm) const
 
   std::string category(boost::algorithm::to_upper_copy(cvm->category()));
 
-  return (std::find_if(itsGroups.begin(), itsGroups.end(), std::bind2nd(MemberType(), category)) !=
+  return (std::find_if(itsGroups.begin(), itsGroups.end(), std::bind(MemberType(), p::_1, category)) !=
           itsGroups.end());
 }
 
@@ -6399,7 +6402,7 @@ bool GroupCategory<T>::groupMember(bool first, const woml::CategoryValueMeasure 
 
   if (first)
   {
-    itcg = std::find_if(itsGroups.begin(), itsGroups.end(), std::bind2nd(MemberType(), category));
+    itcg = std::find_if(itsGroups.begin(), itsGroups.end(), std::bind(MemberType(), p::_1, category));
 
     if (itcg == itsGroups.end())
       throw std::runtime_error("GroupCategory::groupMember: unknown category '" + category + "'");
@@ -6415,7 +6418,7 @@ bool GroupCategory<T>::groupMember(bool first, const woml::CategoryValueMeasure 
     // Check if elevations overlap (have the same group number) and have matching category
     //
     if ((!CategoryValueMeasureGroup::groupMember(false, cvm)) ||
-        (std::find_if(itsGroups.begin(), itsGroups.end(), std::bind2nd(MemberType(), category)) !=
+        (std::find_if(itsGroups.begin(), itsGroups.end(), std::bind(MemberType(), p::_1, category)) !=
          itcg))
       return false;
   }
@@ -6439,7 +6442,7 @@ const std::string &GroupCategory<T>::groupSymbol() const
   // Search for a group containing only the types in current group, and if found, return it's symbol
 
   typename std::list<T>::const_iterator group = std::find_if(
-      itsGroups.begin(), itsGroups.end(), std::bind2nd(GroupType<T>(), itcg->memberTypes()));
+      itsGroups.begin(), itsGroups.end(), std::bind(GroupType<T>(), p::_1, itcg->memberTypes()));
 
   return ((group != itsGroups.end()) ? group->symbol() : itcg->symbol());
 }
@@ -6456,7 +6459,7 @@ std::string GroupCategory<T>::groupLabel() const
   // Search for a group containing only the types in current group, and if found, return it's label
 
   typename std::list<T>::const_iterator group = std::find_if(
-      itsGroups.begin(), itsGroups.end(), std::bind2nd(GroupType<T>(), itcg->memberTypes()));
+      itsGroups.begin(), itsGroups.end(), std::bind(GroupType<T>(), p::_1, itcg->memberTypes()));
 
   return ((group != itsGroups.end()) ? group->label(true) : itcg->label());
 }
