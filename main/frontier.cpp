@@ -478,8 +478,8 @@ int run(int argc,
   std::list<woml::TargetRegion>::const_iterator trbeg(
       analysis ? weather.analysis().TargetRegions_begin()
                : weather.forecast().TargetRegions_begin());
-  std::list<woml::TargetRegion>::const_iterator trend(
-      analysis ? weather.analysis().TargetRegions_end() : weather.forecast().TargetRegions_end());
+  //std::list<woml::TargetRegion>::const_iterator trend(
+  //    analysis ? weather.analysis().TargetRegions_end() : weather.forecast().TargetRegions_end());
 
   std::list<std::pair<std::string, std::string> >::const_iterator lnbeg(
       trbeg->LocalizedNames_begin());
