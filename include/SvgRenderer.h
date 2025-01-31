@@ -23,6 +23,7 @@
 
 #include <libconfig.h++>
 
+#include <functional>
 #include <sstream>
 #include <string>
 
@@ -189,13 +190,13 @@ class ConfigGroup
                                                    // blocks (if any), then local/current block
 };
 
-struct MemberType : public std::binary_function<ConfigGroup, std::string, bool>
+struct MemberType : public std::function<void(ConfigGroup, std::string)>
 {
   bool operator()(const ConfigGroup &configGroup, const std::string &memberType) const;
 };
 
 template <typename T>
-struct GroupType : public std::binary_function<ConfigGroup, std::string, bool>
+struct GroupType : public std::function<void(ConfigGroup, std::string)>
 {
   bool operator()(const ConfigGroup &configGroup, const std::string &memberTypes) const;
 };
