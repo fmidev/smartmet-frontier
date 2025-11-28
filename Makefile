@@ -21,7 +21,6 @@ LIBS += $(REQUIRED_LIBS) \
 	-lboost_program_options \
 	-lboost_iostreams \
 	-lboost_regex \
-	-lboost_system \
 	-lxqilla \
         -lgeos
 
