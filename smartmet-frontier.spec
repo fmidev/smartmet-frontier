@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 26.2.4
+Version: 26.4.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -23,21 +23,21 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-gis-devel >= 26.2.4
-BuildRequires: smartmet-library-macgyver-devel >= 26.2.4
+BuildRequires: smartmet-library-gis-devel >= 26.4.13
+BuildRequires: smartmet-library-macgyver-devel >= 26.4.13
 BuildRequires: smartmet-library-newbase-devel >= 26.2.4
 BuildRequires: smartmet-library-tron-devel >= 26.2.4
 BuildRequires: geos313
-BuildRequires: smartmet-library-woml >= 26.2.4
+BuildRequires: smartmet-library-woml >= 26.4.13
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-fonts
-Requires: smartmet-library-macgyver >= 26.2.4
+Requires: smartmet-library-macgyver >= 26.4.13
 Requires: smartmet-library-newbase >= 26.2.4
 Requires: smartmet-library-tron >= 26.2.4
-Requires: smartmet-library-woml >= 26.2.4
+Requires: smartmet-library-woml >= 26.4.13
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
 Requires: %{smartmet_boost}-program-options
@@ -47,7 +47,7 @@ Requires: %{smartmet_boost}-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 26.2.4
+#TestRequires: smartmet-library-macgyver-devel >= 26.4.13
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
@@ -76,6 +76,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/frontier
 
 %changelog
+* Mon Apr 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.4.13-1.fmi
+- Repackaged due to API changes
+
 * Wed Feb  4 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.2.4-1.fmi
 - Update to proj-9.7, gdal-3.12, fmt-12
 
