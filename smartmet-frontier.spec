@@ -74,6 +74,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(0775,root,root,-)
 %{_bindir}/frontier
+%{_mandir}/man1/frontier.1.gz
 
 %changelog
 * Mon Apr 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.4.13-1.fmi

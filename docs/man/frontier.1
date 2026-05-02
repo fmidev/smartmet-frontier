@@ -1,0 +1,83 @@
+.TH FRONTIER 1 "2026-05-02" "smartmet-frontier" "SmartMet Tools"
+.SH NAME
+frontier \- render Weather Object Model files as SVG charts
+.SH SYNOPSIS
+.B frontier
+.RI [ options ]
+.B \-w
+.I womlfile
+.B \-s
+.I svgtemplate
+.RB [ \-p
+.IR projection ]
+.RB [ \-o
+.IR outfile ]
+.SH DESCRIPTION
+.B frontier
+reads a Weather Object Model
+.RB ( WOML )
+file produced by the SmartMet Mirwa weather chart editor and renders
+it into a styled SVG weather chart. Output uses the supplied SVG
+template; meteorological symbols, fronts and other features defined in
+the WOML document are placed on top of the template's base map.
+.PP
+Three document types are supported:
+.IR conceptualmodelanalysis ,
+.IR conceptualmodelforecast ,
+and
+.IR aerodromeforecast .
+.SH OPTIONS
+.TP
+.B \-h ", " \-\-help
+Print the help message.
+.TP
+.B \-V ", " \-\-version
+Display the version number.
+.TP
+.B \-v ", " \-\-verbose
+Verbose mode.
+.TP
+.B \-q ", " \-\-quiet
+Quiet mode.
+.TP
+.B \-d ", " \-\-debug
+Debug mode.
+.TP
+.BI \-w " file" ", \-\-woml " file
+Input WOML file.
+.TP
+.BI \-s " file" ", \-\-svg " file
+SVG template file.
+.TP
+.BI \-p " spec" ", \-\-proj " spec
+Projection description string or a file containing one.
+.TP
+.BI \-o " file" ", \-\-outfile " file
+Output filename. Default is
+.B \-
+(standard output).
+.TP
+.BI \-t " type" ", \-\-type " type
+Document type: one of
+.IR conceptualmodelanalysis ,
+.IR conceptualmodelforecast ,
+.IR aerodromeforecast .
+.TP
+.BI \-l " locale" ", \-\-locale " locale
+Locale for text rendering.
+.TP
+.B \-n ", " \-\-nocontours
+Deprecated; has no effect.
+.SH EXAMPLES
+Render an analysis chart to a file:
+.PP
+.RS 4
+frontier \-w analysis.xml \-s template.svg \-t conceptualmodelanalysis \-o chart.svg
+.RE
+.SH SEE ALSO
+.BR qdcontour2 (1),
+.BR shape2svg (1)
+.SH AUTHOR
+Finnish Meteorological Institute
+.PP
+Report issues at <https://github.com/fmidev/smartmet-frontier/issues>.

@@ -70,12 +70,21 @@ clean:
 format:
 	clang-format -i -style=file include/*.h source/*.cpp main/*.cpp
 
+mandir ?= $(PREFIX)/share/man
+
 install:
 	mkdir -p $(bindir)
 	@list='$(MAINPROGS)'; \
 	for prog in $$list; do \
 	  echo $(INSTALL_PROG) $$prog $(bindir)/$$prog; \
 	  $(INSTALL_PROG) $$prog $(bindir)/$$prog; \
+	done
+	mkdir -p $(mandir)/man1
+	@for page in docs/man/*.1; do \
+	  base=`basename $$page`; \
+	  echo $(INSTALL_DATA) $$page $(mandir)/man1/$$base; \
+	  $(INSTALL_DATA) $$page $(mandir)/man1/$$base; \
+	  gzip -nf $(mandir)/man1/$$base; \
 	done
 
 test:
