@@ -23,7 +23,7 @@ The build uses the shared SmartMet build configuration (`makefile.inc`). Depende
 
 Tests are shell-based integration tests in `test/`. `test/TestRunner.sh` runs the `frontier` binary against WOML input files and compares generated SVG output to reference files in `test/output/`. The binary is found via `PATH=..:$PATH`, so you must build before testing.
 
-Test cases render `test/woml/europe-forecast.woml` with two locales (FI-fi, SV-se) and diff against expected SVG output. Tests auto-detect WGS84 mode and use `.wgs84` suffixed reference files when needed.
+Test cases render `test/woml/europe-forecast.woml` with two locales (FI-fi, SV-se) and diff against expected SVG output.
 
 To run a single test manually:
 ```bash
