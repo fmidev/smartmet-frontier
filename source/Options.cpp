@@ -101,14 +101,19 @@ bool parse_options(int argc, char* argv[], Options& theOptions)
   if (dummy && !theOptions.quiet)
     std::cerr << "Warning:: option --nocontours (-n) is deprecated" << std::endl;
 
-  if (theOptions.womlfile.empty()) throw std::runtime_error("WOML file not specified");
+  if (theOptions.womlfile.empty())
+    throw std::runtime_error("WOML file not specified");
 
-  if (theOptions.svgfile.empty()) throw std::runtime_error("SVG file not specified");
+  if (theOptions.svgfile.empty())
+    throw std::runtime_error("SVG file not specified");
 
-  if (theOptions.projection.empty()) throw std::runtime_error("Projection not specified");
+  if (theOptions.projection.empty())
+    throw std::runtime_error("Projection not specified");
 
-  if (theOptions.quiet) theOptions.verbose = false;
-  if (theOptions.verbose) theOptions.quiet = false;
+  if (theOptions.quiet)
+    theOptions.verbose = false;
+  if (theOptions.verbose)
+    theOptions.quiet = false;
 
   if (theOptions.type == "conceptualmodelanalysis")
     theOptions.doctype = woml::conceptualmodelanalysis;

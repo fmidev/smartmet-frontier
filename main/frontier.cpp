@@ -23,11 +23,11 @@
 #include <libconfig.h++>
 
 #define BOOST_FILESYSTEM_NO_DEPRECATED
+#include <boost/algorithm/string/replace.hpp>
+#include <boost/tokenizer.hpp>
 #include <macgyver/DateTime.h>
 #include <macgyver/StringConversion.h>
-#include <boost/algorithm/string/replace.hpp>
 #include <memory>
-#include <boost/tokenizer.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -80,7 +80,8 @@ std::string readfile(const std::string& fileName,
 void writefile(const std::string& filename, const std::string& contents)
 {
   std::ofstream out(filename.c_str());
-  if (!out) throw std::runtime_error("Failed to open '" + filename + "' for writing");
+  if (!out)
+    throw std::runtime_error("Failed to open '" + filename + "' for writing");
   out << contents;
   out.close();
 }
@@ -98,7 +99,8 @@ void readconfig(libconfig::Config& config, const std::string& contents)
 #else
   std::string filename = ("/tmp/frontier_" + Fmi::to_string(getpid()) + ".cnf");
   std::ofstream out(filename.c_str());
-  if (!out) throw std::runtime_error("Failed to open '" + filename + "' for writing");
+  if (!out)
+    throw std::runtime_error("Failed to open '" + filename + "' for writing");
   out << contents;
   out.close();
 
@@ -145,7 +147,8 @@ std::shared_ptr<NFmiArea> readprojection(const std::string& filename)
     }
   }
 
-  if (!area) throw std::runtime_error("Failed to find a projection from '" + filename + "'");
+  if (!area)
+    throw std::runtime_error("Failed to find a projection from '" + filename + "'");
 
   return area;
 }
@@ -161,10 +164,12 @@ std::string extract_section(const std::string& str,
                             const std::string& enddelim)
 {
   std::string::size_type pos1 = str.find(startdelim);
-  if (pos1 == std::string::npos) return "";
+  if (pos1 == std::string::npos)
+    return "";
 
   std::string::size_type pos2 = str.find(enddelim, pos1);
-  if (pos2 == std::string::npos) return "";
+  if (pos2 == std::string::npos)
+    return "";
 
   return str.substr(pos1 + startdelim.size(), pos2 - pos1 - startdelim.size());
 }
@@ -183,10 +188,12 @@ std::string remove_sections(const std::string& str,
   while (true)
   {
     std::string::size_type pos1 = ret.find(startdelim);
-    if (pos1 == std::string::npos) return ret;
+    if (pos1 == std::string::npos)
+      return ret;
 
     std::string::size_type pos2 = ret.find(enddelim, pos1);
-    if (pos2 == std::string::npos) return ret;
+    if (pos2 == std::string::npos)
+      return ret;
 
     std::string part1 = ret.substr(0, pos1);
     std::string part2 = ret.substr(pos2 + enddelim.size(), ret.size());
@@ -213,7 +220,8 @@ ValidTimes extract_valid_times(const T& collection)
 
     // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
-    if (theTime && (!(theTime->is_not_a_date_time()))) times.insert(*theTime);
+    if (theTime && (!(theTime->is_not_a_date_time())))
+      times.insert(*theTime);
   }
 
   return times;
@@ -230,9 +238,8 @@ Fmi::DateTime to_ptime(const NFmiMetTime& theTime)
   Fmi::Date date(theTime.GetYear(), theTime.GetMonth(), theTime.GetDay());
 
   Fmi::DateTime utc(date,
-                               Fmi::Hours(theTime.GetHour()) +
-                                   Fmi::Minutes(theTime.GetMin()) +
-                                   Fmi::Seconds(theTime.GetSec()));
+                    Fmi::Hours(theTime.GetHour()) + Fmi::Minutes(theTime.GetMin()) +
+                        Fmi::Seconds(theTime.GetSec()));
   return utc;
 }
 
@@ -245,19 +252,22 @@ Fmi::DateTime to_ptime(const NFmiMetTime& theTime)
 // ----------------------------------------------------------------------
 
 std::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& options,
-                                                         const std::string& path,
-                                                         const Fmi::DateTime& origintime)
+                                                       const std::string& path,
+                                                       const Fmi::DateTime& origintime)
 {
   namespace fs = std::filesystem;
 
-  if (!fs::exists(path)) throw std::runtime_error("Path '" + path + "' does not exist");
+  if (!fs::exists(path))
+    throw std::runtime_error("Path '" + path + "' does not exist");
 
-  if (!fs::is_directory(path)) throw std::runtime_error("Path '" + path + "' is not a directory");
+  if (!fs::is_directory(path))
+    throw std::runtime_error("Path '" + path + "' is not a directory");
 
   fs::directory_iterator end_dir;
   for (fs::directory_iterator dirptr(path); dirptr != end_dir; ++dirptr)
   {
-    if (!fs::is_regular_file(dirptr->status())) continue;
+    if (!fs::is_regular_file(dirptr->status()))
+      continue;
 
     try
     {
@@ -292,19 +302,21 @@ std::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& 
 // ----------------------------------------------------------------------
 
 std::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
-                                               const libconfig::Config& config,
-                                               const woml::DataSource& source)
+                                             const libconfig::Config& config,
+                                             const woml::DataSource& source)
 {
   std::shared_ptr<NFmiQueryData> ret;
 
-  if (!source.numericalModelRun()) return ret;
+  if (!source.numericalModelRun())
+    return ret;
 
   // Shorthand help variables
 
   const std::string& name = source.numericalModelRun()->name();
   const Fmi::DateTime& origintime = source.numericalModelRun()->analysisTime();
 
-  if (name.find_first_not_of(" ") == std::string::npos) return ret;
+  if (name.find_first_not_of(" ") == std::string::npos)
+    return ret;
 
   std::string path = frontier::lookup<std::string>(config, "models." + name);
 
@@ -312,7 +324,8 @@ std::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
   {
     if (options.debug)
     {
-      if (options.verbose) std::cerr << "Ignoring unknown model '" + name + "'" << std::endl;
+      if (options.verbose)
+        std::cerr << "Ignoring unknown model '" + name + "'" << std::endl;
       return ret;
     }
     else
@@ -361,7 +374,8 @@ int run(int argc,
   outfile.clear();
   debug = false;
 
-  if (!parse_options(argc, argv, options)) return 0;
+  if (!parse_options(argc, argv, options))
+    return 0;
 
   outfile = options.outfile;
 
@@ -371,7 +385,8 @@ int run(int argc,
 
   // --DEBUGOUTPUT-- placeholder in the template sets debug mode
 
-  if (!options.debug) options.debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
+  if (!options.debug)
+    options.debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
 
   // Establish the projection
 
@@ -383,7 +398,8 @@ int run(int argc,
   // Parse the WOML
 
   woml::Weather weather = woml::parse(options.womlfile, options.doctype, options.debug);
-  if (weather.empty()) throw std::runtime_error("No MeteorologicalAnalysis to draw");
+  if (weather.empty())
+    throw std::runtime_error("No MeteorologicalAnalysis to draw");
 
   // Extract libconfig section
 
@@ -445,7 +461,8 @@ int run(int argc,
     }
     catch (std::exception& e)
     {
-      if (!options.quiet) std::cerr << "Warning: " << e.what() << std::endl;
+      if (!options.quiet)
+        std::cerr << "Warning: " << e.what() << std::endl;
     }
 
     if (!qd && !options.quiet)
@@ -478,8 +495,9 @@ int run(int argc,
   std::list<woml::TargetRegion>::const_iterator trbeg(
       analysis ? weather.analysis().TargetRegions_begin()
                : weather.forecast().TargetRegions_begin());
-  //std::list<woml::TargetRegion>::const_iterator trend(
-  //    analysis ? weather.analysis().TargetRegions_end() : weather.forecast().TargetRegions_end());
+  // std::list<woml::TargetRegion>::const_iterator trend(
+  //     analysis ? weather.analysis().TargetRegions_end() :
+  //     weather.forecast().TargetRegions_end());
 
   std::list<std::pair<std::string, std::string> >::const_iterator lnbeg(
       trbeg->LocalizedNames_begin());
@@ -527,10 +545,8 @@ int run(int argc,
       const std::optional<Fmi::DateTime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-        if (
-            (feature.classNameExt() == "cloudLayers") ||
-            (feature.classNameExt() == "cloudLayersCB")
-           )
+        if ((feature.classNameExt() == "cloudLayers") ||
+            (feature.classNameExt() == "cloudLayersCB"))
           feature.visit(renderer);
     }
 
@@ -539,10 +555,8 @@ int run(int argc,
       const std::optional<Fmi::DateTime> theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-        if (
-            (feature.classNameExt() != "cloudLayers") &&
-            (feature.classNameExt() != "cloudLayersCB")
-           )
+        if ((feature.classNameExt() != "cloudLayers") &&
+            (feature.classNameExt() != "cloudLayersCB"))
           feature.visit(renderer);
     }
   }
@@ -551,12 +565,14 @@ int run(int argc,
 
   if (options.outfile != "-")
   {
-    if (options.verbose) std::cerr << "Writing " << options.outfile << std::endl;
+    if (options.verbose)
+      std::cerr << "Writing " << options.outfile << std::endl;
     writefile(options.outfile, renderer.svg());
   }
   else
   {
-    if (options.verbose) std::cerr << "Writing to stdout" << std::endl;
+    if (options.verbose)
+      std::cerr << "Writing to stdout" << std::endl;
     std::cout << renderer.svg();
   }
   return 0;

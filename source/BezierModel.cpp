@@ -78,15 +78,25 @@ double BezierModel::getCumulatedCurveLength(int i)
   return *iter;
 }
 
-const std::vector<DirectPosition>& BezierModel::getCurvePositions() { return curvePositions; }
+const std::vector<DirectPosition>& BezierModel::getCurvePositions()
+{
+  return curvePositions;
+}
 
-const std::list<BezSeg>& BezierModel::getBezierSegments() { return bezierSegments; }
+const std::list<BezSeg>& BezierModel::getBezierSegments()
+{
+  return bezierSegments;
+}
 
-int BezierModel::getBezierSegmentCount() { return bezierSegments.size(); }
+int BezierModel::getBezierSegmentCount()
+{
+  return bezierSegments.size();
+}
 
 DirectPosition BezierModel::getStartPointOfLastBezierSegment()
 {
-  if (curvePositions.size() <= 2) return curvePositions[0];
+  if (curvePositions.size() <= 2)
+    return curvePositions[0];
 
   return bezierSegments.back().getStartPoint();
 }
@@ -126,11 +136,20 @@ DirectPosition BezierModel::getSecondControlPointOfLastBezierSegment()
   return bezierSegments.back().getSecondControlPoint();
 }
 
-double BezierModel::getTotalLengthOfAllSegments() { return totalCurveLength; }
+double BezierModel::getTotalLengthOfAllSegments()
+{
+  return totalCurveLength;
+}
 
-void BezierModel::setOrientation(Orientation theOrientation) { orientation = theOrientation; }
+void BezierModel::setOrientation(Orientation theOrientation)
+{
+  orientation = theOrientation;
+}
 
-Orientation BezierModel::getOrientation() { return orientation; }
+Orientation BezierModel::getOrientation()
+{
+  return orientation;
+}
 
 // public BezierCurve getBezierCurve() {
 //	return this.curveDecorator;
@@ -152,9 +171,15 @@ Orientation BezierModel::getOrientation() { return orientation; }
 //	this.curveDecorator = curveDecorator;
 //}
 
-BezSeg BezierModel::getLastBezierSegment() { return bezierSegments.back(); }
+BezSeg BezierModel::getLastBezierSegment()
+{
+  return bezierSegments.back();
+}
 
-boolean BezierModel::isEmpty() { return bezierSegments.empty(); }
+boolean BezierModel::isEmpty()
+{
+  return bezierSegments.empty();
+}
 
 // public std::vector<Integer> getEvaluatedCurvePositionSegmentIndices()
 //{
@@ -177,7 +202,10 @@ boolean BezierModel::isEmpty() { return bezierSegments.empty(); }
 //    return evaluatedPositions;
 //}
 
-boolean BezierModel::isClosedCurve() { return bIsClosedCurve; }
+boolean BezierModel::isClosedCurve()
+{
+  return bIsClosedCurve;
+}
 
 void BezierModel::setTightness(double theTightness)
 {
@@ -213,7 +241,8 @@ int BezierModel::getSteppedCurvePoints(
 {
   const unsigned int minBaseStep = 3;
 
-  if (baseStep <= minBaseStep) baseStep = minBaseStep;
+  if (baseStep <= minBaseStep)
+    baseStep = minBaseStep;
 
   int curveLength = (int)(floor(getTotalLengthOfAllSegments()) + 0.1);  // Total curve length
   double lss = 0.0;  // Cumulative curve length at the start of current segment
@@ -264,7 +293,8 @@ int BezierModel::getSteppedCurvePoints(
       }
 
       curPos += step;
-      if ((curPos + (0.5 * baseStep)) >= curveLength) curPos = curveLength;
+      if ((curPos + (0.5 * baseStep)) >= curveLength)
+        curPos = curveLength;
 
       while ((itl != itlEnd) && (*itl < curPos))
       {
@@ -286,7 +316,8 @@ int BezierModel::getSteppedCurvePoints(
 
     nPoints++;
 
-    if (curPos >= curveLength) break;
+    if (curPos >= curveLength)
+      break;
   }
 
   return nPoints;
@@ -313,7 +344,8 @@ void BezierModel::decorateCurve(
   std::list<DirectPosition>::iterator litcp = curvePoints.begin(), cpend = curvePoints.end(), ritcp;
 
   ritcp = litcp;
-  if (ritcp != cpend) ritcp++;
+  if (ritcp != cpend)
+    ritcp++;
 
   srand(time(nullptr));
 

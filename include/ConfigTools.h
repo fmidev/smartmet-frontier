@@ -128,7 +128,7 @@ std::string type_names()
 template <typename T>
 std::string type_name()
 {
-  return type_names<T,T>();
+  return type_names<T, T>();
 }
 
 // ----------------------------------------------------------------------
@@ -147,7 +147,8 @@ T lookup(const libconfig::Config& config, const std::string& name)
   }
   catch (libconfig::ConfigException& e)
   {
-    if (!config.exists(name)) throw std::runtime_error("Setting for " + name + " is missing");
+    if (!config.exists(name))
+      throw std::runtime_error("Setting for " + name + " is missing");
     throw std::runtime_error("Failed to parse value of '" + name + "' as type " + type_name<T>());
   }
 }

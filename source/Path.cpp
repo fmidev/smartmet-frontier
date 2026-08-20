@@ -45,7 +45,10 @@ enum PathElement
  */
 // ----------------------------------------------------------------------
 
-void Path::closepath() { pathdata.push_back(ClosePath); }
+void Path::closepath()
+{
+  pathdata.push_back(ClosePath);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -117,7 +120,8 @@ std::string Path::svg() const
 
   for (PathData::size_type i = 0; i < pathdata.size();)
   {
-    if (i != 0) out << ' ';
+    if (i != 0)
+      out << ' ';
     out << std::fixed << std::setprecision(1);
 
     PathElement cmd = static_cast<PathElement>(pathdata[i++]);
@@ -126,26 +130,30 @@ std::string Path::svg() const
     {
       case ClosePath:
         element = 'Z';
-        if (element != lastelement) out << element;
+        if (element != lastelement)
+          out << element;
         lastelement = element;
         break;
       case MoveTo:
         element = 'M';
-        if (element != lastelement) out << element;
+        if (element != lastelement)
+          out << element;
         lastelement = element;
         out << pathdata[i] << ',' << pathdata[i + 1];
         i += 2;
         break;
       case LineTo:
         element = 'L';
-        if (element != lastelement) out << element;
+        if (element != lastelement)
+          out << element;
         lastelement = element;
         out << pathdata[i] << ',' << pathdata[i + 1];
         i += 2;
         break;
       case CurveTo:
         element = 'C';
-        if (element != lastelement) out << element;
+        if (element != lastelement)
+          out << element;
         lastelement = element;
         out << pathdata[i] << ',' << pathdata[i + 1] << ' ' << pathdata[i + 2] << ','
             << pathdata[i + 3] << ' ' << pathdata[i + 4] << ',' << pathdata[i + 5];
@@ -162,7 +170,10 @@ std::string Path::svg() const
  */
 // ----------------------------------------------------------------------
 
-bool Path::empty() const { return pathdata.empty(); }
+bool Path::empty() const
+{
+  return pathdata.empty();
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -201,7 +212,8 @@ double Path::length(NFmiFillMap* fmap) const
         break;
       case LineTo:
         len += sqrt(sqr(lastx - pathdata[i]) + sqr(lasty - pathdata[i + 1]));
-        if (fmap) fmap->Add(lastx, lasty, pathdata[i], pathdata[i + 1]);
+        if (fmap)
+          fmap->Add(lastx, lasty, pathdata[i], pathdata[i + 1]);
         lastx = pathdata[i];
         lasty = pathdata[i + 1];
         i += 2;
@@ -330,7 +342,8 @@ bool Path::scale(double offset, Path& scaledPath) const
     strippedPath.push_back(*it);
 
     for (it++; (it != pathEnd); it++, pit++)
-      if (*it != *pit) strippedPath.push_back(*it);
+      if (*it != *pit)
+        strippedPath.push_back(*it);
 
     if (strippedPath.size() > 2)
     {
@@ -353,7 +366,8 @@ bool Path::scale(double offset, Path& scaledPath) const
           else
             scaledPath.lineto(it->X, it->Y);
 
-        if (solution.front().front() != solution.front().back()) scaledPath.closepath();
+        if (solution.front().front() != solution.front().back())
+          scaledPath.closepath();
       }
     }
   }
@@ -464,7 +478,8 @@ std::pair<double, double> Path::nearestVertex(double x, double y) const
       }
     }
   }
-  if (mindistance < 0) throw std::runtime_error("No nearest vertex exists for empty paths");
+  if (mindistance < 0)
+    throw std::runtime_error("No nearest vertex exists for empty paths");
 
   return std::make_pair(bestx, besty);
 }

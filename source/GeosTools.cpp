@@ -27,9 +27,10 @@ namespace
  */
 // ----------------------------------------------------------------------
 
-void contourFromLinearRing(const LinearRing *geom, PathAdapter &pathAdapter)
+void contourFromLinearRing(const LinearRing* geom, PathAdapter& pathAdapter)
 {
-  if (geom == nullptr || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty())
+    return;
 
   for (unsigned long i = 0, n = geom->getNumPoints(); i < n - 1; ++i)
   {
@@ -46,9 +47,10 @@ void contourFromLinearRing(const LinearRing *geom, PathAdapter &pathAdapter)
  */
 // ----------------------------------------------------------------------
 
-void contourFromLineString(const LineString *geom, PathAdapter &pathAdapter)
+void contourFromLineString(const LineString* geom, PathAdapter& pathAdapter)
 {
-  if (geom == nullptr || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty())
+    return;
 
   unsigned long n = geom->getNumPoints();
 
@@ -70,9 +72,10 @@ void contourFromLineString(const LineString *geom, PathAdapter &pathAdapter)
  */
 // ----------------------------------------------------------------------
 
-void contoursFromPolygon(const Polygon *geom, PathAdapter &pathAdapter)
+void contoursFromPolygon(const Polygon* geom, PathAdapter& pathAdapter)
 {
-  if (geom == nullptr || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty())
+    return;
 
   contourFromLineString(geom->getExteriorRing(), pathAdapter);
 
@@ -86,12 +89,13 @@ void contoursFromPolygon(const Polygon *geom, PathAdapter &pathAdapter)
  */
 // ----------------------------------------------------------------------
 
-void contoursFromMultiLineString(const MultiLineString *geom, PathAdapter &pathAdapter)
+void contoursFromMultiLineString(const MultiLineString* geom, PathAdapter& pathAdapter)
 {
-  if (geom == nullptr || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty())
+    return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    contourFromLineString(dynamic_cast<const LineString *>(geom->getGeometryN(i)), pathAdapter);
+    contourFromLineString(dynamic_cast<const LineString*>(geom->getGeometryN(i)), pathAdapter);
 }
 
 // ----------------------------------------------------------------------
@@ -100,12 +104,13 @@ void contoursFromMultiLineString(const MultiLineString *geom, PathAdapter &pathA
  */
 // ----------------------------------------------------------------------
 
-void contoursFromMultiPolygon(const MultiPolygon *geom, PathAdapter &pathAdapter)
+void contoursFromMultiPolygon(const MultiPolygon* geom, PathAdapter& pathAdapter)
 {
-  if (geom == nullptr || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty())
+    return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    contoursFromPolygon(dynamic_cast<const Polygon *>(geom->getGeometryN(i)), pathAdapter);
+    contoursFromPolygon(dynamic_cast<const Polygon*>(geom->getGeometryN(i)), pathAdapter);
 }
 
 // ----------------------------------------------------------------------
@@ -114,9 +119,10 @@ void contoursFromMultiPolygon(const MultiPolygon *geom, PathAdapter &pathAdapter
  */
 // ----------------------------------------------------------------------
 
-void contoursFromGeometryCollection(const GeometryCollection *geom, PathAdapter &pathAdapter)
+void contoursFromGeometryCollection(const GeometryCollection* geom, PathAdapter& pathAdapter)
 {
-  if (geom == nullptr || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty())
+    return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     frontier::GeosTools::getContours(geom->getGeometryN(i), pathAdapter);
@@ -133,23 +139,23 @@ namespace GeosTools
  */
 // ----------------------------------------------------------------------
 
-const Path &getContours(const Geometry *geom, PathAdapter &pathAdapter)
+const Path& getContours(const Geometry* geom, PathAdapter& pathAdapter)
 {
-  if (const LinearRing *lr = dynamic_cast<const LinearRing *>(geom))
+  if (const LinearRing* lr = dynamic_cast<const LinearRing*>(geom))
     contourFromLinearRing(lr, pathAdapter);
-  else if (const LineString *ls = dynamic_cast<const LineString *>(geom))
+  else if (const LineString* ls = dynamic_cast<const LineString*>(geom))
     contourFromLineString(ls, pathAdapter);
-  else if (const Polygon *p = dynamic_cast<const Polygon *>(geom))
+  else if (const Polygon* p = dynamic_cast<const Polygon*>(geom))
     contoursFromPolygon(p, pathAdapter);
-  else if (const MultiLineString *ml = dynamic_cast<const MultiLineString *>(geom))
+  else if (const MultiLineString* ml = dynamic_cast<const MultiLineString*>(geom))
     contoursFromMultiLineString(ml, pathAdapter);
-  else if (const MultiPolygon *mpg = dynamic_cast<const MultiPolygon *>(geom))
+  else if (const MultiPolygon* mpg = dynamic_cast<const MultiPolygon*>(geom))
     contoursFromMultiPolygon(mpg, pathAdapter);
-  else if (const GeometryCollection *g = dynamic_cast<const GeometryCollection *>(geom))
+  else if (const GeometryCollection* g = dynamic_cast<const GeometryCollection*>(geom))
     contoursFromGeometryCollection(g, pathAdapter);
-  else if (dynamic_cast<const Point *>(geom))
+  else if (dynamic_cast<const Point*>(geom))
     ;
-  else if (dynamic_cast<const MultiPoint *>(geom))
+  else if (dynamic_cast<const MultiPoint*>(geom))
     ;
   else
     throw std::runtime_error("Encountered an unsupported GEOS geometry component");

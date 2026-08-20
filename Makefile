@@ -67,8 +67,13 @@ clean:
 	rm -f $(MAINPROGS) source/*~ include/*~
 	rm -rf obj
 
+# The vendored Clipper sources are excluded to keep them diffable against upstream
+
+FORMATFILES = $(filter-out include/clipper.hpp source/clipper.cpp, \
+		$(wildcard include/*.h include/*.hpp source/*.cpp main/*.cpp))
+
 format:
-	clang-format -i -style=file include/*.h source/*.cpp main/*.cpp
+	clang-format -i -style=file $(FORMATFILES)
 
 mandir ?= $(PREFIX)/share/man
 

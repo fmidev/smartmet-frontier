@@ -17,8 +17,8 @@
 #include <smartmet/woml/Point.h>
 #include <smartmet/woml/TimeSeriesSlot.h>
 
-#include <macgyver/DateTime.h>
 #include <boost/ptr_container/ptr_map.hpp>
+#include <macgyver/DateTime.h>
 #include <memory>
 
 #include <libconfig.h++>
@@ -38,18 +38,18 @@ class Elevation
   Elevation(double theElevation,
             double theScale,
             int theScaledElevation,
-            const std::string &theLLabel,
-            const std::string &theRLabel,
+            const std::string& theLLabel,
+            const std::string& theRLabel,
             bool line = true);
   Elevation(double theElevation);
 
-  bool operator<(const Elevation &theOther) const;
+  bool operator<(const Elevation& theOther) const;
 
   double elevation() const { return itsElevation; }
   double scale() const { return itsScale; }
   int scaledElevation() const { return itsScaledElevation; }
-  const std::string &lLabel() const { return itsLLabel; }
-  const std::string &rLabel() const { return itsRLabel; }
+  const std::string& lLabel() const { return itsLLabel; }
+  const std::string& rLabel() const { return itsRLabel; }
   void factor(double theFactor) { itsFactor = theFactor; }
   double factor() const { return itsFactor; }
   bool line() const { return renderLine; }
@@ -69,7 +69,7 @@ class Elevation
 class AxisManager
 {
  public:
-  AxisManager(const libconfig::Config &config);
+  AxisManager(const libconfig::Config& config);
 
   // Y -axis height
   double axisHeight() const { return itsAxisHeight; }
@@ -77,13 +77,10 @@ class AxisManager
   void axisWidth(double theWidth) { itsAxisWidth = theWidth; }
   double axisWidth() const { return itsAxisWidth; }
   // Time period
-  void timePeriod(const Fmi::TimePeriod &theTimePeriod)
-  {
-    itsTimePeriod = theTimePeriod;
-  }
-  const Fmi::TimePeriod &timePeriod() { return itsTimePeriod; }
+  void timePeriod(const Fmi::TimePeriod& theTimePeriod) { itsTimePeriod = theTimePeriod; }
+  const Fmi::TimePeriod& timePeriod() { return itsTimePeriod; }
   // X -axis offset
-  double xOffset(const Fmi::DateTime &validTime) const;
+  double xOffset(const Fmi::DateTime& validTime) const;
 
   // X -axis step
   double xStep() const;
@@ -92,10 +89,10 @@ class AxisManager
   void utc(bool theUtc) { itsUtc = theUtc; }
   bool utc() const { return itsUtc; }
   // Elevations
-  const std::list<Elevation> &elevations() { return itsElevations; }
+  const std::list<Elevation>& elevations() { return itsElevations; }
   // Scaled elevation
   double scaledElevation(double elevation,
-                         bool *above = nullptr,
+                         bool* above = nullptr,
                          double belowZero = 50.0,
                          double aboveTop = 100.0);
 
@@ -116,12 +113,12 @@ class AxisManager
 class ConfigGroup
 {
  public:
-  ConfigGroup(const std::string &theClassDef,
-              const std::string &theMemberTypes,
-              const std::string *theLabel,
+  ConfigGroup(const std::string& theClassDef,
+              const std::string& theMemberTypes,
+              const std::string* theLabel,
               bool bbCenterMarker,
-              const std::string &thePlaceHolder,
-              const std::string &theMarkerPlaceHolder,
+              const std::string& thePlaceHolder,
+              const std::string& theMarkerPlaceHolder,
               bool combined,
               double theXOffset,
               double theYOffset,
@@ -130,23 +127,23 @@ class ConfigGroup
               double theVSSOffset,
               int theSOffset,
               int theEOffset,
-              std::set<size_t> &theMemberSet,
-              const libconfig::Setting *localScope,
-              const libconfig::Setting *globalScope = nullptr,
-              const std::list<const libconfig::Setting *> *scope = nullptr);
+              std::set<size_t>& theMemberSet,
+              const libconfig::Setting* localScope,
+              const libconfig::Setting* globalScope = nullptr,
+              const std::list<const libconfig::Setting*>* scope = nullptr);
 
-  const std::string &classDef() const { return itsClass; }
-  const std::string &textClassDef() const { return itsTextClass; }
+  const std::string& classDef() const { return itsClass; }
+  const std::string& textClassDef() const { return itsTextClass; }
   std::string label(bool allTypes = false) const
   {
     return (hasLabel ? itsLabel : memberTypes(allTypes));
   }
   bool bbCenterMarker() const { return bbCenterMarkerPos; }
-  const std::string &placeHolder() const { return itsPlaceHolder; }
-  const std::string &markerPlaceHolder() const { return itsMarkerPlaceHolder; }
+  const std::string& placeHolder() const { return itsPlaceHolder; }
+  const std::string& markerPlaceHolder() const { return itsMarkerPlaceHolder; }
   bool standalone() const { return itsStandalone; }
-  bool contains(const std::string &theMemberType, bool only = false) const;
-  void addType(const std::string &type) const;
+  bool contains(const std::string& theMemberType, bool only = false) const;
+  void addType(const std::string& type) const;
   std::string memberTypes(bool allTypes = false) const;
 
   double xOffset() const { return itsXOffset; }
@@ -156,10 +153,10 @@ class ConfigGroup
   double vSSOffset() const { return itsVSSOffset; }
   int sOffset() const { return itsSOffset; }
   int eOffset() const { return itsEOffset; }
-  std::set<size_t> &memberSet() const { return itsMemberSet; }
-  const libconfig::Setting *localScope() const { return itsLocalScope; }
-  const libconfig::Setting *globalScope() const { return itsGlobalScope; }
-  const std::list<const libconfig::Setting *> &scope() const { return itsScope; };
+  std::set<size_t>& memberSet() const { return itsMemberSet; }
+  const libconfig::Setting* localScope() const { return itsLocalScope; }
+  const libconfig::Setting* globalScope() const { return itsGlobalScope; }
+  const std::list<const libconfig::Setting*>& scope() const { return itsScope; };
 
  private:
   ConfigGroup();
@@ -182,35 +179,35 @@ class ConfigGroup
   int itsSOffset;
   int itsEOffset;
 
-  std::set<size_t> &itsMemberSet;  // Types contained in the current group
+  std::set<size_t>& itsMemberSet;  // Types contained in the current group
 
-  const libconfig::Setting *itsLocalScope;         // Group's configuration block
-  const libconfig::Setting *itsGlobalScope;        // Group's global configuration block (if any)
-  std::list<const libconfig::Setting *> itsScope;  // Group's configuration blocks; first all global
-                                                   // blocks (if any), then local/current block
+  const libconfig::Setting* itsLocalScope;        // Group's configuration block
+  const libconfig::Setting* itsGlobalScope;       // Group's global configuration block (if any)
+  std::list<const libconfig::Setting*> itsScope;  // Group's configuration blocks; first all global
+                                                  // blocks (if any), then local/current block
 };
 
 struct MemberType : public std::function<void(ConfigGroup, std::string)>
 {
-  bool operator()(const ConfigGroup &configGroup, const std::string &memberType) const;
+  bool operator()(const ConfigGroup& configGroup, const std::string& memberType) const;
 };
 
 template <typename T>
 struct GroupType : public std::function<void(ConfigGroup, std::string)>
 {
-  bool operator()(const ConfigGroup &configGroup, const std::string &memberTypes) const;
+  bool operator()(const ConfigGroup& configGroup, const std::string& memberTypes) const;
 };
 
 class CloudGroup : public ConfigGroup
 {
  public:
-  CloudGroup(const std::string &theClassDef,
-             const std::string &theCloudTypes,
-             const std::string &theSymbolType,
-             const std::string *theLabel,
+  CloudGroup(const std::string& theClassDef,
+             const std::string& theCloudTypes,
+             const std::string& theSymbolType,
+             const std::string* theLabel,
              bool bbCenterLabel,
-             const std::string &thePlaceHolder,
-             const std::string &theLabelPlaceHolder,
+             const std::string& thePlaceHolder,
+             const std::string& theLabelPlaceHolder,
              bool combined,
              unsigned int theBaseStep,
              unsigned int theMaxRand,
@@ -226,10 +223,10 @@ class CloudGroup : public ConfigGroup
              double theVSSOffset,
              int theSOffset,
              int theEOffset,
-             std::set<size_t> &theCloudSet,
-             const std::list<const libconfig::Setting *> &theScope);
+             std::set<size_t>& theCloudSet,
+             const std::list<const libconfig::Setting*>& theScope);
 
-  const std::string &symbolType() const { return itsSymbolType; }
+  const std::string& symbolType() const { return itsSymbolType; }
   unsigned int baseStep() const { return itsBaseStep; }
   unsigned int maxRand() const { return itsMaxRand; }
   unsigned int maxRepeat() const { return itsMaxRepeat; }
@@ -256,14 +253,14 @@ class CloudGroup : public ConfigGroup
 class IcingGroup : public ConfigGroup
 {
  public:
-  IcingGroup(const std::string &theClassDef,
-             const std::string &theIcingTypes,
-             const std::string *theSymbol,
+  IcingGroup(const std::string& theClassDef,
+             const std::string& theIcingTypes,
+             const std::string* theSymbol,
              bool symbolOnly,
-             const std::string *theLabel,
+             const std::string* theLabel,
              bool bbCenterLabel,
-             const std::string &thePlaceHolder,
-             const std::string &theLabelPlaceHolder,
+             const std::string& thePlaceHolder,
+             const std::string& theLabelPlaceHolder,
              bool combined,
              double theXOffset,
              double theYOffset,
@@ -272,11 +269,11 @@ class IcingGroup : public ConfigGroup
              double theVSSOffset,
              int theSOffset,
              int theEOffset,
-             std::set<size_t> &theIcingSet,
-             const libconfig::Setting *localScope,
-             const libconfig::Setting *globalScope = nullptr);
+             std::set<size_t>& theIcingSet,
+             const libconfig::Setting* localScope,
+             const libconfig::Setting* globalScope = nullptr);
 
-  const std::string &symbol() const { return itsSymbol; }
+  const std::string& symbol() const { return itsSymbol; }
   bool symbolOnly() const { return renderSymbolOnly; }
 
  private:
@@ -293,12 +290,12 @@ class CategoryValueMeasureGroup
  public:
   virtual ~CategoryValueMeasureGroup() {}
   CategoryValueMeasureGroup() : itsFirstMember(nullptr) {}
-  virtual bool groupMember(const woml::CategoryValueMeasure *cvm) const { return true; }
-  virtual bool groupMember(bool first, const woml::CategoryValueMeasure *cvm);
+  virtual bool groupMember(const woml::CategoryValueMeasure* cvm) const { return true; }
+  virtual bool groupMember(bool first, const woml::CategoryValueMeasure* cvm);
   virtual bool standalone() { return false; }
 
  protected:
-  const woml::CategoryValueMeasure *itsFirstMember;
+  const woml::CategoryValueMeasure* itsFirstMember;
 };
 
 template <typename T>
@@ -307,12 +304,12 @@ class GroupCategory : public CategoryValueMeasureGroup
  public:
   GroupCategory();
 
-  typename std::list<T> &groups() { return itsGroups; }
+  typename std::list<T>& groups() { return itsGroups; }
   typename std::list<T>::const_iterator currentGroup() { return itcg; }
-  bool groupMember(const woml::CategoryValueMeasure *cvm) const;
-  bool groupMember(bool first, const woml::CategoryValueMeasure *cvm);
+  bool groupMember(const woml::CategoryValueMeasure* cvm) const;
+  bool groupMember(bool first, const woml::CategoryValueMeasure* cvm);
   bool standalone() { return ((itsGroups.size() > 0) && (*itcg).standalone()); }
-  const std::string &groupSymbol() const;
+  const std::string& groupSymbol() const;
   std::string groupLabel() const;
 
  private:
@@ -329,17 +326,15 @@ class ElevationGroupItem
  public:
   ElevationGroupItem(
       Fmi::DateTime theValidTime,
-      const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator
-          &thePvs,
-      const std::list<woml::GeophysicalParameterValue>::iterator &thePv);
+      const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator& thePvs,
+      const std::list<woml::GeophysicalParameterValue>::iterator& thePv);
 
-  const Fmi::DateTime &validTime() const { return itsValidTime; }
-  const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator &Pvs()
-      const
+  const Fmi::DateTime& validTime() const { return itsValidTime; }
+  const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator& Pvs() const
   {
     return itsPvs;
   }
-  const std::list<woml::GeophysicalParameterValue>::iterator &Pv() const;
+  const std::list<woml::GeophysicalParameterValue>::iterator& Pv() const;
   void topConnected(bool connected) { itsTopConnected = connected; }
   bool topConnected() const { return itsTopConnected; }
   void bottomConnected(bool connected) { itsBottomConnected = connected; }
@@ -350,7 +345,7 @@ class ElevationGroupItem
   {
     itsBottomConnection = theBottomConnection;
   }
-  const std::optional<woml::Elevation> &bottomConnection() const { return itsBottomConnection; }
+  const std::optional<woml::Elevation>& bottomConnection() const { return itsBottomConnection; }
   void isScanned(bool scanned);
   bool isScanned() const;
   void isGroundConnected(bool connected);
@@ -361,18 +356,15 @@ class ElevationGroupItem
   bool hasHole() const;
   void isHole(bool hole);
   bool isHole() const;
-  bool assHole()
-  { /* K.W.H */
-    return (hasHole() && isHole());
-  }
+  bool assHole() { /* K.W.H */ return (hasHole() && isHole()); }
   void isGenerated(bool generated) { itsGenerated = generated; }
   bool isGenerated() const { return itsGenerated; }
   void isDeleted(bool deleted) { itsDeleted = deleted; }
   bool isDeleted() const { return itsDeleted; }
   void groupNumber(unsigned int group);
   unsigned int groupNumber() const;
-  void elevation(std::optional<woml::Elevation> &theElevation) { itsElevation = theElevation; }
-  const woml::Elevation &elevation() const
+  void elevation(std::optional<woml::Elevation>& theElevation) { itsElevation = theElevation; }
+  const woml::Elevation& elevation() const
   {
     return (itsElevation ? *itsElevation : Pv()->elevation());
   }
@@ -396,7 +388,7 @@ class ElevationGroupItem
   bool itsBottomConnected;
   bool itsLeftOpen;
   std::optional<woml::Elevation> itsBottomConnection;  // Rigth side elevation
-  bool itsGenerated;                                     // Set for generated (below 0) elevation
+  bool itsGenerated;                                   // Set for generated (below 0) elevation
   bool itsDeleted;  // Set when elevation is deleted from the underlying woml object collection
   std::optional<woml::Elevation> itsElevation;  // ZeroTolerance; generated below zero elevation
 };
@@ -415,7 +407,7 @@ struct ElevationHole
   {
   }
 
-  bool operator<(const ElevationHole &theOther) const;
+  bool operator<(const ElevationHole& theOther) const;
 
   ElevGrp::iterator aboveElev;  // Elevation above the hole
   ElevGrp::iterator belowElev;  // Elevation below the hole
@@ -462,110 +454,109 @@ class SvgRenderer : public woml::FeatureVisitor
 {
  public:
   virtual ~SvgRenderer() {}
-  SvgRenderer(const Options &theOptions,
-              const libconfig::Config &theConfig,
-              const std::string &theTemplate,
-              const std::shared_ptr<NFmiArea> &theArea,
-              const Fmi::DateTime &theValidTime,
-              std::ostringstream *theDebugOutput = nullptr);
+  SvgRenderer(const Options& theOptions,
+              const libconfig::Config& theConfig,
+              const std::string& theTemplate,
+              const std::shared_ptr<NFmiArea>& theArea,
+              const Fmi::DateTime& theValidTime,
+              std::ostringstream* theDebugOutput = nullptr);
 
-  virtual void visit(const woml::CloudArea &theFeature);
-  virtual void visit(const woml::ColdAdvection &theFeature);
-  virtual void visit(const woml::ColdFront &theFeature);
-  virtual void visit(const woml::JetStream &theFeature);
-  virtual void visit(const woml::OccludedFront &theFeature);
-  virtual void visit(const woml::PointMeteorologicalSymbol &theFeature);
-  virtual void visit(const woml::Ridge &theFeature);
-  virtual void visit(const woml::SurfacePrecipitationArea &theFeature);
-  virtual void visit(const woml::ParameterValueSetArea &theFeature);
-  virtual void visit(const woml::Trough &theFeature);
-  virtual void visit(const woml::UpperTrough &theFeature);
-  virtual void visit(const woml::WarmAdvection &theFeature);
-  virtual void visit(const woml::WarmFront &theFeature);
+  virtual void visit(const woml::CloudArea& theFeature);
+  virtual void visit(const woml::ColdAdvection& theFeature);
+  virtual void visit(const woml::ColdFront& theFeature);
+  virtual void visit(const woml::JetStream& theFeature);
+  virtual void visit(const woml::OccludedFront& theFeature);
+  virtual void visit(const woml::PointMeteorologicalSymbol& theFeature);
+  virtual void visit(const woml::Ridge& theFeature);
+  virtual void visit(const woml::SurfacePrecipitationArea& theFeature);
+  virtual void visit(const woml::ParameterValueSetArea& theFeature);
+  virtual void visit(const woml::Trough& theFeature);
+  virtual void visit(const woml::UpperTrough& theFeature);
+  virtual void visit(const woml::WarmAdvection& theFeature);
+  virtual void visit(const woml::WarmFront& theFeature);
 
-  virtual void visit(const woml::AntiCyclone &theFeature);
-  virtual void visit(const woml::Antimesocyclone &theFeature);
-  virtual void visit(const woml::Cyclone &theFeature);
-  virtual void visit(const woml::HighPressureCenter &theFeature);
-  virtual void visit(const woml::LowPressureCenter &theFeature);
-  virtual void visit(const woml::Mesocyclone &theFeature);
-  virtual void visit(const woml::Mesolow &theFeature);
-  virtual void visit(const woml::ParameterValueSetPoint &theFeature);
-  virtual void visit(const woml::PolarCyclone &theFeature);
-  virtual void visit(const woml::PolarLow &theFeature);
-  virtual void visit(const woml::TropicalCyclone &theFeature);
-  virtual void visit(const woml::ConvectiveStorm &theFeature);
-  virtual void visit(const woml::Storm &theFeature);
+  virtual void visit(const woml::AntiCyclone& theFeature);
+  virtual void visit(const woml::Antimesocyclone& theFeature);
+  virtual void visit(const woml::Cyclone& theFeature);
+  virtual void visit(const woml::HighPressureCenter& theFeature);
+  virtual void visit(const woml::LowPressureCenter& theFeature);
+  virtual void visit(const woml::Mesocyclone& theFeature);
+  virtual void visit(const woml::Mesolow& theFeature);
+  virtual void visit(const woml::ParameterValueSetPoint& theFeature);
+  virtual void visit(const woml::PolarCyclone& theFeature);
+  virtual void visit(const woml::PolarLow& theFeature);
+  virtual void visit(const woml::TropicalCyclone& theFeature);
+  virtual void visit(const woml::ConvectiveStorm& theFeature);
+  virtual void visit(const woml::Storm& theFeature);
 
-  virtual void visit(const woml::InfoText &theFeature);
+  virtual void visit(const woml::InfoText& theFeature);
 
-  virtual void visit(const woml::CloudLayers &theFeature);
-  virtual void visit(const woml::Contrails &theFeature);
-  virtual void visit(const woml::Icing &theFeature);
-  virtual void visit(const woml::Turbulence &theFeature);
-  virtual void visit(const woml::MigratoryBirds &theFeature);
-  virtual void visit(const woml::SurfaceVisibility &theFeature);
-  virtual void visit(const woml::SurfaceWeather &theFeature);
-  virtual void visit(const woml::Winds &theFeature);
-  virtual void visit(const woml::ZeroTolerance &theFeature);
+  virtual void visit(const woml::CloudLayers& theFeature);
+  virtual void visit(const woml::Contrails& theFeature);
+  virtual void visit(const woml::Icing& theFeature);
+  virtual void visit(const woml::Turbulence& theFeature);
+  virtual void visit(const woml::MigratoryBirds& theFeature);
+  virtual void visit(const woml::SurfaceVisibility& theFeature);
+  virtual void visit(const woml::SurfaceWeather& theFeature);
+  virtual void visit(const woml::Winds& theFeature);
+  virtual void visit(const woml::ZeroTolerance& theFeature);
 
-  void contour(const std::shared_ptr<NFmiQueryData> &theQD,
-               const Fmi::DateTime &theTime);
+  void contour(const std::shared_ptr<NFmiQueryData>& theQD, const Fmi::DateTime& theTime);
 
-  void render_header(Fmi::DateTime &validTime,
-                     const Fmi::TimePeriod &timePeriod,
-                     const Fmi::DateTime &forecastTime,
-                     const Fmi::DateTime &creationTime,
-                     const std::optional<Fmi::DateTime> &modificationTime,
-                     const std::string &regionName,
-                     const std::string &regionId,
-                     const std::string &creator);
+  void render_header(Fmi::DateTime& validTime,
+                     const Fmi::TimePeriod& timePeriod,
+                     const Fmi::DateTime& forecastTime,
+                     const Fmi::DateTime& creationTime,
+                     const std::optional<Fmi::DateTime>& modificationTime,
+                     const std::string& regionName,
+                     const std::string& regionId,
+                     const std::string& creator);
 
   std::string svg() const;
 
  private:
   SvgRenderer();
 
-  bool hasCssClass(const std::string &theCssClass) const;
+  bool hasCssClass(const std::string& theCssClass) const;
 
-  double getCssSize(const std::string &theCssClass,
-                    const std::string &theAttribute,
+  double getCssSize(const std::string& theCssClass,
+                    const std::string& theAttribute,
                     double defaultValue = 30);
   template <typename T>
-  T getSetting(const std::string &theConfigClass,
-               const std::string &theAttribute,
+  T getSetting(const std::string& theConfigClass,
+               const std::string& theAttribute,
                T theDefaultValue);
 
-  void render_header(const std::string &hdrClass,
-                     const Fmi::DateTime &datetime,
+  void render_header(const std::string& hdrClass,
+                     const Fmi::DateTime& datetime,
                      bool useDate = false,
-                     const std::string &text = "",
-                     const std::string &confPath = "Header");
-  void render_text(Texts &texts,
-                   const std::string &confPath,
-                   const std::string &textName,
-                   const std::string &text,
-                   int &xPosW,
-                   int &yPosH,  // I: text's starting x/y pos O: text's width/height
+                     const std::string& text = "",
+                     const std::string& confPath = "Header");
+  void render_text(Texts& texts,
+                   const std::string& confPath,
+                   const std::string& textName,
+                   const std::string& text,
+                   int& xPosW,
+                   int& yPosH,  // I: text's starting x/y pos O: text's width/height
                    bool ignoreErr = true,
                    bool setTextArea = true,
                    bool centerToStartX = false,
-                   const std::string &TEXTPOSid = "",
+                   const std::string& TEXTPOSid = "",
                    bool useTextName = false,
-                   int *maxTextWidth = nullptr,  // I
-                   int *fontSize = nullptr,      // I
-                   int *tXOffset = nullptr,      // I/O: area text's border x -offset
-                   int *tYOffset = nullptr);     // I/O: area text's border y -offset
-  void render_surface(Path &path,
-                      std::ostringstream &surfaceOutput,
-                      const std::string &id,
-                      const std::string &surfaceName,
-                      const woml::Feature *feature = nullptr,
-                      const std::list<std::string> *areaSymbols = nullptr);
-  void render_aerodromeSymbol(const std::string &confPath,
-                              const std::string &symClass,
-                              const std::string &classNameExt,
-                              const std::string &value,
+                   int* maxTextWidth = nullptr,  // I
+                   int* fontSize = nullptr,      // I
+                   int* tXOffset = nullptr,      // I/O: area text's border x -offset
+                   int* tYOffset = nullptr);     // I/O: area text's border y -offset
+  void render_surface(Path& path,
+                      std::ostringstream& surfaceOutput,
+                      const std::string& id,
+                      const std::string& surfaceName,
+                      const woml::Feature* feature = nullptr,
+                      const std::list<std::string>* areaSymbols = nullptr);
+  void render_aerodromeSymbol(const std::string& confPath,
+                              const std::string& symClass,
+                              const std::string& classNameExt,
+                              const std::string& value,
                               double x,
                               double y,
                               bool codeValue = true,
@@ -574,27 +565,27 @@ class SvgRenderer : public woml::FeatureVisitor
                               double yScale = -1.0,
                               const std::string symbolPosIdN = "");
   template <typename T>
-  void render_aerodromeSymbols(const T &theFeature,
-                               const std::string &confPath,
+  void render_aerodromeSymbols(const T& theFeature,
+                               const std::string& confPath,
                                bool setVisibility = false);
-  void render_symbol(const std::string &path,
-                     std::ostringstream &symOutput,
-                     const std::string &symClass,
-                     const std::string &symCode,
+  void render_symbol(const std::string& path,
+                     std::ostringstream& symOutput,
+                     const std::string& symClass,
+                     const std::string& symCode,
                      double lon,
                      double lat,
-                     const woml::Feature *feature = nullptr,
+                     const woml::Feature* feature = nullptr,
                      bool trueNorthAdjustment = false,
-                     const woml::NumericalSingleValueMeasure *svm = nullptr,
-                     NFmiFillPositions *fpos = nullptr,
-                     const std::list<std::string> *areaSymbols = nullptr,
+                     const woml::NumericalSingleValueMeasure* svm = nullptr,
+                     NFmiFillPositions* fpos = nullptr,
+                     const std::list<std::string>* areaSymbols = nullptr,
                      int width = 0,
                      int height = 0);
-  void render_value(const std::string &path,
-                    std::ostringstream &valOutput,
-                    const std::string &valClass,
-                    const woml::NumericalSingleValueMeasure *lowerLimit,
-                    const woml::NumericalSingleValueMeasure *upperLimit,
+  void render_value(const std::string& path,
+                    std::ostringstream& valOutput,
+                    const std::string& valClass,
+                    const woml::NumericalSingleValueMeasure* lowerLimit,
+                    const woml::NumericalSingleValueMeasure* upperLimit,
                     double lon,
                     double lat,
                     bool asValue = false);
@@ -616,86 +607,86 @@ class SvgRenderer : public woml::FeatureVisitor
     t_nonground,
     t_mixed
   } ElevationGroupType;
-  ElevationGroupType elevationGroup(const std::list<woml::TimeSeriesSlot> &ts,
-                                    Fmi::DateTime &bt,
-                                    Fmi::DateTime &et,
-                                    ElevGrp &eGrp,
+  ElevationGroupType elevationGroup(const std::list<woml::TimeSeriesSlot>& ts,
+                                    Fmi::DateTime& bt,
+                                    Fmi::DateTime& et,
+                                    ElevGrp& eGrp,
                                     bool all = true,
                                     bool join = true,
                                     bool getHole = false,
-                                    CategoryValueMeasureGroup *categoryGroup = nullptr);
-  unsigned int getLeftSideGroupNumber(ElevGrp &eGrp,
-                                      ElevGrp::iterator &iteg,
+                                    CategoryValueMeasureGroup* categoryGroup = nullptr);
+  unsigned int getLeftSideGroupNumber(ElevGrp& eGrp,
+                                      ElevGrp::iterator& iteg,
                                       unsigned int nextGroupNumber,
                                       bool mixed = true);
-  unsigned int getRightSideGroupNumber(ElevGrp &eGrp,
-                                       ElevGrp::reverse_iterator &itegrev,
+  unsigned int getRightSideGroupNumber(ElevGrp& eGrp,
+                                       ElevGrp::reverse_iterator& itegrev,
                                        unsigned int groupNumber,
                                        bool mixed = true);
-  void setGroupNumbers(const std::list<woml::TimeSeriesSlot> &ts, bool mixed = true);
-  void checkLeftSide(ElevGrp &eGrp,
-                     ElevationHole &hole,
-                     CategoryValueMeasureGroup *groupCategory = nullptr);
-  bool checkLeftSideHoles(ElevationHoles &holes,
-                          ElevationHoles::iterator &iteh,
-                          CategoryValueMeasureGroup *groupCategory = nullptr);
-  void checkRightSide(ElevGrp &eGrp,
-                      ElevationHoles::iterator &iteh,
-                      CategoryValueMeasureGroup *groupCategory = nullptr);
-  bool checkRightSideHoles(ElevationHoles &holes,
+  void setGroupNumbers(const std::list<woml::TimeSeriesSlot>& ts, bool mixed = true);
+  void checkLeftSide(ElevGrp& eGrp,
+                     ElevationHole& hole,
+                     CategoryValueMeasureGroup* groupCategory = nullptr);
+  bool checkLeftSideHoles(ElevationHoles& holes,
+                          ElevationHoles::iterator& iteh,
+                          CategoryValueMeasureGroup* groupCategory = nullptr);
+  void checkRightSide(ElevGrp& eGrp,
+                      ElevationHoles::iterator& iteh,
+                      CategoryValueMeasureGroup* groupCategory = nullptr);
+  bool checkRightSideHoles(ElevationHoles& holes,
                            ElevationHoles::reverse_iterator iteh,
-                           CategoryValueMeasureGroup *groupCategory = nullptr);
-  bool checkBothSideHoles(ElevationHoles &holes,
-                          ElevationHoles::iterator &iteh,
-                          CategoryValueMeasureGroup *groupCategory = nullptr);
-  bool checkHoles(ElevGrp &eGrp,
-                  ElevationHoles &holes,
-                  CategoryValueMeasureGroup *groupCategory = nullptr,
+                           CategoryValueMeasureGroup* groupCategory = nullptr);
+  bool checkBothSideHoles(ElevationHoles& holes,
+                          ElevationHoles::iterator& iteh,
+                          CategoryValueMeasureGroup* groupCategory = nullptr);
+  bool checkHoles(ElevGrp& eGrp,
+                  ElevationHoles& holes,
+                  CategoryValueMeasureGroup* groupCategory = nullptr,
                   bool setNegative = true);
-  bool checkCategory(CategoryValueMeasureGroup *groupCategory, ElevGrp::iterator &e) const;
-  bool checkCategory(CategoryValueMeasureGroup *groupCategory,
-                     ElevGrp::iterator &e1,
-                     ElevGrp::iterator &e2) const;
-  bool searchHoles(const std::list<woml::TimeSeriesSlot> &ts,
-                   CategoryValueMeasureGroup *groupCategory = nullptr,
+  bool checkCategory(CategoryValueMeasureGroup* groupCategory, ElevGrp::iterator& e) const;
+  bool checkCategory(CategoryValueMeasureGroup* groupCategory,
+                     ElevGrp::iterator& e1,
+                     ElevGrp::iterator& e2) const;
+  bool searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
+                   CategoryValueMeasureGroup* groupCategory = nullptr,
                    bool setNegative = true);
   Phase uprightdown(
-      ElevGrp &eGrp, ElevGrp::iterator &iteg, double lo, double hi, bool nonGndFwd2Gnd = true);
+      ElevGrp& eGrp, ElevGrp::iterator& iteg, double lo, double hi, bool nonGndFwd2Gnd = true);
   Phase downleftup(
-      ElevGrp &eGrp, ElevGrp::iterator &iteg, double lo, double hi, bool nonGndVdn2Gnd = false);
+      ElevGrp& eGrp, ElevGrp::iterator& iteg, double lo, double hi, bool nonGndVdn2Gnd = false);
 
   template <typename T>
-  void render_aerodrome(const T &theFeature);
-  void render_aerodromeFrame(const Fmi::TimePeriod &theTimePeriod);
+  void render_aerodrome(const T& theFeature);
+  void render_aerodromeFrame(const Fmi::TimePeriod& theTimePeriod);
   void render_elevationAxis();
-  void render_timeAxis(const Fmi::TimePeriod &theTimePeriod);
-  const libconfig::Setting &cloudLayerConfig(const std::string &confPath,
-                                             double &tightness,
-                                             bool &borderCompensation,
-                                             int &minLabelPosHeight,
-                                             double &labelPosHeightFactor,
-                                             std::list<CloudGroup> &cloudGroups,
-                                             std::set<size_t> &cloudSet);
-  void render_cloudSymbol(const std::string &confPath,
-                          const CloudGroup &cg,
+  void render_timeAxis(const Fmi::TimePeriod& theTimePeriod);
+  const libconfig::Setting& cloudLayerConfig(const std::string& confPath,
+                                             double& tightness,
+                                             bool& borderCompensation,
+                                             int& minLabelPosHeight,
+                                             double& labelPosHeightFactor,
+                                             std::list<CloudGroup>& cloudGroups,
+                                             std::set<size_t>& cloudSet);
+  void render_cloudSymbol(const std::string& confPath,
+                          const CloudGroup& cg,
                           int nGroups,
                           double x,
                           double lopx,
                           double hipx);
   void render_cloudSymbols(const std::string confPath,
-                           const ElevGrp &eGrp,
+                           const ElevGrp& eGrp,
                            std::list<CloudGroup>::const_iterator itcg,
                            int nGroups,
-                           bool &visible,
-                           bool &aboveTop);
-  bool scaledCurvePositions(ElevGrp &eGrp,
-                            const Fmi::DateTime &bt,
-                            const Fmi::DateTime &et,
-                            std::vector<DirectPosition> &curvePositions,
-                            std::vector<DirectPosition> &curvePositions0,
-                            std::vector<double> &scaledLo,
-                            std::vector<double> &scaledHi,
-                            std::vector<bool> &hasHole,
+                           bool& visible,
+                           bool& aboveTop);
+  bool scaledCurvePositions(ElevGrp& eGrp,
+                            const Fmi::DateTime& bt,
+                            const Fmi::DateTime& et,
+                            std::vector<DirectPosition>& curvePositions,
+                            std::vector<DirectPosition>& curvePositions0,
+                            std::vector<double>& scaledLo,
+                            std::vector<double>& scaledHi,
+                            std::vector<bool>& hasHole,
                             double xOffset,
                             double yOffset,
                             double vOffset,
@@ -705,81 +696,81 @@ class SvgRenderer : public woml::FeatureVisitor
                             int eOffset,
                             int scaleHeightMin,
                             int scaleHeightRandom,
-                            std::ostringstream &path,
-                            bool *isVisible = nullptr,
+                            std::ostringstream& path,
+                            bool* isVisible = nullptr,
                             bool checkGround = false,
                             bool nonGndFwd2Gnd = true,
                             bool nonGndVdn2Gnd = false);
-  void render_timeserie(const woml::CloudLayers &cloudlayers);
-  void render_timeserie(const woml::Contrails &contrails);
+  void render_timeserie(const woml::CloudLayers& cloudlayers);
+  void render_timeserie(const woml::Contrails& contrails);
   template <typename T>
-  const libconfig::Setting &groupConfig(const std::string &groupConfPath,
-                                        double &tightness,
-                                        int &minLabelPosHeight,
-                                        double &labelPosHeightFactor,
-                                        std::list<T> &groups,
-                                        std::set<size_t> &memberSet);
+  const libconfig::Setting& groupConfig(const std::string& groupConfPath,
+                                        double& tightness,
+                                        int& minLabelPosHeight,
+                                        double& labelPosHeightFactor,
+                                        std::list<T>& groups,
+                                        std::set<size_t>& memberSet);
   template <typename GroupCategoryT, typename GroupTypeT>
-  void render_timeserie(const std::list<woml::TimeSeriesSlot> &ts,
-                        const std::string &confPath,
-                        const std::string &classNameExt);
-  void render_timeserie(const woml::Icing &icing);
-  void render_timeserie(const woml::Turbulence &turbulence);
-  void render_timeserie(const woml::MigratoryBirds &migratorybirds);
-  void render_timeserie(const woml::SurfaceVisibility &surfacevisibility);
-  void render_timeserie(const woml::SurfaceWeather &surfaceweather);
-  void render_timeserie(const woml::Winds &winds);
-  void checkZeroToleranceGroup(ElevGrp &eGrpIn, ElevGrp &eGrpOut, bool mixed = true);
-  void render_timeserie(const woml::ZeroTolerance &zerotolerance);
-  void setTextPosition(const Path &path,
-                       const std::string &TEXTPOSid,
-                       std::string &textPosition,
-                       const NFmiFillRect &infoTextRect,
+  void render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
+                        const std::string& confPath,
+                        const std::string& classNameExt);
+  void render_timeserie(const woml::Icing& icing);
+  void render_timeserie(const woml::Turbulence& turbulence);
+  void render_timeserie(const woml::MigratoryBirds& migratorybirds);
+  void render_timeserie(const woml::SurfaceVisibility& surfacevisibility);
+  void render_timeserie(const woml::SurfaceWeather& surfaceweather);
+  void render_timeserie(const woml::Winds& winds);
+  void checkZeroToleranceGroup(ElevGrp& eGrpIn, ElevGrp& eGrpOut, bool mixed = true);
+  void render_timeserie(const woml::ZeroTolerance& zerotolerance);
+  void setTextPosition(const Path& path,
+                       const std::string& TEXTPOSid,
+                       std::string& textPosition,
+                       const NFmiFillRect& infoTextRect,
                        int areaWidth,
                        int areaHeight,
                        int textWidth,
                        int textHeight,
                        int tXOffset,
                        int tYOffset,
-                       Path::BBox *boundingBox = nullptr);
-  void renderAreaLabels(const std::list<DirectPosition> &curvePoints,
-                        NFmiFillAreas &holeAreas,
-                        const std::string &confPath,
-                        const std::string &textName,
-                        const std::string &labelPlaceHolder,
-                        const std::string &textPosId,
+                       Path::BBox* boundingBox = nullptr);
+  void renderAreaLabels(const std::list<DirectPosition>& curvePoints,
+                        NFmiFillAreas& holeAreas,
+                        const std::string& confPath,
+                        const std::string& textName,
+                        const std::string& labelPlaceHolder,
+                        const std::string& textPosId,
                         bool isHole,
-                        const std::string &label,
+                        const std::string& label,
                         bool bbCenterLabel,
                         double minX,
                         int minH,
                         double hFactor,
                         double sOffset,
                         double eOffset,
-                        std::vector<double> &loPx,
-                        std::vector<double> &hiPx,
-                        std::vector<bool> &hasHole,
+                        std::vector<double>& loPx,
+                        std::vector<double>& hiPx,
+                        std::vector<bool>& hasHole,
                         bool reserveFillAreas,
-                        const std::string &areaPlaceHolder = "");
+                        const std::string& areaPlaceHolder = "");
   template <typename T>
-  void renderAreaSymbols(const T &cg,
-                         const std::list<DirectPosition> &curvePoints,
-                         NFmiFillAreas &holeAreas,
-                         const std::string &confPath,
-                         const std::string &symbolPosId,
+  void renderAreaSymbols(const T& cg,
+                         const std::list<DirectPosition>& curvePoints,
+                         NFmiFillAreas& holeAreas,
+                         const std::string& confPath,
+                         const std::string& symbolPosId,
                          double minx,
-                         std::vector<double> &loPx,
-                         std::vector<double> &hiPx,
-                         std::vector<bool> &hasHole,
-                         const std::string &symClass,
-                         const std::string &classNameExt,
-                         const std::string &symbol,
+                         std::vector<double>& loPx,
+                         std::vector<double>& hiPx,
+                         std::vector<bool>& hasHole,
+                         const std::string& symClass,
+                         const std::string& classNameExt,
+                         const std::string& symbol,
                          bool asSymbol,
-                         bool &visible,
-                         bool &aboveTop);
+                         bool& visible,
+                         bool& aboveTop);
 
-  const Options &options;
-  const libconfig::Config &config;
+  const Options& options;
+  const libconfig::Config& config;
   std::string svgbase;
   std::shared_ptr<NFmiArea> area;
   const Fmi::DateTime validtime;
@@ -808,7 +799,7 @@ class SvgRenderer : public woml::FeatureVisitor
   std::ostringstream uppertroughs;
   std::ostringstream warmadvections;
   std::ostringstream warmfronts;
-  std::ostringstream &debugoutput;
+  std::ostringstream& debugoutput;
 
   // For text and various stuff
   Texts texts;
