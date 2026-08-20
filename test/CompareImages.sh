@@ -65,7 +65,7 @@ fi
 # Create the PNGs for comparisons.
 # Note: sometimes 'file' reports text/x-asm instead of html due to dots in css class names
 
-if [[ "$MIME" == "text/html" || "$MIME" == "text/x-asm" || "$MIME" == "image/svg" ]]; then
+if [[ "$MIME" == "text/html" || "$MIME" == "text/x-asm" || "$MIME" == "image/svg" || "$MIME" == "image/svg+xml" ]]; then
     rsvg-convert -b white -f png -o $EXPECTED_PNG $EXPECTED
     rsvg-convert -b white -f png -o $RESULT_PNG $RESULT
 
@@ -81,14 +81,24 @@ else
     exit 1
 fi
 
-# Compare the images
+# Compare the images.
+#
+# The formatting of ImageMagick's PSNR metric varies between versions, but the
+# normalized mean squared error printed in parentheses by the MSE metric is
+# stable. PSNR is derived from it as -10*log10(MSE).
 
-DBZ=$((compare 2>&1 -metric PSNR $EXPECTED_PNG $RESULT_PNG /dev/null | head -1 | sed "-es/ dB//") || echo PNG COMPARISON FAILED && exit 1)
+MSE=$(compare 2>&1 -metric MSE $EXPECTED_PNG $RESULT_PNG /dev/null | head -1 | sed -e 's/.*(\(.*\))/\1/')
 
-if ! echo "$DBZ" | grep -Eq '^(inf|[\+\-]?[0-9][0-9]*(\.[0-9]*)?)$' ; then
-    echo -e "FAIL\t\t$DBZ"
+if ! echo "$MSE" | grep -Eq '^[0-9]+(\.[0-9]+)?([eE][\+\-]?[0-9]+)?$' ; then
+    echo -e "FAIL\t\tPNG comparison failed"
     exit 1
-elif [ "$DBZ" = inf ]; then
+fi
+
+# bc does not understand the scientific notation ImageMagick may use
+
+DBZ=$(echo "$MSE" | awk '{ if ($1 <= 0) print "inf"; else printf "%.4f", -10*log($1)/log(10) }')
+
+if [ "$DBZ" = inf ]; then
     echo -e "OK\t\tPSNR = inf"
     rm -f $EXPECTED_PNG $RESULT_PNG $DIFFERENCE_PNG
     exit 0

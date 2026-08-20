@@ -15,7 +15,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/regex.hpp>
-#include <geos/version.h>
+#include <geos/geom/GeometryFactory.h>
 #include <fmt/format.h>
 #include <macgyver/StringConversion.h>
 #include <gis/CoordinateMatrix.h>
@@ -28,9 +28,12 @@
 #include <smartmet/newbase/NFmiQueryData.h>
 #include <smartmet/newbase/NFmiString.h>
 #include <smartmet/newbase/NFmiStringTools.h>
-#include <smartmet/tron/LinearInterpolation.h>
-#include <smartmet/tron/SavitzkyGolay2D.h>
-#include <smartmet/tron/Traits.h>
+#include <smartmet/trax/Contour.h>
+#include <smartmet/trax/Geos.h>
+#include <smartmet/trax/Grid.h>
+#include <smartmet/trax/IsolineValues.h>
+#include <smartmet/trax/SmoothOptions.h>
+#include <smartmet/trax/Smoother.h>
 #include <smartmet/woml/CloudArea.h>
 #include <smartmet/woml/CubicSplineSurface.h>
 #include <smartmet/woml/GeophysicalParameterValueSet.h>
@@ -51,11 +54,6 @@
 #include <iostream>
 #include <limits>
 #include <list>
-
-// clang-format off
-#include <smartmet/tron/FmiBuilder.h>
-#include <smartmet/tron/Contourer.h>
-// clang-format on
 
 namespace p = std::placeholders;
 
@@ -12164,52 +12162,41 @@ T SvgRenderer::getSetting(const std::string &theConfigClass,
  */
 // ----------------------------------------------------------------------
 
-class DataMatrixAdapter
+// Adapts a newbase data matrix and the respective projected coordinates to the
+// Trax grid API. Trax uses NaN as the missing value, hence make_nan_missing
+// must be called for newbase data using kFloatMissing instead.
+
+class DataMatrixAdapter : public Trax::Grid
 {
  public:
-  typedef float value_type;
-  typedef double coord_type;
-  typedef NFmiDataMatrix<value_type>::size_type size_type;
+  DataMatrixAdapter() = delete;
 
-  DataMatrixAdapter(const NFmiDataMatrix<value_type> &theMatrix,
+  DataMatrixAdapter(const NFmiDataMatrix<float> &theMatrix,
                     const Fmi::CoordinateMatrix &theCoordinates)
       : itsMatrix(theMatrix), itsCoordinates(theCoordinates)
   {
   }
 
-  const value_type &operator()(size_type i, size_type j) const { return itsMatrix[i][j]; }
-  value_type &operator()(size_type i, size_type j) { return itsMatrix[i][j]; }
-  coord_type x(size_type i, size_type j) const { return itsCoordinates.x(i, j); }
-  coord_type y(size_type i, size_type j) const { return itsCoordinates.y(i, j); }
-  bool valid(size_type i, size_type j) const { return true; }
-  size_type width() const { return itsMatrix.NX(); }
-  size_type height() const { return itsMatrix.NY(); }
-  void swap(DataMatrixAdapter &other)
-  {
-    itsMatrix.swap(other.itsMatrix);
-    itsCoordinates.swap(other.itsCoordinates);
-  }
+  float operator()(long i, long j) const override { return itsMatrix[i][j]; }
+  void set(long i, long j, float z) override { itsMatrix[i][j] = z; }
+  double x(long i, long j) const override { return itsCoordinates.x(i, j); }
+  double y(long i, long j) const override { return itsCoordinates.y(i, j); }
+  bool valid(long i, long j) const override { return true; }
+  std::size_t width() const override { return itsMatrix.NX(); }
+  std::size_t height() const override { return itsMatrix.NY(); }
 
   void make_nan_missing()
   {
-    for (size_type j = 0; j < height(); ++j)
-      for (size_type i = 0; i < width(); ++i)
+    for (std::size_t j = 0; j < itsMatrix.NY(); ++j)
+      for (std::size_t i = 0; i < itsMatrix.NX(); ++i)
         if (itsMatrix[i][j] == kFloatMissing)
           itsMatrix[i][j] = std::numeric_limits<float>::quiet_NaN();
   }
 
  private:
-  DataMatrixAdapter();
   NFmiDataMatrix<float> itsMatrix;
   Fmi::CoordinateMatrix itsCoordinates;
 };
-
-typedef Tron::Traits<float, float, Tron::NanMissing> MyTraits;
-
-typedef Tron::Contourer<DataMatrixAdapter, Tron::FmiBuilder, MyTraits, Tron::LinearInterpolation>
-    MyContourer;
-
-typedef Tron::Hints<DataMatrixAdapter, MyTraits> MyHints;
 
 // ----------------------------------------------------------------------
 /*!
@@ -12251,18 +12238,7 @@ void SvgRenderer::contour(const std::shared_ptr<NFmiQueryData> &theQD,
 
     std::size_t linenumber = 0;
 
-#if GEOS_VERSION_MAJOR == 3
-#if GEOS_VERSION_MINOR < 7
-    std::shared_ptr<geos::geom::GeometryFactory> geomFactory =
-        std::make_shared<geos::geom::GeometryFactory>();
-    Tron::FmiBuilder builder(geomFactory);
-#else
     geos::geom::GeometryFactory::Ptr geomFactory(geos::geom::GeometryFactory::create());
-    Tron::FmiBuilder builder(*geomFactory);
-#endif
-#else
-#pragma message(Cannot handle current GEOS version correctly)
-#endif
 
     for (int i = 0; i < contourSpecs.getLength(); ++i)
     {
@@ -12329,8 +12305,12 @@ void SvgRenderer::contour(const std::shared_ptr<NFmiQueryData> &theQD,
 
       // Adapt for contouring
 
-      DataMatrixAdapter grid(matrix, coordinates);
-      grid.make_nan_missing();
+      auto grid = std::make_shared<DataMatrixAdapter>(matrix, coordinates);
+      grid->make_nan_missing();
+
+      // Smoothing produces a new grid sharing the coordinates of the original one
+
+      std::shared_ptr<const Trax::Grid> contourGrid = grid;
 
       if (smoother == "none")
         ;
@@ -12341,19 +12321,38 @@ void SvgRenderer::contour(const std::shared_ptr<NFmiQueryData> &theQD,
         if (options.verbose)
           std::cerr << "Savitzky-Golay smoothing of size " << window << " of degree " << degree
                     << std::endl;
-        Tron::SavitzkyGolay2D::smooth(grid, window, degree);
+
+        Trax::SmoothOptions smoothopts;
+        smoothopts.method = Trax::SmoothMethod::SavitzkyGolay;
+        smoothopts.radius = window;
+        smoothopts.degree = degree;
+        contourGrid = Trax::smooth(grid, smoothopts);
       }
       else
         throw std::runtime_error("Unknown smoother name '" + smoother + "'");
 
-      MyHints hints(grid);
+      // All the isolines are extracted with a single pass over the grid
 
+      std::vector<float> isovalues;
       for (float value = start; value <= stop; value += step)
+        isovalues.push_back(value);
+
+      Trax::IsolineValues limits;
+      limits.add(isovalues);
+
+      Trax::Contour contourer;
+      contourer.interpolation(Trax::InterpolationType::Linear);
+
+      auto geometries = contourer.isolines(*contourGrid, limits);
+
+      for (std::size_t n = 0; n < isovalues.size(); ++n)
       {
-        MyContourer::line(builder, grid, value, hints);
+        float value = isovalues[n];
+
+        auto geom = Trax::to_geos_geom(geometries[n], geomFactory);
 
         PathAdapter pathAdapter;
-        const Path &path = GeosTools::getContours(&(*builder.result()), pathAdapter);
+        const Path &path = GeosTools::getContours(geom.get(), pathAdapter);
 
         if (!path.empty())
         {

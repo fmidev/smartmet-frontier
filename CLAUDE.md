@@ -17,7 +17,7 @@ make install        # Install binary to $(bindir)
 make rpm            # Build RPM package
 ```
 
-The build uses the shared SmartMet build configuration (`makefile.inc`). Dependencies are declared via pkg-config in the `REQUIRES` variable: `configpp geos cairo xerces-c fmt`. Additional SmartMet libraries are linked directly: `smartmet-woml`, `smartmet-newbase`, `smartmet-macgyver`, `smartmet-tron`.
+The build uses the shared SmartMet build configuration (`makefile.inc`). Dependencies are declared via pkg-config in the `REQUIRES` variable: `configpp geos cairo xerces-c fmt`. Additional SmartMet libraries are linked directly: `smartmet-woml`, `smartmet-newbase`, `smartmet-macgyver`, `smartmet-trax`.
 
 ## Testing
 
@@ -69,6 +69,6 @@ Build-time SmartMet libraries (linked via `-l`):
 - `smartmet-woml` -- WOML XML file parsing (primary input format)
 - `smartmet-newbase` -- Meteorological data structures, projections, QueryData format
 - `smartmet-macgyver` -- General C++ utilities
-- `smartmet-tron` -- Contouring and interpolation
+- `smartmet-trax` -- Marching squares contouring (isolines/isobands)
 
 System libraries: GEOS (geometry), Cairo (2D graphics), Xerces-C + XQilla (XML/XPath), libconfig (configuration), Boost (program_options, iostreams, regex), fmt.

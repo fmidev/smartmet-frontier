@@ -17,7 +17,7 @@ LIBS += $(REQUIRED_LIBS) \
 	-lsmartmet-newbase \
 	-lsmartmet-macgyver \
 	-lsmartmet-woml \
-	-lsmartmet-tron \
+	-lsmartmet-trax \
 	-lboost_program_options \
 	-lboost_iostreams \
 	-lboost_regex \

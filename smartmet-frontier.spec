@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 26.4.13
+Version: 26.8.20
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -26,7 +26,7 @@ BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-gis-devel >= 26.4.13
 BuildRequires: smartmet-library-macgyver-devel >= 26.4.13
 BuildRequires: smartmet-library-newbase-devel >= 26.2.4
-BuildRequires: smartmet-library-tron-devel >= 26.2.4
+BuildRequires: smartmet-library-trax-devel >= 26.6.26
 BuildRequires: geos313
 BuildRequires: smartmet-library-woml >= 26.4.13
 BuildRequires: libconfig17-devel >= 1.7.3
@@ -36,7 +36,7 @@ BuildRequires: xqilla-devel
 Requires: smartmet-fonts
 Requires: smartmet-library-macgyver >= 26.4.13
 Requires: smartmet-library-newbase >= 26.2.4
-Requires: smartmet-library-tron >= 26.2.4
+Requires: smartmet-library-trax >= 26.6.26
 Requires: smartmet-library-woml >= 26.4.13
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
@@ -77,6 +77,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man1/frontier.1.gz
 
 %changelog
+* Thu Aug 20 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.8.20-1.fmi
+- Use the Trax library for contouring instead of the deprecated Tron library
+
 * Mon Apr 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.4.13-1.fmi
 - Repackaged due to API changes
 
