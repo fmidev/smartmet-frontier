@@ -75,7 +75,7 @@ class NFmiFillMap
 
   // Data access
 
-  const NFmiFillMapData& MapData(void) const { return itsData; }
+  const NFmiFillMapData& MapData() const { return itsData; }
   // Adding a line
 
   void Add(float theX1, float theY1, float theX2, float theY2);
