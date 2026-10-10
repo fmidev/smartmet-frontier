@@ -158,10 +158,10 @@ private:
 class PolyTree: public PolyNode
 { 
 public:
-    ~PolyTree(){Clear();};
-    PolyNode* GetFirst() const;
-    void Clear();
-    int Total() const;
+ ~PolyTree() override { Clear(); };
+ PolyNode* GetFirst() const;
+ void Clear();
+ int Total() const;
 private:
     PolyNodes AllNodes;
     friend class Clipper; //to access AllNodes
@@ -251,7 +251,7 @@ class Clipper : public virtual ClipperBase
 {
 public:
   Clipper(int initOptions = 0);
-  ~Clipper();
+  ~Clipper() override;
   bool Execute(ClipType clipType,
     Paths &solution,
     PolyFillType subjFillType = pftEvenOdd,
@@ -269,8 +269,8 @@ public:
   void ZFillFunction(ZFillCallback zFillFunc);
 #endif
 protected:
-  void Reset();
-  virtual bool ExecuteInternal();
+ void Reset() override;
+ virtual bool ExecuteInternal();
 private:
   PolyOutList       m_PolyOuts;
   JoinList          m_Joins;
@@ -381,9 +381,10 @@ class clipperException : public std::exception
 {
   public:
     clipperException(const char* description): m_descr(description) {}
-    virtual ~clipperException() throw() {}
-    virtual const char* what() const throw() {return m_descr.c_str();}
-  private:
+    ~clipperException() throw() override {}
+    const char* what() const throw() override { return m_descr.c_str(); }
+
+   private:
     std::string m_descr;
 };
 //------------------------------------------------------------------------------

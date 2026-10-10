@@ -306,9 +306,9 @@ class GroupCategory : public CategoryValueMeasureGroup
 
   typename std::list<T>& groups() { return itsGroups; }
   typename std::list<T>::const_iterator currentGroup() { return itcg; }
-  bool groupMember(const woml::CategoryValueMeasure* cvm) const;
-  bool groupMember(bool first, const woml::CategoryValueMeasure* cvm);
-  bool standalone() { return ((itsGroups.size() > 0) && (*itcg).standalone()); }
+  bool groupMember(const woml::CategoryValueMeasure* cvm) const override;
+  bool groupMember(bool first, const woml::CategoryValueMeasure* cvm) override;
+  bool standalone() override { return ((itsGroups.size() > 0) && (*itcg).standalone()); }
   const std::string& groupSymbol() const;
   std::string groupLabel() const;
 
@@ -453,7 +453,7 @@ typedef std::map<std::string, FillAreaData> FillAreas;  // Marker name and relat
 class SvgRenderer : public woml::FeatureVisitor
 {
  public:
-  virtual ~SvgRenderer() {}
+  ~SvgRenderer() override {}
   SvgRenderer(const Options& theOptions,
               const libconfig::Config& theConfig,
               const std::string& theTemplate,
@@ -461,45 +461,45 @@ class SvgRenderer : public woml::FeatureVisitor
               const Fmi::DateTime& theValidTime,
               std::ostringstream* theDebugOutput = nullptr);
 
-  virtual void visit(const woml::CloudArea& theFeature);
-  virtual void visit(const woml::ColdAdvection& theFeature);
-  virtual void visit(const woml::ColdFront& theFeature);
-  virtual void visit(const woml::JetStream& theFeature);
-  virtual void visit(const woml::OccludedFront& theFeature);
-  virtual void visit(const woml::PointMeteorologicalSymbol& theFeature);
-  virtual void visit(const woml::Ridge& theFeature);
-  virtual void visit(const woml::SurfacePrecipitationArea& theFeature);
-  virtual void visit(const woml::ParameterValueSetArea& theFeature);
-  virtual void visit(const woml::Trough& theFeature);
-  virtual void visit(const woml::UpperTrough& theFeature);
-  virtual void visit(const woml::WarmAdvection& theFeature);
-  virtual void visit(const woml::WarmFront& theFeature);
+  void visit(const woml::CloudArea& theFeature) override;
+  void visit(const woml::ColdAdvection& theFeature) override;
+  void visit(const woml::ColdFront& theFeature) override;
+  void visit(const woml::JetStream& theFeature) override;
+  void visit(const woml::OccludedFront& theFeature) override;
+  void visit(const woml::PointMeteorologicalSymbol& theFeature) override;
+  void visit(const woml::Ridge& theFeature) override;
+  void visit(const woml::SurfacePrecipitationArea& theFeature) override;
+  void visit(const woml::ParameterValueSetArea& theFeature) override;
+  void visit(const woml::Trough& theFeature) override;
+  void visit(const woml::UpperTrough& theFeature) override;
+  void visit(const woml::WarmAdvection& theFeature) override;
+  void visit(const woml::WarmFront& theFeature) override;
 
-  virtual void visit(const woml::AntiCyclone& theFeature);
-  virtual void visit(const woml::Antimesocyclone& theFeature);
-  virtual void visit(const woml::Cyclone& theFeature);
-  virtual void visit(const woml::HighPressureCenter& theFeature);
-  virtual void visit(const woml::LowPressureCenter& theFeature);
-  virtual void visit(const woml::Mesocyclone& theFeature);
-  virtual void visit(const woml::Mesolow& theFeature);
-  virtual void visit(const woml::ParameterValueSetPoint& theFeature);
-  virtual void visit(const woml::PolarCyclone& theFeature);
-  virtual void visit(const woml::PolarLow& theFeature);
-  virtual void visit(const woml::TropicalCyclone& theFeature);
-  virtual void visit(const woml::ConvectiveStorm& theFeature);
-  virtual void visit(const woml::Storm& theFeature);
+  void visit(const woml::AntiCyclone& theFeature) override;
+  void visit(const woml::Antimesocyclone& theFeature) override;
+  void visit(const woml::Cyclone& theFeature) override;
+  void visit(const woml::HighPressureCenter& theFeature) override;
+  void visit(const woml::LowPressureCenter& theFeature) override;
+  void visit(const woml::Mesocyclone& theFeature) override;
+  void visit(const woml::Mesolow& theFeature) override;
+  void visit(const woml::ParameterValueSetPoint& theFeature) override;
+  void visit(const woml::PolarCyclone& theFeature) override;
+  void visit(const woml::PolarLow& theFeature) override;
+  void visit(const woml::TropicalCyclone& theFeature) override;
+  void visit(const woml::ConvectiveStorm& theFeature) override;
+  void visit(const woml::Storm& theFeature) override;
 
-  virtual void visit(const woml::InfoText& theFeature);
+  void visit(const woml::InfoText& theFeature) override;
 
-  virtual void visit(const woml::CloudLayers& theFeature);
-  virtual void visit(const woml::Contrails& theFeature);
-  virtual void visit(const woml::Icing& theFeature);
-  virtual void visit(const woml::Turbulence& theFeature);
-  virtual void visit(const woml::MigratoryBirds& theFeature);
-  virtual void visit(const woml::SurfaceVisibility& theFeature);
-  virtual void visit(const woml::SurfaceWeather& theFeature);
-  virtual void visit(const woml::Winds& theFeature);
-  virtual void visit(const woml::ZeroTolerance& theFeature);
+  void visit(const woml::CloudLayers& theFeature) override;
+  void visit(const woml::Contrails& theFeature) override;
+  void visit(const woml::Icing& theFeature) override;
+  void visit(const woml::Turbulence& theFeature) override;
+  void visit(const woml::MigratoryBirds& theFeature) override;
+  void visit(const woml::SurfaceVisibility& theFeature) override;
+  void visit(const woml::SurfaceWeather& theFeature) override;
+  void visit(const woml::Winds& theFeature) override;
+  void visit(const woml::ZeroTolerance& theFeature) override;
 
   void contour(const std::shared_ptr<NFmiQueryData>& theQD, const Fmi::DateTime& theTime);
 

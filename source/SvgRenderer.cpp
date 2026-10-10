@@ -176,7 +176,7 @@ class PathProjector : public PathTransformation
 {
  public:
   PathProjector(const std::shared_ptr<NFmiArea>& theArea) : area(theArea) {}
-  void operator()(double& x, double& y, NFmiAngle* trueNorthAzimuth = nullptr) const
+  void operator()(double& x, double& y, NFmiAngle* trueNorthAzimuth = nullptr) const override
   {
     NFmiPoint ll(x, y);
     NFmiPoint xy = area->ToXY(ll);
