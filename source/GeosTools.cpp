@@ -141,17 +141,17 @@ namespace GeosTools
 
 const Path& getContours(const Geometry* geom, PathAdapter& pathAdapter)
 {
-  if (const LinearRing* lr = dynamic_cast<const LinearRing*>(geom))
+  if (const auto* lr = dynamic_cast<const LinearRing*>(geom))
     contourFromLinearRing(lr, pathAdapter);
-  else if (const LineString* ls = dynamic_cast<const LineString*>(geom))
+  else if (const auto* ls = dynamic_cast<const LineString*>(geom))
     contourFromLineString(ls, pathAdapter);
-  else if (const Polygon* p = dynamic_cast<const Polygon*>(geom))
+  else if (const auto* p = dynamic_cast<const Polygon*>(geom))
     contoursFromPolygon(p, pathAdapter);
-  else if (const MultiLineString* ml = dynamic_cast<const MultiLineString*>(geom))
+  else if (const auto* ml = dynamic_cast<const MultiLineString*>(geom))
     contoursFromMultiLineString(ml, pathAdapter);
-  else if (const MultiPolygon* mpg = dynamic_cast<const MultiPolygon*>(geom))
+  else if (const auto* mpg = dynamic_cast<const MultiPolygon*>(geom))
     contoursFromMultiPolygon(mpg, pathAdapter);
-  else if (const GeometryCollection* g = dynamic_cast<const GeometryCollection*>(geom))
+  else if (const auto* g = dynamic_cast<const GeometryCollection*>(geom))
     contoursFromGeometryCollection(g, pathAdapter);
   else if (dynamic_cast<const Point*>(geom))
     ;

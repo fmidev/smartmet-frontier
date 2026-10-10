@@ -124,7 +124,7 @@ std::string Path::svg() const
       out << ' ';
     out << std::fixed << std::setprecision(1);
 
-    PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+    auto cmd = static_cast<PathElement>(pathdata[i++]);
 
     switch (cmd)
     {
@@ -192,7 +192,7 @@ double Path::length(NFmiFillMap* fmap) const
 
   for (PathData::size_type i = 0; i < pathdata.size();)
   {
-    PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+    auto cmd = static_cast<PathElement>(pathdata[i++]);
 
     switch (cmd)
     {
@@ -250,7 +250,7 @@ void Path::transform(const PathTransformation& transformation)
 {
   for (PathData::size_type i = 0; i < pathdata.size();)
   {
-    PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+    auto cmd = static_cast<PathElement>(pathdata[i++]);
 
     switch (cmd)
     {
@@ -290,7 +290,7 @@ bool Path::scale(double offset, Path& scaledPath) const
 
   for (PathData::size_type i = 0; i < pathdata.size();)
   {
-    PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+    auto cmd = static_cast<PathElement>(pathdata[i++]);
 
     switch (cmd)
     {
@@ -358,9 +358,7 @@ bool Path::scale(double offset, Path& scaledPath) const
       {
         scaledPath.clear();
 
-        for (ClipperLib::Path::const_iterator it = solution.front().begin();
-             (it != solution.front().end());
-             it++)
+        for (auto it = solution.front().begin(); (it != solution.front().end()); it++)
           if (it == solution.front().begin())
             scaledPath.moveto(it->X, it->Y);
           else
@@ -408,7 +406,7 @@ Path::BBox Path::getBBox() const
 
   for (PathData::size_type i = 0; i < pathdata.size();)
   {
-    PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+    auto cmd = static_cast<PathElement>(pathdata[i++]);
 
     switch (cmd)
     {
@@ -445,7 +443,7 @@ std::pair<double, double> Path::nearestVertex(double x, double y) const
 
   for (PathData::size_type i = 0; i < pathdata.size();)
   {
-    PathElement cmd = static_cast<PathElement>(pathdata[i++]);
+    auto cmd = static_cast<PathElement>(pathdata[i++]);
 
     switch (cmd)
     {

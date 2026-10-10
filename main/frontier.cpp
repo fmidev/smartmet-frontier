@@ -287,7 +287,7 @@ std::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& 
     }
   }
 
-  return std::shared_ptr<NFmiQueryData>();
+  return {};
 }
 
 // ----------------------------------------------------------------------
@@ -318,7 +318,7 @@ std::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
   if (name.find_first_not_of(" ") == std::string::npos)
     return ret;
 
-  std::string path = frontier::lookup<std::string>(config, "models." + name);
+  auto path = frontier::lookup<std::string>(config, "models." + name);
 
   if (path.empty())
   {
@@ -492,19 +492,16 @@ int run(int argc,
 
   bool analysis = weather.hasAnalysis();
 
-  std::list<woml::TargetRegion>::const_iterator trbeg(
-      analysis ? weather.analysis().TargetRegions_begin()
-               : weather.forecast().TargetRegions_begin());
+  auto trbeg(analysis ? weather.analysis().TargetRegions_begin()
+                      : weather.forecast().TargetRegions_begin());
   // std::list<woml::TargetRegion>::const_iterator trend(
   //     analysis ? weather.analysis().TargetRegions_end() :
   //     weather.forecast().TargetRegions_end());
 
-  std::list<std::pair<std::string, std::string> >::const_iterator lnbeg(
-      trbeg->LocalizedNames_begin());
-  std::list<std::pair<std::string, std::string> >::const_iterator lnend(
-      trbeg->LocalizedNames_end());
-  std::list<std::pair<std::string, std::string> >::const_iterator ribeg(trbeg->RegionIds_begin());
-  std::list<std::pair<std::string, std::string> >::const_iterator riend(trbeg->RegionIds_end());
+  auto lnbeg(trbeg->LocalizedNames_begin());
+  auto lnend(trbeg->LocalizedNames_end());
+  auto ribeg(trbeg->RegionIds_begin());
+  auto riend(trbeg->RegionIds_end());
 
   std::string regionName((lnbeg != lnend) ? lnbeg->second : "");
   std::string regionId((ribeg != riend) ? ribeg->second : "");

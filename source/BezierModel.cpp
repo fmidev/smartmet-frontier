@@ -72,7 +72,7 @@ void BezierModel::addCurvePosition(DirectPosition curvePosition, boolean isClose
 
 double BezierModel::getCumulatedCurveLength(int i)
 {
-  std::list<double>::iterator iter = cumulatedCurveLength.begin();
+  auto iter = cumulatedCurveLength.begin();
   advance(iter, i);
 
   return *iter;
@@ -210,9 +210,7 @@ boolean BezierModel::isClosedCurve()
 void BezierModel::setTightness(double theTightness)
 {
   // All Bezier segments in model are assumed to be of same tightness value
-  for (std::list<BezSeg>::iterator bezSeg = bezierSegments.begin();
-       (bezSeg != bezierSegments.end());
-       bezSeg++)
+  for (auto bezSeg = bezierSegments.begin(); (bezSeg != bezierSegments.end()); bezSeg++)
   {
     bezSeg->setTightness(theTightness);
   }
@@ -254,11 +252,10 @@ int BezierModel::getSteppedCurvePoints(
   int curPos = 0;             // Current curve position
 
   // Segment iterator
-  std::list<BezSeg>::iterator itb = bezierSegments.begin();
+  auto itb = bezierSegments.begin();
 
   // Cumulative segment length iterator
-  std::list<double>::iterator itl = cumulatedCurveLength.begin(),
-                              itlEnd = cumulatedCurveLength.end();
+  auto itl = cumulatedCurveLength.begin(), itlEnd = cumulatedCurveLength.end();
 
   // Number of points
   int nPoints = 0;

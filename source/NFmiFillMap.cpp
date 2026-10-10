@@ -90,7 +90,7 @@ bool NFmiFillMap::scanColumn(T iter,
 
     float x1 = kFloatMissing;
 
-    NFmiFillMapElement::iterator dataiter = iter->second.begin();
+    auto dataiter = iter->second.begin();
 
     // Set to true if the row is valid for fill
 
@@ -225,11 +225,11 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
   {
     // Get all areas, regardless of their size
     //
-    NFmiFillMapData::iterator iter = itsData.begin(), enditer = itsData.end();
+    auto iter = itsData.begin(), enditer = itsData.end();
 
     for (; (iter != enditer); ++iter)
     {
-      NFmiFillMapElement::iterator dataiter = iter->second.begin(), enddata = iter->second.end();
+      auto dataiter = iter->second.begin(), enddata = iter->second.end();
 
       for (; (dataiter != enddata);)
       {
@@ -271,7 +271,7 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
     _data = itsData;
 
   NFmiFillMapData& data = (retainMap ? _data : itsData);
-  NFmiFillMapData::iterator iter = data.begin(), enditer = data.end();
+  auto iter = data.begin(), enditer = data.end();
   NFmiFillMapData::reverse_iterator riter(data.end()), renditer(data.begin());
 
   for (; iter != enditer; ++iter)
@@ -319,10 +319,8 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
     yPrev = y;
     float x1 = kFloatMissing;
 
-    NFmiFillMapElement::const_iterator dataiter =
-        ((i % 2) ? riter->second.begin() : iter->second.begin());
-    NFmiFillMapElement::const_iterator dataend =
-        ((i % 2) ? riter->second.end() : iter->second.end());
+    auto dataiter = ((i % 2) ? riter->second.begin() : iter->second.begin());
+    auto dataend = ((i % 2) ? riter->second.end() : iter->second.end());
 
     for (; dataiter != dataend; ++dataiter)
     {
