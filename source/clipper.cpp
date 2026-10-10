@@ -159,8 +159,8 @@ inline cInt Abs(cInt val) { return val < 0 ? -val : val; }
 
 void PolyTree::Clear()
 {
-  for (PolyNodes::size_type i = 0; i < AllNodes.size(); ++i)
-    delete AllNodes[i];
+  for (auto& AllNode : AllNodes)
+    delete AllNode;
   AllNodes.resize(0);
   Childs.resize(0);
 }
@@ -1259,8 +1259,9 @@ bool ClipperBase::AddPath(const Path& pg, PolyType PolyTyp, bool Closed)
 bool ClipperBase::AddPaths(const Paths& ppg, PolyType PolyTyp, bool Closed)
 {
   bool result = false;
-  for (Paths::size_type i = 0; i < ppg.size(); ++i)
-    if (AddPath(ppg[i], PolyTyp, Closed)) result = true;
+  for (const auto& i : ppg)
+    if (AddPath(i, PolyTyp, Closed))
+      result = true;
   return result;
 }
 //------------------------------------------------------------------------------
@@ -1268,11 +1269,10 @@ bool ClipperBase::AddPaths(const Paths& ppg, PolyType PolyTyp, bool Closed)
 void ClipperBase::Clear()
 {
   DisposeLocalMinimaList();
-  for (EdgeList::size_type i = 0; i < m_edges.size(); ++i)
+  for (auto edges : m_edges)
   {
     // for each edge array in turn, find the first used edge and
     // check for and remove any hiddenPts in each edge in the array.
-    TEdge* edges = m_edges[i];
     delete[] edges;
   }
   m_edges.clear();
@@ -1288,9 +1288,9 @@ void ClipperBase::Reset()
   std::sort(m_MinimaList.begin(), m_MinimaList.end(), LocMinSorter());
 
   // reset all edges ...
-  for (auto lm = m_MinimaList.begin(); lm != m_MinimaList.end(); ++lm)
+  for (auto& lm : m_MinimaList)
   {
-    TEdge* e = lm->LeftBound;
+    TEdge* e = lm.LeftBound;
     if (e)
     {
       e->Curr = e->Bot;
@@ -1298,7 +1298,7 @@ void ClipperBase::Reset()
       e->OutIdx = Unassigned;
     }
 
-    e = lm->RightBound;
+    e = lm.RightBound;
     if (e)
     {
       e->Curr = e->Bot;
@@ -1401,8 +1401,8 @@ void Clipper::Reset()
   m_Scanbeam = ScanbeamList();
   m_ActiveEdges = nullptr;
   m_SortedEdges = nullptr;
-  for (auto lm = m_MinimaList.begin(); lm != m_MinimaList.end(); ++lm)
-    InsertScanbeam(lm->Y);
+  for (auto& lm : m_MinimaList)
+    InsertScanbeam(lm.Y);
 }
 //------------------------------------------------------------------------------
 
@@ -1490,10 +1490,10 @@ bool Clipper::ExecuteInternal()
   if (succeeded)
   {
     // fix orientations ...
-    for (PolyOutList::size_type i = 0; i < m_PolyOuts.size(); ++i)
+    for (auto outRec : m_PolyOuts)
     {
-      OutRec* outRec = m_PolyOuts[i];
-      if (!outRec->Pts || outRec->IsOpen) continue;
+      if (!outRec->Pts || outRec->IsOpen)
+        continue;
       if ((outRec->IsHole ^ m_ReverseOutput) == (Area(*outRec) > 0))
         ReversePolyPtLinks(outRec->Pts);
     }
@@ -1501,10 +1501,10 @@ bool Clipper::ExecuteInternal()
     if (!m_Joins.empty()) JoinCommonEdges();
 
     // unfortunately FixupOutPolygon() must be done after JoinCommonEdges()
-    for (PolyOutList::size_type i = 0; i < m_PolyOuts.size(); ++i)
+    for (auto outRec : m_PolyOuts)
     {
-      OutRec* outRec = m_PolyOuts[i];
-      if (outRec->Pts && !outRec->IsOpen) FixupOutPolygon(*outRec);
+      if (outRec->Pts && !outRec->IsOpen)
+        FixupOutPolygon(*outRec);
     }
 
     if (m_StrictSimple) DoSimplePolygons();
@@ -1868,16 +1868,16 @@ void Clipper::AddJoin(OutPt* op1, OutPt* op2, const IntPoint OffPt)
 
 void Clipper::ClearJoins()
 {
-  for (JoinList::size_type i = 0; i < m_Joins.size(); i++)
-    delete m_Joins[i];
+  for (auto& m_Join : m_Joins)
+    delete m_Join;
   m_Joins.resize(0);
 }
 //------------------------------------------------------------------------------
 
 void Clipper::ClearGhostJoins()
 {
-  for (JoinList::size_type i = 0; i < m_GhostJoins.size(); i++)
-    delete m_GhostJoins[i];
+  for (auto& m_GhostJoin : m_GhostJoins)
+    delete m_GhostJoin;
   m_GhostJoins.resize(0);
 }
 //------------------------------------------------------------------------------
@@ -1938,9 +1938,8 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
     // if any output polygons share an edge, they'll need joining later ...
     if (Op1 && IsHorizontal(*rb) && m_GhostJoins.size() > 0 && (rb->WindDelta != 0))
     {
-      for (JoinList::size_type i = 0; i < m_GhostJoins.size(); ++i)
+      for (auto jr : m_GhostJoins)
       {
-        Join* jr = m_GhostJoins[i];
         // if the horizontal Rb and a 'ghost' horizontal overlap, then convert
         // the 'ghost' join to a real join ready for later ...
         if (HorzSegmentsOverlap(jr->OutPt1->Pt.X, jr->OffPt.X, rb->Bot.X, rb->Top.X))
@@ -2815,8 +2814,8 @@ bool Clipper::ProcessIntersections(const cInt botY, const cInt topY)
 
 void Clipper::DisposeIntersectNodes()
 {
-  for (size_t i = 0; i < m_IntersectList.size(); ++i)
-    delete m_IntersectList[i];
+  for (auto& i : m_IntersectList)
+    delete i;
   m_IntersectList.clear();
 }
 //------------------------------------------------------------------------------
@@ -2872,9 +2871,8 @@ void Clipper::BuildIntersectList(const cInt botY, const cInt topY)
 
 void Clipper::ProcessIntersectList()
 {
-  for (size_t i = 0; i < m_IntersectList.size(); ++i)
+  for (auto iNode : m_IntersectList)
   {
-    IntersectNode* iNode = m_IntersectList[i];
     {
       IntersectEdges(iNode->Edge1, iNode->Edge2, iNode->Pt);
       SwapPositionsInAEL(iNode->Edge1, iNode->Edge2);
@@ -3127,11 +3125,12 @@ int PointCount(OutPt* Pts)
 void Clipper::BuildResult(Paths& polys)
 {
   polys.reserve(m_PolyOuts.size());
-  for (PolyOutList::size_type i = 0; i < m_PolyOuts.size(); ++i)
+  for (auto& m_PolyOut : m_PolyOuts)
   {
-    if (!m_PolyOuts[i]->Pts) continue;
+    if (!m_PolyOut->Pts)
+      continue;
     Path pg;
-    OutPt* p = m_PolyOuts[i]->Pts->Prev;
+    OutPt* p = m_PolyOut->Pts->Prev;
     int cnt = PointCount(p);
     if (cnt < 2) continue;
     pg.reserve(cnt);
@@ -3150,9 +3149,8 @@ void Clipper::BuildResult2(PolyTree& polytree)
   polytree.Clear();
   polytree.AllNodes.reserve(m_PolyOuts.size());
   // add each output polygon/contour to polytree ...
-  for (PolyOutList::size_type i = 0; i < m_PolyOuts.size(); i++)
+  for (auto outRec : m_PolyOuts)
   {
-    OutRec* outRec = m_PolyOuts[i];
     int cnt = PointCount(outRec->Pts);
     if ((outRec->IsOpen && cnt < 2) || (!outRec->IsOpen && cnt < 3)) continue;
     FixHoleLinkage(*outRec);
@@ -3173,10 +3171,10 @@ void Clipper::BuildResult2(PolyTree& polytree)
 
   // fixup PolyNode links etc ...
   polytree.Childs.reserve(m_PolyOuts.size());
-  for (PolyOutList::size_type i = 0; i < m_PolyOuts.size(); i++)
+  for (auto outRec : m_PolyOuts)
   {
-    OutRec* outRec = m_PolyOuts[i];
-    if (!outRec->PolyNd) continue;
+    if (!outRec->PolyNd)
+      continue;
     if (outRec->IsOpen)
     {
       outRec->PolyNd->m_IsOpen = true;
@@ -3575,10 +3573,10 @@ static OutRec* ParseFirstLeft(OutRec* FirstLeft)
 void Clipper::FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec)
 {
   // tests if NewOutRec contains the polygon before reassigning FirstLeft
-  for (PolyOutList::size_type i = 0; i < m_PolyOuts.size(); ++i)
+  for (auto outRec : m_PolyOuts)
   {
-    OutRec* outRec = m_PolyOuts[i];
-    if (!outRec->Pts || !outRec->FirstLeft) continue;
+    if (!outRec->Pts || !outRec->FirstLeft)
+      continue;
     OutRec* firstLeft = ParseFirstLeft(outRec->FirstLeft);
     if (firstLeft == OldOutRec)
     {
@@ -3591,20 +3589,18 @@ void Clipper::FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec)
 void Clipper::FixupFirstLefts2(OutRec* OldOutRec, OutRec* NewOutRec)
 {
   // reassigns FirstLeft WITHOUT testing if NewOutRec contains the polygon
-  for (PolyOutList::size_type i = 0; i < m_PolyOuts.size(); ++i)
+  for (auto outRec : m_PolyOuts)
   {
-    OutRec* outRec = m_PolyOuts[i];
-    if (outRec->FirstLeft == OldOutRec) outRec->FirstLeft = NewOutRec;
+    if (outRec->FirstLeft == OldOutRec)
+      outRec->FirstLeft = NewOutRec;
   }
 }
 //----------------------------------------------------------------------
 
 void Clipper::JoinCommonEdges()
 {
-  for (JoinList::size_type i = 0; i < m_Joins.size(); i++)
+  for (auto join : m_Joins)
   {
-    Join* join = m_Joins[i];
-
     OutRec* outRec1 = GetOutRec(join->OutPt1->Idx);
     OutRec* outRec2 = GetOutRec(join->OutPt2->Idx);
 
@@ -3789,8 +3785,8 @@ void ClipperOffset::AddPath(const Path& path, JoinType joinType, EndType endType
 
 void ClipperOffset::AddPaths(const Paths& paths, JoinType joinType, EndType endType)
 {
-  for (Paths::size_type i = 0; i < paths.size(); ++i)
-    AddPath(paths[i], joinType, endType);
+  for (const auto& path : paths)
+    AddPath(path, joinType, endType);
 }
 //------------------------------------------------------------------------------
 
@@ -4223,8 +4219,8 @@ void ReversePath(Path& p) { std::reverse(p.begin(), p.end()); }
 
 void ReversePaths(Paths& p)
 {
-  for (Paths::size_type i = 0; i < p.size(); ++i)
-    ReversePath(p[i]);
+  for (auto& i : p)
+    ReversePath(i);
 }
 //------------------------------------------------------------------------------
 
@@ -4408,8 +4404,8 @@ void Minkowski(const Path& poly, const Path& path, Paths& solution, bool isSum, 
     {
       Path p;
       p.reserve(polyCnt);
-      for (size_t j = 0; j < poly.size(); ++j)
-        p.emplace_back(path[i].X + poly[j].X, path[i].Y + poly[j].Y);
+      for (auto j : poly)
+        p.emplace_back(path[i].X + j.X, path[i].Y + j.Y);
       pp.push_back(p);
     }
   else
@@ -4417,8 +4413,8 @@ void Minkowski(const Path& poly, const Path& path, Paths& solution, bool isSum, 
     {
       Path p;
       p.reserve(polyCnt);
-      for (size_t j = 0; j < poly.size(); ++j)
-        p.emplace_back(path[i].X - poly[j].X, path[i].Y - poly[j].Y);
+      for (auto j : poly)
+        p.emplace_back(path[i].X - j.X, path[i].Y - j.Y);
       pp.push_back(p);
     }
 
@@ -4460,15 +4456,15 @@ void TranslatePath(const Path& input, Path& output, IntPoint delta)
 void MinkowskiSum(const Path& pattern, const Paths& paths, Paths& solution, bool pathIsClosed)
 {
   Clipper c;
-  for (size_t i = 0; i < paths.size(); ++i)
+  for (const auto& path : paths)
   {
     Paths tmp;
-    Minkowski(pattern, paths[i], tmp, true, pathIsClosed);
+    Minkowski(pattern, path, tmp, true, pathIsClosed);
     c.AddPaths(tmp, ptSubject, true);
     if (pathIsClosed)
     {
       Path tmp2;
-      TranslatePath(paths[i], tmp2, pattern[0]);
+      TranslatePath(path, tmp2, pattern[0]);
       c.AddPath(tmp2, ptClip, true);
     }
   }
@@ -4552,8 +4548,8 @@ std::ostream& operator<<(std::ostream& s, const Path& p)
 
 std::ostream& operator<<(std::ostream& s, const Paths& p)
 {
-  for (Paths::size_type i = 0; i < p.size(); i++)
-    s << p[i];
+  for (const auto& i : p)
+    s << i;
   s << "\n";
   return s;
 }
