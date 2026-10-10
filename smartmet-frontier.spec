@@ -80,6 +80,7 @@ rm -rf $RPM_BUILD_ROOT
 * Sat Oct 10 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.10-1.fmi
 - Use auto and return {} where clang-tidy suggests it, no functional changes
 - Mark overriding methods override and use nullptr, no functional changes
+- Use = default and using declarations where clang-tidy suggests it, no functional changes
 
 * Thu Aug 20 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.8.20-1.fmi
 - Use the Trax library for contouring instead of the deprecated Tron library

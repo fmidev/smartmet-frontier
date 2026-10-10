@@ -30,7 +30,7 @@ class DirectPosition
   DoubleArr itsArr;
 };
 
-typedef DirectPosition GeneralDirectPosition;
+using GeneralDirectPosition = DirectPosition;
 
 // Ref [1].
 //

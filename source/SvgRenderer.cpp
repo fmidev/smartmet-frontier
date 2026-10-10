@@ -88,7 +88,7 @@ struct ElevInfo
     hasHole = _hasHole;
   }
 };
-typedef std::map<int, std::list<ElevInfo>> ElevInfoMap;
+using ElevInfoMap = std::map<int, std::list<ElevInfo>>;
 
 // ----------------------------------------------------------------------
 /*!
@@ -1030,7 +1030,7 @@ struct Column
   NFmiFillAreas fillAreas;
 };
 
-typedef std::vector<Column> FillAreaColumns;
+using FillAreaColumns = std::vector<Column>;
 
 FillAreaColumns getFillAreaColumns(const NFmiFillAreas& areas)
 {

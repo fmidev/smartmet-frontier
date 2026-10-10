@@ -207,7 +207,7 @@ std::string remove_sections(const std::string& str,
  */
 // ----------------------------------------------------------------------
 
-typedef std::set<Fmi::DateTime> ValidTimes;
+using ValidTimes = std::set<Fmi::DateTime>;
 
 template <typename T>
 ValidTimes extract_valid_times(const T& collection)
@@ -610,7 +610,7 @@ void generatesvg(int exitCode,
   boost::replace_all(sbeg, "--WIDTH--", width);
   boost::replace_all(sbeg, "--HEIGHT--", height);
 
-  typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
+  using tokenizer = boost::tokenizer<boost::char_separator<char> >;
   boost::char_separator<char> sep("\n");
   std::string s(debugoutput.str());
   tokenizer tok(s, sep);

@@ -19,7 +19,7 @@ namespace frontier
 {
 namespace PathFactory
 {
-typedef std::vector<Point> Vector;
+using Vector = std::vector<Point>;
 
 // ----------------------------------------------------------------------
 /*!

@@ -57,11 +57,11 @@ namespace frontier
 {
 // Typedefs to ease things
 
-typedef std::vector<float> NFmiFillMapElement;
-typedef std::map<float, NFmiFillMapElement> NFmiFillMapData;
-typedef std::pair<Point, Point> NFmiFillRect;  // Bottom left and top right corner
-typedef std::list<NFmiFillRect> NFmiFillAreas;
-typedef std::list<Point> NFmiFillPositions;
+using NFmiFillMapElement = std::vector<float>;
+using NFmiFillMapData = std::map<float, NFmiFillMapElement>;
+using NFmiFillRect = std::pair<Point, Point>;  // Bottom left and top right corner
+using NFmiFillAreas = std::list<NFmiFillRect>;
+using NFmiFillPositions = std::list<Point>;
 
 class NFmiFillMap
 {

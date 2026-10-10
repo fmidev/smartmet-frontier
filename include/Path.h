@@ -59,7 +59,7 @@ class Path
   BBox getBBox() const;
 
  private:
-  typedef std::vector<double> PathData;
+  using PathData = std::vector<double>;
   PathData pathdata;
 
   void clear() { pathdata.clear(); }

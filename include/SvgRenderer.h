@@ -283,7 +283,7 @@ class IcingGroup : public ConfigGroup
   bool renderSymbolOnly;
 };
 
-typedef IcingGroup TurbulenceGroup;
+using TurbulenceGroup = IcingGroup;
 
 class CategoryValueMeasureGroup
 {
@@ -317,9 +317,9 @@ class GroupCategory : public CategoryValueMeasureGroup
   typename std::list<T>::const_iterator itcg;
 };
 
-typedef GroupCategory<CloudGroup> CloudGroupCategory;
-typedef GroupCategory<IcingGroup> IcingGroupCategory;
-typedef GroupCategory<TurbulenceGroup> TurbulenceGroupCategory;
+using CloudGroupCategory = GroupCategory<CloudGroup>;
+using IcingGroupCategory = GroupCategory<IcingGroup>;
+using TurbulenceGroupCategory = GroupCategory<TurbulenceGroup>;
 
 class ElevationGroupItem
 {
@@ -393,7 +393,7 @@ class ElevationGroupItem
   std::optional<woml::Elevation> itsElevation;  // ZeroTolerance; generated below zero elevation
 };
 
-typedef std::list<ElevationGroupItem> ElevGrp;
+using ElevGrp = std::list<ElevationGroupItem>;
 
 struct ElevationHole
 {
@@ -423,7 +423,7 @@ struct ElevationHole
   double hiHi;             // Hi range of the elevation above the hole
 };
 
-typedef std::list<ElevationHole> ElevationHoles;
+using ElevationHoles = std::list<ElevationHole>;
 
 struct WindArrowOffsets
 {
@@ -433,7 +433,7 @@ struct WindArrowOffsets
   double scale;
 };
 
-typedef boost::ptr_map<std::string, std::ostringstream> Texts;
+using Texts = boost::ptr_map<std::string, std::ostringstream>;
 
 typedef struct
 {
@@ -448,7 +448,7 @@ typedef struct
   std::list<std::pair<double, double> > scales;  // Additional marker scales to scale the marker
                                                  // down (to half size) if necessary to make it fit
 } FillAreaData;
-typedef std::map<std::string, FillAreaData> FillAreas;  // Marker name and related fill areas
+using FillAreas = std::map<std::string, FillAreaData>;  // Marker name and related fill areas
 
 class SvgRenderer : public woml::FeatureVisitor
 {
@@ -804,7 +804,7 @@ class SvgRenderer : public woml::FeatureVisitor
   // For text and various stuff
   Texts texts;
 
-  typedef boost::ptr_map<std::string, std::ostringstream> Contours;
+  using Contours = boost::ptr_map<std::string, std::ostringstream>;
   Contours contours;
 
   int ncloudareas;

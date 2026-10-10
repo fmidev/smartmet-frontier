@@ -14,7 +14,7 @@ enum Orientation
   POS,
   NEG
 };
-typedef bool boolean;
+using boolean = bool;
 
 class DoubleArr
 {
