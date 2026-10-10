@@ -279,7 +279,7 @@ std::shared_ptr<NFmiQueryData> search_model_origintime(const frontier::Options& 
           std::cerr << "File '" << dirptr->path() << "' matched origin time "
                     << to_simple_string(origintime) << std::endl;
 
-        return std::shared_ptr<NFmiQueryData>(new NFmiQueryData(dirptr->path().string()));
+        return std::make_shared<NFmiQueryData>(dirptr->path().string());
       }
     }
     catch (...)
@@ -618,7 +618,7 @@ void generatesvg(int exitCode,
   std::ostringstream output;
 
   for (tokenizer::iterator it = tok.begin(); it != tok.end(); ++it)
-    output << "<tspan x=\"10\" dy=\"20\">" << *it << "</tspan>";
+    output << R"(<tspan x="10" dy="20">)" << *it << "</tspan>";
 
   if (outfile != "-")
   {

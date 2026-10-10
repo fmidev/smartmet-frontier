@@ -54,6 +54,7 @@
 #include <iostream>
 #include <limits>
 #include <list>
+#include <memory>
 
 namespace p = std::placeholders;
 
@@ -562,7 +563,7 @@ void SvgRenderer::render_elevationAxis()
 {
   // Initialize axis manager
 
-  axisManager.reset(new AxisManager(config));
+  axisManager = std::make_shared<AxisManager>(config);
 
   // Output y -axis labels
   //
@@ -580,13 +581,13 @@ void SvgRenderer::render_elevationAxis()
   {
     const std::string& lLabel = it->lLabel();
     if (!lLabel.empty())
-      texts[ELEVATIONLABELS1] << "<text x=\"0\" y=\"" << std::fixed << std::setprecision(1)
+      texts[ELEVATIONLABELS1] << R"(<text x="0" y=")" << std::fixed << std::setprecision(1)
                               << (axisHeight - it->scaledElevation()) << "\">" << lLabel
                               << "</text>\n";
 
     const std::string& rLabel = it->rLabel();
     if (!rLabel.empty())
-      texts[ELEVATIONLABELS2] << "<text x=\"0\" y=\"" << std::fixed << std::setprecision(1)
+      texts[ELEVATIONLABELS2] << R"(<text x="0" y=")" << std::fixed << std::setprecision(1)
                               << (axisHeight - it->scaledElevation()) << "\">" << rLabel
                               << "</text>\n";
   }
@@ -643,7 +644,7 @@ void SvgRenderer::render_timeAxis(const Fmi::TimePeriod& theTimePeriod)
     double x = 0.0, xStep = (step * axisManager->xStep());
     for (; (current <= et); current += Fmi::Hours(step), x += xStep)
       texts["TIMELABELS"] << "<text x=\"" << std::fixed << std::setprecision(1) << x
-                          << "\" y=\"0\">" << toFormattedString(current, "HH", utc).CharPtr()
+                          << R"(" y="0">)" << toFormattedString(current, "HH", utc).CharPtr()
                           << "</text>\n";
 
     // Output elevation lines
@@ -661,7 +662,7 @@ void SvgRenderer::render_timeAxis(const Fmi::TimePeriod& theTimePeriod)
         double y = eit->scaledElevation();
 
         if (y > 0.1)
-          texts["ELEVATIONLINES"] << "<line x1=\"0\" y1=\"" << std::fixed << std::setprecision(1)
+          texts["ELEVATIONLINES"] << R"(<line x1="0" y1=")" << std::fixed << std::setprecision(1)
                                   << (axisHeight - y) << "\" x2=\"" << std::fixed << width
                                   << "\" y2=\"" << std::fixed << std::setprecision(1)
                                   << (axisHeight - y) << "\"/>\n";
@@ -1546,7 +1547,7 @@ void SvgRenderer::render_text(Texts& texts,
       // Set initial textarea rect in case no output is generated
       //
       TEXTAREAtextName = "TEXTAREA" + textName;
-      texts[TEXTAREAtextName] << " x=\"0\" y=\"0\" width=\"0\" height=\"0\"";
+      texts[TEXTAREAtextName] << R"( x="0" y="0" width="0" height="0")";
     }
 
     int startX = xPosW, startY = yPosH;
@@ -10424,8 +10425,8 @@ void SvgRenderer::render_value(const std::string& confPath,
 
             if (href.empty())
               values << "<text id=\"text" << Fmi::to_string(npointvalues)
-                     << "\" text-anchor=\"middle\" x=\"" << std::fixed << std::setprecision(1)
-                     << lon << "\" y=\"" << std::fixed << std::setprecision(1) << lat << "\">"
+                     << R"(" text-anchor="middle" x=")" << std::fixed << std::setprecision(1) << lon
+                     << "\" y=\"" << std::fixed << std::setprecision(1) << lat << "\">"
                      << formattedValue(
                             lowerLimit, upperLimit, confPath, pref, nullptr, &specs, globalScope)
                      << "</text>\n";
@@ -10434,7 +10435,7 @@ void SvgRenderer::render_value(const std::string& confPath,
                      << " " << std::fixed << std::setprecision(1) << lat << ")\">\n"
                      << "<use xlink:href=\"#" << href << "\"/>\n"
                      << "<text id=\"text" << Fmi::to_string(npointvalues)
-                     << "\" text-anchor=\"middle\">"
+                     << R"(" text-anchor="middle">)"
                      << formattedValue(
                             lowerLimit, upperLimit, confPath, pref, nullptr, &specs, globalScope)
                      << "</text>\n"
