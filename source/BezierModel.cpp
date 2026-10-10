@@ -309,7 +309,7 @@ int BezierModel::getSteppedCurvePoints(
       t = ((curPos < curveLength) ? ((curPos - lss) / (*itl - lss)) : 1.0);
     }
 
-    curvePoints.push_back(DirectPosition(itb->getPosition(t)));
+    curvePoints.emplace_back(itb->getPosition(t));
 
     nPoints++;
 

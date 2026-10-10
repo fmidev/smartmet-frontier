@@ -902,8 +902,8 @@ bool getFillPositions(NFmiFillAreas::const_iterator iter,
 
   for (h = 0, x = hoffset; (h < nh); h++, x += (bw + hoffset))
     for (v = 0, y = voffset; (v < nv); v++, y += (bh + voffset), symCnt++)
-      fpos.push_back(Point(iter->first.x + x + symhoff[symCnt % shoCnt],
-                           iter->first.y + y + symvoff[symCnt % svoCnt]));
+      fpos.emplace_back(iter->first.x + x + symhoff[symCnt % shoCnt],
+                        iter->first.y + y + symvoff[symCnt % svoCnt]);
 
   return true;
 }
@@ -947,7 +947,7 @@ void splitFillAreas(NFmiFillAreas& areas, int symbolWidth, float scale)
         if ((x2 + floor(scaledWidth + 0.5)) > xEnd)
           x2 = xEnd;
 
-        areas.push_back(std::make_pair(Point(x1, iter->first.y), Point(x2, iter->second.y)));
+        areas.emplace_back(Point(x1, iter->first.y), Point(x2, iter->second.y));
 
         x1 = x2;
       } while (x1 < xEnd);
@@ -1049,7 +1049,7 @@ FillAreaColumns getFillAreaColumns(const NFmiFillAreas& areas)
     {
       if (iFirstColArea != iArea)
       {
-        columns.push_back(Column(iFirstColArea, n, sortAsc));
+        columns.emplace_back(iFirstColArea, n, sortAsc);
         sortAsc = (!sortAsc);
       }
 
@@ -1060,7 +1060,7 @@ FillAreaColumns getFillAreaColumns(const NFmiFillAreas& areas)
     else
       n++;
 
-  columns.push_back(Column(iFirstColArea, n));
+  columns.emplace_back(iFirstColArea, n);
 
   return columns;
 }
@@ -1175,7 +1175,7 @@ void getFillPositions(NFmiFillAreas& areas,
         double x = iArea->first.x + ((iArea->second.x - iArea->first.x) / 2.0);
         double y = iArea->first.y + ((iArea->second.y - iArea->first.y) / 2.0);
 
-        fpos.push_back(Point(x, y));
+        fpos.emplace_back(x, y);
 
         nColSymbols--;
         nSymbolsLeft--;
@@ -1280,7 +1280,7 @@ void getFillPositions(NFmiFillAreas& areas,
     double x = iter->first.x + ((iter->second.x - iter->first.x) / xOff);
     double y = iter->first.y + ((iter->second.y - iter->first.y) / yOff);
 
-    fpos.push_back(Point(x, y));
+    fpos.emplace_back(x, y);
 
     if ((maxAreaSymbols == 1) || (symIndex == 4))
     {
@@ -2497,7 +2497,7 @@ void SvgRenderer::render_surface(
                       double y1 = y0 + (y * ((height * packingFactor) + spacing));
                       double y2 = y1 + height;
 
-                      areas.push_back(std::make_pair(Point(x1, y1), Point(x2, y2)));
+                      areas.emplace_back(Point(x1, y1), Point(x2, y2));
                     }
                 }
               }
@@ -4571,30 +4571,30 @@ const libconfig::Setting& SvgRenderer::cloudLayerConfig(const std::string& _conf
       if (!isSet)
         eOffset = 0;
 
-      cloudGroups.push_back(CloudGroup(cloudClass.empty() ? classDef : cloudClass,
-                                       cloudTypes,
-                                       symbolType,
-                                       hasLabel ? &label : nullptr,
-                                       bbCenterLabel,
-                                       placeHolder,
-                                       labelPlaceHolder,
-                                       combined,
-                                       baseStep,
-                                       maxRand,
-                                       maxRepeat,
-                                       scaleHeightMin,
-                                       scaleHeightRandom,
-                                       controlMin,
-                                       controlRandom,
-                                       xOffset,
-                                       yOffset,
-                                       vOffset,
-                                       vSOffset,
-                                       vSSOffset,
-                                       sOffset,
-                                       eOffset,
-                                       cloudSet,
-                                       scope));
+      cloudGroups.emplace_back(cloudClass.empty() ? classDef : cloudClass,
+                               cloudTypes,
+                               symbolType,
+                               hasLabel ? &label : nullptr,
+                               bbCenterLabel,
+                               placeHolder,
+                               labelPlaceHolder,
+                               combined,
+                               baseStep,
+                               maxRand,
+                               maxRepeat,
+                               scaleHeightMin,
+                               scaleHeightRandom,
+                               controlMin,
+                               controlRandom,
+                               xOffset,
+                               yOffset,
+                               vOffset,
+                               vSOffset,
+                               vSSOffset,
+                               sOffset,
+                               eOffset,
+                               cloudSet,
+                               scope);
 
       scope.pop_back();
     }
@@ -4684,7 +4684,7 @@ void trackAreaLabelPos(
     hipx = labelElevation->upperLimit()->numericValue();
   }
 
-  elevInfoMap[ceil(x)].push_back(ElevInfo(lopx, hipx, iteg->hasHole()));
+  elevInfoMap[ceil(x)].emplace_back(lopx, hipx, iteg->hasHole());
 }
 
 // ----------------------------------------------------------------------
@@ -4773,7 +4773,7 @@ void eraseReservedAreas(const std::string& markerId,
         {
           candidateAreas[markerId].fillAreas.push_back(*fiter);
           candidateAreas[markerId].markers.push_back(reserver);
-          candidateAreas[markerId].scales.push_back(std::make_pair(1.0, 1.0));
+          candidateAreas[markerId].scales.emplace_back(1.0, 1.0);
         }
 
         // fprintf(stderr,">> %s %.0f,%.0f - %.0f,%.0f [%.0f,%.0f - %.0f,%.0f]\n",eraseReserved ?
@@ -4876,8 +4876,8 @@ NFmiFillAreas getMarkerArea(const std::string& markerId,
 {
   NFmiFillAreas markerArea;
 
-  markerArea.push_back(std::make_pair(Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
-                                      Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0))));
+  markerArea.emplace_back(Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
+                          Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0)));
 
   eraseReservedAreas("hole", "hole", "", holeAreas, candidateAreas, markerArea, nullptr, true);
   eraseReservedAreas(
@@ -5254,7 +5254,7 @@ bool arrangeMarkers(Texts& texts,
       // Note: Temporary "CURRENTCANDIDATE" reserved marker is flagged with nonempty 'markers' field
       //
       reservedAreas["CURRENTCANDIDATE"].fillAreas.push_back(*it);
-      reservedAreas["CURRENTCANDIDATE"].markers.push_back("CURRENTCANDIDATE");
+      reservedAreas["CURRENTCANDIDATE"].markers.emplace_back("CURRENTCANDIDATE");
       eraseReservedAreas(
           fit->first, reservedAreas, candidateAreas, fit->second.fillAreas, &(fit->second.scales));
       reservedAreas["CURRENTCANDIDATE"].fillAreas.clear();
@@ -5544,7 +5544,7 @@ void getAreaMarkerPos(Texts& texts,
     reservedAreas[mId].centered = false;
     reservedAreas[mId].fillAreas.insert(reservedAreas[mId].fillAreas.begin(), fA.begin(), fA.end());
     reservedAreas[mId].scale = markerScale;
-    reservedAreas[mId].scales.push_back(std::make_pair(markerScale, markerScale));
+    reservedAreas[mId].scales.emplace_back(markerScale, markerScale);
   }
 
   auto area = fillAreas.begin();
@@ -5609,7 +5609,7 @@ void getAreaMarkerPos(Texts& texts,
           if (area->second.y <= (axisHeight + ((area->second.y - area->first.y) / 3)))
           {
             areas.push_back(*area);
-            scales.push_back(std::make_pair(1.0, 1.0));
+            scales.emplace_back(1.0, 1.0);
           }
           // fprintf(stderr,"\t%s n0=%d nN=%d xLim=%.0f bl=%.0f,%.0f tr=%.0f,%.0f\n",area->second.y
           // <= (axisHeight + ((area->second.y - area->first.y) / 3)) ? "Pick" : "Skip",n0,n0 +
@@ -5844,9 +5844,9 @@ void getAreaMarkerPos(Texts& texts,
         {
           // Free, store the center point and scale
           //
-          areas.push_back(std::make_pair(Point(x - (markerWidth / 2), my - (markerHeight / 2)),
-                                         Point(x + (markerWidth / 2), my + (markerHeight / 2))));
-          scales.push_back(std::make_pair(markerWidth / mw, markerHeight / mh));
+          areas.emplace_back(Point(x - (markerWidth / 2), my - (markerHeight / 2)),
+                             Point(x + (markerWidth / 2), my + (markerHeight / 2)));
+          scales.emplace_back(markerWidth / mw, markerHeight / mh);
 
           if (selfrh < h)
           {
@@ -6030,11 +6030,11 @@ void getAreaMarkerPos(Texts& texts,
     reservedAreas[mId].x = mx;
     reservedAreas[mId].y = my;
     reservedAreas[mId].centered = (!textOutput);
-    reservedAreas[mId].fillAreas.push_back(
-        std::make_pair(Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
-                       Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0))));
+    reservedAreas[mId].fillAreas.emplace_back(
+        Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
+        Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0)));
     reservedAreas[mId].scale = markerScale;
-    reservedAreas[mId].scales.push_back(std::make_pair(xScale, yScale));
+    reservedAreas[mId].scales.emplace_back(xScale, yScale);
     // fprintf(stderr,"\tNF Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",mx - (markerWidth / 2.0),my -
     // (markerHeight / 2.0),mx + (markerWidth / 2.0),my + (markerHeight / 2.0));
 
@@ -6587,16 +6587,16 @@ void addCurvePosition(std::vector<DirectPosition>& curvePositions,
 
   if (fabs(xOffset) >= 1.0)
   {
-    curvePositions.push_back(DirectPosition(x - xOffset, y + yOffset));
+    curvePositions.emplace_back(x - xOffset, y + yOffset);
 
     if (leftOnly)
       return;
   }
 
-  curvePositions.push_back(DirectPosition(x, y + (yOffset / 2)));
+  curvePositions.emplace_back(x, y + (yOffset / 2));
 
   if (fabs(xOffset) >= 1.0)
-    curvePositions.push_back(DirectPosition(x + xOffset, y));
+    curvePositions.emplace_back(x + xOffset, y);
 }
 
 void smoothenCurve(std::vector<DirectPosition>& curvePositions,
@@ -6625,8 +6625,8 @@ void smoothenCurve(std::vector<DirectPosition>& curvePositions,
 
   if (!bottomRight)
   {
-    curvePositions.push_back(DirectPosition(x, y + (yOffset / 2)));
-    curvePositions.push_back(DirectPosition(x + xOffset, y + yOffset));
+    curvePositions.emplace_back(x, y + (yOffset / 2));
+    curvePositions.emplace_back(x + xOffset, y + yOffset);
   }
   else
   {
@@ -7613,7 +7613,7 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
         else if (!ground)
           nonGroundGrp = true;
 
-        eGrp.push_back(ElevationGroupItem(vt, itpvs, itpv));
+        eGrp.emplace_back(vt, itpvs, itpv);
 
         if (byCategory && categoryGroup->standalone())
           // Note: Vertical overlapping is currently not checked for standalone group category;
@@ -10759,8 +10759,8 @@ AxisManager::AxisManager(const libconfig::Config& config)
       else
         itsMinElevation = itsMaxElevation = elevation;
 
-      itsElevations.push_back(
-          Elevation(elevation, scale, (int)(itsAxisHeight * scale), lLabel, rLabel, line));
+      itsElevations.emplace_back(
+          elevation, scale, (int)(itsAxisHeight * scale), lLabel, rLabel, line);
     }
 
     // Sort the elevations and add elevation 0.0 if it does not exist
@@ -10771,7 +10771,7 @@ AxisManager::AxisManager(const libconfig::Config& config)
     if (it->elevation() > 0.0)
     {
       itsMinElevation = 0.0;
-      itsElevations.push_front(Elevation(itsMinElevation));
+      itsElevations.emplace_front(itsMinElevation);
     }
 
     // Check the elevations have rising scale and precalculate factors for linear interapolation

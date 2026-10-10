@@ -191,8 +191,8 @@ bool NFmiFillMap::scanColumn(T iter,
 
     // Store the rectangle
 
-    fillAreas.push_back(
-        std::make_pair(Point(xMin, std::min(yFirst, yLast)), Point(xMax, std::max(yFirst, yLast))));
+    fillAreas.emplace_back(Point(xMin, std::min(yFirst, yLast)),
+                           Point(xMax, std::max(yFirst, yLast)));
 
     return true;
   }
@@ -239,8 +239,8 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
         if (dataiter != enddata)
         {
           double x2 = *dataiter;
-          fillAreas.push_back(std::make_pair(Point(std::min(x1, x2), iter->first),
-                                             Point(std::max(x1, x2), iter->first + 1)));
+          fillAreas.emplace_back(Point(std::min(x1, x2), iter->first),
+                                 Point(std::max(x1, x2), iter->first + 1));
 
           dataiter++;
         }

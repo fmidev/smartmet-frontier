@@ -3944,8 +3944,8 @@ void ClipperOffset::DoOffset(double delta)
         double X = 1.0, Y = 0.0;
         for (cInt j = 1; j <= steps; j++)
         {
-          m_destPoly.push_back(
-              IntPoint(Round(m_srcPoly[0].X + X * delta), Round(m_srcPoly[0].Y + Y * delta)));
+          m_destPoly.emplace_back(Round(m_srcPoly[0].X + X * delta),
+                                  Round(m_srcPoly[0].Y + Y * delta));
           double X2 = X;
           X = X * m_cos - m_sin * Y;
           Y = X2 * m_sin + Y * m_cos;
@@ -3956,8 +3956,8 @@ void ClipperOffset::DoOffset(double delta)
         double X = -1.0, Y = -1.0;
         for (int j = 0; j < 4; ++j)
         {
-          m_destPoly.push_back(
-              IntPoint(Round(m_srcPoly[0].X + X * delta), Round(m_srcPoly[0].Y + Y * delta)));
+          m_destPoly.emplace_back(Round(m_srcPoly[0].X + X * delta),
+                                  Round(m_srcPoly[0].Y + Y * delta));
           if (X < 0)
             X = 1;
           else if (Y < 0)
@@ -3977,7 +3977,7 @@ void ClipperOffset::DoOffset(double delta)
     if (node.m_endtype == etClosedLine || node.m_endtype == etClosedPolygon)
       m_normals.push_back(GetUnitNormal(m_srcPoly[len - 1], m_srcPoly[0]));
     else
-      m_normals.push_back(DoublePoint(m_normals[len - 2]));
+      m_normals.emplace_back(m_normals[len - 2]);
 
     if (node.m_endtype == etClosedPolygon)
     {
@@ -4075,8 +4075,8 @@ void ClipperOffset::OffsetPoint(int j, int& k, JoinType jointype)
     double cosA = (m_normals[k].X * m_normals[j].X + m_normals[j].Y * m_normals[k].Y);
     if (cosA > 0)  // angle => 0 degrees
     {
-      m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
-                                    Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
+      m_destPoly.emplace_back(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
+                              Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta));
       return;
     }
     // else angle => 180 degrees
@@ -4088,11 +4088,11 @@ void ClipperOffset::OffsetPoint(int j, int& k, JoinType jointype)
 
   if (m_sinA * m_delta < 0)
   {
-    m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
-                                  Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
+    m_destPoly.emplace_back(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
+                            Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta));
     m_destPoly.push_back(m_srcPoly[j]);
-    m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
-                                  Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta)));
+    m_destPoly.emplace_back(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
+                            Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta));
   }
   else
     switch (jointype)
@@ -4121,20 +4121,18 @@ void ClipperOffset::DoSquare(int j, int k)
 {
   double dx = std::tan(
       std::atan2(m_sinA, m_normals[k].X * m_normals[j].X + m_normals[k].Y * m_normals[j].Y) / 4);
-  m_destPoly.push_back(
-      IntPoint(Round(m_srcPoly[j].X + m_delta * (m_normals[k].X - m_normals[k].Y * dx)),
-               Round(m_srcPoly[j].Y + m_delta * (m_normals[k].Y + m_normals[k].X * dx))));
-  m_destPoly.push_back(
-      IntPoint(Round(m_srcPoly[j].X + m_delta * (m_normals[j].X + m_normals[j].Y * dx)),
-               Round(m_srcPoly[j].Y + m_delta * (m_normals[j].Y - m_normals[j].X * dx))));
+  m_destPoly.emplace_back(Round(m_srcPoly[j].X + m_delta * (m_normals[k].X - m_normals[k].Y * dx)),
+                          Round(m_srcPoly[j].Y + m_delta * (m_normals[k].Y + m_normals[k].X * dx)));
+  m_destPoly.emplace_back(Round(m_srcPoly[j].X + m_delta * (m_normals[j].X + m_normals[j].Y * dx)),
+                          Round(m_srcPoly[j].Y + m_delta * (m_normals[j].Y - m_normals[j].X * dx)));
 }
 //------------------------------------------------------------------------------
 
 void ClipperOffset::DoMiter(int j, int k, double r)
 {
   double q = m_delta / r;
-  m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + (m_normals[k].X + m_normals[j].X) * q),
-                                Round(m_srcPoly[j].Y + (m_normals[k].Y + m_normals[j].Y) * q)));
+  m_destPoly.emplace_back(Round(m_srcPoly[j].X + (m_normals[k].X + m_normals[j].X) * q),
+                          Round(m_srcPoly[j].Y + (m_normals[k].Y + m_normals[j].Y) * q));
 }
 //------------------------------------------------------------------------------
 
@@ -4146,14 +4144,14 @@ void ClipperOffset::DoRound(int j, int k)
   double X = m_normals[k].X, Y = m_normals[k].Y, X2;
   for (int i = 0; i < steps; ++i)
   {
-    m_destPoly.push_back(
-        IntPoint(Round(m_srcPoly[j].X + X * m_delta), Round(m_srcPoly[j].Y + Y * m_delta)));
+    m_destPoly.emplace_back(Round(m_srcPoly[j].X + X * m_delta),
+                            Round(m_srcPoly[j].Y + Y * m_delta));
     X2 = X;
     X = X * m_cos - m_sin * Y;
     Y = X2 * m_sin + Y * m_cos;
   }
-  m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
-                                Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta)));
+  m_destPoly.emplace_back(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
+                          Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta));
 }
 
 //------------------------------------------------------------------------------
@@ -4411,7 +4409,7 @@ void Minkowski(const Path& poly, const Path& path, Paths& solution, bool isSum, 
       Path p;
       p.reserve(polyCnt);
       for (size_t j = 0; j < poly.size(); ++j)
-        p.push_back(IntPoint(path[i].X + poly[j].X, path[i].Y + poly[j].Y));
+        p.emplace_back(path[i].X + poly[j].X, path[i].Y + poly[j].Y);
       pp.push_back(p);
     }
   else
@@ -4420,7 +4418,7 @@ void Minkowski(const Path& poly, const Path& path, Paths& solution, bool isSum, 
       Path p;
       p.reserve(polyCnt);
       for (size_t j = 0; j < poly.size(); ++j)
-        p.push_back(IntPoint(path[i].X - poly[j].X, path[i].Y - poly[j].Y));
+        p.emplace_back(path[i].X - poly[j].X, path[i].Y - poly[j].Y);
       pp.push_back(p);
     }
 
