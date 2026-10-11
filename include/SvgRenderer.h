@@ -288,7 +288,7 @@ using TurbulenceGroup = IcingGroup;
 class CategoryValueMeasureGroup
 {
  public:
-  virtual ~CategoryValueMeasureGroup() {}
+  virtual ~CategoryValueMeasureGroup() = default;
   CategoryValueMeasureGroup() : itsFirstMember(nullptr) {}
   virtual bool groupMember(const woml::CategoryValueMeasure* cvm) const { return true; }
   virtual bool groupMember(bool first, const woml::CategoryValueMeasure* cvm);
@@ -453,7 +453,7 @@ using FillAreas = std::map<std::string, FillAreaData>;  // Marker name and relat
 class SvgRenderer : public woml::FeatureVisitor
 {
  public:
-  ~SvgRenderer() override {}
+  ~SvgRenderer() override = default;
   SvgRenderer(const Options& theOptions,
               const libconfig::Config& theConfig,
               const std::string& theTemplate,
