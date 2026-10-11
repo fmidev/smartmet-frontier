@@ -23,21 +23,21 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-gis-devel >= 26.4.13
-BuildRequires: smartmet-library-macgyver-devel >= 26.4.13
-BuildRequires: smartmet-library-newbase-devel >= 26.2.4
+BuildRequires: smartmet-library-gis-devel >= 26.10.11
+BuildRequires: smartmet-library-macgyver-devel >= 26.10.11
+BuildRequires: smartmet-library-newbase-devel >= 26.10.11
 BuildRequires: smartmet-library-trax-devel >= 26.6.26
 BuildRequires: geos313
-BuildRequires: smartmet-library-woml >= 26.4.13
+BuildRequires: smartmet-library-woml >= 26.10.11
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-fonts
-Requires: smartmet-library-macgyver >= 26.4.13
-Requires: smartmet-library-newbase >= 26.2.4
+Requires: smartmet-library-macgyver >= 26.10.11
+Requires: smartmet-library-newbase >= 26.10.11
 Requires: smartmet-library-trax >= 26.6.26
-Requires: smartmet-library-woml >= 26.4.13
+Requires: smartmet-library-woml >= 26.10.11
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
 Requires: %{smartmet_boost}-program-options
@@ -47,7 +47,7 @@ Requires: %{smartmet_boost}-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 26.4.13
+#TestRequires: smartmet-library-macgyver-devel >= 26.10.11
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
@@ -80,8 +80,6 @@ rm -rf $RPM_BUILD_ROOT
 * Sun Oct 11 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.11-1.fmi
 - Invalid numbers are now detected instead of silently becoming 0 or a numeric prefix
 - Floating point loops use integer counters, so rounding no longer drops or adds iterations
-
-* Sat Oct 10 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.10-1.fmi
 - Use auto and return {} where clang-tidy suggests it, no functional changes
 - Mark overriding methods override and use nullptr, no functional changes
 - Use = default and using declarations where clang-tidy suggests it, no functional changes
