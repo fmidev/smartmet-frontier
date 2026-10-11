@@ -45,7 +45,7 @@ class Path
 
   std::pair<double, double> nearestVertex(double x, double y) const;
 
-  typedef struct bbox
+  struct bbox
   {
     bbox(double _blX = 0.0, double _blY = 0.0, double _trX = 0.0, double _trY = 0.0)
         : blX(_blX), blY(_blY), trX(_trX), trY(_trY)
@@ -55,7 +55,8 @@ class Path
     double blY;
     double trX;
     double trY;
-  } BBox;
+  };
+  using BBox = bbox;
   BBox getBBox() const;
 
  private:
