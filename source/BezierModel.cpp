@@ -260,6 +260,7 @@ int BezierModel::getSteppedCurvePoints(
   // Number of points
   int nPoints = 0;
 
+  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp): the seed is not used for security
   srand(time(nullptr));
 
   curvePoints.clear();
@@ -273,6 +274,7 @@ int BezierModel::getSteppedCurvePoints(
 
       if (maxRand > 0)
       {
+        // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
         step += (int)((maxRand + 1) * (rand() / (RAND_MAX + 1.0)));
 
         if (step == prevStep)
@@ -344,6 +346,7 @@ void BezierModel::decorateCurve(
   if (ritcp != cpend)
     ritcp++;
 
+  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp): the seed is not used for security
   srand(time(nullptr));
 
   decoratorPoints.clear();
@@ -361,11 +364,14 @@ void BezierModel::decorateCurve(
         basePosition,
         rightPosition,
         negative ? NEG : POS,
+        // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
         scaleHeightMin + ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0))));
 
     DoubleArr control(basePosition[0] + normalScale[0] + controlMin +
+                          // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
                           ((controlRandom + 1) * (rand() / (RAND_MAX + 1.0))),
                       basePosition[1] + normalScale[1] + controlMin +
+                          // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
                           ((controlRandom + 1) * (rand() / (RAND_MAX + 1.0))));
 
     decoratorPoints.push_back(control);

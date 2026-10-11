@@ -545,8 +545,9 @@ void BezSeg::computeSegmentLength()
   DoubleArr prevPos = start;
   DoubleArr evalPos;
 
-  for (double t = 0.; t <= 1.0; t += dt / 2.)
+  for (int nt = 0; nt * (dt / 2.) <= 1.0; nt++)
   {
+    const double t = nt * (dt / 2.);
     evalPos = getPosition(t);
     len += Vector2Dee::getLength(evalPos, prevPos);
     prevPos = evalPos;

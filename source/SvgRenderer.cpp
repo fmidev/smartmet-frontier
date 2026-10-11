@@ -6673,6 +6673,7 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
   double axisWidth = axisManager->axisWidth(), xStep = axisManager->xStep(),
          nonZ = axisManager->nonZeroElevation();
 
+  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp): the seed is not used for security
   srand(time(nullptr));
 
   // x -offset for additional points generated on both sides of the elevation's lo/hi range points
@@ -6725,7 +6726,9 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
 
     if (scaleHeightRandom > 0)
     {
+      // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
       lOffset += ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0)));
+      // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
       hOffset += ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0)));
     }
 
@@ -12287,8 +12290,11 @@ void SvgRenderer::contour(const std::shared_ptr<NFmiQueryData>& theQD, const Fmi
       // All the isolines are extracted with a single pass over the grid
 
       std::vector<float> isovalues;
-      for (float value = start; value <= stop; value += step)
+      for (int nvalue = 0; start + nvalue * step <= stop; nvalue++)
+      {
+        const float value = start + nvalue * step;
         isovalues.push_back(value);
+      }
 
       Trax::IsolineValues limits;
       limits.add(isovalues);
