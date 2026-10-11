@@ -1269,7 +1269,7 @@ bool ClipperBase::AddPaths(const Paths& ppg, PolyType PolyTyp, bool Closed)
 void ClipperBase::Clear()
 {
   DisposeLocalMinimaList();
-  for (auto edges : m_edges)
+  for (auto* edges : m_edges)
   {
     // for each edge array in turn, find the first used edge and
     // check for and remove any hiddenPts in each edge in the array.
@@ -1490,7 +1490,7 @@ bool Clipper::ExecuteInternal()
   if (succeeded)
   {
     // fix orientations ...
-    for (auto outRec : m_PolyOuts)
+    for (auto* outRec : m_PolyOuts)
     {
       if (!outRec->Pts || outRec->IsOpen)
         continue;
@@ -1501,7 +1501,7 @@ bool Clipper::ExecuteInternal()
     if (!m_Joins.empty()) JoinCommonEdges();
 
     // unfortunately FixupOutPolygon() must be done after JoinCommonEdges()
-    for (auto outRec : m_PolyOuts)
+    for (auto* outRec : m_PolyOuts)
     {
       if (outRec->Pts && !outRec->IsOpen)
         FixupOutPolygon(*outRec);
@@ -1938,7 +1938,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
     // if any output polygons share an edge, they'll need joining later ...
     if (Op1 && IsHorizontal(*rb) && m_GhostJoins.size() > 0 && (rb->WindDelta != 0))
     {
-      for (auto jr : m_GhostJoins)
+      for (auto* jr : m_GhostJoins)
       {
         // if the horizontal Rb and a 'ghost' horizontal overlap, then convert
         // the 'ghost' join to a real join ready for later ...
@@ -2871,7 +2871,7 @@ void Clipper::BuildIntersectList(const cInt botY, const cInt topY)
 
 void Clipper::ProcessIntersectList()
 {
-  for (auto iNode : m_IntersectList)
+  for (auto* iNode : m_IntersectList)
   {
     {
       IntersectEdges(iNode->Edge1, iNode->Edge2, iNode->Pt);
@@ -3149,7 +3149,7 @@ void Clipper::BuildResult2(PolyTree& polytree)
   polytree.Clear();
   polytree.AllNodes.reserve(m_PolyOuts.size());
   // add each output polygon/contour to polytree ...
-  for (auto outRec : m_PolyOuts)
+  for (auto* outRec : m_PolyOuts)
   {
     int cnt = PointCount(outRec->Pts);
     if ((outRec->IsOpen && cnt < 2) || (!outRec->IsOpen && cnt < 3)) continue;
@@ -3171,7 +3171,7 @@ void Clipper::BuildResult2(PolyTree& polytree)
 
   // fixup PolyNode links etc ...
   polytree.Childs.reserve(m_PolyOuts.size());
-  for (auto outRec : m_PolyOuts)
+  for (auto* outRec : m_PolyOuts)
   {
     if (!outRec->PolyNd)
       continue;
@@ -3573,7 +3573,7 @@ static OutRec* ParseFirstLeft(OutRec* FirstLeft)
 void Clipper::FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec)
 {
   // tests if NewOutRec contains the polygon before reassigning FirstLeft
-  for (auto outRec : m_PolyOuts)
+  for (auto* outRec : m_PolyOuts)
   {
     if (!outRec->Pts || !outRec->FirstLeft)
       continue;
@@ -3589,7 +3589,7 @@ void Clipper::FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec)
 void Clipper::FixupFirstLefts2(OutRec* OldOutRec, OutRec* NewOutRec)
 {
   // reassigns FirstLeft WITHOUT testing if NewOutRec contains the polygon
-  for (auto outRec : m_PolyOuts)
+  for (auto* outRec : m_PolyOuts)
   {
     if (outRec->FirstLeft == OldOutRec)
       outRec->FirstLeft = NewOutRec;
@@ -3599,7 +3599,7 @@ void Clipper::FixupFirstLefts2(OutRec* OldOutRec, OutRec* NewOutRec)
 
 void Clipper::JoinCommonEdges()
 {
-  for (auto join : m_Joins)
+  for (auto* join : m_Joins)
   {
     OutRec* outRec1 = GetOutRec(join->OutPt1->Idx);
     OutRec* outRec2 = GetOutRec(join->OutPt2->Idx);
