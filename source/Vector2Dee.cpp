@@ -7,7 +7,7 @@
 // ======================================================================
 
 #include "Vector2Dee.h"
-#include <math.h>
+#include <cmath>
 
 static const double PI = 3.14159265;
 
