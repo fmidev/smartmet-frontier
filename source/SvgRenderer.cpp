@@ -1108,7 +1108,8 @@ void getFillPositions(NFmiFillAreas& areas,
   }
   else if ((strlen(fillMode.c_str()) >= 2) && (strlen(fillMode.c_str()) <= 4) &&
            (strspn(fillMode.c_str(), "1234567890") == (strlen(fillMode.c_str()) - 1)) &&
-           strrchr(fillMode.c_str(), '%') && (atoi(fillMode.c_str()) <= 100))
+           strrchr(fillMode.c_str(), '%') &&
+           (Fmi::stoi(fillMode.substr(0, fillMode.size() - 1)) <= 100))
   {
     // Get given percentage of available positions
     //
@@ -1117,7 +1118,8 @@ void getFillPositions(NFmiFillAreas& areas,
     for (auto iCol = columns.begin(); (iCol != columns.end()); iCol++)
       nPos += iCol->nRows();
 
-    auto nSym = (size_t)floor(((atoi(fillMode.c_str()) / 100.0) * nPos) + 0.5);
+    auto nSym =
+        (size_t)floor(((Fmi::stoi(fillMode.substr(0, fillMode.size() - 1)) / 100.0) * nPos) + 0.5);
 
     if (nSym > symbolCnt)
       symbolCnt = std::min(nSym, nPos);
@@ -1954,7 +1956,7 @@ void textSettings(std::string& infoText,
                  ? maxTextWidth
                  : ((*(*s + 1) == 'f') ? fontSize : ((*(*s + 1) == 'x') ? tXOffset : tYOffset)));
 
-        setting = atoi(infoText.substr(pos2, pos - pos2).c_str());
+        setting = Fmi::stoi(infoText.substr(pos2, pos - pos2));
       }
       else
       {
