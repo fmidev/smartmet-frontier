@@ -47,7 +47,7 @@ class BezierModel
   DirectPosition getSecondControlPointOfFirstBezierSegment();
   DirectPosition getFirstControlPointOfFirstBezierSegment();
   DirectPosition getSecondControlPointOfLastBezierSegment();
-  double getTotalLengthOfAllSegments();
+  double getTotalLengthOfAllSegments() const;
   void setOrientation(Orientation theOrientation);
   Orientation getOrientation();
   //	BezierCurve getBezierCurve();
@@ -60,7 +60,7 @@ class BezierModel
   //	std::vector<Integer> getEvaluatedCurvePositionSegmentIndices();
   //	DirectPosition getEvaluatedCurvePosition(double cumulatedPathLength);
   //	std::vector<DirectPosition> getEvaluatedCurvePositions(double pathLengthIncrement);
-  boolean isClosedCurve();
+  boolean isClosedCurve() const;
   void setTightness(double theTightness);
   double getTightness();
 

@@ -346,24 +346,27 @@ class ElevationGroupItem
     itsBottomConnection = theBottomConnection;
   }
   const std::optional<woml::Elevation>& bottomConnection() const { return itsBottomConnection; }
-  void isScanned(bool scanned);
+  void isScanned(bool scanned) const;
   bool isScanned() const;
-  void isGroundConnected(bool connected);
+  void isGroundConnected(bool connected) const;
   bool isGroundConnected() const;
-  void isNegative(bool negative);
+  void isNegative(bool negative) const;
   bool isNegative() const;
-  void hasHole(bool hole);
+  void hasHole(bool hole) const;
   bool hasHole() const;
-  void isHole(bool hole);
+  void isHole(bool hole) const;
   bool isHole() const;
-  bool assHole() { /* K.W.H */ return (hasHole() && isHole()); }
+  bool assHole() const { /* K.W.H */ return (hasHole() && isHole()); }
   void isGenerated(bool generated) { itsGenerated = generated; }
   bool isGenerated() const { return itsGenerated; }
   void isDeleted(bool deleted) { itsDeleted = deleted; }
   bool isDeleted() const { return itsDeleted; }
-  void groupNumber(unsigned int group);
+  void groupNumber(unsigned int group) const;
   unsigned int groupNumber() const;
-  void elevation(std::optional<woml::Elevation>& theElevation) { itsElevation = theElevation; }
+  void elevation(const std::optional<woml::Elevation>& theElevation)
+  {
+    itsElevation = theElevation;
+  }
   const woml::Elevation& elevation() const
   {
     return (itsElevation ? *itsElevation : Pv()->elevation());
@@ -503,7 +506,7 @@ class SvgRenderer : public woml::FeatureVisitor
 
   void contour(const std::shared_ptr<NFmiQueryData>& theQD, const Fmi::DateTime& theTime);
 
-  void render_header(Fmi::DateTime& validTime,
+  void render_header(const Fmi::DateTime& validTime,
                      const Fmi::TimePeriod& timePeriod,
                      const Fmi::DateTime& forecastTime,
                      const Fmi::DateTime& creationTime,
@@ -543,8 +546,8 @@ class SvgRenderer : public woml::FeatureVisitor
                    bool centerToStartX = false,
                    const std::string& TEXTPOSid = "",
                    bool useTextName = false,
-                   int* maxTextWidth = nullptr,  // I
-                   int* fontSize = nullptr,      // I
+                   const int* maxTextWidth = nullptr,  // I
+                   const int* fontSize = nullptr,      // I
                    int* tXOffset = nullptr,      // I/O: area text's border x -offset
                    int* tYOffset = nullptr);     // I/O: area text's border y -offset
   void render_surface(Path& path,
@@ -616,11 +619,11 @@ class SvgRenderer : public woml::FeatureVisitor
                                     bool getHole = false,
                                     CategoryValueMeasureGroup* categoryGroup = nullptr);
   unsigned int getLeftSideGroupNumber(ElevGrp& eGrp,
-                                      ElevGrp::iterator& iteg,
+                                      const ElevGrp::iterator& iteg,
                                       unsigned int nextGroupNumber,
                                       bool mixed = true);
   unsigned int getRightSideGroupNumber(ElevGrp& eGrp,
-                                       ElevGrp::reverse_iterator& itegrev,
+                                       const ElevGrp::reverse_iterator& itegrev,
                                        unsigned int groupNumber,
                                        bool mixed = true);
   void setGroupNumbers(const std::list<woml::TimeSeriesSlot>& ts, bool mixed = true);
@@ -628,25 +631,25 @@ class SvgRenderer : public woml::FeatureVisitor
                      ElevationHole& hole,
                      CategoryValueMeasureGroup* groupCategory = nullptr);
   bool checkLeftSideHoles(ElevationHoles& holes,
-                          ElevationHoles::iterator& iteh,
+                          const ElevationHoles::iterator& iteh,
                           CategoryValueMeasureGroup* groupCategory = nullptr);
   void checkRightSide(ElevGrp& eGrp,
-                      ElevationHoles::iterator& iteh,
+                      const ElevationHoles::iterator& iteh,
                       CategoryValueMeasureGroup* groupCategory = nullptr);
   bool checkRightSideHoles(ElevationHoles& holes,
                            ElevationHoles::reverse_iterator iteh,
                            CategoryValueMeasureGroup* groupCategory = nullptr);
   bool checkBothSideHoles(ElevationHoles& holes,
-                          ElevationHoles::iterator& iteh,
+                          const ElevationHoles::iterator& iteh,
                           CategoryValueMeasureGroup* groupCategory = nullptr);
   bool checkHoles(ElevGrp& eGrp,
                   ElevationHoles& holes,
                   CategoryValueMeasureGroup* groupCategory = nullptr,
                   bool setNegative = true);
-  bool checkCategory(CategoryValueMeasureGroup* groupCategory, ElevGrp::iterator& e) const;
+  bool checkCategory(CategoryValueMeasureGroup* groupCategory, const ElevGrp::iterator& e) const;
   bool checkCategory(CategoryValueMeasureGroup* groupCategory,
-                     ElevGrp::iterator& e1,
-                     ElevGrp::iterator& e2) const;
+                     const ElevGrp::iterator& e1,
+                     const ElevGrp::iterator& e2) const;
   bool searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
                    CategoryValueMeasureGroup* groupCategory = nullptr,
                    bool setNegative = true);

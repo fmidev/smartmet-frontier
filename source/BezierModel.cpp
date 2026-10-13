@@ -136,7 +136,7 @@ DirectPosition BezierModel::getSecondControlPointOfLastBezierSegment()
   return bezierSegments.back().getSecondControlPoint();
 }
 
-double BezierModel::getTotalLengthOfAllSegments()
+double BezierModel::getTotalLengthOfAllSegments() const
 {
   return totalCurveLength;
 }
@@ -202,7 +202,7 @@ boolean BezierModel::isEmpty()
 //    return evaluatedPositions;
 //}
 
-boolean BezierModel::isClosedCurve()
+boolean BezierModel::isClosedCurve() const
 {
   return bIsClosedCurve;
 }

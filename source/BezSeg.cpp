@@ -48,7 +48,7 @@ void BezSeg::setTightness(double theTightness)
   tightness = theTightness;
 }
 
-double BezSeg::getTightness()
+double BezSeg::getTightness() const
 {
   return tightness;
 }
@@ -214,7 +214,10 @@ void BezSeg::computeSegmentPointPositions()
   c2 = createControlPoint(a, b, c, direction);
 }
 
-DoubleArr BezSeg::createControlPoint(DoubleArr& a, DoubleArr& b, DoubleArr& c, int direction)
+DoubleArr BezSeg::createControlPoint(const DoubleArr& a,
+                                     DoubleArr& b,
+                                     const DoubleArr& c,
+                                     int direction) const
 {
   // Computes and returns a Bézier control point based on three given curve points and a tangent
   // direction value.
@@ -246,7 +249,7 @@ DoubleArr BezSeg::createControlPoint(DoubleArr& a, DoubleArr& b, DoubleArr& c, i
   return DoubleArr(b[X] + dist * ma[X], b[Y] + dist * ma[Y]);
 }
 
-int BezSeg::getSegmentIndex()
+int BezSeg::getSegmentIndex() const
 {
   return segmentIndex;
 }
@@ -556,7 +559,7 @@ void BezSeg::computeSegmentLength()
   segmentLength = len;
 }
 
-double BezSeg::getSegmentLength()
+double BezSeg::getSegmentLength() const
 {
   return segmentLength;
 }
@@ -566,7 +569,7 @@ void BezSeg::isSecondLastSegment(boolean yesOrNo)
   bIsSecondLastSegment = yesOrNo;
 }
 
-boolean BezSeg::isSecondLastSegment()
+boolean BezSeg::isSecondLastSegment() const
 {
   return bIsSecondLastSegment;
 }
@@ -576,7 +579,7 @@ void BezSeg::isLastSegment(boolean yesOrNo)
   bIsLastSegment = yesOrNo;
 }
 
-boolean BezSeg::isLastSegment()
+boolean BezSeg::isLastSegment() const
 {
   return bIsLastSegment;
 }

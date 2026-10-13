@@ -54,8 +54,8 @@ class BezSeg
             int theSegmentIndex,
             boolean isClosedCurve);
   void setTightness(double theTightness);
-  double getTightness();
-  int getSegmentIndex();
+  double getTightness() const;
+  int getSegmentIndex() const;
   void setControlPoint1(DirectPosition c1);
   void setControlPoint2(DirectPosition c2);
   void setStartPoint(DirectPosition startPoint);
@@ -74,11 +74,11 @@ class BezSeg
   //	PositionAndUnitNormal getNormalAtEndPoint();
   DoubleArr getTangent(double t);
   DoubleArr getRotatedUnitVector(DoubleArr p1, DoubleArr p2, double rotationAngleInDegrees);
-  double getSegmentLength();
+  double getSegmentLength() const;
   void isSecondLastSegment(boolean yesOrNo);
-  boolean isSecondLastSegment();
+  boolean isSecondLastSegment() const;
   void isLastSegment(boolean yesOrNo);
-  boolean isLastSegment();
+  boolean isLastSegment() const;
   boolean isMiddleSegment();
 
  private:
@@ -106,7 +106,10 @@ class BezSeg
   boolean isChanged();
   void computeGeometry();
   void computeSegmentPointPositions();
-  DoubleArr createControlPoint(DoubleArr& a, DoubleArr& b, DoubleArr& c, int direction);
+  DoubleArr createControlPoint(const DoubleArr& a,
+                               DoubleArr& b,
+                               const DoubleArr& c,
+                               int direction) const;
   void computeSegmentLength();
 };
 

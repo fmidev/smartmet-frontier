@@ -224,7 +224,7 @@ public:
   bool AddPaths(const Paths &ppg, PolyType PolyTyp, bool Closed);
   virtual void Clear();
   IntRect GetBounds();
-  bool PreserveCollinear() {return m_PreserveCollinear;};
+  bool PreserveCollinear() const { return m_PreserveCollinear; };
   void PreserveCollinear(bool value) {m_PreserveCollinear = value;};
 protected:
   void DisposeLocalMinimaList();
@@ -260,9 +260,9 @@ public:
     PolyTree &polytree,
     PolyFillType subjFillType = pftEvenOdd,
     PolyFillType clipFillType = pftEvenOdd);
-  bool ReverseSolution() {return m_ReverseOutput;};
+  bool ReverseSolution() const { return m_ReverseOutput; };
   void ReverseSolution(bool value) {m_ReverseOutput = value;};
-  bool StrictlySimple() {return m_StrictSimple;};
+  bool StrictlySimple() const { return m_StrictSimple; };
   void StrictlySimple(bool value) {m_StrictSimple = value;};
   //set the callback function for z value filling on intersections (otherwise Z is 0)
 #ifdef use_xyz

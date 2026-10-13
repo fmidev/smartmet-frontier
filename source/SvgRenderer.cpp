@@ -1521,8 +1521,8 @@ void SvgRenderer::render_text(Texts& texts,
                               bool centerToStartX,
                               const std::string& TEXTPOSid,
                               bool useTextName,
-                              int* maxTextWidth,  // I
-                              int* fontSize,      // I
+                              const int* maxTextWidth,  // I
+                              const int* fontSize,      // I
                               int* tXOffset,      // I/O: text's x -offset
                               int* tYOffset)      // I/O: text's y -offset
 {
@@ -3053,7 +3053,7 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure* lowerLimit,
                            const woml::NumericalSingleValueMeasure* upperLimit,
                            const std::string& confPath,
                            const std::string& pref,
-                           double* scale = nullptr,
+                           const double* scale = nullptr,
                            const libconfig::Setting* specs = nullptr,
                            libconfig::Setting* globalScope = nullptr)
 {
@@ -7727,7 +7727,7 @@ void SvgRenderer::checkLeftSide(ElevGrp& eGrp,
 // ----------------------------------------------------------------------
 
 bool SvgRenderer::checkLeftSideHoles(ElevationHoles& holes,
-                                     ElevationHoles::iterator& iteh,
+                                     const ElevationHoles::iterator& iteh,
                                      CategoryValueMeasureGroup* groupCategory)
 {
   std::reverse_iterator<ElevationHoles::iterator> ehend(holes.begin()), liteh(iteh);
@@ -7777,7 +7777,7 @@ bool SvgRenderer::checkLeftSideHoles(ElevationHoles& holes,
 // ----------------------------------------------------------------------
 
 void SvgRenderer::checkRightSide(ElevGrp& eGrp,
-                                 ElevationHoles::iterator& iteh,
+                                 const ElevationHoles::iterator& iteh,
                                  CategoryValueMeasureGroup* groupCategory)
 {
   // Check if the right side of the hole is closed.
@@ -7894,7 +7894,7 @@ bool SvgRenderer::checkRightSideHoles(ElevationHoles& holes,
 // ----------------------------------------------------------------------
 
 bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
-                                     ElevationHoles::iterator& iteh,
+                                     const ElevationHoles::iterator& iteh,
                                      CategoryValueMeasureGroup* groupCategory)
 {
   std::reverse_iterator<ElevationHoles::iterator> lehend(holes.begin()), liteh(iteh);
@@ -8150,7 +8150,7 @@ void generateHoleElevation(ElevGrp& eGrp, ElevGrp::iterator& piteg, ElevGrp::ite
 // ----------------------------------------------------------------------
 
 bool SvgRenderer::checkCategory(CategoryValueMeasureGroup* groupCategory,
-                                ElevGrp::iterator& e) const
+                                const ElevGrp::iterator& e) const
 {
   const auto* cvm = dynamic_cast<const woml::CategoryValueMeasure*>(e->Pv()->value());
 
@@ -8174,8 +8174,8 @@ bool SvgRenderer::checkCategory(CategoryValueMeasureGroup* groupCategory,
 // ----------------------------------------------------------------------
 
 bool SvgRenderer::checkCategory(CategoryValueMeasureGroup* groupCategory,
-                                ElevGrp::iterator& e1,
-                                ElevGrp::iterator& e2) const
+                                const ElevGrp::iterator& e1,
+                                const ElevGrp::iterator& e2) const
 {
   const auto* cvm1 = dynamic_cast<const woml::CategoryValueMeasure*>(e1->Pv()->value());
   const auto* cvm2 = dynamic_cast<const woml::CategoryValueMeasure*>(e2->Pv()->value());
@@ -9717,7 +9717,7 @@ void SvgRenderer::checkZeroToleranceGroup(ElevGrp& eGrpIn, ElevGrp& eGrpOut, boo
 // ----------------------------------------------------------------------
 
 unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp& eGrp,
-                                                 ElevGrp::iterator& iteg,
+                                                 const ElevGrp::iterator& iteg,
                                                  unsigned int groupNumber,
                                                  bool mixed)
 {
@@ -9792,7 +9792,7 @@ unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp& eGrp,
 // ----------------------------------------------------------------------
 
 unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp& eGrp,
-                                                  ElevGrp::reverse_iterator& itegrev,
+                                                  const ElevGrp::reverse_iterator& itegrev,
                                                   unsigned int groupNumber,
                                                   bool mixed)
 {
@@ -10525,7 +10525,7 @@ SvgRenderer::SvgRenderer(const Options& theOptions,
  */
 // ----------------------------------------------------------------------
 
-void SvgRenderer::render_header(Fmi::DateTime& validTime,
+void SvgRenderer::render_header(const Fmi::DateTime& validTime,
                                 const Fmi::TimePeriod& timePeriod,
                                 const Fmi::DateTime& forecastTime,
                                 const Fmi::DateTime& creationTime,
@@ -10910,7 +10910,7 @@ const std::list<woml::GeophysicalParameterValue>::iterator& ElevationGroupItem::
   return itsPv;
 }
 
-void ElevationGroupItem::isScanned(bool scanned)
+void ElevationGroupItem::isScanned(bool scanned) const
 {
   // We only need to set the bit
 
@@ -10923,7 +10923,7 @@ bool ElevationGroupItem::isScanned() const
   return ((Pv()->getFlags() & b_scanned) ? true : false);
 }
 
-void ElevationGroupItem::isGroundConnected(bool connected)
+void ElevationGroupItem::isGroundConnected(bool connected) const
 {
   // We only need to set the bit
 
@@ -10936,7 +10936,7 @@ bool ElevationGroupItem::isGroundConnected() const
   return ((Pv()->getFlags() & b_groundConnected) ? true : false);
 }
 
-void ElevationGroupItem::isNegative(bool negative)
+void ElevationGroupItem::isNegative(bool negative) const
 {
   // We only need to set the bit
 
@@ -10949,7 +10949,7 @@ bool ElevationGroupItem::isNegative() const
   return ((Pv()->getFlags() & b_negative) ? true : false);
 }
 
-void ElevationGroupItem::hasHole(bool hole)
+void ElevationGroupItem::hasHole(bool hole) const
 {
   // We only need to set the bit
 
@@ -10962,7 +10962,7 @@ bool ElevationGroupItem::hasHole() const
   return ((Pv()->getFlags() & b_hasHole) ? true : false);
 }
 
-void ElevationGroupItem::isHole(bool hole)
+void ElevationGroupItem::isHole(bool hole) const
 {
   // We only need to set the bit
 
@@ -10975,7 +10975,7 @@ bool ElevationGroupItem::isHole() const
   return ((Pv()->getFlags() & b_isHole) ? true : false);
 }
 
-void ElevationGroupItem::groupNumber(unsigned int group)
+void ElevationGroupItem::groupNumber(unsigned int group) const
 {
   auto* cvm = dynamic_cast<woml::CategoryValueMeasure*>(Pv()->editableValue());
 
