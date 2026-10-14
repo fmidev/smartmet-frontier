@@ -168,7 +168,7 @@ T lookup(const libconfig::Setting& setting,
   // If specific ('s_base' + n) setting is not found, SettingIdNotFoundException is thrown.
 
   T ret = T();
-  bool bSet;
+  bool bSet = false;
   bool* _isSet = &bSet;
   bool** pSet = (isSet ? &isSet : &_isSet);
   std::string prefixName(prefix.empty() ? name : (prefix + "." + name));

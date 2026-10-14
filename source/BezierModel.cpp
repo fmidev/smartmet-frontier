@@ -8,6 +8,7 @@
 
 #include "BezierModel.h"
 #include "Vector2Dee.h"
+#include <algorithm>
 #include <cmath>
 #include <ctime>
 
@@ -239,14 +240,13 @@ int BezierModel::getSteppedCurvePoints(
 {
   const unsigned int minBaseStep = 3;
 
-  if (baseStep <= minBaseStep)
-    baseStep = minBaseStep;
+  baseStep = std::max(baseStep, minBaseStep);
 
   int curveLength = (int)(floor(getTotalLengthOfAllSegments()) + 0.1);  // Total curve length
   double lss = 0.0;  // Cumulative curve length at the start of current segment
   double t = 0.0;    // Relative position within current segment
 
-  unsigned int step;          // Next step
+  unsigned int step = 0;      // Next step
   unsigned int prevStep = 0;  // Previous step
   unsigned int repStep = 0;   // Counter for subsequent points having equal distance/step
   int curPos = 0;             // Current curve position

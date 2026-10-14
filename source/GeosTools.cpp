@@ -95,7 +95,7 @@ void contoursFromMultiLineString(const MultiLineString* geom, PathAdapter& pathA
     return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    contourFromLineString(dynamic_cast<const LineString*>(geom->getGeometryN(i)), pathAdapter);
+    contourFromLineString(geom->getGeometryN(i), pathAdapter);
 }
 
 // ----------------------------------------------------------------------
@@ -110,7 +110,7 @@ void contoursFromMultiPolygon(const MultiPolygon* geom, PathAdapter& pathAdapter
     return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    contoursFromPolygon(dynamic_cast<const Polygon*>(geom->getGeometryN(i)), pathAdapter);
+    contoursFromPolygon(geom->getGeometryN(i), pathAdapter);
 }
 
 // ----------------------------------------------------------------------

@@ -100,11 +100,11 @@ class AxisManager
   double nonZeroElevation() { return 10.0; }
 
  private:
-  double itsAxisHeight;
-  double itsMinElevation;
-  double itsMaxElevation;
-  double itsAxisWidth;
-  bool itsUtc;
+  double itsAxisHeight = 0;
+  double itsMinElevation = 0.0;
+  double itsMaxElevation = 0.0;
+  double itsAxisWidth = 0;
+  bool itsUtc = false;
   Fmi::TimePeriod itsTimePeriod;
 
   std::list<Elevation> itsElevations;
@@ -289,13 +289,13 @@ class CategoryValueMeasureGroup
 {
  public:
   virtual ~CategoryValueMeasureGroup() = default;
-  CategoryValueMeasureGroup() : itsFirstMember(nullptr) {}
-  virtual bool groupMember(const woml::CategoryValueMeasure* cvm) const { return true; }
+  CategoryValueMeasureGroup() {}
+  virtual bool groupMember(const woml::CategoryValueMeasure* /*cvm*/) const { return true; }
   virtual bool groupMember(bool first, const woml::CategoryValueMeasure* cvm);
   virtual bool standalone() { return false; }
 
  protected:
-  const woml::CategoryValueMeasure* itsFirstMember;
+  const woml::CategoryValueMeasure* itsFirstMember = nullptr;
 };
 
 template <typename T>
@@ -308,7 +308,7 @@ class GroupCategory : public CategoryValueMeasureGroup
   typename std::list<T>::const_iterator currentGroup() { return itcg; }
   bool groupMember(const woml::CategoryValueMeasure* cvm) const override;
   bool groupMember(bool first, const woml::CategoryValueMeasure* cvm) override;
-  bool standalone() override { return ((itsGroups.size() > 0) && (*itcg).standalone()); }
+  bool standalone() override { return ((!itsGroups.empty()) && (*itcg).standalone()); }
   const std::string& groupSymbol() const;
   std::string groupLabel() const;
 
@@ -400,26 +400,20 @@ using ElevGrp = std::list<ElevationGroupItem>;
 
 struct ElevationHole
 {
-  ElevationHole()
-      : aboveElev(),
-        belowElev(),
-        leftClosed(false),
-        leftAboveBounded(false),
-        rightClosed(false),
-        rightAboveBounded(false)
-  {
-  }
+  ElevationHole() {}
 
   bool operator<(const ElevationHole& theOther) const;
 
   ElevGrp::iterator aboveElev;  // Elevation above the hole
   ElevGrp::iterator belowElev;  // Elevation below the hole
-  bool leftClosed;  // Set if the hole is closed by an elevation or by left side closed hole on the
-                    // left side
-  bool leftAboveBounded;  // Set if the hole is bounded by an elevation above on the left side
-  bool rightClosed;  // Set if the hole is closed by an elevation or by right side closed hole on
-                     // the right side
-  bool rightAboveBounded;  // Set if the hole is bounded by an elevation above on the right side
+  bool leftClosed = false;  // Set if the hole is closed by an elevation or by left side closed hole
+                           // on the left side
+  bool leftAboveBounded{
+      false};               // Set if the hole is bounded by an elevation above on the left side
+  bool rightClosed = false;  // Set if the hole is closed by an elevation or by right side closed
+                            // hole on the right side
+  bool rightAboveBounded{
+      false};              // Set if the hole is bounded by an elevation above on the right side
   double lo;               // Lo range of the hole (hi range of the elevation below the hole)
   double loLo;             // Lo range of the elevation below the hole
   double hi;               // Hi range of the hole (lo range of the elevation above the hole)
@@ -430,10 +424,10 @@ using ElevationHoles = std::list<ElevationHole>;
 
 struct WindArrowOffsets
 {
-  WindArrowOffsets() : horizontalOffsetPx(0), verticalOffsetPx(0), scale(0.0) {}
-  int horizontalOffsetPx;
-  int verticalOffsetPx;
-  double scale;
+  WindArrowOffsets() {}
+  int horizontalOffsetPx = 0;
+  int verticalOffsetPx = 0;
+  double scale = 0.0;
 };
 
 using Texts = boost::ptr_map<std::string, std::ostringstream>;

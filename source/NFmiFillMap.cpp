@@ -17,6 +17,7 @@
 // ======================================================================
 
 #include "NFmiFillMap.h"
+
 #include <algorithm>
 #include <cmath>
 #include <list>
@@ -163,7 +164,7 @@ bool NFmiFillMap::scanColumn(T iter,
     //
     std::list<NFmiFillMapElement::iterator>::iterator it;
 
-    float x2;
+    float x2 = NAN;
     int width = xMax - xMin;
     int n = static_cast<int>(floor(width / symbolWidth));
     width -= (n * symbolWidth);

@@ -50,6 +50,8 @@
  */
 // ----------------------------------------------------------------------
 
+namespace
+{
 std::string readfile(const std::string& fileName,
                      const std::string defineDirective = "#define",
                      const std::string includeDirective = "#include",
@@ -200,6 +202,7 @@ std::string remove_sections(const std::string& str,
     ret = part1 + part2;
   }
 }
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!
@@ -209,6 +212,8 @@ std::string remove_sections(const std::string& str,
 
 using ValidTimes = std::set<Fmi::DateTime>;
 
+namespace
+{
 template <typename T>
 ValidTimes extract_valid_times(const T& collection)
 {
@@ -629,11 +634,12 @@ void generatesvg(int exitCode,
 
   exit(0);
 }
+}  // namespace
 
 int main(int argc, char* argv[])
 {
   std::string outfile;
-  bool debug;
+  bool debug = false;
   std::ostringstream debugoutput;
   std::shared_ptr<NFmiArea> area;
 

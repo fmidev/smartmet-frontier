@@ -69,7 +69,7 @@ class NFmiFillMap
   // Constructor
 
   NFmiFillMap(float theLoLimit = kFloatMissing, float theHiLimit = kFloatMissing)
-      : itsData(), itsLoLimit(theLoLimit), itsHiLimit(theHiLimit)
+      : itsLoLimit(theLoLimit), itsHiLimit(theHiLimit)
   {
   }
 

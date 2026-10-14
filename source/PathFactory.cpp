@@ -13,6 +13,7 @@
 #include <smartmet/woml/CubicSplineRing.h>
 #include <smartmet/woml/CubicSplineSurface.h>
 #include <smartmet/woml/SimpleCubicSpline.h>
+#include <cmath>
 #include <stdexcept>
 
 namespace frontier
@@ -27,6 +28,8 @@ using Vector = std::vector<Point>;
  */
 // ----------------------------------------------------------------------
 
+namespace
+{
 Vector trisolve(const Vector& a, const Vector& b, const Vector& c, const Vector& rhs)
 {
   if (b[0].x == 0 || b[0].y == 0)
@@ -59,6 +62,7 @@ Vector trisolve(const Vector& a, const Vector& b, const Vector& c, const Vector&
 
   return u;
 }
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!
@@ -233,7 +237,7 @@ Path create(const woml::SimpleCubicSpline& spline)
   for (size_t i = 1; i < ctrl.size(); i++)
     ctrl[ctrl.size() - i - 1] -= tmp[ctrl.size() - i] * ctrl[ctrl.size() - i];  // Backsubstitution.
 
-  double x, y, x1, y1, x2, y2;
+  double x = NAN, y = NAN, x1 = NAN, y1 = NAN, x2 = NAN, y2 = NAN;
   for (size_t i = 0; i < n; ++i)
   {
     x1 = ctrl[i].x;

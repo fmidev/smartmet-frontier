@@ -22,15 +22,8 @@ namespace frontier
 // ----------------------------------------------------------------------
 
 Options::Options()
-    : verbose(false),
-      quiet(false),
-      debug(false),
-      projection(),
-      svgfile(),
-      womlfile(),
-      outfile("-"),
-      type(""),
-      locale("")
+    :
+      outfile("-")
 {
 }
 
@@ -121,7 +114,7 @@ bool parse_options(int argc, char* argv[], Options& theOptions)
     theOptions.doctype = woml::conceptualmodelforecast;
   else if (theOptions.type == "aerodromeforecast")
     theOptions.doctype = woml::aerodromeforecast;
-  else if (theOptions.type == "")
+  else if (theOptions.type.empty())
     throw std::runtime_error("'type' option is missing");
   else
     throw std::runtime_error("'type' option is not valid");

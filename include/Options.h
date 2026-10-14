@@ -19,9 +19,9 @@ class Options
 
   // --verbose, --quiet, --debug
 
-  bool verbose;
-  bool quiet;
-  bool debug;
+  bool verbose = false;
+  bool quiet = false;
+  bool debug = false;
 
   // -p projection | -p projectionfile
 
