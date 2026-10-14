@@ -33,8 +33,7 @@ float myround(float theValue)
 {
   if (abs(theValue - round(theValue)) < 0.001)  // 0.001 pixels is meaningless
     return round(theValue);
-  else
-    return theValue;
+  return theValue;
 }
 }  // namespace
 
@@ -126,7 +125,7 @@ bool NFmiFillMap::scanColumn(T iter,
 
           if (i1 >= xMax)
             break;
-          else if (i2 > xMin)
+          if (i2 > xMin)
           {
             // Adjust the x1-x2 range with current max(x1) and min(x2) values
             //
@@ -226,11 +225,13 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
   {
     // Get all areas, regardless of their size
     //
-    auto iter = itsData.begin(), enditer = itsData.end();
+    auto iter = itsData.begin();
+    auto enditer = itsData.end();
 
     for (; (iter != enditer); ++iter)
     {
-      auto dataiter = iter->second.begin(), enddata = iter->second.end();
+      auto dataiter = iter->second.begin();
+      auto enddata = iter->second.end();
 
       for (; (dataiter != enddata);)
       {
@@ -272,8 +273,10 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
     _data = itsData;
 
   NFmiFillMapData& data = (retainMap ? _data : itsData);
-  auto iter = data.begin(), enditer = data.end();
-  NFmiFillMapData::reverse_iterator riter(data.end()), renditer(data.begin());
+  auto iter = data.begin();
+  auto enditer = data.end();
+  NFmiFillMapData::reverse_iterator riter(data.end());
+  NFmiFillMapData::reverse_iterator renditer(data.begin());
 
   for (; iter != enditer; ++iter)
     if (iter->second.size() == 2)
@@ -289,7 +292,8 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
 
   int i = 0;
 
-  int yLast = static_cast<int>((--enditer)->first), yPrev = 0;
+  int yLast = static_cast<int>((--enditer)->first);
+  int yPrev = 0;
   enditer++;
 
   for (iter = data.begin(); iter != enditer; i += (scanUpDown ? 1 : 2))
@@ -311,8 +315,8 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
 
     if (y < 0)
       continue;
-    else if (((i % 2) && ((y < symbolHeight) || (y <= yPrev))) ||
-             ((!(i % 2)) && ((y + symbolHeight) > std::min(yLast, imageHeight))))
+    if (((i % 2) && ((y < symbolHeight) || (y <= yPrev))) ||
+        ((!(i % 2)) && ((y + symbolHeight) > std::min(yLast, imageHeight))))
       break;
 
     // We have no active x-coordinate yet

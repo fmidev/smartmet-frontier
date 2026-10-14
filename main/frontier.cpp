@@ -58,7 +58,8 @@ std::string readfile(const std::string& fileName,
                      const std::string& includePathDefine = "INCLUDEPATH",
                      const std::string includeFileExtension = "tpl")
 {
-  const bool stripPound = false, stripDoubleSlash = false;
+  const bool stripPound = false;
+  const bool stripDoubleSlash = false;
 
   PreProcessor processor(defineDirective,
                          includeDirective,
@@ -333,10 +334,8 @@ std::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
         std::cerr << "Ignoring unknown model '" + name + "'" << std::endl;
       return ret;
     }
-    else
-    {
-      throw std::runtime_error("Unknown model called '" + name + "' in WOML data");
-    }
+
+    throw std::runtime_error("Unknown model called '" + name + "' in WOML data");
   }
 
   ret = search_model_origintime(options, path, origintime);

@@ -336,7 +336,10 @@ bool Path::scale(double offset, Path& scaledPath) const
   if (srcPath.size() > 2)
   {
     ClipperLib::Path strippedPath;
-    ClipperLib::Path::const_iterator pathStart = srcPath.begin(), pathEnd = srcPath.end(), it, pit;
+    ClipperLib::Path::const_iterator pathStart = srcPath.begin();
+    ClipperLib::Path::const_iterator pathEnd = srcPath.end();
+    ClipperLib::Path::const_iterator it;
+    ClipperLib::Path::const_iterator pit;
 
     it = pit = pathStart;
     strippedPath.push_back(*it);

@@ -406,8 +406,11 @@ T configValue(std::list<const libconfig::Setting*>& scope,
   const libconfig::Setting* matchingScope = nullptr;
   bool _isSet = false;
 
-  std::list<const libconfig::Setting*>::reverse_iterator rbegiter(scope.end()),
-      renditer(scope.begin()), riter, it, git;
+  std::list<const libconfig::Setting*>::reverse_iterator rbegiter(scope.end());
+  std::list<const libconfig::Setting*>::reverse_iterator renditer(scope.begin());
+  std::list<const libconfig::Setting*>::reverse_iterator riter;
+  std::list<const libconfig::Setting*>::reverse_iterator it;
+  std::list<const libconfig::Setting*>::reverse_iterator git;
 
   for (riter = rbegiter; ((riter != renditer) && (!_isSet));)
   {
@@ -437,7 +440,8 @@ T configValue(std::list<const libconfig::Setting*>& scope,
   {
     // Truncate the scope to have the matching block as the last block
     //
-    auto fenditer = scope.end(), fiter = ((matchingScope == *it) ? it : git).base();
+    auto fenditer = scope.end();
+    auto fiter = ((matchingScope == *it) ? it : git).base();
     scope.erase(fiter, fenditer);
   }
 
@@ -467,7 +471,7 @@ FmiLanguage locale2FmiLanguage(const std::string& confPath, const std::string& t
 
   if (theLocale.empty() || (theLocale.find("fi") == 0))
     return kFinnish;
-  else if (theLocale.find("en") == 0)
+  if (theLocale.find("en") == 0)
     return kEnglish;
   else if (theLocale.find("sv") == 0)
     return kSwedish;
@@ -649,9 +653,11 @@ void SvgRenderer::render_timeAxis(const Fmi::TimePeriod& theTimePeriod)
 
     // Output the labels
 
-    const Fmi::DateTime bt = theTimePeriod.begin(), et = theTimePeriod.end();
+    const Fmi::DateTime bt = theTimePeriod.begin();
+    const Fmi::DateTime et = theTimePeriod.end();
     Fmi::DateTime current = bt;
-    double x = 0.0, xStep = (step * axisManager->xStep());
+    double x = 0.0;
+    double xStep = (step * axisManager->xStep());
     for (; (current <= et); current += Fmi::Hours(step), x += xStep)
       texts["TIMELABELS"] << "<text x=\"" << std::fixed << std::setprecision(1) << x
                           << R"(" y="0">)" << toFormattedString(current, "HH", utc).CharPtr()
@@ -736,7 +742,8 @@ void SvgRenderer::render_header(const std::string& hdrClass,
     // Note: Currently no locale settings are required.
 
     std::list<const libconfig::Setting*> scope;
-    bool nameMatch = false, noName = false;
+    bool nameMatch = false;
+    bool noName = false;
     bool hasLocaleGlobals = false;
 
     int hdrIdx = -1;
@@ -807,8 +814,9 @@ void SvgRenderer::render_header(const std::string& hdrClass,
           // NFmiTime language and format
           //
           FmiLanguage language = locale2FmiLanguage(confPath, options.locale);
-          std::string pref(configValue<std::string>(scope, hdrClass, "pref")), prefDate,
-              &format = pref;
+          std::string pref(configValue<std::string>(scope, hdrClass, "pref"));
+          std::string prefDate;
+          std::string& format = pref;
 
           if (useDate)
           {
@@ -832,8 +840,7 @@ void SvgRenderer::render_header(const std::string& hdrClass,
 
           return;
         }
-        else
-          throw std::runtime_error(confPath + ": '" + type + "'" + hdrtypeMsg);
+        throw std::runtime_error(confPath + ": '" + type + "'" + hdrtypeMsg);
       }  // if
     }  // for
 
@@ -887,8 +894,10 @@ bool getFillPositions(NFmiFillAreas::const_iterator iter,
 
   // Number of symbols horizontally and vertically
 
-  int h = 0, nh = static_cast<int>(width / floor(bw));
-  int v = 0, nv = static_cast<int>(height / floor(bh));
+  int h = 0;
+  int nh = static_cast<int>(width / floor(bw));
+  int v = 0;
+  int nv = static_cast<int>(height / floor(bh));
 
   // Horizontal and vertical spacing between symbols
 
@@ -909,9 +918,11 @@ bool getFillPositions(NFmiFillAreas::const_iterator iter,
       (xoffset + shoffset), (xoffset - shoffset), (xoffset - shoffset), (xoffset + shoffset)};
   float symvoff[] = {
       (yoffset + svoffset), (yoffset - svoffset), (yoffset + svoffset), (yoffset - svoffset)};
-  int shoCnt = (sizeof(symhoff) / sizeof(float)), svoCnt = (sizeof(symvoff) / sizeof(float));
+  int shoCnt = (sizeof(symhoff) / sizeof(float));
+  int svoCnt = (sizeof(symvoff) / sizeof(float));
 
-  float x = NAN, y = NAN;
+  float x = NAN;
+  float y = NAN;
 
   for (h = 0, x = hoffset; (h < nh); h++, x += (bw + hoffset))
     for (v = 0, y = voffset; (v < nv); v++, y += (bh + voffset), symCnt++)
@@ -953,7 +964,7 @@ void splitFillAreas(NFmiFillAreas& areas, int symbolWidth, float scale)
       float xEnd = iter->second.x;
       float x1 = iter->second.x = iter->first.x + floor(scaledWidth + 0.5);
 
-      do
+      for (bool more = true; more; more = x1 < xEnd)
       {
         float x2 = x1 + floor(scaledWidth + 0.5);
 
@@ -963,7 +974,7 @@ void splitFillAreas(NFmiFillAreas& areas, int symbolWidth, float scale)
         areas.emplace_back(Point(x1, iter->first.y), Point(x2, iter->second.y));
 
         x1 = x2;
-      } while (x1 < xEnd);
+      }
     }
   }
 }
@@ -995,7 +1006,8 @@ size_t getStep(size_t symbolCnt, size_t nColsOrRows, size_t& stepN)
     {
       // Adjust first step by the starting/ending offsets
       //
-      size_t sOff = (stepN - 1), eOff = (nColsOrRows - (symbolCnt * stepN));
+      size_t sOff = (stepN - 1);
+      size_t eOff = (nColsOrRows - (symbolCnt * stepN));
 
       step1 = ((eOff <= sOff) ? (stepN - ((sOff - eOff) / 2)) : (stepN + ((eOff - sOff) / 2)));
 
@@ -1054,7 +1066,8 @@ FillAreaColumns getFillAreaColumns(const NFmiFillAreas& areas)
   // than or
   // equal to the center x -coordinate of group's first fill area.
 
-  NFmiFillAreas::const_iterator iArea = areas.begin(), iFirstColArea;
+  NFmiFillAreas::const_iterator iArea = areas.begin();
+  NFmiFillAreas::const_iterator iFirstColArea;
   FillAreaColumns columns;
   double colX = 0.0;
   size_t n = 0;
@@ -1141,8 +1154,13 @@ void getFillPositions(NFmiFillAreas& areas,
   else
     throw std::runtime_error("getFillPositions: invalid fill mode: '" + fillMode + "'");
 
-  size_t nAreasLeft = areas.size(), nSymbolsLeft = symbolCnt, nColsLeft = columns.size(),
-         colStepN = 1, colStep = 1, col = 0, n = 0;
+  size_t nAreasLeft = areas.size();
+  size_t nSymbolsLeft = symbolCnt;
+  size_t nColsLeft = columns.size();
+  size_t colStepN = 1;
+  size_t colStep = 1;
+  size_t col = 0;
+  size_t n = 0;
 
   if (symbolCnt < nColsLeft)
     // There are more columns than symbols, stepping over some columns
@@ -1164,7 +1182,9 @@ void getFillPositions(NFmiFillAreas& areas,
       //
       break;
 
-    size_t nColSymbols = (nSymbolsLeft / nColsLeft), rowStepN = 1, rowStep = 1;
+    size_t nColSymbols = (nSymbolsLeft / nColsLeft);
+    size_t rowStepN = 1;
+    size_t rowStep = 1;
 
     if ((nColSymbols * nColsLeft) < nSymbolsLeft)
       nColSymbols++;
@@ -1259,11 +1279,15 @@ void getFillPositions(NFmiFillAreas& areas,
   if (symbolCnt > (4 * areas.size()))
     throw std::runtime_error("getFillPositions: too many symbols");
 
-  size_t nAreasLeft = areas.size(), nSymbolsLeft = symbolCnt, symIndex = 4, maxAreaSymbols = 0;
+  size_t nAreasLeft = areas.size();
+  size_t nSymbolsLeft = symbolCnt;
+  size_t symIndex = 4;
+  size_t maxAreaSymbols = 0;
 
   for (auto iter = areas.begin(); ((iter != areas.end()) && (nSymbolsLeft > 0)); nSymbolsLeft--)
   {
-    double xOff = NAN, yOff = NAN;
+    double xOff = NAN;
+    double yOff = NAN;
 
     maxAreaSymbols = ((nSymbolsLeft - 1 + (4 - symIndex)) / nAreasLeft) + 1;
 
@@ -1387,10 +1411,12 @@ bool getTextLines(const std::string& text,              // Text to split
 
   std::vector<std::string> inputLines;
   boost::split(inputLines, text, boost::is_any_of("\n"));
-  size_t l = 0, textlc = inputLines.size();
+  size_t l = 0;
+  size_t textlc = inputLines.size();
 
   cairo_text_extents_t extents;
-  std::string line, word;
+  std::string line;
+  std::string word;
 
   // for regenerate with smaller fontsize {
   //
@@ -1423,7 +1449,10 @@ bool getTextLines(const std::string& text,              // Text to split
     std::vector<std::string> words;
     boost::split(words, inputLines[l], boost::is_any_of(" \t"));
 
-    size_t w = 0, linewc = 0, textwc = words.size(), pos = std::string::npos;
+    size_t w = 0;
+    size_t linewc = 0;
+    size_t textwc = words.size();
+    size_t pos = std::string::npos;
     bool fits = false;
 
     for (w = 0; (w < textwc);)
@@ -1564,7 +1593,8 @@ void SvgRenderer::render_text(Texts& texts,
       texts[TEXTAREAtextName] << R"( x="0" y="0" width="0" height="0")";
     }
 
-    int startX = xPosW, startY = yPosH;
+    int startX = xPosW;
+    int startY = yPosH;
     xPosW = yPosH = 0;
 
     if (text.empty())
@@ -1590,7 +1620,8 @@ void SvgRenderer::render_text(Texts& texts,
     // Note: Currently locale settings are not used.
 
     std::list<const libconfig::Setting*> scope;
-    bool nameMatch = false, noName = false;
+    bool nameMatch = false;
+    bool noName = false;
     bool hasLocaleGlobals = false;
 
     int textIdx = -1;
@@ -1743,7 +1774,9 @@ void SvgRenderer::render_text(Texts& texts,
           // Split the text into lines using given max. width and height
 
           std::list<std::string> textLines;
-          unsigned int textWidth = 0, textHeight = 0, maxLineHeight = 0;
+          unsigned int textWidth = 0;
+          unsigned int textHeight = 0;
+          unsigned int maxLineHeight = 0;
 
           getTextLines(text,
                        font,
@@ -1964,12 +1997,23 @@ void textSettings(std::string& infoText,
         if ((*p2 != '>') || (*(p2 - 1) == '=') || (*(p2 - 1) == '-'))
           return;
 
-        int& setting =
-            ((*(*s + 1) == 'w')
-                 ? maxTextWidth
-                 : ((*(*s + 1) == 'f') ? fontSize : ((*(*s + 1) == 'x') ? tXOffset : tYOffset)));
+        const int value = Fmi::stoi(infoText.substr(pos2, pos - pos2));
 
-        setting = Fmi::stoi(infoText.substr(pos2, pos - pos2));
+        switch (*(*s + 1))
+        {
+          case 'w':
+            maxTextWidth = value;
+            break;
+          case 'f':
+            fontSize = value;
+            break;
+          case 'x':
+            tXOffset = value;
+            break;
+          default:
+            tYOffset = value;
+            break;
+        }
       }
       else
       {
@@ -2018,7 +2062,10 @@ void SvgRenderer::setTextPosition(const Path& path,
   }
 
   Path::BBox bbox = (boundingBox ? *boundingBox : path.getBBox());
-  double bboxWidth = bbox.trX - bbox.blX, bboxHeight = bbox.trY - bbox.blY, x = NAN, y = NAN;
+  double bboxWidth = bbox.trX - bbox.blX;
+  double bboxHeight = bbox.trY - bbox.blY;
+  double x = NAN;
+  double y = NAN;
   y = bbox.blY;
   bbox.blY = bbox.trY;
   bbox.trY = y;
@@ -2103,7 +2150,8 @@ void SvgRenderer::render_surface(
     // Current block or global block is needed for rendering.
 
     std::list<const libconfig::Setting*> scope;
-    bool nameMatch = false, noName = false;
+    bool nameMatch = false;
+    bool noName = false;
 
     int surfIdx = -1;
     int lastIdx = surfSpecs.getLength() - 1;
@@ -2249,11 +2297,16 @@ void SvgRenderer::render_surface(
 
               NFmiFillRect infoTextRect(std::make_pair(Point(1, 1), Point(0, 0)));
               const std::string& infoText = (feature ? feature->text(options.locale) : "");
-              std::string TEXTPOSid("Z0TEXTPOS_" + id), textPosition;
+              std::string TEXTPOSid("Z0TEXTPOS_" + id);
+              std::string textPosition;
               int areaWidth = static_cast<int>(std::floor(0.5 + area->Width()));
               int areaHeight = static_cast<int>(std::floor(0.5 + area->Height()));
-              int textWidth = 0, textHeight = 0, maxTextWidth = 0, fontSize = 0, tXOffset = 0,
-                  tYOffset = 0;
+              int textWidth = 0;
+              int textHeight = 0;
+              int maxTextWidth = 0;
+              int fontSize = 0;
+              int tXOffset = 0;
+              int tYOffset = 0;
 
               if ((!infoText.empty()) && (infoText != options.locale))
               {
@@ -2335,7 +2388,10 @@ void SvgRenderer::render_surface(
               int height = _height;
               double scale = _scale;
               size_t pathScalingOffset = 0;
-              bool noTextRetry = false, isScaled = true, sizeOk = false, ok = false;
+              bool noTextRetry = false;
+              bool isScaled = true;
+              bool sizeOk = false;
+              bool ok = false;
 
               // If symbol bounding box (spacing) is increased, first scale up the surface to get
               // the outermost symbols positioned near enough the surface border.
@@ -2357,9 +2413,9 @@ void SvgRenderer::render_surface(
                 }
               }
 
-              do
+              for (bool more2 = true; more2; more2 = autoScale && (!ok) && isScaled && (pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)))
               {
-                do
+                for (bool moreInner = true; moreInner; moreInner = (autoScale || noTextRetry) && (!ok) && sizeOk)
                 {
                   areas.clear();
 
@@ -2402,7 +2458,8 @@ void SvgRenderer::render_surface(
                   {
                     // Render infotext within the area only when all symbols fit in.
                     //
-                    int nw = width - 2, nh = height - 2;
+                    int nw = width - 2;
+                    int nh = height - 2;
 
                     sizeOk = ((nw >= floor(_width * markerScaleFactorMin)) &&
                               (nh >= floor(_height * markerScaleFactorMin)));
@@ -2439,7 +2496,7 @@ void SvgRenderer::render_surface(
                       noTextRetry = true;
                     }
                   }
-                } while ((autoScale || noTextRetry) && (!ok) && sizeOk);
+                }
 
                 if ((!ok) && autoScale && isScaled)
                 {
@@ -2456,8 +2513,7 @@ void SvgRenderer::render_surface(
                     fmap = fmapScaled;
                   }
                 }
-              } while (autoScale && (!ok) && isScaled &&
-                       (pathScalingOffset <= (pathScalingSymbolHeightFactorMax * height)));
+              }
 
               if (!ok)
               {
@@ -2475,10 +2531,14 @@ void SvgRenderer::render_surface(
                   //
                   Path::BBox bbox = path.getBBox();
                   const double packingFactor = 0.5;
-                  double cx = bbox.blX + ((bbox.trX - bbox.blX) / 2),
-                         cy = bbox.blY + ((bbox.trY - bbox.blY) / 2), x0 = NAN, y0 = NAN;
+                  double cx = bbox.blX + ((bbox.trX - bbox.blX) / 2);
+                  double cy = bbox.blY + ((bbox.trY - bbox.blY) / 2);
+                  double x0 = NAN;
+                  double y0 = NAN;
                   const int spacing = 2;
-                  int nx = 0, ny = 0, ns = 0;
+                  int nx = 0;
+                  int ny = 0;
+                  int ns = 0;
 
                   scale = 1;
 
@@ -2565,7 +2625,9 @@ void SvgRenderer::render_surface(
               // Get symbol positions withing the fill areas
 
               const char* clrs[] = {"red", "blue", "green", "orange", "brown", "yellow"};
-              size_t symCnt = 0, clrCnt = (sizeof(clrs) / sizeof(char*)), clrIdx = 0;
+              size_t symCnt = 0;
+              size_t clrCnt = (sizeof(clrs) / sizeof(char*));
+              size_t clrIdx = 0;
 
               if (!areaSymbols || (areas.size() < 2))
               {
@@ -2664,7 +2726,7 @@ void SvgRenderer::render_surface(
 
           return;
         }
-        else if (type == "svg")
+        if (type == "svg")
         {
           throw std::runtime_error(confPath + " type 'svg' not implemented yet");
         }
@@ -2712,8 +2774,12 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& /*config*/,
   const char* condMsg = ": refix must be 'eq', 'le', 'lt', 'ge' or 'gt'";
   const char* valMsg = ": value must be numeric or 'NaN'";
 
-  double ltCondValue = 0.0, gtCondValue = 0.0, eps = 0.00001;
-  int ltCondIdx = -1, gtCondIdx = -1, idx = -1;
+  double ltCondValue = 0.0;
+  double gtCondValue = 0.0;
+  double eps = 0.00001;
+  int ltCondIdx = -1;
+  int gtCondIdx = -1;
+  int idx = -1;
 
   for (int i = 0; i < condSpecs.getLength(); i++)
   {
@@ -2865,7 +2931,10 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& config,
         boost::trim(defs[1]);
         boost::split(hiRng, defs[1], boost::is_any_of(":"));
 
-        int lh = 0, lm = 0, hh = 0, hm = 0;
+        int lh = 0;
+        int lm = 0;
+        int hh = 0;
+        int hm = 0;
 
         if ((loRng.size() <= 2) || (hiRng.size() <= 2))
           try
@@ -2916,8 +2985,7 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& config,
 
       throw std::runtime_error(confPath + ".conditions: '" + condValue + "'" + rngMsg + rngErr);
     }
-    else
-      throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
+    throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
   }
 
   return nullptr;
@@ -2952,7 +3020,8 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& /*config*/,
     if (!conds.isGroup())
       throw std::runtime_error(confPath + ".conditions" + typeMsg);
 
-    std::string refix("eq" /*configValue<std::string>(conds,className,"refix")*/), condValue;
+    std::string refix("eq" /*configValue<std::string>(conds,className,"refix")*/);
+    std::string condValue;
 
     if (refix == "eq")
     {
@@ -3054,7 +3123,10 @@ std::string getFolderAndSymbol(const libconfig::Config& /*config*/,
   if ((cols.size() > 2) || (cols[0].empty()) || (cols[codeIdx].empty()))
     throw std::runtime_error(confPath + ": '" + code + "'" + codeMsg);
 
-  folder = ((codeIdx == 1) ? cols[0] : (scope ? "" : folder));
+  if (codeIdx == 1)
+    folder = cols[0];
+  else if (scope)
+    folder = "";
 
   return cols[codeIdx];
 }
@@ -3074,9 +3146,12 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure* lowerLimit,
                            libconfig::Setting* globalScope = nullptr)
 {
   if (pref.empty())
-    return upperLimit ? (lowerLimit->value() + ".." + upperLimit->value())
-                      : (std::isnan(lowerLimit->numericValue()) ? "" : lowerLimit->value());
-  else if (pref.find('%') == std::string::npos)
+  {
+    if (upperLimit)
+      return (lowerLimit->value() + ".." + upperLimit->value());
+    return (std::isnan(lowerLimit->numericValue()) ? "" : lowerLimit->value());
+  }
+  if (pref.find('%') == std::string::npos)
     // Static/literal format
     //
     return svgescapetext(pref, true);
@@ -3127,7 +3202,8 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure* lowerLimit,
             fmt::runtime(pref),
             (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue()),
             lowerLimit->numericValue());
-        std::string valStr = boost::algorithm::trim_copy(os.str()), rangeType;
+        std::string valStr = boost::algorithm::trim_copy(os.str());
+        std::string rangeType;
         const char* p = valStr.c_str();
 
         if (*p == '-')
@@ -3149,7 +3225,8 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure* lowerLimit,
         else
           rangeType += (strpbrk(p, "123456789") ? "topos" : "tozero");
 
-        bool defaultOrder = false, isSet = false;
+        bool defaultOrder = false;
+        bool isSet = false;
         defaultOrder =
             configValue<bool>(*specs, "rangeType", rangeType, globalScope, s_optional, &isSet);
 
@@ -3252,8 +3329,9 @@ void SvgRenderer::render_aerodromeSymbol(const std::string& confPath,
 
     bool hasScale = false;
     double scale = (double)configValue<double, int>(
-               symbolSpecs, confPath, "scale", nullptr, s_optional, &hasScale),
-           scaleX = NAN, scaleY = NAN;
+        symbolSpecs, confPath, "scale", nullptr, s_optional, &hasScale);
+    double scaleX = NAN;
+    double scaleY = NAN;
 
     if (xScale > 0.0)
     {
@@ -3358,7 +3436,8 @@ void SvgRenderer::render_aerodromeSymbols(const T& theFeature,
   // Get the elevations from the time serie
 
   ElevGrp eGrp;
-  Fmi::DateTime bt, et;
+  Fmi::DateTime bt;
+  Fmi::DateTime et;
 
   bool ground = (elevationGroup(theFeature.timeseries(), bt, et, eGrp) == t_ground);
 
@@ -3382,12 +3461,14 @@ void SvgRenderer::render_aerodromeSymbols(const T& theFeature,
     if (!specs.isGroup())
       throw std::runtime_error(confPath + grouptypeMsg);
 
-    ElevGrp::const_iterator egend = eGrp.end(), iteg;
+    ElevGrp::const_iterator egend = eGrp.end();
+    ElevGrp::const_iterator iteg;
     const std::string FEATURE(boost::algorithm::to_upper_copy(confPath));
     const std::string classDef = (ground ? "" : configValue<std::string>(specs, confPath, "class"));
     const std::string symClass(
         boost::algorithm::to_upper_copy(confPath + theFeature.classNameExt()));
-    bool visible = false, aboveTop = false;
+    bool visible = false;
+    bool aboveTop = false;
 
     for (iteg = eGrp.begin(); (iteg != egend); iteg++)
     {
@@ -3398,10 +3479,11 @@ void SvgRenderer::render_aerodromeSymbols(const T& theFeature,
 
       if (vt < tp.begin())
         continue;
-      else if (vt > tp.end())
+      if (vt > tp.end())
         break;
 
-      double x = axisManager->xOffset(vt), y = 0.0;
+      double x = axisManager->xOffset(vt);
+      double y = 0.0;
 
       // Category/magnitude or visibility (meters)
 
@@ -3524,7 +3606,8 @@ void SvgRenderer::render_aerodromeSymbols(const T& theFeature,
         //
         // The default format is "%.1f KM" upto visibilityPrec100m and "%.0f KM" above it
         //
-        double scale = 1000.0, value = nsv->numericValue();
+        double scale = 1000.0;
+        double value = nsv->numericValue();
         std::string pref;
 
         const libconfig::Setting* condSpecs =
@@ -3654,9 +3737,11 @@ void SvgRenderer::render_symbol(const std::string& confPath,
     //
     std::list<const libconfig::Setting*> scope;
     bool nameMatch = false;
-    bool hasLocaleGlobals = false, _hasLocaleGlobals = false;
+    bool hasLocaleGlobals = false;
+    bool _hasLocaleGlobals = false;
 
-    int symbolIdx = -1, localeIdx = -1;
+    int symbolIdx = -1;
+    int localeIdx = -1;
     int lastIdx = symbolSpecs.getLength() - 1;
 
     for (int i = 0; i <= lastIdx; ++i)
@@ -3763,7 +3848,8 @@ void SvgRenderer::render_symbol(const std::string& confPath,
 
         // x- and y- position offsets (mainly to center font symbol glyphs)
         //
-        int xoffset = 0, yoffset = 0;
+        int xoffset = 0;
+        int yoffset = 0;
 
         if ((type == "fill") || (type == "fill+mask"))
           type = "svg";
@@ -3789,7 +3875,8 @@ void SvgRenderer::render_symbol(const std::string& confPath,
                                                   scope, symClass, "output", s_optional)));
         std::ostringstream& symbols = (placeHolder.empty() ? symOutput : texts[placeHolder]);
 
-        bool hasWidth = false, hasHeight = false;
+        bool hasWidth = false;
+        bool hasHeight = false;
 
         if ((type == "svg") || (type == "img"))
         {
@@ -3975,10 +4062,14 @@ void SvgRenderer::render_symbol(const std::string& confPath,
             std::string TEXTPOSid("Z0TEXTPOS_" + symClass + Fmi::to_string(npointsymbols));
             auto textPosition =
                 configValue<std::string>(scope, symClass, "textposition", s_optional);
-            int textWidth = 0, textHeight = 0, maxTextWidth = 0, fontSize = 0, tXOffset = 0,
-                tYOffset = 0;
-            int areaWidth = static_cast<int>(std::floor(0.5 + area->Width())),
-                areaHeight = static_cast<int>(std::floor(0.5 + area->Height()));
+            int textWidth = 0;
+            int textHeight = 0;
+            int maxTextWidth = 0;
+            int fontSize = 0;
+            int tXOffset = 0;
+            int tYOffset = 0;
+            int areaWidth = static_cast<int>(std::floor(0.5 + area->Width()));
+            int areaHeight = static_cast<int>(std::floor(0.5 + area->Height()));
 
             // The text can start with position, fontsize and x/y offset settings overriding the
             // configured values.
@@ -4065,7 +4156,9 @@ void SvgRenderer::render_symbol(const std::string& confPath,
 SvgRenderer::Phase SvgRenderer::uprightdown(
     ElevGrp& eGrp, ElevGrp::iterator& iteg, double lo, double hi, bool nonGndFwd2Gnd)
 {
-  auto uiteg = iteg, riteg = iteg, triteg = iteg;
+  auto uiteg = iteg;
+  auto riteg = iteg;
+  auto triteg = iteg;
   const Fmi::DateTime& vt = iteg->validTime();
   double ulo = 0.0;
   double uhi = 0.0;
@@ -4108,7 +4201,7 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
 
       continue;
     }
-    else if (dh == 1)
+    if (dh == 1)
     {
       const woml::Elevation& e = riteg->elevation();
       std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
@@ -4172,7 +4265,7 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
 
     return vup;
   }
-  else if (triteg != iteg)
+  if (triteg != iteg)
   {
     // Right
     //
@@ -4194,12 +4287,17 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
 SvgRenderer::Phase SvgRenderer::downleftup(
     ElevGrp& eGrp, ElevGrp::iterator& iteg, double lo, double hi, bool nonGndVdn2Gnd)
 {
-  auto diteg = iteg, liteg = iteg, bliteg = iteg;
+  auto diteg = iteg;
+  auto liteg = iteg;
+  auto bliteg = iteg;
   const Fmi::DateTime& vt = iteg->validTime();
   double dlo = 0.0;
   double dhi = 0.0;
   double nonZ = axisManager->nonZeroElevation();
-  bool downopen = false, leftopen = false, upopen = false, upchk = true;
+  bool downopen = false;
+  bool leftopen = false;
+  bool upopen = false;
+  bool upchk = true;
 
   if (iteg != eGrp.begin())
   {
@@ -4266,7 +4364,7 @@ SvgRenderer::Phase SvgRenderer::downleftup(
 
         continue;
       }
-      else if (dh == -1)
+      if (dh == -1)
       {
         const woml::Elevation& e = liteg->elevation();
         std::optional<woml::NumericalSingleValueMeasure> itsBoundedLo =
@@ -4322,7 +4420,7 @@ SvgRenderer::Phase SvgRenderer::downleftup(
     iteg = diteg;
     return vdn;
   }
-  else if ((bliteg != iteg) && ((!upopen) || leftopen))
+  if ((bliteg != iteg) && ((!upopen) || leftopen))
   {
     // Go left; there is no upper elevation having only it's top connected or it can reached
     // through the overlapping left side elevation
@@ -4729,7 +4827,7 @@ void selectAreaLabelPosElevations(ElevInfoMap& elevInfoMap,
         {
           if (l.loHi.first < 0)
             return false;
-          else if (r.loHi.first < 0)
+          if (r.loHi.first < 0)
             return true;
           else
             return (l.loHi.first - l.loHi.second) >= (r.loHi.first - r.loHi.second);
@@ -4923,11 +5021,14 @@ NFmiFillAreas getMarkerArea(const std::string& markerId,
                             double axisWidth,
                             double xStep)
 {
-  NFmiFillAreas markerArea, ma;
-  double w = markerWidth, h = markerHeight, x0 = mx;
+  NFmiFillAreas markerArea;
+  NFmiFillAreas ma;
+  double w = markerWidth;
+  double h = markerHeight;
+  double x0 = mx;
   bool storeCandidates = true;
 
-  do
+  for (bool more = true; more; more = markerArea.empty() && (markerWidth >= floor(w * markerScaleMin)) && (markerHeight >= floor(h * markerScaleMin)))
   {
     // Check the given position and positions half and 1/4 timestep backwards and forwards. Return
     // the first available position, and store the other available positions as free and the
@@ -5053,8 +5154,7 @@ NFmiFillAreas getMarkerArea(const std::string& markerId,
 
       storeCandidates = false;
     }
-  } while (markerArea.empty() && (markerWidth >= floor(w * markerScaleMin)) &&
-           (markerHeight >= floor(h * markerScaleMin)));
+  }
 
   return markerArea;
 }
@@ -5080,14 +5180,15 @@ NFmiFillRect selectMarkerPos(const std::string& markerId,
   if (areas.size() != scales.size())
     throw std::runtime_error("selectMarkerPos: internal: areas.size() != scales.size()");
 
-  NFmiFillAreas::iterator fits = areas.begin(), fit;
+  NFmiFillAreas::iterator fits = areas.begin();
+  NFmiFillAreas::iterator fit;
   std::list<std::pair<double, double>>::iterator sit;
   double dist2 = 0.0;
 
   for (fit = fits, sit = sits = scales.begin(); (fit != areas.end()); fit++, sit++)
   {
-    double cx = fit->first.x + ((fit->second.x - fit->first.x) / 2),
-           cy = fit->first.y + ((fit->second.y - fit->first.y) / 2);
+    double cx = fit->first.x + ((fit->second.x - fit->first.x) / 2);
+    double cy = fit->first.y + ((fit->second.y - fit->first.y) / 2);
     double d2 = ((x - cx) * (x - cx)) + ((y - cy) * (y - cy));
 
     if ((fit == areas.begin()) || (d2 < dist2))
@@ -5487,16 +5588,24 @@ void getAreaMarkerPos(Texts& texts,
 
   NFmiFillMap fillMap;
   NFmiFillAreas fillAreas;
-  auto cpend = curvePoints.end(), itcp = curvePoints.begin(), pitcp = curvePoints.begin();
+  auto cpend = curvePoints.end();
+  auto itcp = curvePoints.begin();
+  auto pitcp = curvePoints.begin();
   std::list<std::string> markerChain;
-  double mw = markerWidth, mh = markerHeight, lopx = NAN, mx = NAN, my = NAN, xScale = 1.0,
-         yScale = 1.0;
+  double mw = markerWidth;
+  double mh = markerHeight;
+  double lopx = NAN;
+  double mx = NAN;
+  double my = NAN;
+  double xScale = 1.0;
+  double yScale = 1.0;
   size_t nMarkers = 0;
 
   for (itcp++; (itcp != cpend); itcp++, pitcp++)
     fillMap.Add(pitcp->getX(), pitcp->getY(), itcp->getX(), itcp->getY());
 
-  double minW = mw * markerScaleMin, minH = mh * markerScaleMin;
+  double minW = mw * markerScaleMin;
+  double minH = mh * markerScaleMin;
 
   for (; (fillAreas.empty() && (mw >= minW) && (mh >= minH));)
   {
@@ -5659,7 +5768,8 @@ void getAreaMarkerPos(Texts& texts,
 
               const char* clrs[] = {"red", "blue", "green", "orange", "brown", "yellow"};
 
-              size_t clrCnt = (sizeof(clrs) / sizeof(char*)), clrIdx = 0;
+              size_t clrCnt = (sizeof(clrs) / sizeof(char*));
+              size_t clrIdx = 0;
 
               for (auto iter = areas.begin(); (iter != areas.end()); iter++)
               {
@@ -5729,15 +5839,19 @@ void getAreaMarkerPos(Texts& texts,
       // // elevations without additional checks the marker might end up in a hole.
       //
 
-      double selmx = 0.0, selmy = 0.0;      // Selected marker position
-      double selmfvx = 0.0, selmfvy = 0.0;  // Favoured marker position
-      double selh = 0.0, selfvh = 0.0, h = NAN;  // Height of marker position
+      double selmx = 0.0;
+      double selmy = 0.0;  // Selected marker position
+      double selmfvx = 0.0;
+      double selmfvy = 0.0;  // Favoured marker position
+      double selh = 0.0;
+      double selfvh = 0.0;
+      double h = NAN;                       // Height of marker position
       double selfrh = 0.0;                  // Height of free marker position
       double fvlim = 0.7;                   // Using 70% as the favouring limit
       bool nearest = false;  // Set if the primary position (middle elevation) did not have enough
                              // room for the marker
-      bool multiple = false,
-           fvmul = false;  // Set if using center of 2 middle elevations as marker position
+      bool multiple = false;
+      bool fvmul = false;  // Set if using center of 2 middle elevations as marker position
 
       int n = n0 + ((nX - 1) / 2);       // Middle elevation
       int nS = n;                        // Selected elevation
@@ -5789,7 +5903,8 @@ void getAreaMarkerPos(Texts& texts,
           else
             n1--;
 
-          double lo = std::min(_lopx[n], axisHeight), hi = std::max(_hipx[n], 0.0);
+          double lo = std::min(_lopx[n], axisHeight);
+          double hi = std::max(_hipx[n], 0.0);
 
           mx = minx + ((nS = n) * xStep);
           my = lo - ((lo - hi) / 2);
@@ -5807,8 +5922,10 @@ void getAreaMarkerPos(Texts& texts,
         {
           // Elevations must overlap. y -axis grows downwards
 
-          double lo2 = std::min(_lopx[n2], axisHeight), hi2 = std::max(_hipx[n2], 0.0);
-          double lo1 = std::min(_lopx[n1], axisHeight), hi1 = std::max(_hipx[n1], 0.0);
+          double lo2 = std::min(_lopx[n2], axisHeight);
+          double hi2 = std::max(_hipx[n2], 0.0);
+          double lo1 = std::min(_lopx[n1], axisHeight);
+          double hi1 = std::max(_hipx[n1], 0.0);
 
           if ((lo1 <= hi2) || (hi1 >= lo2))
           {
@@ -5846,7 +5963,8 @@ void getAreaMarkerPos(Texts& texts,
         // Scale the marker down to minimum width/height if needed
 
         double x = mx;
-        bool checkBwd = (mx >= 1), checkFwd = (mx <= (axisWidth - 1));
+        bool checkBwd = (mx >= 1);
+        bool checkFwd = (mx <= (axisWidth - 1));
 
         NFmiFillAreas markerArea = getMarkerArea(mId,
                                                  holeAreas,
@@ -5871,6 +5989,7 @@ void getAreaMarkerPos(Texts& texts,
                              Point(x + (markerWidth / 2), my + (markerHeight / 2)));
           scales.emplace_back(markerWidth / mw, markerHeight / mh);
 
+          // Highest free position
           selfrh = std::max(selfrh, h);
         }
 
@@ -6090,7 +6209,8 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition>& curvePoints,
   using boost::algorithm::replace_all_copy;
 
   double minLabelPosHeight = 0.0;
-  int textWidth = 0, textHeight = 0;
+  int textWidth = 0;
+  int textHeight = 0;
 
   if (!label.empty())
   {
@@ -6115,7 +6235,10 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition>& curvePoints,
 
   // Get and reserve label positions for each separate visible part of the area
 
-  std::list<double> labelX, labelY, scaleX, scaleY;
+  std::list<double> labelX;
+  std::list<double> labelY;
+  std::list<double> scaleX;
+  std::list<double> scaleY;
   std::string tId(textPosId + Fmi::to_string(npointsymbols));
   npointsymbols++;
   // fprintf(stderr,">> LABEL %s1 %s\n",tId.c_str(),label.c_str());
@@ -6161,9 +6284,13 @@ void SvgRenderer::renderAreaLabels(const std::list<DirectPosition>& curvePoints,
 
   using boost::algorithm::replace_first_copy;
 
-  std::string svg = texts[textName].str(), textPosId0("--" + textPosId + "--"),
-              scaleId0("--" + textPosId + "SCALE--");
-  std::list<double>::const_iterator itX, itY, sitX, sitY;
+  std::string svg = texts[textName].str();
+  std::string textPosId0("--" + textPosId + "--");
+  std::string scaleId0("--" + textPosId + "SCALE--");
+  std::list<double>::const_iterator itX;
+  std::list<double>::const_iterator itY;
+  std::list<double>::const_iterator sitX;
+  std::list<double>::const_iterator sitY;
 
   int placeHolderIndex = 1;
 
@@ -6261,9 +6388,17 @@ void SvgRenderer::renderAreaSymbols(const T& cg,
 
   // Get and reserve symbol position for each separate visible part of the area
 
-  std::list<double> symbolX, symbolY, scaleX, scaleY;
-  std::list<double>::const_iterator itx, ity, sitx, sity;
-  double axisHeight = axisManager->axisHeight(), x = NAN, y = NAN;
+  std::list<double> symbolX;
+  std::list<double> symbolY;
+  std::list<double> scaleX;
+  std::list<double> scaleY;
+  std::list<double>::const_iterator itx;
+  std::list<double>::const_iterator ity;
+  std::list<double>::const_iterator sitx;
+  std::list<double>::const_iterator sity;
+  double axisHeight = axisManager->axisHeight();
+  double x = NAN;
+  double y = NAN;
   std::string sId(symbolPosId + Fmi::to_string(npointsymbols));
   npointsymbols++;
   // fprintf(stderr,">> SYMBOL %s1 %s\n",sId.c_str(),symbol.c_str());
@@ -6471,7 +6606,9 @@ void SvgRenderer::render_cloudSymbols(const std::string confPath,
                                       bool& visible,
                                       bool& aboveTop)
 {
-  ElevGrp::const_iterator egbeg = eGrp.begin(), egend = eGrp.end(), iteg;
+  ElevGrp::const_iterator egbeg = eGrp.begin();
+  ElevGrp::const_iterator egend = eGrp.end();
+  ElevGrp::const_iterator iteg;
 
   for (iteg = egbeg; (iteg != egend); iteg++)
   {
@@ -6681,15 +6818,26 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
                                        bool nonGndFwd2Gnd,
                                        bool nonGndVdn2Gnd)
 {
-  ElevGrp::iterator egbeg = eGrp.begin(), egend = eGrp.end(), iteg;
+  ElevGrp::iterator egbeg = eGrp.begin();
+  ElevGrp::iterator egend = eGrp.end();
+  ElevGrp::iterator iteg;
   ElevInfoMap elevInfoMap;
-  Phase phase, pphase;
-  double lopx = 0.0, plopx = NAN, lopx0 = 0.0, plopx0 = NAN;
-  double hipx = 0.0, phipx = NAN, hipx0 = 0.0, phipx0 = NAN;
-  bool single = true, smoothen = false;
+  Phase phase;
+  Phase pphase;
+  double lopx = 0.0;
+  double plopx = NAN;
+  double lopx0 = 0.0;
+  double plopx0 = NAN;
+  double hipx = 0.0;
+  double phipx = NAN;
+  double hipx0 = 0.0;
+  double phipx0 = NAN;
+  bool single = true;
+  bool smoothen = false;
 
-  double axisWidth = axisManager->axisWidth(), xStep = axisManager->xStep(),
-         nonZ = axisManager->nonZeroElevation();
+  double axisWidth = axisManager->axisWidth();
+  double xStep = axisManager->xStep();
+  double nonZ = axisManager->nonZeroElevation();
 
   // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp): the seed is not used for security
   srand(time(nullptr));
@@ -6740,7 +6888,8 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
     //
     // Note: 1/6'th of the decoration control point offset just seems to do the job well enough.
 
-    double lOffset = scaleHeightMin, hOffset = scaleHeightMin;
+    double lOffset = scaleHeightMin;
+    double hOffset = scaleHeightMin;
 
     if (scaleHeightRandom > 0)
     {
@@ -7128,8 +7277,12 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
   const std::string confPath("CloudLayers");
   const std::string CLOUDLAYERS(boost::algorithm::to_upper_copy(confPath));
 
-  bool visible = false, aboveTop = false, borderCompensation = false;
-  double axisWidth = axisManager->axisWidth(), tightness = NAN, labelPosHeightFactor = NAN;
+  bool visible = false;
+  bool aboveTop = false;
+  bool borderCompensation = false;
+  double axisWidth = axisManager->axisWidth();
+  double tightness = NAN;
+  double labelPosHeightFactor = NAN;
   int minLabelPosHeight = 0;
   CloudGroupCategory cloudGroupCategory;
 
@@ -7154,8 +7307,10 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
   ElevGrp eGrp;
   int nGroups = 0;
 
-  std::vector<DirectPosition> curvePositions, curvePositions0;
-  std::list<DirectPosition> curvePoints, curvePoints0;
+  std::vector<DirectPosition> curvePositions;
+  std::vector<DirectPosition> curvePositions0;
+  std::list<DirectPosition> curvePoints;
+  std::list<DirectPosition> curvePoints0;
   std::list<DoubleArr> decoratorPoints;
 
   // Set unique group number for members of each overlapping group of elevations
@@ -7167,7 +7322,8 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
   NFmiFillAreas holeAreas;
   bool hasHole = searchHoles(ts, &cloudGroupCategory);
 
-  Fmi::DateTime bt, et;
+  Fmi::DateTime bt;
+  Fmi::DateTime et;
 
   for (;;)
   {
@@ -7215,7 +7371,8 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
     // positioning)
     // if the decoration is compensated when constructing the base line
 
-    std::vector<double> scaledLo, scaledHi;
+    std::vector<double> scaledLo;
+    std::vector<double> scaledHi;
     std::vector<bool> hasHole;
 
     int scaleHeightMin = (borderCompensation ? itcg->scaleHeightMin() : 0);
@@ -7292,8 +7449,9 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
 
     // Render path
 
-    std::list<DirectPosition>::const_iterator cpbeg = curvePoints.begin(),
-                                              cpend = curvePoints.end(), itcp;
+    std::list<DirectPosition>::const_iterator cpbeg = curvePoints.begin();
+    std::list<DirectPosition>::const_iterator cpend = curvePoints.end();
+    std::list<DirectPosition>::const_iterator itcp;
     auto itdp = decoratorPoints.begin();
 
     if (options.debug)
@@ -7316,7 +7474,8 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
           itdp++;
         }
 
-        double x = itcp->getX(), y = itcp->getY();
+        double x = itcp->getX();
+        double y = itcp->getY();
 
         if ((!isHole) && (x >= 0) && (x < (axisWidth + 1)))
         {
@@ -7440,8 +7599,11 @@ namespace
 {
 bool joinElevations(ElevGrp& eGrp)
 {
-  ElevGrp::iterator egend(eGrp.end()), iteg = eGrp.begin(), piteg;
-  double plo = 0.0, phi = 0.0;
+  ElevGrp::iterator egend(eGrp.end());
+  ElevGrp::iterator iteg = eGrp.begin();
+  ElevGrp::iterator piteg;
+  double plo = 0.0;
+  double phi = 0.0;
   bool joined = false;
 
   for (piteg = iteg; (iteg != egend);)
@@ -7535,10 +7697,13 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
 
   auto tsbeg = ts.begin();
   auto tsend = ts.end();
-  std::list<woml::TimeSeriesSlot>::const_iterator itts, pitts;
+  std::list<woml::TimeSeriesSlot>::const_iterator itts;
+  std::list<woml::TimeSeriesSlot>::const_iterator pitts;
 
-  bool byCategory = (categoryGroup != nullptr), groundGrp = false, nonGroundGrp = false,
-       hole = getHole;
+  bool byCategory = (categoryGroup != nullptr);
+  bool groundGrp = false;
+  bool nonGroundGrp = false;
+  bool hole = getHole;
   double nonZ = axisManager->nonZeroElevation();
 
   eGrp.clear();
@@ -7587,9 +7752,9 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
 
     // Loop thru the parameter sets and their parameters
 
-    std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator
-        pvsend = itts->values().end(),
-        itpvs;
+    std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator pvsend =
+        itts->values().end();
+    std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator itpvs;
 
     for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++)
     {
@@ -7670,7 +7835,9 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
   if (join)
     joinElevations(eGrp);
 
-  return ((groundGrp && nonGroundGrp) ? t_mixed : (groundGrp ? t_ground : t_nonground));
+  if (groundGrp && nonGroundGrp)
+    return t_mixed;
+  return (groundGrp ? t_ground : t_nonground);
 }
 
 // ----------------------------------------------------------------------
@@ -7685,7 +7852,8 @@ void SvgRenderer::checkLeftSide(ElevGrp& eGrp,
                                 ElevationHole& hole,
                                 CategoryValueMeasureGroup* groupCategory)
 {
-  std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin()), liteg(hole.aboveElev);
+  std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin());
+  std::reverse_iterator<ElevGrp::iterator> liteg(hole.aboveElev);
   Fmi::DateTime vt = hole.aboveElev->validTime();
 
   // Check if the left side of the hole is closed or bounded above.
@@ -7732,7 +7900,7 @@ void SvgRenderer::checkLeftSide(ElevGrp& eGrp,
 
       return;
     }
-    else if (dh != 0)
+    if (dh != 0)
       return;
   }
 
@@ -7751,7 +7919,8 @@ bool SvgRenderer::checkLeftSideHoles(ElevationHoles& holes,
                                      const ElevationHoles::iterator& iteh,
                                      CategoryValueMeasureGroup* groupCategory)
 {
-  std::reverse_iterator<ElevationHoles::iterator> ehend(holes.begin()), liteh(iteh);
+  std::reverse_iterator<ElevationHoles::iterator> ehend(holes.begin());
+  std::reverse_iterator<ElevationHoles::iterator> liteh(iteh);
   Fmi::DateTime vt = iteh->aboveElev->validTime();
 
   // Check if the holes on the left side (if any) are closed.
@@ -7775,7 +7944,7 @@ bool SvgRenderer::checkLeftSideHoles(ElevationHoles& holes,
 
       if (liteh->hi < iteh->lo)
         continue;
-      else if (liteh->lo > iteh->hi)
+      if (liteh->lo > iteh->hi)
         return closed;
       else if (!(liteh->leftClosed))
         return false;
@@ -7803,7 +7972,8 @@ void SvgRenderer::checkRightSide(ElevGrp& eGrp,
 {
   // Check if the right side of the hole is closed.
 
-  auto egend = eGrp.end(), riteg = iteh->belowElev;
+  auto egend = eGrp.end();
+  auto riteg = iteh->belowElev;
   Fmi::DateTime vt = riteg->validTime();
 
   for (riteg++; (riteg != egend); riteg++)
@@ -7849,7 +8019,7 @@ void SvgRenderer::checkRightSide(ElevGrp& eGrp,
 
       return;
     }
-    else if (dh != 0)
+    if (dh != 0)
       return;
   }
 
@@ -7868,7 +8038,8 @@ bool SvgRenderer::checkRightSideHoles(ElevationHoles& holes,
                                       ElevationHoles::reverse_iterator iteh,
                                       CategoryValueMeasureGroup* groupCategory)
 {
-  auto ehend(holes.end()), riteh = iteh.base();
+  auto ehend(holes.end());
+  auto riteh = iteh.base();
   Fmi::DateTime vt = iteh->aboveElev->validTime();
 
   // Check if the holes on the right side (if any) are closed.
@@ -7892,7 +8063,7 @@ bool SvgRenderer::checkRightSideHoles(ElevationHoles& holes,
 
       if (riteh->lo > iteh->hi)
         continue;
-      else if (riteh->hi < iteh->lo)
+      if (riteh->hi < iteh->lo)
         return closed;
       else if (!(riteh->leftClosed && riteh->rightClosed))
         return false;
@@ -7918,7 +8089,8 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
                                      const ElevationHoles::iterator& iteh,
                                      CategoryValueMeasureGroup* groupCategory)
 {
-  std::reverse_iterator<ElevationHoles::iterator> lehend(holes.begin()), liteh(iteh);
+  std::reverse_iterator<ElevationHoles::iterator> lehend(holes.begin());
+  std::reverse_iterator<ElevationHoles::iterator> liteh(iteh);
   Fmi::DateTime vt = iteh->aboveElev->validTime();
 
   // Check if the holes on the left side (if any) are closed.
@@ -7942,7 +8114,7 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
 
       if (liteh->hi < iteh->lo)
         continue;
-      else if (liteh->lo > iteh->hi)
+      if (liteh->lo > iteh->hi)
         break;
 
       closed = (liteh->leftClosed && liteh->rightClosed);
@@ -7953,7 +8125,8 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
 
   // Check if the holes on the right side (if any) are closed.
 
-  auto rehend(holes.end()), riteh = iteh;
+  auto rehend(holes.end());
+  auto riteh = iteh;
 
   for (riteh++; ((riteh != rehend) && closed); riteh++)
   {
@@ -7972,7 +8145,7 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
 
       if (riteh->lo > iteh->hi)
         continue;
-      else if (riteh->hi < iteh->lo)
+      if (riteh->hi < iteh->lo)
         break;
 
       closed = (riteh->leftClosed && riteh->rightClosed);
@@ -8000,7 +8173,8 @@ bool SvgRenderer::checkHoles(ElevGrp& eGrp,
   // Check if the holes are closed by left side closed holes on the left side or by elevations on
   // the right side.
 
-  auto iteh = holes.begin(), ehend = holes.end();
+  auto iteh = holes.begin();
+  auto ehend = holes.end();
 
   for (; (iteh != ehend); iteh++)
   {
@@ -8014,7 +8188,8 @@ bool SvgRenderer::checkHoles(ElevGrp& eGrp,
 
   // Check if the the holes are closed by both side closed holes on the right side.
 
-  ElevationHoles::reverse_iterator riteh(holes.end()), rehend(holes.begin());
+  ElevationHoles::reverse_iterator riteh(holes.end());
+  ElevationHoles::reverse_iterator rehend(holes.begin());
 
   for (; (riteh != rehend); riteh++)
     if (riteh->leftClosed && (!(riteh->rightClosed)) && riteh->rightAboveBounded &&
@@ -8026,9 +8201,10 @@ bool SvgRenderer::checkHoles(ElevGrp& eGrp,
   // are set to open if needed), rolling the status changes (set to open) to neighbour holes one
   // hole at a time.
 
-  bool reScan = false, hasHole = false;
+  bool reScan = false;
+  bool hasHole = false;
 
-  do
+  for (bool more = true; more; more = reScan)
   {
     reScan = false;
 
@@ -8039,12 +8215,13 @@ bool SvgRenderer::checkHoles(ElevGrp& eGrp,
         iteh->leftClosed = iteh->rightClosed = false;
         reScan = true;
       }
-  } while (reScan);
+  }
 
   // Combine the bounding elevations to the 'above' and store the hole to the 'below' elevations.
   // Delete generated 'below' elevations for open holes.
 
-  auto aboveElev = eGrp.end(), holeElev = eGrp.end();
+  auto aboveElev = eGrp.end();
+  auto holeElev = eGrp.end();
   auto piteh = holes.end();
 
   for (iteh = holes.begin(); (iteh != ehend); iteh++)
@@ -8267,14 +8444,17 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
   //		 type/magnitude have first been extracted.
 
   ElevGrp eGrp;
-  Fmi::DateTime bt, et;
+  Fmi::DateTime bt;
+  Fmi::DateTime et;
 
   elevationGroup(ts, bt, et, eGrp, true, false);
 
   // Search for holes.
 
-  auto egbeg = eGrp.begin(), egend = eGrp.end();
-  ElevGrp::iterator iteg, piteg;
+  auto egbeg = eGrp.begin();
+  auto egend = eGrp.end();
+  ElevGrp::iterator iteg;
+  ElevGrp::iterator piteg;
 
   if (groupCategory)
   {
@@ -8303,12 +8483,17 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
     }
   }
 
-  double nonZ = axisManager->nonZeroElevation(), lo = 0.0, plo = 0.0, hi = 0.0, phi = 0.0;
-  bool scanned = true, reScan = false;
+  double nonZ = axisManager->nonZeroElevation();
+  double lo = 0.0;
+  double plo = 0.0;
+  double hi = 0.0;
+  double phi = 0.0;
+  bool scanned = true;
+  bool reScan = false;
 
   ElevationHoles holes;
 
-  do
+  for (bool more = true; more; more = reScan)
   {
     for (reScan = false, iteg = egbeg, piteg = egend; (iteg != egend);
          nextItem(iteg, scanned, reScan))
@@ -8318,7 +8503,7 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
       //
       if (iteg->validTime() == bt)
         continue;
-      else if (iteg->validTime() == et)
+      if (iteg->validTime() == et)
         break;
       else if (!(iteg->isScanned()))
       {
@@ -8350,7 +8535,7 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
 
           continue;
         }
-        else if (iteg->isScanned())
+        if (iteg->isScanned())
           continue;
 
         if (iteg->validTime() == piteg->validTime())
@@ -8399,7 +8584,7 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
         phi = hi;
       }
     }
-  } while (reScan);
+  }
 
   // Sort the holes order by validtime asc, hirange desc
 
@@ -8428,9 +8613,12 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
   try
   {
     ElevGrp eGrp;
-    double axisWidth = axisManager->axisWidth(), xStep = axisManager->xStep();
+    double axisWidth = axisManager->axisWidth();
+    double xStep = axisManager->xStep();
     const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
-    bool visible = false, hiVisible = false, aboveTop = false;
+    bool visible = false;
+    bool hiVisible = false;
+    bool aboveTop = false;
     int nGroups = 0;
 
     const char* typeMsg = " must contain a group in curly brackets";
@@ -8452,7 +8640,8 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
 
     setGroupNumbers(ts, false);
 
-    Fmi::DateTime bt, et;
+    Fmi::DateTime bt;
+    Fmi::DateTime et;
 
     for (;;)
     {
@@ -8467,20 +8656,25 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
       // the
       // continuous visible hi range points
 
-      ElevGrp::const_iterator egend = eGrp.end(), iteg, prevIteg;
+      ElevGrp::const_iterator egend = eGrp.end();
+      ElevGrp::const_iterator iteg;
+      ElevGrp::const_iterator prevIteg;
 
       for (int rng = 0; (rng < 2); rng++)
       {
-        double lo = NAN, hi = NAN;
+        double lo = NAN;
+        double hi = NAN;
         double& eVal = ((rng == 0) ? lo : hi);
         std::string contrailId = ((rng == 0) ? "ContrailsLo" : "ContrailsHi");
 
         std::ostringstream path;
         path << std::fixed << std::setprecision(1);
 
-        double prevX = -xStep, prevVal = -1;
+        double prevX = -xStep;
+        double prevVal = -1;
         size_t pntCnt = 0;
-        bool segmentDrawn = false, prevAbove = false;
+        bool segmentDrawn = false;
+        bool prevAbove = false;
 
         for (iteg = prevIteg = eGrp.begin(); (iteg != egend);)
         {
@@ -8956,7 +9150,8 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
   GroupCategoryT groupCategory;
   std::set<size_t> memberSet;
 
-  double tightness = NAN, labelPosHeightFactor = NAN;
+  double tightness = NAN;
+  double labelPosHeightFactor = NAN;
   int minLabelPosHeight = 0;
 
   groupConfig<GroupTypeT>(confPath,
@@ -8968,8 +9163,10 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
 
   // x -axis width, y -axis height (px) and symbol class
 
-  double axisWidth = axisManager->axisWidth(), axisHeight = axisManager->axisHeight(), x = NAN,
-         y = NAN;
+  double axisWidth = axisManager->axisWidth();
+  double axisHeight = axisManager->axisHeight();
+  double x = NAN;
+  double y = NAN;
 
   // Note: does not work if classNameExt is set (by woml library; use just confPath then)
 
@@ -8978,7 +9175,8 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
   // Elevation group and curve point data
 
   ElevGrp eGrp;
-  bool visible = false, aboveTop = false;
+  bool visible = false;
+  bool aboveTop = false;
   int nGroups = 0;
 
   std::vector<DirectPosition> curvePositions;
@@ -8993,7 +9191,8 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
   NFmiFillAreas holeAreas;
   bool hasHole = searchHoles(ts, &groupCategory);
 
-  Fmi::DateTime bt, et;
+  Fmi::DateTime bt;
+  Fmi::DateTime et;
 
   for (;;)
   {
@@ -9012,8 +9211,7 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
         hasHole = false;
         continue;
       }
-      else
-        break;
+      break;
     }
 
     nGroups++;
@@ -9027,7 +9225,8 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
     // The scaled lo/hi values for the elevations are returned in scaledLo/scaledHi;
     // they are used to calculate symbol (or label) positions
 
-    std::vector<double> scaledLo, scaledHi;
+    std::vector<double> scaledLo;
+    std::vector<double> scaledHi;
     std::vector<bool> hasHole;
     bool isHole = eGrp.front().isHole();
 
@@ -9070,8 +9269,9 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
 
       // Render path
 
-      std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(), cpend = curvePoints.end(),
-                                          itcp;
+      std::list<DirectPosition>::iterator cpbeg = curvePoints.begin();
+      std::list<DirectPosition>::iterator cpend = curvePoints.end();
+      std::list<DirectPosition>::iterator itcp;
 
       if (options.debug)
       {
@@ -9376,7 +9576,9 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
       autoWindBase = false;
 
     std::string WINDAUTO("WINDAUTO");
-    std::string WINDBASE(useWindBase ? (autoWindBase ? WINDAUTO : WINDBASEOUT) : WINDEXTRAOUT);
+    std::string WINDBASE(WINDEXTRAOUT);
+    if (useWindBase)
+      WINDBASE = (autoWindBase ? WINDAUTO : WINDBASEOUT);
     std::string WINDEXTRA((useWindBase && autoWindBase) ? WINDAUTO : WINDEXTRAOUT);
     std::string WINDXPOS("--WINDXPOS--");
 
@@ -9394,7 +9596,8 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
 
     auto tsbeg = winds.timeseries().begin();
     auto tsend = winds.timeseries().end();
-    std::list<woml::TimeSeriesSlot>::const_iterator fstts = tsend, itts;
+    std::list<woml::TimeSeriesSlot>::const_iterator fstts = tsend;
+    std::list<woml::TimeSeriesSlot>::const_iterator itts;
 
     for (itts = tsbeg; (itts != tsend); itts++, nSymbols = 0)
     {
@@ -9406,23 +9609,22 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
       {
         if (vt < tp.begin())
           continue;
-        else
-          break;
+        break;
       }
 
       // Loop thru the parameter sets
 
-      std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator
-          pvsend = itts->values().end(),
-          itpvs;
+      std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator pvsend =
+          itts->values().end();
+      std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator itpvs;
 
       for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++)
       {
         // Loop thru the parameters
         //
         std::list<woml::GeophysicalParameterValue>::const_iterator pvend =
-                                                                       itpvs->get()->values().end(),
-                                                                   itpv;
+            itpvs->get()->values().end();
+        std::list<woml::GeophysicalParameterValue>::const_iterator itpv;
 
         for (itpv = itpvs->get()->values().begin(); (itpv != pvend); itpv++)
         {
@@ -9437,23 +9639,23 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
 
           // DirectionVector: space separated wind speed and direction
 
-          double ws = NAN, wd = NAN;
+          double ws = NAN;
+          double wd = NAN;
           std::vector<std::string> cols;
           boost::split(cols, fdm->directionVector(), boost::is_any_of(" "));
 
           if (cols.size() != 2)
             throw std::runtime_error(directionMsg);
-          else
-            try
-            {
-              ws = boost::lexical_cast<double>(cols[0]);
-              wd = boost::lexical_cast<double>(cols[1]);
-            }
-            catch (std::exception& ex)
-            {
-              throw std::runtime_error(std::string(directionMsg) + fdm->directionVector() +
-                                       "': " + ex.what());
-            }
+          try
+          {
+            ws = boost::lexical_cast<double>(cols[0]);
+            wd = boost::lexical_cast<double>(cols[1]);
+          }
+          catch (std::exception& ex)
+          {
+            throw std::runtime_error(std::string(directionMsg) + fdm->directionVector() +
+                                     "': " + ex.what());
+          }
 
           const libconfig::Setting* condSpecs =
               matchingCondition(config, confPath, confPath, "", -1, ws);
@@ -9532,7 +9734,8 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
               // In 'autoWindBase' mode x -coordinates of the first time instant will be set
               // afterwards
               //
-              std::string bgXPos("0.0"), windXPos("0.0");
+              std::string bgXPos("0.0");
+              std::string windXPos("0.0");
 
               if ((!useWindBase) || autoWindBase || (arrowArmLength > 0))
               {
@@ -9617,7 +9820,8 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
       {
         // Set x -coordinates of the background and the symbols for the first time instant
         //
-        auto ofend = windArrowOffsetsList.end(), itoff = windArrowOffsetsList.begin();
+        auto ofend = windArrowOffsetsList.end();
+        auto itoff = windArrowOffsetsList.begin();
         std::string textOut = texts[WINDAUTO].str();
 
         boost::algorithm::replace_first(
@@ -9662,7 +9866,10 @@ void SvgRenderer::checkZeroToleranceGroup(ElevGrp& eGrpIn, ElevGrp& eGrpOut, boo
 
   double nonZ = axisManager->nonZeroElevation();
 
-  ElevGrp::reverse_iterator rbegiter(eGrpIn.end()), renditer(eGrpIn.begin()), riteg, priteg;
+  ElevGrp::reverse_iterator rbegiter(eGrpIn.end());
+  ElevGrp::reverse_iterator renditer(eGrpIn.begin());
+  ElevGrp::reverse_iterator riteg;
+  ElevGrp::reverse_iterator priteg;
   bool groundConnected = true;
 
   for (riteg = priteg = rbegiter; (riteg != renditer); riteg++)
@@ -9690,8 +9897,12 @@ void SvgRenderer::checkZeroToleranceGroup(ElevGrp& eGrpIn, ElevGrp& eGrpOut, boo
 
   eGrpOut.clear();
 
-  ElevGrp::iterator egbeg = eGrpIn.begin(), egend = eGrpIn.end(), iteg, piteg;
-  double lo = 0.0, plo = 0.0;
+  ElevGrp::iterator egbeg = eGrpIn.begin();
+  ElevGrp::iterator egend = eGrpIn.end();
+  ElevGrp::iterator iteg;
+  ElevGrp::iterator piteg;
+  double lo = 0.0;
+  double plo = 0.0;
 
   for (iteg = piteg = egbeg;; iteg++)
   {
@@ -9752,7 +9963,8 @@ unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp& eGrp,
                                                  unsigned int groupNumber,
                                                  bool mixed)
 {
-  std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin()), liteg(iteg);
+  std::reverse_iterator<ElevGrp::iterator> egend(eGrp.begin());
+  std::reverse_iterator<ElevGrp::iterator> liteg(iteg);
   Fmi::DateTime vt = iteg->validTime();
 
   const woml::Elevation& e = iteg->Pv()->elevation();
@@ -9800,7 +10012,7 @@ unsigned int SvgRenderer::getLeftSideGroupNumber(ElevGrp& eGrp,
 
       if ((lhi < lo) || ((!mixed) && ((lo < nonZ) != (llo < nonZ))))
         continue;
-      else if (llo > hi)
+      if (llo > hi)
         break;
 
       unsigned int leftGroupNumber = liteg->groupNumber();
@@ -9827,7 +10039,9 @@ unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp& eGrp,
                                                   unsigned int groupNumber,
                                                   bool mixed)
 {
-  auto egend = eGrp.end(), riteg = itegrev.base(), iteg = itegrev.base();
+  auto egend = eGrp.end();
+  auto riteg = itegrev.base();
+  auto iteg = itegrev.base();
   Fmi::DateTime vt = itegrev->validTime();
 
   iteg--;
@@ -9877,7 +10091,7 @@ unsigned int SvgRenderer::getRightSideGroupNumber(ElevGrp& eGrp,
 
       if ((rlo > hi) || ((!mixed) && ((lo < nonZ) != (rlo < nonZ))))
         continue;
-      else if (rhi < lo)
+      if (rhi < lo)
         break;
 
       unsigned int rightGroupNumber = riteg->groupNumber();
@@ -9913,21 +10127,24 @@ void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot>& ts, boo
   //		 type/magnitude have first been extracted.
 
   ElevGrp eGrp;
-  Fmi::DateTime bt, et;
+  Fmi::DateTime bt;
+  Fmi::DateTime et;
 
   elevationGroup(ts, bt, et, eGrp, true, false);
 
   unsigned int nextGroupNumber = 1;
   bool reScan = false;
 
-  do
+  for (bool more = true; more; more = reScan)
   {
     // For each elevation, set minimum group number from overlapping left and right side elevations
     // (if any).
     // Repeat until no changes were made.
 
-    auto egend(eGrp.end()), iteg = eGrp.begin();
-    unsigned int groupNumber = 0, currentGroupNumber = 0;
+    auto egend(eGrp.end());
+    auto iteg = eGrp.begin();
+    unsigned int groupNumber = 0;
+    unsigned int currentGroupNumber = 0;
 
     reScan = false;
 
@@ -9952,7 +10169,8 @@ void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot>& ts, boo
 
     // Get smallest group number from overlapping elevations on the right side (if any)
 
-    ElevGrp::reverse_iterator regend(eGrp.begin()), riteg(eGrp.end());
+    ElevGrp::reverse_iterator regend(eGrp.begin());
+    ElevGrp::reverse_iterator riteg(eGrp.end());
 
     for (riteg++; (riteg != regend); riteg++)
     {
@@ -9965,7 +10183,7 @@ void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot>& ts, boo
         reScan = true;
       }
     }
-  } while (reScan);
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -10001,8 +10219,11 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
     // area's bounding box;
     // otherwise using 1 or 2 elevations in the middle of the area in x -direction
 
-    bool bbCenterLabel = false, isSet = false;
-    std::string posLabel, negLabel, labelPlaceHolder;
+    bool bbCenterLabel = false;
+    bool isSet = false;
+    std::string posLabel;
+    std::string negLabel;
+    std::string labelPlaceHolder;
 
     posLabel = boost::algorithm::trim_copy(
         configValue<std::string>(specs, confPath, "poslabel", nullptr, s_optional, &isSet));
@@ -10030,7 +10251,8 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
 
     const std::list<woml::TimeSeriesSlot>& ts = zerotolerance.timeseries();
 
-    double axisWidth = axisManager->axisWidth(), xStep = axisManager->xStep();
+    double axisWidth = axisManager->axisWidth();
+    double xStep = axisManager->xStep();
 
     // Bezier curve tightness
 
@@ -10111,11 +10333,13 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
 
     // Curve/text visibility
 
-    bool visible = false, setUnvisible = true;
+    bool visible = false;
+    bool setUnvisible = true;
 
     // Elevation group and curve point data
 
-    ElevGrp eGrpAll, eGrpGen;
+    ElevGrp eGrpAll;
+    ElevGrp eGrpGen;
     ElevGrp& eGrp = eGrpGen;
     int nGroups = 0;
 
@@ -10131,7 +10355,8 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
     NFmiFillAreas holeAreas;
     bool hasHole = searchHoles(ts);
 
-    Fmi::DateTime bt, et;
+    Fmi::DateTime bt;
+    Fmi::DateTime et;
 
     for (;;)
     {
@@ -10150,8 +10375,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
           hasHole = false;
           continue;
         }
-        else
-          break;
+        break;
       }
 
       nGroups++;
@@ -10173,7 +10397,8 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
       // The scaled lo/hi values for the elevations are returned in scaledLo/scaledHi;
       // they are used to calculate area label positions
 
-      std::vector<double> scaledLo, scaledHi;
+      std::vector<double> scaledLo;
+      std::vector<double> scaledHi;
       std::vector<bool> hasHole;
 
       std::ostringstream path;
@@ -10222,8 +10447,9 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
 
       path.clear();
       path.str("");
-      std::list<DirectPosition>::iterator cpbeg = curvePoints.begin(), cpend = curvePoints.end(),
-                                          itcp;
+      std::list<DirectPosition>::iterator cpbeg = curvePoints.begin();
+      std::list<DirectPosition>::iterator cpend = curvePoints.end();
+      std::list<DirectPosition>::iterator itcp;
 
       // fprintf(stderr,"> Bez:\n");
       // for (itcp = cpbeg; (itcp != cpend); itcp++) fprintf(stderr,"> Bez x=%.1f,
@@ -10232,7 +10458,8 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
       {
         // Store the path and check visibility
         //
-        double x = NAN, y = NAN;
+        double x = NAN;
+        double y = NAN;
 
         path << ((itcp == cpbeg) ? "M" : " L") << (x = itcp->getX()) << "," << (y = itcp->getY());
 
@@ -10387,7 +10614,8 @@ void SvgRenderer::render_value(const std::string& confPath,
             // center or to the border
             // of the wind symbol)
 
-            int xoffset = 0, yoffset = 0;
+            int xoffset = 0;
+            int yoffset = 0;
             bool isSet = false;
 
             if (asValue)
@@ -10433,7 +10661,8 @@ void SvgRenderer::render_value(const std::string& confPath,
 
               if (asValue)
               {
-                int cxoffset = 0, cyoffset = 0;
+                int cxoffset = 0;
+                int cyoffset = 0;
 
                 cxoffset = static_cast<int>(floor(configValue<float, int>(
                     *condSpecs, valClass, "vxoffset", nullptr, s_optional, &isSet)));
@@ -10481,7 +10710,7 @@ void SvgRenderer::render_value(const std::string& confPath,
 
             return;
           }
-          else if (type == "svg")
+          if (type == "svg")
           {
             throw std::runtime_error(confPath + " type 'svg' not implemented yet");
           }
@@ -10843,7 +11072,7 @@ double AxisManager::scaledElevation(double elevation,
     // Go below 0 (invisible) to avoid drawing along the X -axis
     //
     return itsAxisHeight + belowZero;
-  else if (elevation >= itsMaxElevation)
+  if (elevation >= itsMaxElevation)
   {
     // Go above the top (invisible) but not too far to prevent a single cloud spreading too much
     // (bezier curve construction feature when control curve 'bbox' height/width relation grows)
@@ -10881,7 +11110,7 @@ double AxisManager::xOffset(const Fmi::DateTime& validTime) const
 {
   if (validTime < itsTimePeriod.begin())
     return -xStep();
-  else if (validTime > itsTimePeriod.end())
+  if (validTime > itsTimePeriod.end())
     return itsAxisWidth + xStep();
 
   return (((double)(validTime - itsTimePeriod.begin()).total_seconds()) /
@@ -11027,11 +11256,12 @@ bool ElevationHole::operator<(const ElevationHole& theOther) const
 {
   // Order by validtime asc, hirange desc
 
-  const Fmi::DateTime &vt1 = aboveElev->validTime(), &vt2 = theOther.aboveElev->validTime();
+  const Fmi::DateTime& vt1 = aboveElev->validTime();
+  const Fmi::DateTime& vt2 = theOther.aboveElev->validTime();
 
   if (vt1 < vt2)
     return true;
-  else if (vt1 > vt2)
+  if (vt1 > vt2)
     return false;
 
   const woml::Elevation& e1 = aboveElev->Pv()->elevation();
@@ -11191,7 +11421,7 @@ bool ConfigGroup::contains(const std::string& theMemberType, bool only) const
 {
   if (itsStandalone)
     return (itsMemberTypes == theMemberType);
-  else if (only)
+  if (only)
     return (itsMemberTypes == ("," + theMemberType + ","));
   else
     return (itsMemberTypes.find("," + theMemberType + ",") != std::string::npos);
@@ -11229,7 +11459,9 @@ std::string ConfigGroup::memberTypes(bool allTypes) const
 
   if (!allTypes)
   {
-    std::set<size_t>::iterator setbeg = itsMemberSet.begin(), setend = itsMemberSet.end(), it;
+    std::set<size_t>::iterator setbeg = itsMemberSet.begin();
+    std::set<size_t>::iterator setend = itsMemberSet.end();
+    std::set<size_t>::iterator it;
     std::ostringstream mts;
 
     for (it = setbeg; (it != setend); it++)
@@ -11487,7 +11719,8 @@ void SvgRenderer::visit(const woml::InfoText& theFeature)
   // If no text for the locale, render empty text to overwrite the template placeholders
 
   const std::string& text = theFeature.text(options.locale);
-  int x = 0, y = 0;
+  int x = 0;
+  int y = 0;
 
   render_text(texts,
               "Text",
@@ -11601,7 +11834,8 @@ void SvgRenderer::visit(const woml::ParameterValueSetPoint& theFeature)
   const woml::GeophysicalParameterValueSet* params = theFeature.parameters().get();
   const woml::FlowDirectionMeasure* fdm = nullptr;
   const woml::NumericalSingleValueMeasure* svm = nullptr;
-  auto itvfdm = params->values().end(), itvsvm = params->values().end();
+  auto itvfdm = params->values().end();
+  auto itvsvm = params->values().end();
   woml::GeophysicalParameterValueList::const_iterator itv;
 
   for (itv = params->values().begin(); ((itv != params->values().end()) && (!(fdm && svm))); itv++)
@@ -11817,8 +12051,8 @@ void getAreaSymbols(const woml::ParameterValueSetArea& theFeature, std::list<std
 {
   const std::shared_ptr<woml::GeophysicalParameterValueSet>& parameters = theFeature.parameters();
 
-  std::list<woml::GeophysicalParameterValue>::iterator pvend = parameters->editableValues().end(),
-                                                       itpv;
+  std::list<woml::GeophysicalParameterValue>::iterator pvend = parameters->editableValues().end();
+  std::list<woml::GeophysicalParameterValue>::iterator itpv;
 
   for (itpv = parameters->editableValues().begin(); (itpv != pvend); itpv++)
   {

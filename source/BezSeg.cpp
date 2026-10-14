@@ -342,7 +342,7 @@ DoubleArr BezSeg::getPosition(double t)
   {
     return start;
   }
-  else if (t == 1.)
+  if (t == 1.)
   {
     return end;
   }

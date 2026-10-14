@@ -255,7 +255,8 @@ int BezierModel::getSteppedCurvePoints(
   auto itb = bezierSegments.begin();
 
   // Cumulative segment length iterator
-  auto itl = cumulatedCurveLength.begin(), itlEnd = cumulatedCurveLength.end();
+  auto itl = cumulatedCurveLength.begin();
+  auto itlEnd = cumulatedCurveLength.end();
 
   // Number of points
   int nPoints = 0;
@@ -340,7 +341,9 @@ void BezierModel::decorateCurve(
     int controlRandom,      // Max random offset added to the base
     std::list<DoubleArr>& decoratorPoints)  // Output; decorator points
 {
-  std::list<DirectPosition>::iterator litcp = curvePoints.begin(), cpend = curvePoints.end(), ritcp;
+  std::list<DirectPosition>::iterator litcp = curvePoints.begin();
+  std::list<DirectPosition>::iterator cpend = curvePoints.end();
+  std::list<DirectPosition>::iterator ritcp;
 
   ritcp = litcp;
   if (ritcp != cpend)

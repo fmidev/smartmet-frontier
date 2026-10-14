@@ -202,8 +202,7 @@ T lookup(const libconfig::Setting& setting,
 
   if (settingId == s_required)
     throw std::runtime_error("Setting for " + prefixName + " is missing");
-  else
-    throw SettingIdNotFoundException(settingId, prefixName);
+  throw SettingIdNotFoundException(settingId, prefixName);
 }
 
 }  // namespace frontier

@@ -237,7 +237,12 @@ Path create(const woml::SimpleCubicSpline& spline)
   for (size_t i = 1; i < ctrl.size(); i++)
     ctrl[ctrl.size() - i - 1] -= tmp[ctrl.size() - i] * ctrl[ctrl.size() - i];  // Backsubstitution.
 
-  double x = NAN, y = NAN, x1 = NAN, y1 = NAN, x2 = NAN, y2 = NAN;
+  double x = NAN;
+  double y = NAN;
+  double x1 = NAN;
+  double y1 = NAN;
+  double x2 = NAN;
+  double y2 = NAN;
   for (size_t i = 0; i < n; ++i)
   {
     x1 = ctrl[i].x;
