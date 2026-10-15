@@ -27,16 +27,15 @@ class SettingIdNotFoundException
 {
  public:
   SettingIdNotFoundException(settings theId, const std::string& theMsg)
+      : itsId(theId), itsMsg(theMsg)
   {
-    itsId = theId;
-    itsMsg = theMsg;
   }
 
   settings id() const { return itsId; }
   const std::string& what() const { return itsMsg; }
 
  private:
-  SettingIdNotFoundException();
+  SettingIdNotFoundException() = delete;
   settings itsId;
   std::string itsMsg;
 };

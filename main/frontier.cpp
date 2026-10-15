@@ -53,10 +53,10 @@
 namespace
 {
 std::string readfile(const std::string& fileName,
-                     const std::string defineDirective = "#define",
-                     const std::string includeDirective = "#include",
+                     const std::string& defineDirective = "#define",
+                     const std::string& includeDirective = "#include",
                      const std::string& includePathDefine = "INCLUDEPATH",
-                     const std::string includeFileExtension = "tpl")
+                     const std::string& includeFileExtension = "tpl")
 {
   const bool stripPound = false;
   const bool stripDoubleSlash = false;

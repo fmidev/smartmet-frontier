@@ -87,10 +87,9 @@ struct ElevInfo
   std::pair<double, double> loHi;
   bool hasHole;
 
-  ElevInfo(double lopx, double hipx, const bool _hasHole)
+  ElevInfo(double lopx, double hipx, const bool _hasHole) : hasHole(_hasHole)
   {
     loHi = std::make_pair(lopx, hipx);
-    hasHole = _hasHole;
   }
 };
 using ElevInfoMap = std::map<int, std::list<ElevInfo>>;
@@ -197,7 +196,7 @@ class PathProjector : public PathTransformation
 
  private:
   std::shared_ptr<NFmiArea> area;
-  PathProjector();
+  PathProjector() = delete;
 };
 
 // ----------------------------------------------------------------------
@@ -473,10 +472,9 @@ FmiLanguage locale2FmiLanguage(const std::string& confPath, const std::string& t
     return kFinnish;
   if (theLocale.find("en") == 0)
     return kEnglish;
-  else if (theLocale.find("sv") == 0)
+  if (theLocale.find("sv") == 0)
     return kSwedish;
-  else
-    throw std::runtime_error(confPath + ": '" + theLocale + "'" + langMsg);
+  throw std::runtime_error(confPath + ": '" + theLocale + "'" + langMsg);
 }
 
 // ----------------------------------------------------------------------
@@ -1118,7 +1116,6 @@ void getFillPositions(NFmiFillAreas& areas,
   {
     // By default get one fill position for each symbol
     //
-    ;
   }
   else if (fillMode == "fill")
   {
@@ -1386,7 +1383,7 @@ NFmiFillRect getCenterFillAreaRect(NFmiFillAreas& areas, double width, double sc
 // ----------------------------------------------------------------------
 
 bool getTextLines(const std::string& text,              // Text to split
-                  std::string font,                     // Fonts
+                  const std::string& font,              // Fonts
                   unsigned int fontsize,                // Font size
                   cairo_font_slant_t slant,             // Font slant
                   cairo_font_weight_t weight,           // Font weight
@@ -2730,8 +2727,7 @@ void SvgRenderer::render_surface(
         {
           throw std::runtime_error(confPath + " type 'svg' not implemented yet");
         }
-        else
-          throw std::runtime_error(confPath + ": '" + type + "'" + surfTypeMsg);
+        throw std::runtime_error(confPath + ": '" + type + "'" + surfTypeMsg);
       }
     }  // for
 
@@ -3277,7 +3273,7 @@ void SvgRenderer::render_aerodromeSymbol(const std::string& confPath,
                                          bool mappedCode,
                                          double xScale,
                                          double yScale,
-                                         const std::string symbolPosIdN)
+                                         const std::string& symbolPosIdN)
 {
   // Nothing to do with empty value
 
@@ -4829,8 +4825,7 @@ void selectAreaLabelPosElevations(ElevInfoMap& elevInfoMap,
             return false;
           if (r.loHi.first < 0)
             return true;
-          else
-            return (l.loHi.first - l.loHi.second) >= (r.loHi.first - r.loHi.second);
+          return (l.loHi.first - l.loHi.second) >= (r.loHi.first - r.loHi.second);
         });
 
     scaledLo.push_back(iter->second.front().loHi.first);
@@ -6599,7 +6594,7 @@ std::string GroupCategory<T>::groupLabel() const
  */
 // ----------------------------------------------------------------------
 
-void SvgRenderer::render_cloudSymbols(const std::string confPath,
+void SvgRenderer::render_cloudSymbols(const std::string& confPath,
                                       const ElevGrp& eGrp,
                                       std::list<CloudGroup>::const_iterator itcg,
                                       int nGroups,
@@ -7946,7 +7941,7 @@ bool SvgRenderer::checkLeftSideHoles(ElevationHoles& holes,
         continue;
       if (liteh->lo > iteh->hi)
         return closed;
-      else if (!(liteh->leftClosed))
+      if (!(liteh->leftClosed))
         return false;
 
       closed = true;
@@ -8035,7 +8030,7 @@ void SvgRenderer::checkRightSide(ElevGrp& eGrp,
 // ----------------------------------------------------------------------
 
 bool SvgRenderer::checkRightSideHoles(ElevationHoles& holes,
-                                      ElevationHoles::reverse_iterator iteh,
+                                      const ElevationHoles::reverse_iterator& iteh,
                                       CategoryValueMeasureGroup* groupCategory)
 {
   auto ehend(holes.end());
@@ -8065,7 +8060,7 @@ bool SvgRenderer::checkRightSideHoles(ElevationHoles& holes,
         continue;
       if (riteh->hi < iteh->lo)
         return closed;
-      else if (!(riteh->leftClosed && riteh->rightClosed))
+      if (!(riteh->leftClosed && riteh->rightClosed))
         return false;
 
       closed = true;
@@ -8505,7 +8500,7 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
         continue;
       if (iteg->validTime() == et)
         break;
-      else if (!(iteg->isScanned()))
+      if (!(iteg->isScanned()))
       {
         // Get elevation's lo and hi range values
 
@@ -10715,8 +10710,7 @@ void SvgRenderer::render_value(const std::string& confPath,
           {
             throw std::runtime_error(confPath + " type 'svg' not implemented yet");
           }
-          else
-            throw std::runtime_error(confPath + ": '" + type + "'" + valtypeMsg);
+          throw std::runtime_error(confPath + ": '" + type + "'" + valtypeMsg);
         }
       }
       catch (SettingIdNotFoundException& ex)
@@ -10864,27 +10858,26 @@ std::string SvgRenderer::svg() const
   replace_all(ret, "--MASKS--", masks.str());
 
   replace_all(ret, "--PRECIPITATIONAREAS--", precipitationareas.str());
-  ;
+
   replace_all(ret, "--CLOUDBORDERS--", cloudareas.str());
-  ;
+
   replace_all(ret, "--OCCLUDEDFRONTS--", occludedfronts.str());
-  ;
+
   replace_all(ret, "--WARMFRONTS--", warmfronts.str());
-  ;
+
   replace_all(ret, "--COLDFRONTS--", coldfronts.str());
-  ;
+
   replace_all(ret, "--TROUGHS--", troughs.str());
-  ;
+
   replace_all(ret, "--UPPERTROUGHS--", uppertroughs.str());
-  ;
+
   replace_all(ret, "--JETS--", jets.str());
-  ;
+
   replace_all(ret, "--POINTNOTES--", pointnotes.str());
-  ;
+
   replace_all(ret, "--POINTSYMBOLS--", pointsymbols.str());
-  ;
+
   replace_all(ret, "--POINTVALUES--", pointvalues.str());
-  ;
 
   if (options.debug)
   {
@@ -11139,7 +11132,7 @@ double AxisManager::xStep() const
 // ----------------------------------------------------------------------
 
 ElevationGroupItem::ElevationGroupItem(
-    Fmi::DateTime theValidTime,
+    const Fmi::DateTime& theValidTime,
     const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator& thePvs,
     const std::list<woml::GeophysicalParameterValue>::iterator& thePv)
     : itsValidTime(theValidTime),
@@ -11398,18 +11391,16 @@ CloudGroup::CloudGroup(const std::string& theClass,
                   theCloudSet,
                   nullptr,
                   nullptr,
-                  &theScope)
+                  &theScope),
+      itsBaseStep(theBaseStep),
+      itsMaxRand(theMaxRand),
+      itsMaxRepeat(theMaxRepeat),
+      itsScaleHeightMin(theScaleHeightMin),
+      itsScaleHeightRandom(theScaleHeightRandom),
+      itsControlMin(theControlMin),
+      itsControlRandom(theControlRandom)
 {
   itsSymbolType = (standalone() ? theSymbolType : "");
-
-  itsBaseStep = theBaseStep;
-  itsMaxRand = theMaxRand;
-  itsMaxRepeat = theMaxRepeat;
-
-  itsScaleHeightMin = theScaleHeightMin;
-  itsScaleHeightRandom = theScaleHeightRandom;
-  itsControlMin = theControlMin;
-  itsControlRandom = theControlRandom;
 }
 
 // ----------------------------------------------------------------------
@@ -11424,8 +11415,7 @@ bool ConfigGroup::contains(const std::string& theMemberType, bool only) const
     return (itsMemberTypes == theMemberType);
   if (only)
     return (itsMemberTypes == ("," + theMemberType + ","));
-  else
-    return (itsMemberTypes.find("," + theMemberType + ",") != std::string::npos);
+  return (itsMemberTypes.find("," + theMemberType + ",") != std::string::npos);
 }
 
 // ----------------------------------------------------------------------
@@ -11546,10 +11536,10 @@ IcingGroup::IcingGroup(const std::string& theClass,
                   theEOffset,
                   theIcingSet,
                   theLocalScope,
-                  theGlobalScope)
+                  theGlobalScope),
+      renderSymbolOnly(symbolOnly)
 {
   itsSymbol = (theSymbol ? *theSymbol : "");
-  renderSymbolOnly = symbolOnly;
 }
 
 // ----------------------------------------------------------------------

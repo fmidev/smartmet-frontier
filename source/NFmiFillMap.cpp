@@ -52,7 +52,7 @@ const size_t fillAreaHeightMin = 3;
 
 template <typename T>
 bool NFmiFillMap::scanColumn(T iter,
-                             T endIter,
+                             const T& endIter,
                              int imageWidth,
                              int imageHeight,
                              int symbolWidth,

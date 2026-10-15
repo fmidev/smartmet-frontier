@@ -29,7 +29,7 @@ class Point
   Point& operator/=(double theFactor);
 
  private:
-  Point();
+  Point() = delete;
 };
 
 inline Point& Point::operator+=(const Point& thePoint)

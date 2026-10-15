@@ -96,7 +96,7 @@ class NFmiFillMap
  private:
   template <typename T>
   bool scanColumn(T iter,
-                  T endIter,
+                  const T& endIter,
                   int imageWidth,
                   int imageHeigth,
                   int symbolWidth,

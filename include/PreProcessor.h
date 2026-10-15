@@ -31,7 +31,7 @@ class PreProcessor : public NFmiPreProcessor
                                     const std::string& theDefaultValue = "") const;
 
  private:
-  PreProcessor();
+  PreProcessor() = delete;
 
   std::string itsDefineDirective;
   std::string itsIncludeDirective;

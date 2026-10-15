@@ -55,7 +55,7 @@ class Elevation
   bool line() const { return renderLine; }
 
  private:
-  Elevation();
+  Elevation() = delete;
 
   double itsElevation;
   double itsScale;
@@ -156,10 +156,10 @@ class ConfigGroup
   std::set<size_t>& memberSet() const { return itsMemberSet; }
   const libconfig::Setting* localScope() const { return itsLocalScope; }
   const libconfig::Setting* globalScope() const { return itsGlobalScope; }
-  const std::list<const libconfig::Setting*>& scope() const { return itsScope; };
+  const std::list<const libconfig::Setting*>& scope() const { return itsScope; }
 
  private:
-  ConfigGroup();
+  ConfigGroup() = delete;
 
   std::string itsClass;
   std::string itsTextClass;
@@ -236,7 +236,7 @@ class CloudGroup : public ConfigGroup
   int controlRandom() const { return itsControlRandom; }
 
  private:
-  CloudGroup();
+  CloudGroup() = delete;
 
   std::string itsSymbolType;
 
@@ -277,7 +277,7 @@ class IcingGroup : public ConfigGroup
   bool symbolOnly() const { return renderSymbolOnly; }
 
  private:
-  IcingGroup();
+  IcingGroup() = delete;
 
   std::string itsSymbol;
   bool renderSymbolOnly;
@@ -325,7 +325,7 @@ class ElevationGroupItem
 {
  public:
   ElevationGroupItem(
-      Fmi::DateTime theValidTime,
+      const Fmi::DateTime& theValidTime,
       const std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator& thePvs,
       const std::list<woml::GeophysicalParameterValue>::iterator& thePv);
 
@@ -341,7 +341,7 @@ class ElevationGroupItem
   bool bottomConnected() const { return itsBottomConnected; }
   void leftOpen(bool open) { itsLeftOpen = open; }
   bool leftOpen() const { return itsLeftOpen; }
-  void bottomConnection(woml::Elevation theBottomConnection)
+  void bottomConnection(const woml::Elevation& theBottomConnection)
   {
     itsBottomConnection = theBottomConnection;
   }
@@ -382,7 +382,7 @@ class ElevationGroupItem
   };
 
  private:
-  ElevationGroupItem();
+  ElevationGroupItem() = delete;
 
   Fmi::DateTime itsValidTime;
   std::list<std::shared_ptr<woml::GeophysicalParameterValueSet> >::const_iterator itsPvs;
@@ -560,7 +560,7 @@ class SvgRenderer : public woml::FeatureVisitor
                               bool mappedCode = false,
                               double xScale = -1.0,
                               double yScale = -1.0,
-                              std::string symbolPosIdN = "");
+                              const std::string& symbolPosIdN = "");
   template <typename T>
   void render_aerodromeSymbols(const T& theFeature,
                                const std::string& confPath,
@@ -631,7 +631,7 @@ class SvgRenderer : public woml::FeatureVisitor
                       const ElevationHoles::iterator& iteh,
                       CategoryValueMeasureGroup* groupCategory = nullptr);
   bool checkRightSideHoles(ElevationHoles& holes,
-                           ElevationHoles::reverse_iterator iteh,
+                           const ElevationHoles::reverse_iterator& iteh,
                            CategoryValueMeasureGroup* groupCategory = nullptr);
   bool checkBothSideHoles(ElevationHoles& holes,
                           const ElevationHoles::iterator& iteh,
@@ -670,7 +670,7 @@ class SvgRenderer : public woml::FeatureVisitor
                           double x,
                           double lopx,
                           double hipx);
-  void render_cloudSymbols(std::string confPath,
+  void render_cloudSymbols(const std::string& confPath,
                            const ElevGrp& eGrp,
                            std::list<CloudGroup>::const_iterator itcg,
                            int nGroups,
