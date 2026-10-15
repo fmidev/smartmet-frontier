@@ -414,10 +414,10 @@ struct ElevationHole
                             // hole on the right side
   bool rightAboveBounded{
       false};              // Set if the hole is bounded by an elevation above on the right side
-  double lo;               // Lo range of the hole (hi range of the elevation below the hole)
-  double loLo;             // Lo range of the elevation below the hole
-  double hi;               // Hi range of the hole (lo range of the elevation above the hole)
-  double hiHi;             // Hi range of the elevation above the hole
+  double lo = 0.0;               // Lo range of the hole (hi range of the elevation below the hole)
+  double loLo = 0.0;             // Lo range of the elevation below the hole
+  double hi = 0.0;               // Hi range of the hole (lo range of the elevation above the hole)
+  double hiHi = 0.0;             // Hi range of the elevation above the hole
 };
 
 using ElevationHoles = std::list<ElevationHole>;
@@ -436,11 +436,11 @@ typedef struct
 {
   std::string areaId;              // Area id for area reservation
   std::list<std::string> markers;  // Marker names of reserved fill areas for candidate fill areas
-  double x;
-  double y;       // Marker position for reserved fill area (the nearest (free) fill area is used)
-  double scale;   // Configured marker scale for reserved fill area
-  bool centered;  // Set for reserved fill area if the marker is centered to the selected position
-                  // (set for symbols)
+  double x = 0.0;
+  double y = 0.0;  // Marker position for reserved fill area (the nearest (free) fill area is used)
+  double scale = 0.0;   // Configured marker scale for reserved fill area
+  bool centered = false;  // Set for reserved fill area if the marker is centered to the selected
+                          // position (set for symbols)
   NFmiFillAreas fillAreas;                       // One reserved or all free/candidate fill areas
   std::list<std::pair<double, double> > scales;  // Additional marker scales to scale the marker
                                                  // down (to half size) if necessary to make it fit
@@ -805,7 +805,7 @@ class SvgRenderer : public woml::FeatureVisitor
   Contours contours;
 
   int ncloudareas;
-  int ncoldadvections;
+  int ncoldadvections = 0;
   int ncoldfronts;
   int njets;
   int noccludedfronts;
@@ -813,10 +813,10 @@ class SvgRenderer : public woml::FeatureVisitor
   int npointsymbols;
   int npointvalues;
   int nprecipitationareas;
-  int nridges;
+  int nridges = 0;
   int ntroughs;
   int nuppertroughs;
-  int nwarmadvections;
+  int nwarmadvections = 0;
   int nwarmfronts;
 
   FillAreas reservedAreas;

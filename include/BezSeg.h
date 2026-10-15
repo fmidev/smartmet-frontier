@@ -85,8 +85,8 @@ class BezSeg
   static const int X = 0;
   static const int Y = 1;
 
-  int segmentIndex;
-  double segmentLength;
+  int segmentIndex = 0;
+  double segmentLength = 0.0;
   std::vector<DirectPosition> curvePositions;
 
   DoubleArr start;
@@ -96,9 +96,9 @@ class BezSeg
   Orientation orientation;
   //	CoordinateReferenceSystem nativeCRS;
 
-  boolean bIsClosedCurve;
-  boolean bIsSecondLastSegment;
-  boolean bIsLastSegment;
+  boolean bIsClosedCurve = false;
+  boolean bIsSecondLastSegment = false;
+  boolean bIsLastSegment = false;
 
   static constexpr double dt = 0.04;  // Bézier segment evalation step [0..1]
   double tightness;

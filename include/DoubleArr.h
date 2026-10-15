@@ -26,6 +26,7 @@ class DoubleArr
   }
   DoubleArr(const DoubleArr& d) = default;
   DoubleArr& operator=(const DoubleArr& d) = default;
+  ~DoubleArr() = default;
 
   bool operator==(const DoubleArr& d) const
   {
@@ -36,7 +37,7 @@ class DoubleArr
   const double& getY() const { return itsArr[1]; }
 
  private:
-  double itsArr[2];
+  double itsArr[2]{};
 };
 
 }  // namespace frontier

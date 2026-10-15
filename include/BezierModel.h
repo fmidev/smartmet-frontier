@@ -80,9 +80,9 @@ class BezierModel
   std::vector<DirectPosition> curvePositions;
   std::list<BezSeg> bezierSegments;
   Orientation orientation;
-  double totalCurveLength;
+  double totalCurveLength = 0.0;
   std::list<double> cumulatedCurveLength;
-  boolean bIsClosedCurve;
+  boolean bIsClosedCurve = false;
   double tightness;
 };
 

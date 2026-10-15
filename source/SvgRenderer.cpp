@@ -760,7 +760,7 @@ void SvgRenderer::render_header(const std::string& hdrClass,
         noName = false;
         nameMatch = (lookup<std::string>(specs, confPath, "name", s_name) == hdrClass);
       }
-      catch (SettingIdNotFoundException& ex)
+      catch (SettingIdNotFoundException&)
       {
         // Global settings have no name; go on to check locale
         //
@@ -853,7 +853,7 @@ void SvgRenderer::render_header(const std::string& hdrClass,
       debugoutput << p << hdrClass << " not found\n";
     }
   }
-  catch (libconfig::SettingNotFoundException& ex)
+  catch (libconfig::SettingNotFoundException&)
   {
     // No settings for confPath
     //
@@ -1638,7 +1638,7 @@ void SvgRenderer::render_text(Texts& texts,
         noName = false;
         nameMatch = (lookup<std::string>(specs, confPath, "name", s_name) == textName);
       }
-      catch (SettingIdNotFoundException& ex)
+      catch (SettingIdNotFoundException&)
       {
         // Global settings have no name; go on to check locale
         //
@@ -1893,7 +1893,7 @@ void SvgRenderer::render_text(Texts& texts,
       debugoutput << p << textName << " not found\n";
     }
   }
-  catch (libconfig::SettingNotFoundException& ex)
+  catch (libconfig::SettingNotFoundException&)
   {
     // No settings for confPath
     //
@@ -2167,7 +2167,7 @@ void SvgRenderer::render_surface(
         noName = false;
         nameMatch = (lookup<std::string>(specs, confPath, "name", s_name) == surfaceName);
       }
-      catch (SettingIdNotFoundException& ex)
+      catch (SettingIdNotFoundException&)
       {
         // Global settings have no name
         //
@@ -2744,7 +2744,7 @@ void SvgRenderer::render_surface(
       debugoutput << p << surfaceName << " not found\n";
     }
   }
-  catch (libconfig::SettingNotFoundException& ex)
+  catch (libconfig::SettingNotFoundException&)
   {
     // No settings for confPath
     //
@@ -2805,7 +2805,7 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& /*config*/,
 
         eqNan = true;
       }
-      catch (libconfig::SettingTypeException& ex)
+      catch (libconfig::SettingTypeException&)
       {
         // Value is (should be) then numeric
 
@@ -3387,7 +3387,7 @@ void SvgRenderer::render_aerodromeSymbol(const std::string& confPath,
 
     return;
   }
-  catch (SettingIdNotFoundException& ex)
+  catch (SettingIdNotFoundException&)
   {
     // Symbol code not found
     //
@@ -3754,7 +3754,7 @@ void SvgRenderer::render_symbol(const std::string& confPath,
       {
         nameMatch = (lookup<std::string>(specs, confPath, "name", s_name) == symClass);
       }
-      catch (SettingIdNotFoundException& ex)
+      catch (SettingIdNotFoundException&)
       {
         // Global settings have no name
         //
@@ -3829,7 +3829,7 @@ void SvgRenderer::render_symbol(const std::string& confPath,
                                       folder,
                                       svm != nullptr);
           }
-          catch (SettingIdNotFoundException& ex)
+          catch (SettingIdNotFoundException&)
           {
             // Symbol code not found
             //
@@ -4138,7 +4138,7 @@ void SvgRenderer::render_symbol(const std::string& confPath,
       debugoutput << p << symClass << " (" << _symCode << ") not found\n";
     }
   }
-  catch (libconfig::SettingNotFoundException& ex)
+  catch (libconfig::SettingNotFoundException&)
   {
     // No settings for confPath
     //
@@ -8690,6 +8690,7 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
           const std::optional<woml::NumericalSingleValueMeasure>& itsHiLimit =
               (e.bounded() ? itsBoundedHi : e.value());
 
+          // codechecker_false_positive [deadcode.DeadStores] read through the eVal reference
           lo = ((!itsLoLimit) ? 0.0 : itsLoLimit->numericValue());
           hi = ((!itsHiLimit) ? 0.0 : itsHiLimit->numericValue());
 
@@ -10736,7 +10737,7 @@ void SvgRenderer::render_value(const std::string& confPath,
       debugoutput << p << valClass << " not found\n";
     }
   }
-  catch (libconfig::SettingNotFoundException& ex)
+  catch (libconfig::SettingNotFoundException&)
   {
     // No settings for confPath
     //

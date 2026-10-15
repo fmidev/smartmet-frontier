@@ -596,6 +596,7 @@ void generatesvg(int exitCode,
   if (!debug)
   {
     std::cerr << debugoutput.str();
+    // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded command line tool
     exit(exitCode);
   }
 
@@ -631,6 +632,7 @@ void generatesvg(int exitCode,
   else
     std::cout << sbeg << output.str() << send;
 
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded command line tool
   exit(0);
 }
 }  // namespace
@@ -653,7 +655,7 @@ int main(int argc, char* argv[])
                 << e.getLine() << std::endl;
     generatesvg(1, area, outfile, debug, debugoutput);
   }
-  catch (libconfig::ConfigException& e)
+  catch (libconfig::ConfigException&)
   {
     debugoutput << "Frontier configuration error" << std::endl;
     generatesvg(2, area, outfile, debug, debugoutput);

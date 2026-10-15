@@ -145,7 +145,7 @@ T lookup(const libconfig::Config& config, const std::string& name)
     T value = config.lookup(name);
     return value;
   }
-  catch (libconfig::ConfigException& e)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(name))
       throw std::runtime_error("Setting for " + name + " is missing");
