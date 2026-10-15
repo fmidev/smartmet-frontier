@@ -8858,11 +8858,6 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
 
     throw ex;
   }
-
-  if (options.debug)
-    debugoutput << "Settings for " << confPath << " not found\n";
-
-  return;
 }
 
 // ----------------------------------------------------------------------
@@ -10519,11 +10514,6 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
 
     throw ex;
   }
-
-  if (options.debug)
-    debugoutput << "Settings for " << confPath << " not found\n";
-
-  return;
 }
 
 // ----------------------------------------------------------------------
