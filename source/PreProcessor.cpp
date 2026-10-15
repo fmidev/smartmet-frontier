@@ -64,7 +64,7 @@ bool PreProcessor::ReadAndStripFile(const std::string& theFileName)
  */
 // ----------------------------------------------------------------------
 
-const std::string PreProcessor::getDefinedValue(const std::string& theDefine,
+std::string PreProcessor::getDefinedValue(const std::string& theDefine,
                                                 const std::string& theDefaultValue) const
 {
   istringstream input(itsString);

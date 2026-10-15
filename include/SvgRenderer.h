@@ -560,7 +560,7 @@ class SvgRenderer : public woml::FeatureVisitor
                               bool mappedCode = false,
                               double xScale = -1.0,
                               double yScale = -1.0,
-                              const std::string symbolPosIdN = "");
+                              std::string symbolPosIdN = "");
   template <typename T>
   void render_aerodromeSymbols(const T& theFeature,
                                const std::string& confPath,
@@ -670,7 +670,7 @@ class SvgRenderer : public woml::FeatureVisitor
                           double x,
                           double lopx,
                           double hipx);
-  void render_cloudSymbols(const std::string confPath,
+  void render_cloudSymbols(std::string confPath,
                            const ElevGrp& eGrp,
                            std::list<CloudGroup>::const_iterator itcg,
                            int nGroups,

@@ -1798,7 +1798,7 @@ void SvgRenderer::render_text(Texts& texts,
 
           std::string textClass("text" + ((TEXTPOSid.empty() || useTextName)
                                               ? textName
-                                              : TEXTPOSid.substr(TEXTPOSid.find("_") + 1)));
+                                              : TEXTPOSid.substr(TEXTPOSid.find('_') + 1)));
 
           if (texts[TEXTCLASStextName].str().empty())
           {
@@ -1981,7 +1981,7 @@ void textSettings(std::string& infoText,
       // Get the setting and erase it from the text. Just give up on invalid setting (e.g.
       // <width=z20>, <width=> etc.)
       //
-      size_t pos = infoText.find(">");
+      size_t pos = infoText.find('>');
 
       if (pos == std::string::npos)
         return;
@@ -5669,7 +5669,7 @@ void getAreaMarkerPos(Texts& texts,
     NFmiFillAreas fA;
     fillMap.getFillAreas(axisWidth, windowHeight, 3, 3, 1.0, false, fA, false, false, false);
 
-    std::string mId(markerId);
+    const std::string& mId(markerId);
     reservedAreas[mId].areaId = mId;
     reservedAreas[mId].x = 0;
     reservedAreas[mId].y = 0;
@@ -11328,7 +11328,7 @@ ConfigGroup::ConfigGroup(const std::string& theClassDef,
     itsTextClass = cls.str();
   }
 
-  itsStandalone = (((theMemberTypes.find(",") == std::string::npos)) && (!combined));
+  itsStandalone = (((theMemberTypes.find(',') == std::string::npos)) && (!combined));
   itsMemberTypes = (itsStandalone ? theMemberTypes : ("," + theMemberTypes + ","));
   itsLabel = theLabel ? *theLabel : "";
   hasLabel = theLabel != nullptr;
@@ -11566,7 +11566,7 @@ void SvgRenderer::visit(const woml::CloudArea& theFeature)
   ++ncloudareas;
   std::string id = "cloudarea" + Fmi::to_string(ncloudareas);
 
-  const woml::CubicSplineSurface surface = theFeature.controlSurface();
+  const woml::CubicSplineSurface& surface = theFeature.controlSurface();
 
   Path path = PathFactory::create(surface);
 
@@ -11607,7 +11607,7 @@ void SvgRenderer::visit(const woml::ColdAdvection& theFeature)
   ++ncoldadvections;
   std::string id = "coldadvection" + Fmi::to_string(ncoldadvections);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -11648,7 +11648,7 @@ void SvgRenderer::visit(const woml::ColdFront& theFeature)
   ++ncoldfronts;
   std::string id = "coldfront" + Fmi::to_string(ncoldfronts);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -11749,7 +11749,7 @@ void SvgRenderer::visit(const woml::JetStream& theFeature)
 
   std::string id = "jet" + Fmi::to_string(njets);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -11793,7 +11793,7 @@ void SvgRenderer::visit(const woml::OccludedFront& theFeature)
   ++noccludedfronts;
   std::string id = "occludedfront" + Fmi::to_string(noccludedfronts);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -11909,7 +11909,7 @@ namespace
 std::string PointMeteorologicalSymbolDefinition(const woml::PointMeteorologicalSymbol& theFeature,
                                                 std::string& symCode)
 {
-  const woml::MeteorologicalSymbol symbol = theFeature.symbol();
+  const woml::MeteorologicalSymbol& symbol = theFeature.symbol();
 
   auto it = symbol.DefinitionReferences_begin();
   if (it == symbol.DefinitionReferences_end())
@@ -11993,7 +11993,7 @@ RenderPressureCenterTypeDerivedClass(woml::AntiCyclone)
 
   std::string id = "ridge" + Fmi::to_string(nridges);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -12030,7 +12030,7 @@ RenderStormTypeDerivedClass(woml::ConvectiveStorm) RenderStormTypeDerivedClass(w
   ++nprecipitationareas;
   std::string id = "precipitation" + Fmi::to_string(nprecipitationareas);
 
-  const woml::CubicSplineSurface surface = theFeature.controlSurface();
+  const woml::CubicSplineSurface& surface = theFeature.controlSurface();
 
   Path path = PathFactory::create(surface);
 
@@ -12084,7 +12084,7 @@ void SvgRenderer::visit(const woml::ParameterValueSetArea& theFeature)
   ++nprecipitationareas;
   std::string id = "paramvalsetarea" + Fmi::to_string(nprecipitationareas);
 
-  const woml::CubicSplineSurface surface = theFeature.controlSurface();
+  const woml::CubicSplineSurface& surface = theFeature.controlSurface();
 
   Path path = PathFactory::create(surface);
 
@@ -12151,7 +12151,7 @@ void SvgRenderer::visit(const woml::Trough& theFeature)
 
   std::string id = "trough" + Fmi::to_string(ntroughs);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -12182,7 +12182,7 @@ void SvgRenderer::visit(const woml::UpperTrough& theFeature)
 
   std::string id = "uppertrough" + Fmi::to_string(nuppertroughs);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -12221,7 +12221,7 @@ void SvgRenderer::visit(const woml::WarmAdvection& theFeature)
   ++nwarmadvections;
   std::string id = "warmadvection" + Fmi::to_string(nwarmadvections);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -12262,7 +12262,7 @@ void SvgRenderer::visit(const woml::WarmFront& theFeature)
   ++nwarmfronts;
   std::string id = "warmfront" + Fmi::to_string(nwarmfronts);
 
-  const woml::CubicSplineCurve splines = theFeature.controlCurve();
+  const woml::CubicSplineCurve& splines = theFeature.controlCurve();
 
   Path path = PathFactory::create(splines);
 
@@ -12333,7 +12333,7 @@ double SvgRenderer::getCssSize(const std::string& theCssClass,
 
   // Require attribute to come before next "}"
 
-  std::string::size_type pos2 = svgbase.find("}", pos);
+  std::string::size_type pos2 = svgbase.find('}', pos);
   if (pos2 == std::string::npos)
     return defaultValue;
 
@@ -12344,7 +12344,7 @@ double SvgRenderer::getCssSize(const std::string& theCssClass,
   // Extract the next word after "attribute:"
 
   pos1 += theAttribute.size() + 1;
-  pos2 = svgbase.find(";", pos1);
+  pos2 = svgbase.find(';', pos1);
 
   std::string word = svgbase.substr(pos1, pos2 - pos1);
   boost::algorithm::trim(word);

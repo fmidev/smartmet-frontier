@@ -222,7 +222,7 @@ ValidTimes extract_valid_times(const T& collection)
 
   for (const woml::Feature& f : collection)
   {
-    const std::optional<Fmi::DateTime> theTime = f.validTime();
+    const std::optional<Fmi::DateTime>& theTime = f.validTime();
 
     // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
@@ -321,7 +321,7 @@ std::shared_ptr<NFmiQueryData> resolve_model(const frontier::Options& options,
   const std::string& name = source.numericalModelRun()->name();
   const Fmi::DateTime& origintime = source.numericalModelRun()->analysisTime();
 
-  if (name.find_first_not_of(" ") == std::string::npos)
+  if (name.find_first_not_of(' ') == std::string::npos)
     return ret;
 
   auto path = frontier::lookup<std::string>(config, "models." + name);
@@ -474,7 +474,7 @@ int run(int argc,
       const std::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
       const std::string& modelName = (modelRun ? modelRun->name() : "");
       const std::string& name =
-          ((modelName.find_first_not_of(" ") != std::string::npos) ? modelName : "?");
+          ((modelName.find_first_not_of(' ') != std::string::npos) ? modelName : "?");
 
       throw std::runtime_error("Contouring omitted; model (" + name + ") not available");
     }
@@ -530,7 +530,7 @@ int run(int argc,
   {
     for (const woml::Feature& feature : weather.analysis())
     {
-      const std::optional<Fmi::DateTime> theTime = feature.validTime();
+      const std::optional<Fmi::DateTime>& theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         feature.visit(renderer);
@@ -543,7 +543,7 @@ int run(int argc,
 
     for (const woml::Feature& feature : weather.forecast())
     {
-      const std::optional<Fmi::DateTime> theTime = feature.validTime();
+      const std::optional<Fmi::DateTime>& theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         if ((feature.classNameExt() == "cloudLayers") ||
@@ -553,7 +553,7 @@ int run(int argc,
 
     for (const woml::Feature& feature : weather.forecast())
     {
-      const std::optional<Fmi::DateTime> theTime = feature.validTime();
+      const std::optional<Fmi::DateTime>& theTime = feature.validTime();
 
       if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
         if ((feature.classNameExt() != "cloudLayers") &&

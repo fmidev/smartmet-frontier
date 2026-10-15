@@ -27,7 +27,7 @@ class PreProcessor : public NFmiPreProcessor
 
   bool ReadAndStripFile(const std::string& theFileName);
 
-  const std::string getDefinedValue(const std::string& theDefine,
+  std::string getDefinedValue(const std::string& theDefine,
                                     const std::string& theDefaultValue = "") const;
 
  private:
