@@ -432,7 +432,7 @@ struct WindArrowOffsets
 
 using Texts = boost::ptr_map<std::string, std::ostringstream>;
 
-typedef struct
+struct FillAreaData
 {
   std::string areaId;              // Area id for area reservation
   std::list<std::string> markers;  // Marker names of reserved fill areas for candidate fill areas
@@ -444,7 +444,7 @@ typedef struct
   NFmiFillAreas fillAreas;                       // One reserved or all free/candidate fill areas
   std::list<std::pair<double, double> > scales;  // Additional marker scales to scale the marker
                                                  // down (to half size) if necessary to make it fit
-} FillAreaData;
+};
 using FillAreas = std::map<std::string, FillAreaData>;  // Marker name and related fill areas
 
 class SvgRenderer : public woml::FeatureVisitor
