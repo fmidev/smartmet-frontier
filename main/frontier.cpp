@@ -587,7 +587,7 @@ int run(int argc,
  */
 // ----------------------------------------------------------------------
 
-void generatesvg(int exitCode,
+[[noreturn]] void generatesvg(int exitCode,
                  const std::shared_ptr<NFmiArea>& area,
                  const std::string& outfile,
                  bool debug,
