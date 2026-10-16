@@ -56,6 +56,7 @@
 #include <limits>
 #include <list>
 #include <memory>
+#include <utility>
 
 namespace p = std::placeholders;
 
@@ -5035,10 +5036,8 @@ NFmiFillAreas getMarkerArea(const std::string& markerId,
     // Checking 1/4 step offset first to better keep the marker within it's area
 
     double x = x0;
-    uint div = (((checkBwd && (x < (xStep / 2))) || (checkFwd && (x > (axisWidth - (xStep / 2)))))
-                    ? 4
-                    : 4  // 2
-    );
+    // A 1/2 step offset (div = 2) near the axis ends is disabled; 1/4 steps are used everywhere
+    uint div = 4;
 
     markerArea = getMarkerArea(markerId,
                                holeAreas,
@@ -10738,13 +10737,13 @@ void SvgRenderer::render_value(const std::string& confPath,
 
 SvgRenderer::SvgRenderer(const Options& theOptions,
                          const libconfig::Config& theConfig,
-                         const std::string& theTemplate,
+                         std::string theTemplate,
                          const std::shared_ptr<NFmiArea>& theArea,
                          const Fmi::DateTime& theValidTime,
                          std::ostringstream* theDebugOutput)
     : options(theOptions),
       config(theConfig),
-      svgbase(theTemplate),
+      svgbase(std::move(theTemplate)),
       area(theArea),
       validtime(theValidTime),
       initAerodrome(true),
@@ -10902,14 +10901,14 @@ std::string SvgRenderer::svg() const
 Elevation::Elevation(double theElevation,
                      double theScale,
                      int theScaledElevation,
-                     const std::string& theLLabel,
-                     const std::string& theRLabel,
+                     std::string theLLabel,
+                     std::string theRLabel,
                      bool line)
     : itsElevation(theElevation),
       itsScale(theScale),
       itsScaledElevation(theScaledElevation),
-      itsLLabel(theLLabel),
-      itsRLabel(theRLabel),
+      itsLLabel(std::move(theLLabel)),
+      itsRLabel(std::move(theRLabel)),
       itsFactor(0.0),
       renderLine(line)
 {
@@ -12370,9 +12369,8 @@ class DataMatrixAdapter : public Trax::Grid
  public:
   DataMatrixAdapter() = delete;
 
-  DataMatrixAdapter(const NFmiDataMatrix<float>& theMatrix,
-                    const Fmi::CoordinateMatrix& theCoordinates)
-      : itsMatrix(theMatrix), itsCoordinates(theCoordinates)
+  DataMatrixAdapter(const NFmiDataMatrix<float>& theMatrix, Fmi::CoordinateMatrix theCoordinates)
+      : itsMatrix(theMatrix), itsCoordinates(std::move(theCoordinates))
   {
   }
 

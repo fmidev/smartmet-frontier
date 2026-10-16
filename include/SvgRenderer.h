@@ -38,8 +38,8 @@ class Elevation
   Elevation(double theElevation,
             double theScale,
             int theScaledElevation,
-            const std::string& theLLabel,
-            const std::string& theRLabel,
+            std::string theLLabel,
+            std::string theRLabel,
             bool line = true);
   Elevation(double theElevation);
 
@@ -289,7 +289,7 @@ class CategoryValueMeasureGroup
 {
  public:
   virtual ~CategoryValueMeasureGroup() = default;
-  CategoryValueMeasureGroup() {}
+  CategoryValueMeasureGroup() = default;
   virtual bool groupMember(const woml::CategoryValueMeasure* /*cvm*/) const { return true; }
   virtual bool groupMember(bool first, const woml::CategoryValueMeasure* cvm);
   virtual bool standalone() { return false; }
@@ -400,7 +400,7 @@ using ElevGrp = std::list<ElevationGroupItem>;
 
 struct ElevationHole
 {
-  ElevationHole() {}
+  ElevationHole() = default;
 
   bool operator<(const ElevationHole& theOther) const;
 
@@ -424,7 +424,7 @@ using ElevationHoles = std::list<ElevationHole>;
 
 struct WindArrowOffsets
 {
-  WindArrowOffsets() {}
+  WindArrowOffsets() = default;
   int horizontalOffsetPx = 0;
   int verticalOffsetPx = 0;
   double scale = 0.0;
@@ -453,7 +453,7 @@ class SvgRenderer : public woml::FeatureVisitor
   ~SvgRenderer() override = default;
   SvgRenderer(const Options& theOptions,
               const libconfig::Config& theConfig,
-              const std::string& theTemplate,
+              std::string theTemplate,
               const std::shared_ptr<NFmiArea>& theArea,
               const Fmi::DateTime& theValidTime,
               std::ostringstream* theDebugOutput = nullptr);

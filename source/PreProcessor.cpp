@@ -8,6 +8,7 @@
 #include "PreProcessor.h"
 
 #include <iostream>
+#include <utility>
 
 using namespace std;
 
@@ -17,10 +18,10 @@ using namespace std;
  */
 // ----------------------------------------------------------------------
 
-PreProcessor::PreProcessor(const std::string& theDefineDirective,
-                           const std::string& theIncludeDirective,
-                           const std::string& theIncludePathDefine,
-                           const std::string& theIncludeFileExtension,
+PreProcessor::PreProcessor(std::string theDefineDirective,
+                           std::string theIncludeDirective,
+                           std::string theIncludePathDefine,
+                           std::string theIncludeFileExtension,
                            bool stripPound,
                            bool stripDoubleSlash,
                            bool stripSlashAst,
@@ -28,10 +29,10 @@ PreProcessor::PreProcessor(const std::string& theDefineDirective,
                            bool stripEndOfLineSpaces)
     : NFmiPreProcessor(
           stripPound, stripDoubleSlash, stripSlashAst, stripSlashAstNested, stripEndOfLineSpaces),
-      itsDefineDirective(theDefineDirective),
-      itsIncludeDirective(theIncludeDirective),
-      itsIncludePathDefine(theIncludePathDefine),
-      itsIncludeFileExtension(theIncludeFileExtension)
+      itsDefineDirective(std::move(theDefineDirective)),
+      itsIncludeDirective(std::move(theIncludeDirective)),
+      itsIncludePathDefine(std::move(theIncludePathDefine)),
+      itsIncludeFileExtension(std::move(theIncludeFileExtension))
 {
 }
 

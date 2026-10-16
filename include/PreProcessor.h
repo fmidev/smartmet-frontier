@@ -15,10 +15,10 @@
 class PreProcessor : public NFmiPreProcessor
 {
  public:
-  PreProcessor(const std::string& theDefineDirective,
-               const std::string& theIncludeDirective = "",
-               const std::string& theIncludePathDefine = "",
-               const std::string& theIncludeFileExtension = "",
+  PreProcessor(std::string theDefineDirective,
+               std::string theIncludeDirective = "",
+               std::string theIncludePathDefine = "",
+               std::string theIncludeFileExtension = "",
                bool stripPound = false,
                bool stripDoubleSlash = true,
                bool stripSlashAst = true,

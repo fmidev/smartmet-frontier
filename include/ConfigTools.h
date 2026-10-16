@@ -13,6 +13,7 @@
 #include <string>
 
 #include <typeinfo>
+#include <utility>
 
 namespace frontier
 {
@@ -26,8 +27,8 @@ enum settings
 class SettingIdNotFoundException
 {
  public:
-  SettingIdNotFoundException(settings theId, const std::string& theMsg)
-      : itsId(theId), itsMsg(theMsg)
+  SettingIdNotFoundException(settings theId, std::string theMsg)
+      : itsId(theId), itsMsg(std::move(theMsg))
   {
   }
 
