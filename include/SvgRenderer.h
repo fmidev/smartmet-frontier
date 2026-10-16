@@ -100,6 +100,9 @@ class AxisManager
   double nonZeroElevation() { return 10.0; }
 
  private:
+  void addElevation(const libconfig::Setting& specs, const std::string& confPath, bool first);
+  void sortElevations(const std::string& confPath);
+
   double itsAxisHeight = 0;
   double itsMinElevation = 0.0;
   double itsMaxElevation = 0.0;

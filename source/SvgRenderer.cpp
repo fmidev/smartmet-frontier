@@ -10924,6 +10924,84 @@ bool Elevation::operator<(const Elevation& theOther) const
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Parse one elevation axis setting and store the elevation
+ */
+// ----------------------------------------------------------------------
+
+void AxisManager::addElevation(const libconfig::Setting& specs,
+                               const std::string& confPath,
+                               bool first)
+{
+  const std::string valueMsg(": value between 0.0 and 1.0 expected");
+
+  auto elevation = configValue<double, int>(specs, confPath, "elevation");  // Meters
+  auto scale = configValue<double, int>(specs, confPath, "scale");          // [0,1]
+  auto lLabel = configValue<std::string>(
+      specs, confPath, "llabel", nullptr, s_optional);  // Left side label
+  auto rLabel = configValue<std::string>(
+      specs, confPath, "rlabel", nullptr, s_optional);  // Right side label
+
+  // If 'line' is set (the default), render the elevation line
+
+  bool isSet = false;
+  bool line = configValue<bool>(specs, confPath, "line", nullptr, s_optional, &isSet);
+  if (!isSet)
+    line = true;
+
+  if ((scale < 0.0) || (scale > 1.0))
+    throw std::runtime_error(confPath + ": " + fmt::format("{:.3f}", scale) + valueMsg);
+
+  boost::algorithm::trim(lLabel);
+  boost::algorithm::trim(rLabel);
+
+  if (!first)
+  {
+    if (elevation < itsMinElevation)
+      itsMinElevation = elevation;
+    else if (elevation > itsMaxElevation)
+      itsMaxElevation = elevation;
+  }
+  else
+    itsMinElevation = itsMaxElevation = elevation;
+
+  itsElevations.emplace_back(
+      elevation, scale, (int)(itsAxisHeight * scale), lLabel, rLabel, line);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Sort the elevations, add elevation 0.0 and check the scales are rising
+ */
+// ----------------------------------------------------------------------
+
+void AxisManager::sortElevations(const std::string& confPath)
+{
+  const char* scaleMsg = ": scale must be rising for rising elevation";
+
+  // Sort the elevations and add elevation 0.0 if it does not exist
+
+  itsElevations.sort();
+
+  auto it = itsElevations.begin();
+  if (it->elevation() > 0.0)
+  {
+    itsMinElevation = 0.0;
+    itsElevations.emplace_front(itsMinElevation);
+  }
+
+  // Check the elevations have rising scale and precalculate factors for linear interapolation
+
+  auto it2 = it = itsElevations.begin();
+
+  for (it++; (it != itsElevations.end()); it++, it2++)
+    if (it2->scale() >= it->scale())
+      throw std::runtime_error(confPath + ": " + fmt::format("{:.3f}", it->scale()) + scaleMsg);
+    else
+      it2->factor((it->scale() - it2->scale()) / (it->elevation() - it2->elevation()));
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief AxisManager
  */
 // ----------------------------------------------------------------------
@@ -10938,8 +11016,6 @@ AxisManager::AxisManager(const libconfig::Config& config)
   {
     const char* groupMsg = " must contain a group in curly brackets";
     const char* listMsg = " must contain a list of groups in parenthesis";
-    const std::string valueMsg(": value between 0.0 and 1.0 expected");
-    const char* scaleMsg = ": scale must be rising for rising elevation";
 
     // Y -axis height (px)
 
@@ -10964,60 +11040,10 @@ AxisManager::AxisManager(const libconfig::Config& config)
       if (!specs.isGroup())
         throw std::runtime_error(confPath + listMsg);
 
-      auto elevation = configValue<double, int>(specs, confPath, "elevation");  // Meters
-      auto scale = configValue<double, int>(specs, confPath, "scale");          // [0,1]
-      auto lLabel = configValue<std::string>(
-          specs, confPath, "llabel", nullptr, s_optional);  // Left side label
-      auto rLabel = configValue<std::string>(
-          specs, confPath, "rlabel", nullptr, s_optional);  // Right side label
-
-      // If 'line' is set (the default), render the elevation line
-
-      bool isSet = false;
-      bool line = configValue<bool>(specs, confPath, "line", nullptr, s_optional, &isSet);
-      if (!isSet)
-        line = true;
-
-      if ((scale < 0.0) || (scale > 1.0))
-        throw std::runtime_error(confPath + ": " + fmt::format("%.3f", scale) + valueMsg);
-
-      boost::algorithm::trim(lLabel);
-      boost::algorithm::trim(rLabel);
-
-      if (i)
-      {
-        if (elevation < itsMinElevation)
-          itsMinElevation = elevation;
-        else if (elevation > itsMaxElevation)
-          itsMaxElevation = elevation;
-      }
-      else
-        itsMinElevation = itsMaxElevation = elevation;
-
-      itsElevations.emplace_back(
-          elevation, scale, (int)(itsAxisHeight * scale), lLabel, rLabel, line);
+      addElevation(specs, confPath, i == 0);
     }
 
-    // Sort the elevations and add elevation 0.0 if it does not exist
-
-    itsElevations.sort();
-
-    auto it = itsElevations.begin();
-    if (it->elevation() > 0.0)
-    {
-      itsMinElevation = 0.0;
-      itsElevations.emplace_front(itsMinElevation);
-    }
-
-    // Check the elevations have rising scale and precalculate factors for linear interapolation
-
-    auto it2 = it = itsElevations.begin();
-
-    for (it++; (it != itsElevations.end()); it++, it2++)
-      if (it2->scale() >= it->scale())
-        throw std::runtime_error(confPath + ": " + fmt::format("%.3f", it->scale()) + scaleMsg);
-      else
-        it2->factor((it->scale() - it2->scale()) / (it->elevation() - it2->elevation()));
+    sortElevations(confPath);
   }
   catch (libconfig::ConfigException& ex)
   {
