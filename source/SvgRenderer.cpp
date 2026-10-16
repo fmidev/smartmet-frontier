@@ -7579,8 +7579,6 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
 
   if (!visibilitySet)
     texts[CLOUDLAYERS + "VISIBILITYSET"] << "Set";
-
-  return;
 }
 
 // ----------------------------------------------------------------------
@@ -7897,8 +7895,6 @@ void SvgRenderer::checkLeftSide(ElevGrp& eGrp,
     if (dh != 0)
       return;
   }
-
-  return;
 }
 
 // ----------------------------------------------------------------------
@@ -8016,8 +8012,6 @@ void SvgRenderer::checkRightSide(ElevGrp& eGrp,
     if (dh != 0)
       return;
   }
-
-  return;
 }
 
 // ----------------------------------------------------------------------
