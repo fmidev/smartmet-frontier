@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 26.10.15
+Version: 26.10.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -23,21 +23,21 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-gis-devel >= 26.10.15
-BuildRequires: smartmet-library-macgyver-devel >= 26.10.15
-BuildRequires: smartmet-library-newbase-devel >= 26.10.15
-BuildRequires: smartmet-library-trax-devel >= 26.10.15
+BuildRequires: smartmet-library-gis-devel >= 26.10.16
+BuildRequires: smartmet-library-macgyver-devel >= 26.10.16
+BuildRequires: smartmet-library-newbase-devel >= 26.10.16
+BuildRequires: smartmet-library-trax-devel >= 26.10.16
 BuildRequires: geos313
-BuildRequires: smartmet-library-woml >= 26.10.15
+BuildRequires: smartmet-library-woml >= 26.10.16
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-fonts
-Requires: smartmet-library-macgyver >= 26.10.15
-Requires: smartmet-library-newbase >= 26.10.15
-Requires: smartmet-library-trax >= 26.10.15
-Requires: smartmet-library-woml >= 26.10.15
+Requires: smartmet-library-macgyver >= 26.10.16
+Requires: smartmet-library-newbase >= 26.10.16
+Requires: smartmet-library-trax >= 26.10.16
+Requires: smartmet-library-woml >= 26.10.16
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
 Requires: %{smartmet_boost}-program-options
@@ -47,7 +47,7 @@ Requires: %{smartmet_boost}-system
 Provides: frontier
 Obsoletes: smartmet-frontier-devel
 #TestRequires: gcc-c++
-#TestRequires: smartmet-library-macgyver-devel >= 26.10.15
+#TestRequires: smartmet-library-macgyver-devel >= 26.10.16
 #TestRequires: ImageMagick
 #TestRequires: bc
 #TestRequires: coreutils
@@ -77,6 +77,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man1/frontier.1.gz
 
 %changelog
+* Fri Oct 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.16-1.fmi
+- Fixed compiler warnings and clang-tidy findings (unused code, unreachable code, empty statements, member initialization, parameter passing, noexcept), no functional changes
+
 * Thu Oct 15 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.15-1.fmi
 - Declare member functions and parameters const where nothing is modified (const correctness), no functional changes
 - Requires 26.10.15 versions of newbase due to their ABI changes
