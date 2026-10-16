@@ -1227,6 +1227,38 @@ void getFillPositions(NFmiFillAreas& areas,
     throw std::runtime_error("getFillPositions: unexpected end of columns");
 }
 
+// Erase the fill areas which overlap the reserved area
+void eraseOverlappingAreas(NFmiFillAreas& areas, const NFmiFillRect& reservedArea)
+{
+  for (auto iter = areas.begin(); (iter != areas.end());)
+  {
+    if ((iter->first.x < reservedArea.second.x) && (iter->second.x > reservedArea.first.x) &&
+        (iter->first.y < reservedArea.second.y) && (iter->second.y > reservedArea.first.y))
+      iter = areas.erase(iter);
+    else
+      iter++;
+  }
+}
+
+// Relative offsets of the symbol position for the given quarter of the fill area
+void quarterOffsets(size_t symIndex, double& xOff, double& yOff)
+{
+  if (symIndex == 4)
+    xOff = yOff = 4.0;  // Upper left quarter of the area
+  else if (symIndex == 3)
+    xOff = yOff = (4.0 / 3.0);  // Lower right quarter of the area
+  else if (symIndex == 2)
+  {
+    xOff = (4.0 / 3.0);  // Upper right quarter of the area
+    yOff = 4;
+  }
+  else
+  {
+    xOff = 4;  // Lower left quarter of the area
+    yOff = (4.0 / 3.0);
+  }
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Get area symbol positions within fill areas.
@@ -1253,16 +1285,7 @@ void getFillPositions(NFmiFillAreas& areas,
   // Erase reserved areas (areas which overlap reserved area)
 
   if (reservedArea.second.x > reservedArea.first.x)
-  {
-    for (auto iter = areas.begin(); (iter != areas.end());)
-    {
-      if ((iter->first.x < reservedArea.second.x) && (iter->second.x > reservedArea.first.x) &&
-          (iter->first.y < reservedArea.second.y) && (iter->second.y > reservedArea.first.y))
-        iter = areas.erase(iter);
-      else
-        iter++;
-    }
-  }
+    eraseOverlappingAreas(areas, reservedArea);
 
   if (symbolCnt < areas.size())
   {
@@ -1295,20 +1318,7 @@ void getFillPositions(NFmiFillAreas& areas,
     }
     else
     {
-      if (symIndex == 4)
-        xOff = yOff = 4.0;  // Upper left quarter of the area
-      else if (symIndex == 3)
-        xOff = yOff = (4.0 / 3.0);  // Lower right quarter of the area
-      else if (symIndex == 2)
-      {
-        xOff = (4.0 / 3.0);  // Upper right quarter of the area
-        yOff = 4;
-      }
-      else
-      {
-        xOff = 4;  // Lower left quarter of the area
-        yOff = (4.0 / 3.0);
-      }
+      quarterOffsets(symIndex, xOff, yOff);
 
       symIndex--;
 
