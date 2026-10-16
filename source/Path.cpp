@@ -271,6 +271,28 @@ void Path::transform(const PathTransformation& transformation)
   }
 }
 
+namespace
+{
+// Copy of the clipper path without successive duplicate points
+ClipperLib::Path strip_successive_duplicates(const ClipperLib::Path& srcPath)
+{
+  ClipperLib::Path strippedPath;
+  ClipperLib::Path::const_iterator pathStart = srcPath.begin();
+  ClipperLib::Path::const_iterator pathEnd = srcPath.end();
+  ClipperLib::Path::const_iterator it;
+  ClipperLib::Path::const_iterator pit;
+
+  it = pit = pathStart;
+  strippedPath.push_back(*it);
+
+  for (it++; (it != pathEnd); it++, pit++)
+    if (*it != *pit)
+      strippedPath.push_back(*it);
+
+  return strippedPath;
+}
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Path scaling. Uses 'clipper' module
@@ -335,18 +357,7 @@ bool Path::scale(double offset, Path& scaledPath) const
 
   if (srcPath.size() > 2)
   {
-    ClipperLib::Path strippedPath;
-    ClipperLib::Path::const_iterator pathStart = srcPath.begin();
-    ClipperLib::Path::const_iterator pathEnd = srcPath.end();
-    ClipperLib::Path::const_iterator it;
-    ClipperLib::Path::const_iterator pit;
-
-    it = pit = pathStart;
-    strippedPath.push_back(*it);
-
-    for (it++; (it != pathEnd); it++, pit++)
-      if (*it != *pit)
-        strippedPath.push_back(*it);
+    ClipperLib::Path strippedPath = strip_successive_duplicates(srcPath);
 
     if (strippedPath.size() > 2)
     {
