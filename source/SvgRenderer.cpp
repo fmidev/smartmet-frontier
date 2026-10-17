@@ -10970,6 +10970,85 @@ void SvgRenderer::setGroupNumbers(const std::list<woml::TimeSeriesSlot>& ts, boo
   }
 }
 
+namespace
+{
+// Labels for positive and negative temperature areas, label placement and output
+struct ZeroToleranceLabels
+{
+  std::string posLabel;
+  std::string negLabel;
+  bool bbCenterLabel = false;
+  std::string labelPlaceHolder;
+
+  // Label for negative or positive area
+  std::string& label(bool negative) { return (negative ? negLabel : posLabel); }
+};
+
+// Get labels for positive (default: "+deg") and negative (default: "-deg") temperature areas.
+// If empty label is given, no label.
+//
+// If bbcenterlabel is true (default: false), the label is positioned to the center of the
+// area's bounding box;
+// otherwise using 1 or 2 elevations in the middle of the area in x -direction
+ZeroToleranceLabels zeroToleranceLabels(const libconfig::Setting& specs,
+                                        const std::string& confPath,
+                                        const std::string& ZEROTOLERANCE)
+{
+  ZeroToleranceLabels labels;
+  bool isSet = false;
+
+  labels.posLabel = boost::algorithm::trim_copy(
+      configValue<std::string>(specs, confPath, "poslabel", nullptr, s_optional, &isSet));
+  if (!isSet)
+    labels.posLabel = "+deg";
+  labels.negLabel = boost::algorithm::trim_copy(
+      configValue<std::string>(specs, confPath, "neglabel", nullptr, s_optional, &isSet));
+  if (!isSet)
+    labels.negLabel = "-deg";
+
+  if ((!labels.posLabel.empty()) || (!labels.negLabel.empty()))
+  {
+    labels.bbCenterLabel = bbCenterLabelSetting(specs, confPath);
+
+    labels.labelPlaceHolder = boost::algorithm::trim_copy(
+        configValue<std::string>(specs, confPath, "labeloutput", nullptr, s_optional));
+    if (labels.labelPlaceHolder.empty())
+      labels.labelPlaceHolder = ZEROTOLERANCE + "TEXT";
+  }
+
+  return labels;
+}
+
+// Output the curve path; returns true if the curve is visible
+bool curvePath(std::list<DirectPosition>& curvePoints, double axisWidth, std::ostringstream& path)
+{
+  bool visible = false;
+
+  std::list<DirectPosition>::iterator cpbeg = curvePoints.begin();
+  std::list<DirectPosition>::iterator cpend = curvePoints.end();
+  std::list<DirectPosition>::iterator itcp;
+
+  // fprintf(stderr,"> Bez:\n");
+  // for (itcp = cpbeg; (itcp != cpend); itcp++) fprintf(stderr,"> Bez x=%.1f,
+  // y=%.1f\n",itcp->getX(),itcp->getY());
+  for (itcp = cpbeg; (itcp != cpend); itcp++)
+  {
+    // Store the path and check visibility
+    //
+    double x = NAN;
+    double y = NAN;
+
+    path << ((itcp == cpbeg) ? "M" : " L") << (x = itcp->getX()) << "," << (y = itcp->getY());
+
+    if ((x >= 0) && (x < (axisWidth + 1)) && (y > 0))
+      visible = true;
+  }
+
+  return visible;
+}
+
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Zero tolerance rendering
@@ -10998,38 +11077,8 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
 
     // Labels for positive (default: "+deg") and negative (default: "-deg") temperature areas.
     // If empty label is given, no label.
-    //
-    // If bbcenterlabel is true (default: false), the label is positioned to the center of the
-    // area's bounding box;
-    // otherwise using 1 or 2 elevations in the middle of the area in x -direction
 
-    bool bbCenterLabel = false;
-    bool isSet = false;
-    std::string posLabel;
-    std::string negLabel;
-    std::string labelPlaceHolder;
-
-    posLabel = boost::algorithm::trim_copy(
-        configValue<std::string>(specs, confPath, "poslabel", nullptr, s_optional, &isSet));
-    if (!isSet)
-      posLabel = "+deg";
-    negLabel = boost::algorithm::trim_copy(
-        configValue<std::string>(specs, confPath, "neglabel", nullptr, s_optional, &isSet));
-    if (!isSet)
-      negLabel = "-deg";
-
-    if ((!posLabel.empty()) || (!negLabel.empty()))
-    {
-      bbCenterLabel =
-          configValue<bool>(specs, confPath, "bbcenterlabel", nullptr, s_optional, &isSet);
-      if (!isSet)
-        bbCenterLabel = false;
-
-      labelPlaceHolder = boost::algorithm::trim_copy(
-          configValue<std::string>(specs, confPath, "labeloutput", nullptr, s_optional));
-      if (labelPlaceHolder.empty())
-        labelPlaceHolder = ZEROTOLERANCE + "TEXT";
-    }
+    ZeroToleranceLabels labels = zeroToleranceLabels(specs, confPath, ZEROTOLERANCE);
 
     // Zero tolerance time series and x -axis width/step (px)
 
@@ -11040,80 +11089,25 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
 
     // Bezier curve tightness
 
-    double tightness =
-        (double)configValue<double, int>(specs, confPath, "tightness", nullptr, s_optional, &isSet);
+    double tightness = tightnessSetting(specs, confPath);
 
-    if (!isSet)
-      // Using the default by setting a negative value
-      //
-      tightness = -1.0;
+    // Offsets for intermediate curve points
 
-    // Offsets for intermediate curve points on both sides of the elevation's hi/lo range point
+    GroupOffsets go = groupOffsets(specs, confPath, nullptr, xStep);
 
-    auto xOffset = configValue<double>(specs, confPath, "xoffset", nullptr, s_optional, &isSet);
-    if (!isSet)
-      xOffset = 0.0;
-    else
-      xOffset *= xStep;
-
-    double yOffset =
-        (double)configValue<int, double>(specs, confPath, "yoffset", nullptr, s_optional, &isSet);
-    if ((!isSet) || (yOffset < 0.0))
-      yOffset = 0.0;
-
-    // Relative offset for intermediate curve points (controls how much the ends of the area
-    // are extended horizontally)
-
-    auto vOffset = configValue<double>(specs, confPath, "voffset", nullptr, s_optional, &isSet);
-    if (!isSet)
-      vOffset = 0.0;
-    else
-      vOffset *= xStep;
-
-    // Relative top/bottom and side x -offsets for intermediate curve points for single elevation
-    // (controls how much the
-    // ends of the area are extended horizontally)
-
-    auto vSOffset = configValue<double>(specs, confPath, "vsoffset", nullptr, s_optional, &isSet);
-    if (!isSet)
-      vSOffset = xStep / 3;
-    else
-      vSOffset *= xStep;
-
-    auto vSSOffset = configValue<double>(specs, confPath, "vssoffset", nullptr, s_optional, &isSet);
-    if (!isSet)
-      vSSOffset = vSOffset;
-    else
-      vSSOffset *= xStep;
-
-    // Max offset in px for extending first time instant's elevations to the left
-
-    int sOffset = configValue<int>(specs, confPath, "soffset", nullptr, s_optional, &isSet);
-    if (!isSet)
-      sOffset = 0;
-
-    // Max offset in px for extending last time instant's elevations to the right
-
-    int eOffset = configValue<int>(specs, confPath, "eoffset", nullptr, s_optional, &isSet);
-    if (!isSet)
-      eOffset = 0;
+    if (go.yOffset < 0.0)
+      go.yOffset = 0.0;
 
     // Minimum absolute/relative height for the label position
 
-    int minLabelPosHeight =
-        configValue<int>(specs, confPath, "minlabelposheight", nullptr, s_optional, &isSet);
+    int minLabelPosHeight = 0;
     double labelPosHeightFactor = 0.0;
 
-    if ((!isSet) || (minLabelPosHeight < (int)labelPosHeightMin))
-    {
-      labelPosHeightFactor =
-          configValue<double>(specs, confPath, "labelposheightfactor", nullptr, s_optional, &isSet);
+    labelPosHeightSettings(specs, confPath, minLabelPosHeight, labelPosHeightFactor);
 
-      if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
-        labelPosHeightFactor = defaultLabelPosHeightFactor;
+    // Placeholder for fill areas in debug mode
 
-      minLabelPosHeight = 0;
-    }
+    const std::string fillAreasPlaceHolder(options.debug ? ZEROTOLERANCE + "FILLAREAS" : "");
 
     // Curve/text visibility
 
@@ -11174,7 +11168,7 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
         eGrp = eGrpAll;
 
       bool isNegative = eGrp.begin()->isNegative();
-      std::string& label = (isNegative ? negLabel : posLabel);
+      std::string& label = labels.label(isNegative);
 
       // Get curve positions for overlapping elevations for bezier creation.
       //
@@ -11196,13 +11190,13 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
                            scaledLo,
                            scaledHi,
                            hasHole,
-                           xOffset,
-                           yOffset,
-                           vOffset,
-                           vSOffset,
-                           vSSOffset,
-                           sOffset,
-                           eOffset,
+                           go.xOffset,
+                           go.yOffset,
+                           go.vOffset,
+                           go.vSOffset,
+                           go.vSSOffset,
+                           go.sOffset,
+                           go.eOffset,
                            0,
                            0,
                            path,
@@ -11231,25 +11225,8 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
 
       path.clear();
       path.str("");
-      std::list<DirectPosition>::iterator cpbeg = curvePoints.begin();
-      std::list<DirectPosition>::iterator cpend = curvePoints.end();
-      std::list<DirectPosition>::iterator itcp;
-
-      // fprintf(stderr,"> Bez:\n");
-      // for (itcp = cpbeg; (itcp != cpend); itcp++) fprintf(stderr,"> Bez x=%.1f,
-      // y=%.1f\n",itcp->getX(),itcp->getY());
-      for (itcp = cpbeg; (itcp != cpend); itcp++)
-      {
-        // Store the path and check visibility
-        //
-        double x = NAN;
-        double y = NAN;
-
-        path << ((itcp == cpbeg) ? "M" : " L") << (x = itcp->getX()) << "," << (y = itcp->getY());
-
-        if ((x >= 0) && (x < (axisWidth + 1)) && (y > 0))
-          visible = true;
-      }
+      if (curvePath(curvePoints, axisWidth, path))
+        visible = true;
 
       texts[ZEROTOLERANCE] << "<path class=\"" << classDef << "\" id=\""
                            << "ZeroTolerance" << nGroups << "\" d=\"" << path.str() << "\"/>\n";
@@ -11278,21 +11255,21 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
                          holeAreas,
                          areaLabels,
                          "ZEROTOLERANCELABEL",
-                         labelPlaceHolder,
+                         labels.labelPlaceHolder,
                          "ZZZeroToleranceText",
                          isNegative,
                          label,
-                         bbCenterLabel,
+                         labels.bbCenterLabel,
                          minX,
                          minLabelPosHeight,
                          labelPosHeightFactor,
-                         sOffset,
-                         eOffset,
+                         go.sOffset,
+                         go.eOffset,
                          scaledLo,
                          scaledHi,
                          hasHole,
                          false,
-                         options.debug ? ZEROTOLERANCE + "FILLAREAS" : "");
+                         fillAreasPlaceHolder);
       }
     }
 
