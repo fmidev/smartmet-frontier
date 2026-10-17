@@ -397,15 +397,13 @@ void render_contours(frontier::SvgRenderer& renderer,
                      const woml::Weather& weather,
                      const Fmi::DateTime& validtime)
 {
-  const woml::DataSource& dataSource = weather.analysis().dataSource();
+  const woml::DataSource& dataSource =
+      (weather.hasAnalysis() ? weather.analysis().dataSource() : weather.forecast().dataSource());
 
   std::shared_ptr<NFmiQueryData> qd;
   try
   {
-    if (weather.hasAnalysis())
-      qd = resolve_model(options, config, dataSource);
-    else
-      qd = resolve_model(options, config, dataSource);
+    qd = resolve_model(options, config, dataSource);
   }
   catch (std::exception& e)
   {
