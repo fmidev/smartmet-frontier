@@ -613,6 +613,29 @@ class SvgRenderer : public woml::FeatureVisitor
   void render_aerodromeSymbols(const T& theFeature,
                                const std::string& confPath,
                                bool setVisibility = false);
+  struct SymbolRendering;
+  bool symbolLocaleScope(const libconfig::Setting& specs,
+                         const std::string& confPath,
+                         const std::string& _symCode,
+                         const woml::NumericalSingleValueMeasure* svm,
+                         bool notLast,
+                         SymbolRendering& sr);
+  bool symbolScope(const libconfig::Setting& symbolSpecs,
+                   const std::string& confPath,
+                   const std::string& _symCode,
+                   const woml::NumericalSingleValueMeasure* svm,
+                   SymbolRendering& sr);
+  void symbolUseReference(std::ostringstream& wh, SymbolRendering& sr);
+  void symbolImageSize(std::ostringstream& wh, std::string& uri, SymbolRendering& sr);
+  void render_symbolFillImages(std::ostringstream& symbols,
+                               const std::string& uri,
+                               const std::string& wh,
+                               SymbolRendering& sr);
+  void render_symbolImage(std::ostringstream& symbols, SymbolRendering& sr);
+  void render_symbolFont(std::ostringstream& symbols, SymbolRendering& sr);
+  void render_symbolInfoText(const std::string& confPath,
+                             const woml::Feature* feature,
+                             SymbolRendering& sr);
   void render_symbol(const std::string& path,
                      std::ostringstream& symOutput,
                      const std::string& symClass,

@@ -4084,6 +4084,546 @@ void SvgRenderer::render_aerodromeSymbols(const T& theFeature,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Symbol settings and position for symbol rendering
+ */
+// ----------------------------------------------------------------------
+
+struct SvgRenderer::SymbolRendering
+{
+  // Configuration blocks to search values for the settings
+  std::list<const libconfig::Setting*> scope;
+
+  std::string symClass;
+  std::string symCode;
+  std::string type;
+  std::string folder;
+  std::string code;
+
+  double lon = 0;
+  double lat = 0;
+  bool trueNorthAdjustment = false;
+  NFmiAngle trueNorthAzimuth;
+  int xoffset = 0;
+  int yoffset = 0;
+
+  NFmiFillPositions* fpos = nullptr;
+  const std::list<std::string>* areaSymbols = nullptr;
+  int width = 0;
+  int height = 0;
+
+  // Settings search state
+  int symbolIdx = -1;
+  int localeIdx = -1;
+  bool hasLocaleGlobals = false;
+  bool _hasLocaleGlobals = false;
+};
+
+namespace
+{
+// Get symbol code (and folder); returns false if the symbol code was not found
+bool symbolCode(const libconfig::Config& config,
+                std::list<const libconfig::Setting*>& scope,
+                const std::string& confPath,
+                const std::string& symClass,
+                const std::string& _symCode,
+                const Fmi::DateTime& validtime,
+                bool commonCode,
+                std::string& folder,
+                std::string& code)
+{
+  auto s_code((settings)(s_base + 1));
+
+  // Each search starts with empty folder and code
+
+  folder.clear();
+  code.clear();
+
+  try
+  {
+    // Note: When rendering wind symbol with wind speed, using primarily 'code' key for
+    //		 symbol mapping (used conditionally to map all wind symbols to 'calm' if
+    // speed
+    // is
+    // nan)
+    //
+    code = getFolderAndSymbol(
+        config, &scope, confPath, symClass, _symCode, s_code, validtime, folder, commonCode);
+  }
+  catch (SettingIdNotFoundException&)
+  {
+    return false;
+  }
+
+  return true;
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add symbol's block with matching name to the settings scope if
+ *        locale matches, and conditional settings if any. Returns true if
+ *        the search should continue with the next block.
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::symbolLocaleScope(const libconfig::Setting& specs,
+                                    const std::string& confPath,
+                                    const std::string& _symCode,
+                                    const woml::NumericalSingleValueMeasure* svm,
+                                    bool notLast,
+                                    SymbolRendering& sr)
+{
+  // Locale
+  //
+  std::string locale(
+      toLower(configValue<std::string>(specs, sr.symClass, "locale", nullptr, s_optional)));
+  bool localeMatch = (locale == options.locale);
+
+  if (localeMatch || (locale.empty()))
+  {
+    sr.scope.push_back(&specs);
+
+    if (localeMatch)
+      sr.localeIdx = sr.symbolIdx;
+    else
+      sr.hasLocaleGlobals = sr._hasLocaleGlobals = true;
+
+    // Search for conditional settings based on the documents validTime (it's time value) or
+    // given measurement value
+
+    const libconfig::Setting* condSpecs =
+        svm ? matchingCondition(
+                  config, confPath, sr.symClass, "", sr.symbolIdx, svm->numericValue())
+            : matchingCondition(config, confPath, sr.symClass, _symCode, sr.symbolIdx, validtime);
+
+    if (condSpecs)
+      sr.scope.push_back(condSpecs);
+  }
+
+  // Continue searching unless got (new) current block or reached the end of configuration
+  // and there is (new) locale global blocks to use
+
+  return ((!localeMatch) && (notLast || (!sr._hasLocaleGlobals)));
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Collect the configuration blocks for a symbol and get the symbol
+ *        code. Returns false if no (locale) settings were found; in debug
+ *        mode reports missing settings.
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::symbolScope(const libconfig::Setting& symbolSpecs,
+                              const std::string& confPath,
+                              const std::string& _symCode,
+                              const woml::NumericalSingleValueMeasure* svm,
+                              SymbolRendering& sr)
+{
+  const char* typeMsg = " must contain a list of groups in parenthesis";
+
+  auto s_name((settings)(s_base + 0));
+
+  // Configuration blocks to search values for the settings; global blocks (blocks with no name),
+  // locale global blocks (blocks with matching name but having no locale) and the current block
+  // (block with matching name and locale).
+  //
+  // The blocks are stored to the list in the order of appearance (and having current block
+  // as the last element). The list is processed in reverse order when searching.
+  //
+  // Current block or locale global block is needed for rendering.
+  //
+  bool nameMatch = false;
+  bool noName = false;
+
+  int lastIdx = symbolSpecs.getLength() - 1;
+
+  for (int i = 0; i <= lastIdx; ++i)
+  {
+    const libconfig::Setting& specs = symbolSpecs[i];
+    if (!specs.isGroup())
+      throw std::runtime_error(confPath + typeMsg);
+
+    nameMatch = settingsNameMatch(specs, confPath, sr.symClass, s_name, noName);
+
+    // Global settings have no name
+    //
+    if (noName)
+      sr.scope.push_back(&specs);
+
+    // Enter the block on matching name and for last config entry to load/use the globals
+    //
+    if (!(nameMatch || ((i == lastIdx) && sr._hasLocaleGlobals)))
+      continue;
+
+    if (nameMatch)
+    {
+      sr.symbolIdx = i;
+
+      if (symbolLocaleScope(specs, confPath, _symCode, svm, (i < lastIdx), sr))
+        continue;
+    }
+
+    // Symbol code. May contain folder too; [<folder>/]<code>
+
+    if ((!sr.areaSymbols) && (!symbolCode(config,
+                                          sr.scope,
+                                          confPath,
+                                          sr.symClass,
+                                          _symCode,
+                                          validtime,
+                                          svm != nullptr,
+                                          sr.folder,
+                                          sr.code)))
+    {
+      // Symbol code not found
+      //
+      // Clear _hasLocaleGlobals to indicate the settings have been scanned upto current block
+      // and
+      // there's no use to enter here again unless new locale global block(s) or current block
+      // is met
+      //
+      sr._hasLocaleGlobals = false;
+      continue;
+    }
+
+    return true;
+  }  // for
+
+  if (options.debug)
+  {
+    // No (locale) settings for the symbol or code
+    //
+    const char* p = (((sr.symbolIdx < 0) || sr.hasLocaleGlobals || (sr.localeIdx >= 0))
+                         ? "Settings for "
+                         : "Locale specific settings for ");
+
+    debugoutput << p << sr.symClass << " (" << _symCode << ") not found\n";
+  }
+
+  return false;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Generate 'use' reference for a symbol with no url
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::symbolUseReference(std::ostringstream& wh, SymbolRendering& sr)
+{
+  auto classDef = configValue<std::string>(sr.scope, sr.symClass, "class", s_optional);
+  if (classDef.empty())
+    classDef = sr.code;
+
+  bool hasScale = false;
+  double scale = NAN;
+  scale = configValue<double>(sr.scope, sr.symClass, "scale", s_optional, &hasScale);
+
+  double lon = sr.lon;
+  double lat = sr.lat;
+
+  wh << "<use class=\"" << classDef << "\""
+     << " xlink:href=\"#" << sr.code << "\""
+     << " x=\"" << lon << "\" y=\"" << lat << "\"";
+
+  if (hasScale || sr.trueNorthAdjustment)
+  {
+    wh << std::setprecision(4) << " transform=\"";
+
+    if (hasScale)
+      wh << "translate(" << -lon * (scale - 1) << "," << -lat * (scale - 1) << ") scale(" << scale
+         << ")";
+
+    if (sr.trueNorthAdjustment)
+    {
+      // We assume the symbol is centered to 0,0
+      //
+      wh << " rotate(" << sr.trueNorthAzimuth.Value() << " " << lon << " " << lat << ")";
+    }
+  }
+
+  wh << "\"/>\n";
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get symbol image folder and size settings
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::symbolImageSize(std::ostringstream& wh, std::string& uri, SymbolRendering& sr)
+{
+  // Some settings are required for svg but optional for img
+  //
+  settings reqORopt = ((sr.type == "svg") ? s_required : s_optional);
+
+  bool hasWidth = false;
+  bool hasHeight = false;
+
+  if (sr.folder.empty())
+    sr.folder = configValue<std::string, int>(sr.scope, sr.symClass, "folder", reqORopt);
+
+  if ((sr.width <= 0) || (sr.height <= 0))
+  {
+    sr.width = configValue<int>(sr.scope, sr.symClass, "width", reqORopt, &hasWidth);
+    sr.height = configValue<int>(sr.scope, sr.symClass, "height", reqORopt, &hasHeight);
+  }
+  else
+    hasWidth = hasHeight = true;
+
+  if (!sr.areaSymbols)
+  {
+    boost::algorithm::replace_all(uri, "%folder%", sr.folder);
+    boost::algorithm::replace_all(uri, "%symbol%", sr.code + "." + sr.type);
+  }
+
+  if (hasWidth)
+    wh << " width=\"" << std::fixed << std::setprecision(0) << sr.width << "px\"";
+  else
+    sr.width = 0;
+  if (hasHeight)
+    wh << " height=\"" << std::fixed << std::setprecision(0) << sr.height << "px\"";
+  else
+    sr.height = 0;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render symbol images to the fill positions
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_symbolFillImages(std::ostringstream& symbols,
+                                          const std::string& uri,
+                                          const std::string& wh,
+                                          SymbolRendering& sr)
+{
+  auto s_code((settings)(s_base + 1));
+
+  NFmiFillPositions::const_iterator piter;
+  std::list<std::string>::const_iterator siter;
+
+  int width = sr.width;
+  int height = sr.height;
+
+  if (sr.areaSymbols)
+    siter = sr.areaSymbols->begin();
+
+  for (piter = sr.fpos->begin(); (piter != sr.fpos->end()); piter++)
+  {
+    if (!sr.areaSymbols)
+    {
+      symbols << "<image xlink:href=\"" << svgescape(uri) << "\" x=\"" << std::fixed
+              << std::setprecision(1) << (piter->x - (width / 2)) << "\" y=\"" << std::fixed
+              << std::setprecision(1) << (piter->y - (height / 2)) << "\"" << wh << "/>\n";
+      continue;
+    }
+
+    if (siter == sr.areaSymbols->end())
+      siter = sr.areaSymbols->begin();
+
+    if (siter == sr.areaSymbols->end())
+      continue;
+
+    std::string u(uri);
+
+    // Symbol code may contain folder too; [<folder>/]<code>
+
+    std::string symFolder(sr.folder);
+    sr.code = getFolderAndSymbol(
+        config, nullptr, sr.symClass, sr.symClass, *siter, s_code, validtime, symFolder);
+
+    boost::algorithm::replace_all(u, "%folder%", symFolder);
+    boost::algorithm::replace_all(u, "%symbol%", sr.code + "." + sr.type);
+
+    symbols << "<image xlink:href=\"" << svgescape(u) << "\" x=\"" << std::fixed
+            << std::setprecision(1) << (piter->x - (width / 2)) << "\" y=\"" << std::fixed
+            << std::setprecision(1) << (piter->y - (height / 2)) << "\"" << wh << "/>\n";
+
+    siter++;
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render svg or img symbol
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_symbolImage(std::ostringstream& symbols, SymbolRendering& sr)
+{
+  std::ostringstream wh;
+
+  // If symbol url is not given, 'use' reference is generated
+
+  auto uri =
+      configValue<std::string>(sr.scope, sr.symClass, "url", sr.fpos ? s_required : s_optional);
+
+  if (uri.empty())
+    symbolUseReference(wh, sr);
+  else
+    symbolImageSize(wh, uri, sr);
+
+  if (sr.fpos)
+  {
+    render_symbolFillImages(symbols, uri, wh.str(), sr);
+    return;
+  }
+
+  if (uri.empty())
+  {
+    symbols << wh.str();
+    return;
+  }
+
+  double lon = sr.lon;
+  double lat = sr.lat;
+  int width = sr.width;
+  int height = sr.height;
+
+  if (sr.trueNorthAdjustment)
+    symbols << "<g transform=\"rotate(" << sr.trueNorthAzimuth.Value() << " " << lon << " " << lat
+            << ")\">\n";
+
+  symbols << "<image xlink:href=\"" << svgescape(uri) << "\" x=\"" << std::fixed
+          << std::setprecision(1) << ((lon - width / 2) - sr.xoffset) << "\" y=\"" << std::fixed
+          << std::setprecision(1) << ((lat - height / 2) + sr.yoffset) << "\"" << wh.str()
+          << "/>\n";
+
+  if (sr.trueNorthAdjustment)
+    symbols << "</g>\n";
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render font symbol
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_symbolFont(std::ostringstream& symbols, SymbolRendering& sr)
+{
+  // Use last of the given classes for symbol specific class reference
+  //
+  auto class1 = configValue<std::string>(sr.scope, sr.symClass, "class");
+  boost::trim(class1);
+
+  std::vector<std::string> classes;
+  boost::split(classes, class1, boost::is_any_of(" "));
+
+  std::string class2((class1.empty() ? "" : " ") + classes[classes.size() - 1] +
+                     (sr.symCode.empty() ? sr.symClass : sr.symCode));
+  std::string id = "symbol" + Fmi::to_string(npointsymbols);
+
+  if (!sr.fpos)
+    symbols << "<text class=\"" << class1 << class2 << "\" id=\"" << id << "\" x=\"" << std::fixed
+            << std::setprecision(1) << (sr.lon - sr.xoffset) << "\" y=\"" << std::fixed
+            << std::setprecision(1) << (sr.lat + sr.yoffset) << "\">&#" << sr.code << ";</text>\n";
+  else
+  {
+    NFmiFillPositions::const_iterator piter;
+
+    for (piter = sr.fpos->begin(); (piter != sr.fpos->end()); piter++)
+      symbols << "<text class=\"" << class1 << class2 << "\" id=\"" << id << "\" x=\"" << std::fixed
+              << std::setprecision(1) << piter->x << "\" y=\"" << std::fixed << std::setprecision(1)
+              << piter->y << "\">&#" << sr.code << ";</text>\n";
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render symbol's infotext
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_symbolInfoText(const std::string& confPath,
+                                        const woml::Feature* feature,
+                                        SymbolRendering& sr)
+{
+  std::string textOut(feature->text(options.locale));
+
+  if (textOut.empty() || (textOut == options.locale))
+    return;
+
+  // Render feature's infotext. The text is rendered starting from coordinate (0,0) and
+  // final position is selected afterwards. The final position is set as transformation
+  // offsets to the selected position.
+  //
+  // Note: The key for position must sort after the key for the text (the key/text
+  //		 containing the position key must be handled/outputted prior the position
+  // key/text);
+  //		 therefore the position key starts with "Z0"
+  //
+  const std::string& symClass = sr.symClass;
+  double lon = sr.lon;
+  double lat = sr.lat;
+
+  std::string TEXTPOSid("Z0TEXTPOS_" + symClass + Fmi::to_string(npointsymbols));
+  auto textPosition = configValue<std::string>(sr.scope, symClass, "textposition", s_optional);
+  int textWidth = 0;
+  int textHeight = 0;
+  int maxTextWidth = 0;
+  int fontSize = 0;
+  int tXOffset = 0;
+  int tYOffset = 0;
+  int areaWidth = static_cast<int>(std::floor(0.5 + area->Width()));
+  int areaHeight = static_cast<int>(std::floor(0.5 + area->Height()));
+
+  // The text can start with position, fontsize and x/y offset settings overriding the
+  // configured values.
+  //
+  // Using default symbol/image width and height if not given.
+
+  textSettings(textOut, textPosition, maxTextWidth, fontSize, tXOffset, tYOffset);
+
+  render_text(texts,
+              confPath,
+              symClass,
+              NFmiStringTools::UrlDecode(textOut),
+              textWidth,
+              textHeight,
+              true,
+              false,
+              false,
+              TEXTPOSid,
+              false,
+              &maxTextWidth,
+              &fontSize,
+              &tXOffset,
+              &tYOffset);
+
+  if (sr.width == 0)
+    sr.width = defaultSymbolWidth;
+  if (sr.height == 0)
+    sr.height = defaultSymbolHeight;
+
+  int width = sr.width;
+  int height = sr.height;
+
+  Path::BBox bbox(
+      lon - (width / 2.0), lat - (height / 2.0), lon + (width / 2.0), lat + (height / 2.0));
+
+  // To position the text centered to the symbol should one wish so
+
+  NFmiFillRect infoTextRect(
+      std::make_pair(Point(lon - (textWidth / 2.0), lat - (textHeight / 2.0)), Point(0, 0)));
+
+  setTextPosition(Path(),
+                  TEXTPOSid,
+                  textPosition,
+                  infoTextRect,
+                  areaWidth,
+                  areaHeight,
+                  textWidth,
+                  textHeight,
+                  tXOffset,
+                  tYOffset,
+                  &bbox);
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Conseptual model symbol rendering
  */
 // ----------------------------------------------------------------------
@@ -4111,7 +4651,7 @@ void SvgRenderer::render_symbol(const std::string& confPath,
   //
   std::string _symCode("code" + (symCode.empty() ? "" : ("_" + symCode)));
 
-  NFmiAngle trueNorthAzimuth;
+  SymbolRendering sr;
 
   // Find the pixel coordinate. For surface fill the positions are already projected.
   //
@@ -4120,10 +4660,20 @@ void SvgRenderer::render_symbol(const std::string& confPath,
   if (!fpos)
   {
     PathProjector proj(area);
-    proj(lon, lat, trueNorthAdjustment ? &trueNorthAzimuth : nullptr);
+    proj(lon, lat, trueNorthAdjustment ? &sr.trueNorthAzimuth : nullptr);
   }
 
   ++npointsymbols;
+
+  sr.symClass = symClass;
+  sr.symCode = symCode;
+  sr.lon = lon;
+  sr.lat = lat;
+  sr.trueNorthAdjustment = trueNorthAdjustment;
+  sr.fpos = fpos;
+  sr.areaSymbols = areaSymbols;
+  sr.width = width;
+  sr.height = height;
 
   try
   {
@@ -4134,420 +4684,47 @@ void SvgRenderer::render_symbol(const std::string& confPath,
     if (!symbolSpecs.isList())
       throw std::runtime_error(confPath + typeMsg);
 
-    auto s_name((settings)(s_base + 0));
-    auto s_code((settings)(s_base + 1));
+    if (!symbolScope(symbolSpecs, confPath, _symCode, svm, sr))
+      return;
 
-    // Configuration blocks to search values for the settings; global blocks (blocks with no name),
-    // locale global blocks (blocks with matching name but having no locale) and the current block
-    // (block with matching name and locale).
-    //
-    // The blocks are stored to the list in the order of appearance (and having current block
-    // as the last element). The list is processed in reverse order when searching.
-    //
-    // Current block or locale global block is needed for rendering.
-    //
-    std::list<const libconfig::Setting*> scope;
-    bool nameMatch = false;
-    bool hasLocaleGlobals = false;
-    bool _hasLocaleGlobals = false;
+    // Symbol type; (fill, fill+mask ==>) svg, img or font
+    sr.type = configValue<std::string>(sr.scope, symClass, "type");
 
-    int symbolIdx = -1;
-    int localeIdx = -1;
-    int lastIdx = symbolSpecs.getLength() - 1;
-
-    for (int i = 0; i <= lastIdx; ++i)
+    // x- and y- position offsets (mainly to center font symbol glyphs)
+    //
+    if ((sr.type == "fill") || (sr.type == "fill+mask"))
+      sr.type = "svg";
+    else
     {
-      const libconfig::Setting& specs = symbolSpecs[i];
-      if (!specs.isGroup())
-        throw std::runtime_error(confPath + typeMsg);
+      bool isSet = false;
 
-      try
-      {
-        nameMatch = (lookup<std::string>(specs, confPath, "name", s_name) == symClass);
-      }
-      catch (SettingIdNotFoundException&)
-      {
-        // Global settings have no name
-        //
-        scope.push_back(&specs);
-        nameMatch = false;
-      }
-
-      // Enter the block on matching name and for last config entry to load/use the globals
-      //
-      if (nameMatch || ((i == lastIdx) && _hasLocaleGlobals))
-      {
-        if (nameMatch)
-        {
-          symbolIdx = i;
-
-          // Locale
-          //
-          std::string locale(
-              toLower(configValue<std::string>(specs, symClass, "locale", nullptr, s_optional)));
-          bool localeMatch = (locale == options.locale);
-
-          if (localeMatch || (locale.empty()))
-          {
-            scope.push_back(&specs);
-
-            if (localeMatch)
-              localeIdx = i;
-            else
-              hasLocaleGlobals = _hasLocaleGlobals = true;
-
-            // Search for conditional settings based on the documents validTime (it's time value) or
-            // given measurement value
-
-            const libconfig::Setting* condSpecs =
-                svm ? matchingCondition(
-                          config, confPath, symClass, "", symbolIdx, svm->numericValue())
-                    : matchingCondition(config, confPath, symClass, _symCode, symbolIdx, validtime);
-
-            if (condSpecs)
-              scope.push_back(condSpecs);
-          }
-
-          // Continue searching unless got (new) current block or reached the end of configuration
-          // and there is (new) locale global blocks to use
-
-          if ((!localeMatch) && ((i < lastIdx) || (!_hasLocaleGlobals)))
-            continue;
-        }
-
-        // Symbol code. May contain folder too; [<folder>/]<code>
-
-        std::string folder;
-        std::string code;
-
-        if (!areaSymbols)
-        {
-          try
-          {
-            // Note: When rendering wind symbol with wind speed, using primarily 'code' key for
-            //		 symbol mapping (used conditionally to map all wind symbols to 'calm' if
-            // speed
-            // is
-            // nan)
-            //
-            code = getFolderAndSymbol(config,
-                                      &scope,
-                                      confPath,
-                                      symClass,
-                                      _symCode,
-                                      s_code,
-                                      validtime,
-                                      folder,
-                                      svm != nullptr);
-          }
-          catch (SettingIdNotFoundException&)
-          {
-            // Symbol code not found
-            //
-            // Clear _hasLocaleGlobals to indicate the settings have been scanned upto current block
-            // and
-            // there's no use to enter here again unless new locale global block(s) or current block
-            // is met
-            //
-            _hasLocaleGlobals = false;
-            continue;
-          }
-        }
-
-        // Symbol type; (fill, fill+mask ==>) svg, img or font
-        auto type = configValue<std::string>(scope, symClass, "type");
-
-        // x- and y- position offsets (mainly to center font symbol glyphs)
-        //
-        int xoffset = 0;
-        int yoffset = 0;
-
-        if ((type == "fill") || (type == "fill+mask"))
-          type = "svg";
-        else
-        {
-          bool isSet = false;
-
-          xoffset = static_cast<int>(
-              floor(configValue<float, int>(scope, symClass, "xoffset", s_optional, &isSet)));
-          if (!isSet)
-            xoffset = 0;
-          yoffset = static_cast<int>(
-              floor(configValue<float, int>(scope, symClass, "yoffset", s_optional, &isSet)));
-          if (!isSet)
-            yoffset = 0;
-        }
-
-        // Output placeholder; by default output to passed stream. The setting is ignored for
-        // ParameterValueSetArea.
-
-        std::string placeHolder(areaSymbols ? ""
-                                            : boost::algorithm::trim_copy(configValue<std::string>(
-                                                  scope, symClass, "output", s_optional)));
-        std::ostringstream& symbols = (placeHolder.empty() ? symOutput : texts[placeHolder]);
-
-        bool hasWidth = false;
-        bool hasHeight = false;
-
-        if ((type == "svg") || (type == "img"))
-        {
-          // Some settings are required for svg but optional for img
-          //
-          settings reqORopt = ((type == "svg") ? s_required : s_optional);
-          std::ostringstream wh;
-
-          // If symbol url is not given, 'use' reference is generated
-
-          auto uri =
-              configValue<std::string>(scope, symClass, "url", fpos ? s_required : s_optional);
-
-          if (uri.empty())
-          {
-            auto classDef = configValue<std::string>(scope, symClass, "class", s_optional);
-            if (classDef.empty())
-              classDef = code;
-
-            bool hasScale = false;
-            double scale = NAN;
-            scale = configValue<double>(scope, symClass, "scale", s_optional, &hasScale);
-
-            wh << "<use class=\"" << classDef << "\""
-               << " xlink:href=\"#" << code << "\""
-               << " x=\"" << lon << "\" y=\"" << lat << "\"";
-
-            if (hasScale || trueNorthAdjustment)
-            {
-              wh << std::setprecision(4) << " transform=\"";
-
-              if (hasScale)
-                wh << "translate(" << -lon * (scale - 1) << "," << -lat * (scale - 1) << ") scale("
-                   << scale << ")";
-
-              if (trueNorthAdjustment)
-              {
-                // We assume the symbol is centered to 0,0
-                //
-                wh << " rotate(" << trueNorthAzimuth.Value() << " " << lon << " " << lat << ")";
-              }
-            }
-
-            wh << "\"/>\n";
-          }
-          else
-          {
-            if (folder.empty())
-              folder = configValue<std::string, int>(scope, symClass, "folder", reqORopt);
-
-            if ((width <= 0) || (height <= 0))
-            {
-              width = configValue<int>(scope, symClass, "width", reqORopt, &hasWidth);
-              height = configValue<int>(scope, symClass, "height", reqORopt, &hasHeight);
-            }
-            else
-              hasWidth = hasHeight = true;
-
-            if (!areaSymbols)
-            {
-              boost::algorithm::replace_all(uri, "%folder%", folder);
-              boost::algorithm::replace_all(uri, "%symbol%", code + "." + type);
-            }
-
-            if (hasWidth)
-              wh << " width=\"" << std::fixed << std::setprecision(0) << width << "px\"";
-            else
-              width = 0;
-            if (hasHeight)
-              wh << " height=\"" << std::fixed << std::setprecision(0) << height << "px\"";
-            else
-              height = 0;
-          }
-
-          if (!fpos)
-          {
-            if (uri.empty())
-              symbols << wh.str();
-            else
-            {
-              if (trueNorthAdjustment)
-                symbols << "<g transform=\"rotate(" << trueNorthAzimuth.Value() << " " << lon << " "
-                        << lat << ")\">\n";
-
-              symbols << "<image xlink:href=\"" << svgescape(uri) << "\" x=\"" << std::fixed
-                      << std::setprecision(1) << ((lon - width / 2) - xoffset) << "\" y=\""
-                      << std::fixed << std::setprecision(1) << ((lat - height / 2) + yoffset)
-                      << "\"" << wh.str() << "/>\n";
-
-              if (trueNorthAdjustment)
-                symbols << "</g>\n";
-            }
-          }
-          else
-          {
-            NFmiFillPositions::const_iterator piter;
-            std::list<std::string>::const_iterator siter;
-
-            if (areaSymbols)
-              siter = areaSymbols->begin();
-
-            for (piter = fpos->begin(); (piter != fpos->end()); piter++)
-              if (areaSymbols)
-              {
-                if (siter == areaSymbols->end())
-                  siter = areaSymbols->begin();
-
-                if (siter != areaSymbols->end())
-                {
-                  std::string u(uri);
-
-                  // Symbol code may contain folder too; [<folder>/]<code>
-
-                  std::string symFolder(folder);
-                  code = getFolderAndSymbol(
-                      config, nullptr, symClass, symClass, *siter, s_code, validtime, symFolder);
-
-                  boost::algorithm::replace_all(u, "%folder%", symFolder);
-                  boost::algorithm::replace_all(u, "%symbol%", code + "." + type);
-
-                  symbols << "<image xlink:href=\"" << svgescape(u) << "\" x=\"" << std::fixed
-                          << std::setprecision(1) << (piter->x - (width / 2)) << "\" y=\""
-                          << std::fixed << std::setprecision(1) << (piter->y - (height / 2)) << "\""
-                          << wh.str() << "/>\n";
-
-                  siter++;
-                }
-              }
-              else
-                symbols << "<image xlink:href=\"" << svgescape(uri) << "\" x=\"" << std::fixed
-                        << std::setprecision(1) << (piter->x - (width / 2)) << "\" y=\""
-                        << std::fixed << std::setprecision(1) << (piter->y - (height / 2)) << "\""
-                        << wh.str() << "/>\n";
-          }
-        }
-        else if (type == "font")
-        {
-          // Use last of the given classes for symbol specific class reference
-          //
-          auto class1 = configValue<std::string>(scope, symClass, "class");
-          boost::trim(class1);
-
-          std::vector<std::string> classes;
-          boost::split(classes, class1, boost::is_any_of(" "));
-
-          std::string class2((class1.empty() ? "" : " ") + classes[classes.size() - 1] +
-                             (symCode.empty() ? symClass : symCode));
-          std::string id = "symbol" + Fmi::to_string(npointsymbols);
-
-          if (!fpos)
-            symbols << "<text class=\"" << class1 << class2 << "\" id=\"" << id << "\" x=\""
-                    << std::fixed << std::setprecision(1) << (lon - xoffset) << "\" y=\""
-                    << std::fixed << std::setprecision(1) << (lat + yoffset) << "\">&#" << code
-                    << ";</text>\n";
-          else
-          {
-            NFmiFillPositions::const_iterator piter;
-
-            for (piter = fpos->begin(); (piter != fpos->end()); piter++)
-              symbols << "<text class=\"" << class1 << class2 << "\" id=\"" << id << "\" x=\""
-                      << std::fixed << std::setprecision(1) << piter->x << "\" y=\"" << std::fixed
-                      << std::setprecision(1) << piter->y << "\">&#" << code << ";</text>\n";
-          }
-        }
-        else
-          throw std::runtime_error(confPath + ": '" + type + "'" + symTypeMsg);
-
-        if (feature)
-        {
-          std::string textOut(feature->text(options.locale));
-
-          if ((!textOut.empty()) && (textOut != options.locale))
-          {
-            // Render feature's infotext. The text is rendered starting from coordinate (0,0) and
-            // final position is selected afterwards. The final position is set as transformation
-            // offsets to the selected position.
-            //
-            // Note: The key for position must sort after the key for the text (the key/text
-            //		 containing the position key must be handled/outputted prior the position
-            // key/text);
-            //		 therefore the position key starts with "Z0"
-            //
-            std::string TEXTPOSid("Z0TEXTPOS_" + symClass + Fmi::to_string(npointsymbols));
-            auto textPosition =
-                configValue<std::string>(scope, symClass, "textposition", s_optional);
-            int textWidth = 0;
-            int textHeight = 0;
-            int maxTextWidth = 0;
-            int fontSize = 0;
-            int tXOffset = 0;
-            int tYOffset = 0;
-            int areaWidth = static_cast<int>(std::floor(0.5 + area->Width()));
-            int areaHeight = static_cast<int>(std::floor(0.5 + area->Height()));
-
-            // The text can start with position, fontsize and x/y offset settings overriding the
-            // configured values.
-            //
-            // Using default symbol/image width and height if not given.
-
-            textSettings(textOut, textPosition, maxTextWidth, fontSize, tXOffset, tYOffset);
-
-            render_text(texts,
-                        confPath,
-                        symClass,
-                        NFmiStringTools::UrlDecode(textOut),
-                        textWidth,
-                        textHeight,
-                        true,
-                        false,
-                        false,
-                        TEXTPOSid,
-                        false,
-                        &maxTextWidth,
-                        &fontSize,
-                        &tXOffset,
-                        &tYOffset);
-
-            if (width == 0)
-              width = defaultSymbolWidth;
-            if (height == 0)
-              height = defaultSymbolHeight;
-
-            Path::BBox bbox(lon - (width / 2.0),
-                            lat - (height / 2.0),
-                            lon + (width / 2.0),
-                            lat + (height / 2.0));
-
-            // To position the text centered to the symbol should one wish so
-
-            NFmiFillRect infoTextRect(std::make_pair(
-                Point(lon - (textWidth / 2.0), lat - (textHeight / 2.0)), Point(0, 0)));
-
-            setTextPosition(Path(),
-                            TEXTPOSid,
-                            textPosition,
-                            infoTextRect,
-                            areaWidth,
-                            areaHeight,
-                            textWidth,
-                            textHeight,
-                            tXOffset,
-                            tYOffset,
-                            &bbox);
-          }
-        }
-
-        return;
-      }  // if
-    }  // for
-
-    if (options.debug)
-    {
-      // No (locale) settings for the symbol or code
-      //
-      const char* p = (((symbolIdx < 0) || hasLocaleGlobals || (localeIdx >= 0))
-                           ? "Settings for "
-                           : "Locale specific settings for ");
-
-      debugoutput << p << symClass << " (" << _symCode << ") not found\n";
+      sr.xoffset = static_cast<int>(
+          floor(configValue<float, int>(sr.scope, symClass, "xoffset", s_optional, &isSet)));
+      if (!isSet)
+        sr.xoffset = 0;
+      sr.yoffset = static_cast<int>(
+          floor(configValue<float, int>(sr.scope, symClass, "yoffset", s_optional, &isSet)));
+      if (!isSet)
+        sr.yoffset = 0;
     }
+
+    // Output placeholder; by default output to passed stream. The setting is ignored for
+    // ParameterValueSetArea.
+
+    std::string placeHolder(areaSymbols ? ""
+                                        : boost::algorithm::trim_copy(configValue<std::string>(
+                                              sr.scope, symClass, "output", s_optional)));
+    std::ostringstream& symbols = (placeHolder.empty() ? symOutput : texts[placeHolder]);
+
+    if ((sr.type == "svg") || (sr.type == "img"))
+      render_symbolImage(symbols, sr);
+    else if (sr.type == "font")
+      render_symbolFont(symbols, sr);
+    else
+      throw std::runtime_error(confPath + ": '" + sr.type + "'" + symTypeMsg);
+
+    if (feature)
+      render_symbolInfoText(confPath, feature, sr);
   }
   catch (libconfig::SettingNotFoundException&)
   {
