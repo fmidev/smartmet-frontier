@@ -582,6 +582,10 @@ int run(int argc,
   if (!options.debug)
     options.debug = (svg.find("--DEBUGOUTPUT--") != std::string::npos);
 
+  // Errors are reported as a svg document in debug mode
+
+  debug = options.debug;
+
   // Establish the projection
 
   if (std::filesystem::is_regular_file(options.projection))
