@@ -3852,6 +3852,194 @@ void SvgRenderer::render_aerodromeSymbol(const std::string& confPath,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Get conditional fixed y -position based on the value (category)
+ *		of an aerodrome symbol. Returns nullptr if no condition exists or
+ *		the position is relative to the elevation.
+ */
+// ----------------------------------------------------------------------
+
+const libconfig::Setting* SvgRenderer::aerodromeSymbolYPos(const std::string& confPath,
+                                                           const woml::CategoryValueMeasure* cvm,
+                                                           int& yPos)
+{
+  if (!cvm)
+    return nullptr;
+
+  const libconfig::Setting* condSpecs =
+      matchingCondition(config, confPath, confPath, "", -1, cvm->value());
+
+  if (!condSpecs)
+    return nullptr;
+
+  yPos = configValue<int>(*condSpecs, confPath, "ypos");
+
+  bool isSet = false;
+  bool absolute = configValue<bool>(*condSpecs, confPath, "absolute", nullptr, s_optional, &isSet);
+
+  if ((!isSet) || absolute)
+  {
+    // svg y -axis grows downwards; use axis height to transform the y -coordinate
+    //
+    yPos = axisManager->axisHeight() - yPos;
+    return condSpecs;
+  }
+
+  // Position is relative; clear condSpecs to use the elevation
+  //
+  return nullptr;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get x/y -position for a "nonground" aerodrome symbol
+ *		(MigratoryBirds). Returns false if the symbol is not visible.
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::nonGroundSymbolPos(const libconfig::Setting& specs,
+                                     const std::string& confPath,
+                                     const ElevationGroupItem& item,
+                                     const woml::CategoryValueMeasure* cvm,
+                                     double& x,
+                                     double& y,
+                                     bool& visible,
+                                     bool& aboveTop)
+{
+  // Note: For "nonground" elevations (MigratoryBirds) checking for conditional y -position
+  // based on the value (category);
+  //		 used to position migration type (text 'morning', 'arctic' etc. as symbol)
+  // relatively to the bird symbol or to
+  //		 fixed y -position (above or below the x -axis).
+  //
+  //		 Conditions are expected to exist only for the texts, not for the actual
+  // bird
+  // symbols;
+  //		 visibility related flags are not set if condition exists.
+  //
+  const Fmi::TimePeriod& tp = axisManager->timePeriod();
+  const Fmi::DateTime& vt = item.validTime();
+  int yPos = 0;
+
+  const libconfig::Setting* condSpecs = aerodromeSymbolYPos(confPath, cvm, yPos);
+
+  if (!condSpecs)
+  {
+    const woml::Elevation& e = item.Pv()->elevation();
+
+    double lo = elevationLo(e);
+    double hi = elevationHi(e);
+
+    bool above = false;
+    y = axisManager->scaledElevation(lo + ((hi - lo) / 2), &above);
+
+    if (y < 0)
+    {
+      if (above)
+        aboveTop = true;
+
+      return false;
+    }
+  }
+
+  y += yPos;
+
+  if ((!condSpecs) && ((y > 0) && (y < axisManager->axisHeight())))
+    visible = true;
+
+  // Move first and last time instant's symbols to keep them better withing the area
+
+  bool isSet = false;
+
+  if (vt == tp.begin())
+  {
+    // Offset in px for moving first time instant's symbols to the right
+    //
+    int sOffset = configValue<int>(specs, confPath, "soffset", nullptr, s_optional, &isSet);
+
+    if (isSet)
+      x += sOffset;
+  }
+  else if (vt == tp.end())
+  {
+    // Offset in px for moving last time instant's symbols to the left
+    //
+    int eOffset = configValue<int>(specs, confPath, "eoffset", nullptr, s_optional, &isSet);
+
+    if (isSet)
+      x -= eOffset;
+  }
+
+  return true;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Visibility value rendering
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_visibilityValue(const libconfig::Setting& specs,
+                                         const std::string& confPath,
+                                         const std::string& symClass,
+                                         const std::string& classNameExt,
+                                         const woml::NumericalSingleValueMeasure* nsv,
+                                         double x,
+                                         double y)
+{
+  // Format visibility based on it's value
+  //
+  // The default format is "%.1f KM" upto visibilityPrec100m and "%.0f KM" above it
+  //
+  double scale = 1000.0;
+  double value = nsv->numericValue();
+  std::string pref;
+
+  const libconfig::Setting* condSpecs =
+      matchingCondition(config, confPath, confPath, "", -1, value);
+
+  if (condSpecs)
+    pref = configValue<std::string>(*condSpecs, confPath, "pref", &specs);
+  else
+    pref = configValue<std::string>(specs, confPath, "pref", nullptr, s_optional);
+
+  if (pref.empty())
+  {
+    const double visibilityPrec100m = 5000.0;
+    pref = ((value <= visibilityPrec100m) ? "%.1f KM" : "%.0f KM");
+  }
+
+  render_aerodromeSymbol(confPath,
+                         symClass,
+                         classNameExt,
+                         formattedValue(nsv, nullptr, confPath, pref, &scale),
+                         x,
+                         y,
+                         false);
+}
+
+namespace
+{
+// Visibility (meters) value of an aerodrome symbol; nullptr for category/magnitude value
+const woml::NumericalSingleValueMeasure* aerodromeNumericalValue(
+    const woml::MeasureValue* value,
+    const woml::CategoryValueMeasure* cvm,
+    const std::string& confPath)
+{
+  const woml::NumericalSingleValueMeasure* nsv =
+      (cvm ? nullptr : dynamic_cast<const woml::NumericalSingleValueMeasure*>(value));
+
+  if ((!cvm) && (!nsv))
+    throw std::runtime_error(
+        "render_aerodromeSymbol: " + confPath +
+        ": CategoryValueMeasure or NumericalSingleValueMeasure values expected");
+
+  return nsv;
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Aerodrome symbol rendering
  */
 // ----------------------------------------------------------------------
@@ -3921,102 +4109,10 @@ void SvgRenderer::render_aerodromeSymbols(const T& theFeature,
 
       const auto* cvm = dynamic_cast<const woml::CategoryValueMeasure*>(iteg->Pv()->value());
       const woml::NumericalSingleValueMeasure* nsv =
-          (cvm ? nullptr
-               : dynamic_cast<const woml::NumericalSingleValueMeasure*>(iteg->Pv()->value()));
+          aerodromeNumericalValue(iteg->Pv()->value(), cvm, confPath);
 
-      if ((!cvm) && (!nsv))
-        throw std::runtime_error(
-            "render_aerodromeSymbol: " + confPath +
-            ": CategoryValueMeasure or NumericalSingleValueMeasure values expected");
-
-      if (!ground)
-      {
-        // Note: For "nonground" elevations (MigratoryBirds) checking for conditional y -position
-        // based on the value (category);
-        //		 used to position migration type (text 'morning', 'arctic' etc. as symbol)
-        // relatively to the bird symbol or to
-        //		 fixed y -position (above or below the x -axis).
-        //
-        //		 Conditions are expected to exist only for the texts, not for the actual
-        // bird
-        // symbols;
-        //		 visibility related flags are not set if condition exists.
-        //
-        const libconfig::Setting* condSpecs = nullptr;
-        int yPos = 0;
-
-        if (cvm)
-        {
-          condSpecs = matchingCondition(config, confPath, confPath, "", -1, cvm->value());
-
-          if (condSpecs)
-          {
-            yPos = configValue<int>(*condSpecs, confPath, "ypos");
-
-            bool isSet = false;
-            bool absolute =
-                configValue<bool>(*condSpecs, confPath, "absolute", nullptr, s_optional, &isSet);
-
-            if ((!isSet) || absolute)
-            {
-              // svg y -axis grows downwards; use axis height to transform the y -coordinate
-              //
-              yPos = axisManager->axisHeight() - yPos;
-            }
-            else
-              // Position is relative; clear condSpecs to use the elevation
-              //
-              condSpecs = nullptr;
-          }
-        }
-
-        if (!condSpecs)
-        {
-          const woml::Elevation& e = iteg->Pv()->elevation();
-
-          double lo = elevationLo(e);
-          double hi = elevationHi(e);
-
-          bool above = false;
-          y = axisManager->scaledElevation(lo + ((hi - lo) / 2), &above);
-
-          if (y < 0)
-          {
-            if (above)
-              aboveTop = true;
-
-            continue;
-          }
-        }
-
-        y += yPos;
-
-        if ((!condSpecs) && ((y > 0) && (y < axisManager->axisHeight())))
-          visible = true;
-
-        // Move first and last time instant's symbols to keep them better withing the area
-
-        if (vt == tp.begin())
-        {
-          // Offset in px for moving first time instant's symbols to the right
-          //
-          bool isSet = false;
-          int sOffset = configValue<int>(specs, confPath, "soffset", nullptr, s_optional, &isSet);
-
-          if (isSet)
-            x += sOffset;
-        }
-        else if (vt == tp.end())
-        {
-          // Offset in px for moving last time instant's symbols to the left
-          //
-          bool isSet = false;
-          int eOffset = configValue<int>(specs, confPath, "eoffset", nullptr, s_optional, &isSet);
-
-          if (isSet)
-            x -= eOffset;
-        }
-      }
+      if ((!ground) && (!nonGroundSymbolPos(specs, confPath, *iteg, cvm, x, y, visible, aboveTop)))
+        continue;
 
       // Render the symbol or visibility value
 
@@ -4025,70 +4121,19 @@ void SvgRenderer::render_aerodromeSymbols(const T& theFeature,
         //
         render_aerodromeSymbol(confPath, symClass, theFeature.classNameExt(), cvm->value(), x, y);
       else
-      {
-        // Format visibility based on it's value
-        //
-        // The default format is "%.1f KM" upto visibilityPrec100m and "%.0f KM" above it
-        //
-        double scale = 1000.0;
-        double value = nsv->numericValue();
-        std::string pref;
-
-        const libconfig::Setting* condSpecs =
-            matchingCondition(config, confPath, confPath, "", -1, value);
-
-        if (condSpecs)
-          pref = configValue<std::string>(*condSpecs, confPath, "pref", &specs);
-        else
-          pref = configValue<std::string>(specs, confPath, "pref", nullptr, s_optional);
-
-        if (pref.empty())
-        {
-          const double visibilityPrec100m = 5000.0;
-          pref = ((value <= visibilityPrec100m) ? "%.1f KM" : "%.0f KM");
-        }
-
-        render_aerodromeSymbol(confPath,
-                               symClass,
-                               theFeature.classNameExt(),
-                               formattedValue(nsv, nullptr, confPath, pref, &scale),
-                               x,
-                               y,
-                               false);
-      }
+        render_visibilityValue(specs, confPath, symClass, theFeature.classNameExt(), nsv, x, y);
     }
 
     // Visibility information for "nonground" data (MigratoryBirds)
 
     if (!ground)
-    {
-      if (!visible)
-      {
-        if (!aboveTop)
-        {
-          // Show the fixed template text "No xxx"
-          //
-          const std::string NOFEATURE(FEATURE + "NO" + FEATURE);
-          texts[NOFEATURE] << classDef << "Visible";
-        }
-        else
-        {
-          // Show the fixed template text "xxx are located in the upper"
-          //
-          const std::string FEATUREUPPER(FEATURE + "INTHEUPPER");
-          texts[FEATUREUPPER] << classDef << "Visible";
-        }
-      }
-
-      // Show the xxx legend (even if no xxx exists or are visible)
-
-      const std::string FEATUREVISIBLE(FEATURE + "VISIBLE");
-      texts[FEATUREVISIBLE] << classDef << "Visible";
-    }
+      render_featureVisibility(FEATURE, classDef, visible, aboveTop);
   }
   catch (libconfig::ConfigException& ex)
   {
     if (!config.exists(confPath))
+      // No settings for confPath
+      //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
     throw ex;

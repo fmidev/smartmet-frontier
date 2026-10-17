@@ -609,6 +609,24 @@ class SvgRenderer : public woml::FeatureVisitor
                               double xScale = -1.0,
                               double yScale = -1.0,
                               const std::string& symbolPosIdN = "");
+  const libconfig::Setting* aerodromeSymbolYPos(const std::string& confPath,
+                                                const woml::CategoryValueMeasure* cvm,
+                                                int& yPos);
+  bool nonGroundSymbolPos(const libconfig::Setting& specs,
+                          const std::string& confPath,
+                          const ElevationGroupItem& item,
+                          const woml::CategoryValueMeasure* cvm,
+                          double& x,
+                          double& y,
+                          bool& visible,
+                          bool& aboveTop);
+  void render_visibilityValue(const libconfig::Setting& specs,
+                              const std::string& confPath,
+                              const std::string& symClass,
+                              const std::string& classNameExt,
+                              const woml::NumericalSingleValueMeasure* nsv,
+                              double x,
+                              double y);
   template <typename T>
   void render_aerodromeSymbols(const T& theFeature,
                                const std::string& confPath,
