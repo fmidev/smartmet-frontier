@@ -5092,6 +5092,342 @@ SvgRenderer::Phase SvgRenderer::downleftup(
   return (iteg->topConnected() ? lst : eup);
 }
 
+namespace
+{
+// Bezier curve tightness; negative value for the default
+double tightnessSetting(const libconfig::Setting& specs, const std::string& confPath)
+{
+  bool isSet = false;
+  auto tightness =
+      (double)configValue<double, int>(specs, confPath, "tightness", nullptr, s_optional, &isSet);
+
+  if (!isSet)
+    // Using the default by setting a negative value
+    //
+    tightness = -1.0;
+
+  return tightness;
+}
+
+// Minimum absolute/relative height for the label position
+void labelPosHeightSettings(const libconfig::Setting& specs,
+                            const std::string& confPath,
+                            int& minLabelPosHeight,
+                            double& labelPosHeightFactor)
+{
+  bool isSet = false;
+
+  minLabelPosHeight =
+      configValue<int>(specs, confPath, "minlabelposheight", nullptr, s_optional, &isSet);
+
+  if ((!isSet) || (minLabelPosHeight < (int)labelPosHeightMin))
+  {
+    labelPosHeightFactor =
+        configValue<double>(specs, confPath, "labelposheightfactor", nullptr, s_optional, &isSet);
+
+    if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
+      labelPosHeightFactor = defaultLabelPosHeightFactor;
+
+    minLabelPosHeight = 0;
+  }
+}
+
+// If bbcenterlabel is true (default: false), label is positioned to the center of the
+// area's bounding box;
+// otherwise using 1 or 2 elevations in the middle of the area in x -direction
+bool bbCenterLabelSetting(const libconfig::Setting& specs, const std::string& confPath)
+{
+  bool isSet = false;
+  bool bbCenterLabel =
+      configValue<bool>(specs, confPath, "bbcenterlabel", nullptr, s_optional, &isSet);
+  if (!isSet)
+    bbCenterLabel = false;
+
+  return bbCenterLabel;
+}
+
+// Group's member types as comma separated uppercase list without empty types
+std::string groupTypes(const libconfig::Setting& group, const std::string& confPath)
+{
+  std::string types(boost::algorithm::to_upper_copy(boost::algorithm::trim_copy(
+      configValue<std::string>(group, confPath, "types", nullptr, s_optional))));
+
+  if (types.empty())
+    return types;
+
+  std::vector<std::string> ct;
+  boost::algorithm::split(ct, types, boost::is_any_of(","));
+
+  if (ct.size() > 1)
+  {
+    std::ostringstream cts;
+
+    for (unsigned int i = 0, n = 0; (i < ct.size()); i++)
+    {
+      boost::algorithm::trim(ct[i]);
+
+      if (!ct[i].empty())
+      {
+        cts << (n ? "," : "") << ct[i];
+        n++;
+      }
+    }
+
+    types = cts.str();
+  }
+
+  return types;
+}
+
+// Offsets for intermediate curve points
+struct GroupOffsets
+{
+  double xOffset = 0.0;
+  double yOffset = 0.0;
+  double vOffset = 0.0;
+  double vSOffset = 0.0;
+  double vSSOffset = 0.0;
+  int sOffset = 0;
+  int eOffset = 0;
+};
+
+// Get group's curve point offsets from the scope
+GroupOffsets groupOffsets(std::list<const libconfig::Setting*>& scope,
+                          const std::string& confPath,
+                          double xStep)
+{
+  GroupOffsets go;
+  bool isSet = false;
+
+  // Offsets for intermediate curve points on both sides of the elevation's hi/lo range point
+
+  go.xOffset = configValue<double>(scope, confPath, "xoffset", s_optional, &isSet);
+  if (!isSet)
+    go.xOffset = 0.0;
+  else
+    go.xOffset *= xStep;
+
+  go.yOffset = (double)configValue<int, double>(scope, confPath, "yoffset", s_optional, &isSet);
+  if (!isSet)
+    go.yOffset = 0.0;
+
+  // Relative offset for intermediate curve points (controls how much the ends of the area
+  // are extended horizontally)
+
+  go.vOffset = configValue<double>(scope, confPath, "voffset", s_optional, &isSet);
+  if (!isSet)
+    go.vOffset = 0.0;
+  else
+    go.vOffset *= xStep;
+
+  // Relative top/bottom and side x -offsets for intermediate curve points for single elevation
+  // (controls how much the
+  // ends of the area are extended horizontally)
+
+  go.vSOffset = configValue<double>(scope, confPath, "vsoffset", s_optional, &isSet);
+  if (!isSet)
+    go.vSOffset = xStep / 3;
+  else
+    go.vSOffset *= xStep;
+
+  go.vSSOffset = configValue<double>(scope, confPath, "vssoffset", s_optional, &isSet);
+  if (!isSet)
+    go.vSSOffset = go.vSOffset;
+  else
+    go.vSSOffset *= xStep;
+
+  // Max offset in px for extending first time instant's elevations to the left
+
+  go.sOffset = configValue<int>(scope, confPath, "soffset", s_optional, &isSet);
+  if (!isSet)
+    go.sOffset = 0;
+
+  // Max offset in px for extending last time instant's elevations to the right
+
+  go.eOffset = configValue<int>(scope, confPath, "eoffset", s_optional, &isSet);
+  if (!isSet)
+    go.eOffset = 0;
+
+  return go;
+}
+
+// Get group's curve point offsets from the group or from the global settings
+GroupOffsets groupOffsets(const libconfig::Setting& group,
+                          const std::string& confPath,
+                          libconfig::Setting* globalScope,
+                          double xStep)
+{
+  GroupOffsets go;
+  bool isSet = false;
+
+  // Offsets for intermediate curve points on both sides of the elevation's hi/lo range point
+
+  go.xOffset = configValue<double>(group, confPath, "xoffset", globalScope, s_optional, &isSet);
+  if (!isSet)
+    go.xOffset = 0.0;
+  else
+    go.xOffset *= xStep;
+
+  go.yOffset =
+      (double)configValue<int, double>(group, confPath, "yoffset", globalScope, s_optional, &isSet);
+  if (!isSet)
+    go.yOffset = 0.0;
+
+  // Relative offset for intermediate curve points (controls how much the ends of the area
+  // are extended horizontally)
+
+  go.vOffset = configValue<double>(group, confPath, "voffset", globalScope, s_optional, &isSet);
+  if (!isSet)
+    go.vOffset = 0.0;
+  else
+    go.vOffset *= xStep;
+
+  // Relative top/bottom and side x -offsets for intermediate curve points for single elevation
+  // (controls how much the
+  // ends of the area are extended horizontally)
+
+  go.vSOffset = configValue<double>(group, confPath, "vsoffset", globalScope, s_optional, &isSet);
+  if (!isSet)
+    go.vSOffset = xStep / 3;
+  else
+    go.vSOffset *= xStep;
+
+  go.vSSOffset = configValue<double>(group, confPath, "vssoffset", globalScope, s_optional, &isSet);
+  if (!isSet)
+    go.vSSOffset = go.vSOffset;
+  else
+    go.vSSOffset *= xStep;
+
+  // Max offset in px for extending first time instant's elevations to the left
+
+  go.sOffset = configValue<int>(group, confPath, "soffset", globalScope, s_optional, &isSet);
+  if (!isSet)
+    go.sOffset = 0;
+
+  // Max offset in px for extending last time instant's elevations to the right
+
+  go.eOffset = configValue<int>(group, confPath, "eoffset", globalScope, s_optional, &isSet);
+  if (!isSet)
+    go.eOffset = 0;
+
+  return go;
+}
+
+// Get the settings of a cloud group and add the group
+void addCloudGroup(std::list<const libconfig::Setting*>& scope,
+                   const libconfig::Setting& group,
+                   const std::string& confPath,
+                   const std::string& classDef,
+                   const std::string& cloudTypes,
+                   bool bbCenterLabel,
+                   const std::string& CLOUDLAYERS,
+                   double xStep,
+                   std::list<CloudGroup>& cloudGroups,
+                   std::set<size_t>& cloudSet)
+{
+  bool isSet = false;
+
+  // Class
+
+  auto cloudClass = configValue<std::string>(scope, confPath, "class", s_optional);
+
+  // Output label; default label is the cloud types concatenated with ',' as separator.
+  // If empty label is given, no label.
+
+  std::string label(boost::algorithm::trim_copy(
+      configValue<std::string>(group, confPath, "label", nullptr, s_optional, &isSet)));
+  bool hasLabel = isSet;
+
+  // Output placeholders; default label placeholder is the cloud placeholder + "TEXT"
+
+  std::string placeHolder(
+      boost::algorithm::trim_copy(configValue<std::string>(scope, confPath, "output", s_optional)));
+  if (placeHolder.empty())
+    placeHolder = CLOUDLAYERS;
+
+  std::string labelPlaceHolder(boost::algorithm::trim_copy(
+      configValue<std::string>(scope, confPath, "labeloutput", s_optional)));
+  if (labelPlaceHolder.empty())
+    labelPlaceHolder = placeHolder + "TEXT";
+
+  // Standalone cloud types (only one type in the group) have flag controlling whether the
+  // group/cloud is combined or not
+
+  bool combined = configValue<bool>(scope, confPath, "combined", s_optional, &isSet);
+  if (!isSet)
+    combined = false;
+
+  // Render as symbol ?
+
+  std::string symbolType(boost::algorithm::trim_copy(
+      configValue<std::string>(scope, confPath, "symboltype", s_optional)));
+
+  // Controls for extracting Bezier curve points; base distance between curve points along the
+  // line,
+  // max random distance added to the base and max number of subsequent points having equal
+  // distance
+
+  auto baseStep = configValue<unsigned int>(scope, confPath, "baseStep", s_optional, &isSet);
+  if (!isSet)
+    baseStep = 10;
+  auto maxRand = configValue<unsigned int>(scope, confPath, "maxRand", s_optional, &isSet);
+  if (!isSet)
+    maxRand = 4;
+  auto maxRepeat = configValue<unsigned int>(scope, confPath, "maxRepeat", s_optional, &isSet);
+  if (!isSet)
+    maxRepeat = 3;
+
+  // Controls for decorating the Bezier curve; base curve distance (normal length) for the
+  // decorator points,
+  // max random distance added to the base, base offset for the decorator points and max random
+  // offset added to the base
+
+  int scaleHeightMin = configValue<int>(scope, confPath, "scaleHeightMin", s_optional, &isSet);
+  if (!isSet)
+    scaleHeightMin = 5;
+  int scaleHeightRandom =
+      configValue<int>(scope, confPath, "scaleHeightRandom", s_optional, &isSet);
+  if (!isSet)
+    scaleHeightRandom = 3;
+  int controlMin = configValue<int>(scope, confPath, "controlMin", s_optional, &isSet);
+  if (!isSet)
+    controlMin = -2;
+  int controlRandom = configValue<int>(scope, confPath, "controlRandom", s_optional, &isSet);
+  if (!isSet)
+    controlRandom = 4;
+
+  // Offsets for intermediate curve points
+
+  GroupOffsets go = groupOffsets(scope, confPath, xStep);
+
+  cloudGroups.emplace_back(cloudClass.empty() ? classDef : cloudClass,
+                           cloudTypes,
+                           symbolType,
+                           hasLabel ? &label : nullptr,
+                           bbCenterLabel,
+                           placeHolder,
+                           labelPlaceHolder,
+                           combined,
+                           baseStep,
+                           maxRand,
+                           maxRepeat,
+                           scaleHeightMin,
+                           scaleHeightRandom,
+                           controlMin,
+                           controlRandom,
+                           go.xOffset,
+                           go.yOffset,
+                           go.vOffset,
+                           go.vSOffset,
+                           go.vSSOffset,
+                           go.sOffset,
+                           go.eOffset,
+                           cloudSet,
+                           scope);
+}
+
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Loads cloud layer configuration
@@ -5125,18 +5461,12 @@ const libconfig::Setting& SvgRenderer::cloudLayerConfig(const std::string& _conf
 
     // Bezier curve tightness
 
-    bool isSet = false;
-    tightness =
-        (double)configValue<double, int>(specs, confPath, "tightness", nullptr, s_optional, &isSet);
-
-    if (!isSet)
-      // Using the default by setting a negative value
-      //
-      tightness = -1.0;
+    tightness = tightnessSetting(specs, confPath);
 
     // If bordercompensation is true (the default), cloud baseline is adjusted to keep decorated
     // baseline at the right level
 
+    bool isSet = false;
     borderCompensation =
         configValue<bool>(specs, confPath, "bordercompensation", nullptr, s_optional, &isSet);
 
@@ -5145,28 +5475,13 @@ const libconfig::Setting& SvgRenderer::cloudLayerConfig(const std::string& _conf
 
     // Minimum absolute/relative height for the label position
 
-    minLabelPosHeight =
-        configValue<int>(specs, confPath, "minlabelposheight", nullptr, s_optional, &isSet);
-
-    if ((!isSet) || (minLabelPosHeight < (int)labelPosHeightMin))
-    {
-      labelPosHeightFactor =
-          configValue<double>(specs, confPath, "labelposheightfactor", nullptr, s_optional, &isSet);
-
-      if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
-        labelPosHeightFactor = defaultLabelPosHeightFactor;
-
-      minLabelPosHeight = 0;
-    }
+    labelPosHeightSettings(specs, confPath, minLabelPosHeight, labelPosHeightFactor);
 
     // If bbcenterlabel is true (default: false), cloud label is positioned to the center of the
     // cloud's bounding box;
     // otherwise using 1 or 2 elevations in the middle of the cloud in x -direction
 
-    bool bbCenterLabel =
-        configValue<bool>(specs, confPath, "bbcenterlabel", nullptr, s_optional, &isSet);
-    if (!isSet)
-      bbCenterLabel = false;
+    bool bbCenterLabel = bbCenterLabelSetting(specs, confPath);
 
     // Cloud groups
 
@@ -5186,32 +5501,7 @@ const libconfig::Setting& SvgRenderer::cloudLayerConfig(const std::string& _conf
 
       // Cloud types
 
-      std::string cloudTypes(boost::algorithm::to_upper_copy(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "types", nullptr, s_optional))));
-
-      if (!cloudTypes.empty())
-      {
-        std::vector<std::string> ct;
-        boost::algorithm::split(ct, cloudTypes, boost::is_any_of(","));
-
-        if (ct.size() > 1)
-        {
-          std::ostringstream cts;
-
-          for (unsigned int i = 0, n = 0; (i < ct.size()); i++)
-          {
-            boost::algorithm::trim(ct[i]);
-
-            if (!ct[i].empty())
-            {
-              cts << (n ? "," : "") << ct[i];
-              n++;
-            }
-          }
-
-          cloudTypes = cts.str();
-        }
-      }
+      std::string cloudTypes(groupTypes(group, confPath));
 
       // Scope contains all global blocks so far and the current block
 
@@ -5224,151 +5514,16 @@ const libconfig::Setting& SvgRenderer::cloudLayerConfig(const std::string& _conf
         continue;
       }
 
-      // Class
-
-      auto cloudClass = configValue<std::string>(scope, confPath, "class", s_optional);
-
-      // Output label; default label is the cloud types concatenated with ',' as separator.
-      // If empty label is given, no label.
-
-      std::string label(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "label", nullptr, s_optional, &isSet)));
-      bool hasLabel = isSet;
-
-      // Output placeholders; default label placeholder is the cloud placeholder + "TEXT"
-
-      std::string placeHolder(boost::algorithm::trim_copy(
-          configValue<std::string>(scope, confPath, "output", s_optional)));
-      if (placeHolder.empty())
-        placeHolder = CLOUDLAYERS;
-
-      std::string labelPlaceHolder(boost::algorithm::trim_copy(
-          configValue<std::string>(scope, confPath, "labeloutput", s_optional)));
-      if (labelPlaceHolder.empty())
-        labelPlaceHolder = placeHolder + "TEXT";
-
-      // Standalone cloud types (only one type in the group) have flag controlling whether the
-      // group/cloud is combined or not
-
-      bool combined = configValue<bool>(scope, confPath, "combined", s_optional, &isSet);
-      if (!isSet)
-        combined = false;
-
-      // Render as symbol ?
-
-      std::string symbolType(boost::algorithm::trim_copy(
-          configValue<std::string>(scope, confPath, "symboltype", s_optional)));
-
-      // Controls for extracting Bezier curve points; base distance between curve points along the
-      // line,
-      // max random distance added to the base and max number of subsequent points having equal
-      // distance
-
-      auto baseStep = configValue<unsigned int>(scope, confPath, "baseStep", s_optional, &isSet);
-      if (!isSet)
-        baseStep = 10;
-      auto maxRand = configValue<unsigned int>(scope, confPath, "maxRand", s_optional, &isSet);
-      if (!isSet)
-        maxRand = 4;
-      auto maxRepeat = configValue<unsigned int>(scope, confPath, "maxRepeat", s_optional, &isSet);
-      if (!isSet)
-        maxRepeat = 3;
-
-      // Controls for decorating the Bezier curve; base curve distance (normal length) for the
-      // decorator points,
-      // max random distance added to the base, base offset for the decorator points and max random
-      // offset added to the base
-
-      int scaleHeightMin = configValue<int>(scope, confPath, "scaleHeightMin", s_optional, &isSet);
-      if (!isSet)
-        scaleHeightMin = 5;
-      int scaleHeightRandom =
-          configValue<int>(scope, confPath, "scaleHeightRandom", s_optional, &isSet);
-      if (!isSet)
-        scaleHeightRandom = 3;
-      int controlMin = configValue<int>(scope, confPath, "controlMin", s_optional, &isSet);
-      if (!isSet)
-        controlMin = -2;
-      int controlRandom = configValue<int>(scope, confPath, "controlRandom", s_optional, &isSet);
-      if (!isSet)
-        controlRandom = 4;
-
-      // Offsets for intermediate curve points on both sides of the elevation's hi/lo range point
-
-      double xStep = axisManager->xStep();
-
-      auto xOffset = configValue<double>(scope, confPath, "xoffset", s_optional, &isSet);
-      if (!isSet)
-        xOffset = 0.0;
-      else
-        xOffset *= xStep;
-
-      double yOffset =
-          (double)configValue<int, double>(scope, confPath, "yoffset", s_optional, &isSet);
-      if (!isSet)
-        yOffset = 0.0;
-
-      // Relative offset for intermediate curve points (controls how much the ends of the area
-      // are extended horizontally)
-
-      auto vOffset = configValue<double>(scope, confPath, "voffset", s_optional, &isSet);
-      if (!isSet)
-        vOffset = 0.0;
-      else
-        vOffset *= xStep;
-
-      // Relative top/bottom and side x -offsets for intermediate curve points for single elevation
-      // (controls how much the
-      // ends of the area are extended horizontally)
-
-      auto vSOffset = configValue<double>(scope, confPath, "vsoffset", s_optional, &isSet);
-      if (!isSet)
-        vSOffset = xStep / 3;
-      else
-        vSOffset *= xStep;
-
-      auto vSSOffset = configValue<double>(scope, confPath, "vssoffset", s_optional, &isSet);
-      if (!isSet)
-        vSSOffset = vSOffset;
-      else
-        vSSOffset *= xStep;
-
-      // Max offset in px for extending first time instant's elevations to the left
-
-      int sOffset = configValue<int>(scope, confPath, "soffset", s_optional, &isSet);
-      if (!isSet)
-        sOffset = 0;
-
-      // Max offset in px for extending last time instant's elevations to the right
-
-      int eOffset = configValue<int>(scope, confPath, "eoffset", s_optional, &isSet);
-      if (!isSet)
-        eOffset = 0;
-
-      cloudGroups.emplace_back(cloudClass.empty() ? classDef : cloudClass,
-                               cloudTypes,
-                               symbolType,
-                               hasLabel ? &label : nullptr,
-                               bbCenterLabel,
-                               placeHolder,
-                               labelPlaceHolder,
-                               combined,
-                               baseStep,
-                               maxRand,
-                               maxRepeat,
-                               scaleHeightMin,
-                               scaleHeightRandom,
-                               controlMin,
-                               controlRandom,
-                               xOffset,
-                               yOffset,
-                               vOffset,
-                               vSOffset,
-                               vSSOffset,
-                               sOffset,
-                               eOffset,
-                               cloudSet,
-                               scope);
+      addCloudGroup(scope,
+                    group,
+                    confPath,
+                    classDef,
+                    cloudTypes,
+                    bbCenterLabel,
+                    CLOUDLAYERS,
+                    axisManager->xStep(),
+                    cloudGroups,
+                    cloudSet);
 
       scope.pop_back();
     }
@@ -9520,6 +9675,90 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
   }
 }
 
+namespace
+{
+// Get the settings of an icing/turbulence group and add the group
+template <typename T>
+void addConfigGroup(const libconfig::Setting& group,
+                    const std::string& confPath,
+                    libconfig::Setting* globalScope,
+                    const std::string& classDef,
+                    const std::string& types,
+                    bool bbCenterLabel,
+                    const std::string& FEATURE,
+                    double xStep,
+                    std::list<T>& groups,
+                    std::set<size_t>& memberSet)
+{
+  bool isSet = false;
+
+  // If symbolonly is true (default: false), single elevation is rendered as symbol (or label)
+  // only
+
+  bool symbolOnly =
+      configValue<bool>(group, confPath, "symbolonly", globalScope, s_optional, &isSet);
+  if (!isSet)
+    symbolOnly = false;
+
+  // Offsets for intermediate curve points
+
+  GroupOffsets go = groupOffsets(group, confPath, globalScope, xStep);
+
+  // Output symbol
+
+  std::string symbol(boost::algorithm::trim_copy(
+      configValue<std::string>(group, confPath, "symbol", nullptr, s_optional)));
+
+  // Output label; if symbol is not defined, default label is the types concatenated with ',' as
+  // separator.
+  // If empty label is given, no label.
+
+  std::string label(boost::algorithm::trim_copy(
+      configValue<std::string>(group, confPath, "label", nullptr, s_optional, &isSet)));
+  bool hasLabel = isSet;
+
+  // Output placeholders; default label placeholder is the group placeholder + "TEXT"
+
+  std::string placeHolder(boost::algorithm::trim_copy(
+      configValue<std::string>(group, confPath, "output", globalScope, s_optional)));
+  if (placeHolder.empty())
+    placeHolder = FEATURE;
+
+  std::string labelPlaceHolder(boost::algorithm::trim_copy(
+      configValue<std::string>(group, confPath, "labeloutput", globalScope, s_optional)));
+  if (labelPlaceHolder.empty())
+    labelPlaceHolder = placeHolder + "TEXT";
+
+  // Standalone types (only one type in the group) have flag controlling whether the group is
+  // combined or not
+
+  bool combined = configValue<bool>(group, confPath, "combined", globalScope, s_optional, &isSet);
+  if (!isSet)
+    combined = true;
+
+  groups.push_back(T(classDef,
+                     types,
+                     (!symbol.empty()) ? &symbol : nullptr,
+                     symbolOnly,
+                     hasLabel ? &label : nullptr,
+                     bbCenterLabel,
+                     placeHolder,
+                     labelPlaceHolder,
+                     combined,
+                     go.xOffset,
+                     go.yOffset,
+                     go.vOffset,
+                     go.vSOffset,
+                     go.vSSOffset,
+                     go.sOffset,
+                     go.eOffset,
+                     memberSet,
+                     &group,
+                     globalScope));
+}
+
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Loads group configuration
@@ -9553,41 +9792,19 @@ const libconfig::Setting& SvgRenderer::groupConfig(const std::string& groupConfP
 
     // Bezier curve tightness
 
-    bool isSet = false;
-
-    tightness =
-        (double)configValue<double, int>(specs, confPath, "tightness", nullptr, s_optional, &isSet);
-    if (!isSet)
-      // Using the default by setting a negative value
-      //
-      tightness = -1.0;
+    tightness = tightnessSetting(specs, confPath);
 
     // Minimum absolute/relative height for the label position
 
-    minLabelPosHeight =
-        configValue<int>(specs, confPath, "minlabelposheight", nullptr, s_optional, &isSet);
+    labelPosHeightSettings(specs, confPath, minLabelPosHeight, labelPosHeightFactor);
 
-    if ((!isSet) || (minLabelPosHeight < (int)labelPosHeightMin))
-    {
-      labelPosHeightFactor =
-          configValue<double>(specs, confPath, "labelposheightfactor", nullptr, s_optional, &isSet);
-
-      if ((!isSet) || (labelPosHeightFactor < labelPosHeightFactorMin))
-        labelPosHeightFactor = defaultLabelPosHeightFactor;
-
-      minLabelPosHeight = 0;
-    }
-
-    // If bbcenterlabel is true (default: false), group's symbol is positioned to the center of the
+    // If bbcenterlabel is true (default: false), label is positioned to the center of the
     // area's bounding box;
     // otherwise using 1 or 2 elevations in the middle of the area in x -direction
 
-    bool bbCenterLabel =
-        configValue<bool>(specs, confPath, "bbcenterlabel", nullptr, s_optional, &isSet);
-    if (!isSet)
-      bbCenterLabel = false;
+    bool bbCenterLabel = bbCenterLabelSetting(specs, confPath);
 
-    // Grouping
+    // Groups
 
     confPath += ".groups";
 
@@ -9603,32 +9820,7 @@ const libconfig::Setting& SvgRenderer::groupConfig(const std::string& groupConfP
 
       // Types (icing or turbulence magnitudes)
 
-      std::string types(boost::algorithm::to_upper_copy(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "types", nullptr, s_optional))));
-
-      if (!types.empty())
-      {
-        std::vector<std::string> it;
-        boost::algorithm::split(it, types, boost::is_any_of(","));
-
-        if (it.size() > 1)
-        {
-          std::ostringstream its;
-
-          for (unsigned int i = 0, n = 0; (i < it.size()); i++)
-          {
-            boost::algorithm::trim(it[i]);
-
-            if (!it[i].empty())
-            {
-              its << (n ? "," : "") << it[i];
-              n++;
-            }
-          }
-
-          types = its.str();
-        }
-      }
+      std::string types(groupTypes(group, confPath));
 
       if (types.empty())
       {
@@ -9642,122 +9834,16 @@ const libconfig::Setting& SvgRenderer::groupConfig(const std::string& groupConfP
 
       libconfig::Setting* globalScope = ((globalsIdx >= 0) ? &groupSpecs[globalsIdx] : nullptr);
 
-      // If symbolonly is true (default: false), single elevation is rendered as symbol (or label)
-      // only
-
-      bool symbolOnly =
-          configValue<bool>(group, confPath, "symbolonly", globalScope, s_optional, &isSet);
-      if (!isSet)
-        symbolOnly = false;
-
-      // Offsets for intermediate curve points on both sides of the elevation's hi/lo range point
-
-      double xStep = axisManager->xStep();
-
-      auto xOffset =
-          configValue<double>(group, confPath, "xoffset", globalScope, s_optional, &isSet);
-      if (!isSet)
-        xOffset = 0.0;
-      else
-        xOffset *= xStep;
-
-      double yOffset = (double)configValue<int, double>(
-          group, confPath, "yoffset", globalScope, s_optional, &isSet);
-      if (!isSet)
-        yOffset = 0.0;
-
-      // Relative offset for intermediate curve points (controls how much the ends of the area
-      // are extended horizontally)
-
-      auto vOffset =
-          configValue<double>(group, confPath, "voffset", globalScope, s_optional, &isSet);
-      if (!isSet)
-        vOffset = 0.0;
-      else
-        vOffset *= xStep;
-
-      // Relative top/bottom and side x -offsets for intermediate curve points for single elevation
-      // (controls how much the
-      // ends of the area are extended horizontally)
-
-      auto vSOffset =
-          configValue<double>(group, confPath, "vsoffset", globalScope, s_optional, &isSet);
-      if (!isSet)
-        vSOffset = xStep / 3;
-      else
-        vSOffset *= xStep;
-
-      auto vSSOffset =
-          configValue<double>(group, confPath, "vssoffset", globalScope, s_optional, &isSet);
-      if (!isSet)
-        vSSOffset = vSOffset;
-      else
-        vSSOffset *= xStep;
-
-      // Max offset in px for extending first time instant's elevations to the left
-
-      int sOffset = configValue<int>(group, confPath, "soffset", globalScope, s_optional, &isSet);
-      if (!isSet)
-        sOffset = 0;
-
-      // Max offset in px for extending last time instant's elevations to the right
-
-      int eOffset = configValue<int>(group, confPath, "eoffset", globalScope, s_optional, &isSet);
-      if (!isSet)
-        eOffset = 0;
-
-      // Output symbol
-
-      std::string symbol(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "symbol", nullptr, s_optional)));
-
-      // Output label; if symbol is not defined, default label is the types concatenated with ',' as
-      // separator.
-      // If empty label is given, no label.
-
-      std::string label(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "label", nullptr, s_optional, &isSet)));
-      bool hasLabel = isSet;
-
-      // Output placeholders; default label placeholder is the group placeholder + "TEXT"
-
-      std::string placeHolder(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "output", globalScope, s_optional)));
-      if (placeHolder.empty())
-        placeHolder = FEATURE;
-
-      std::string labelPlaceHolder(boost::algorithm::trim_copy(
-          configValue<std::string>(group, confPath, "labeloutput", globalScope, s_optional)));
-      if (labelPlaceHolder.empty())
-        labelPlaceHolder = placeHolder + "TEXT";
-
-      // Standalone types (only one type in the group) have flag controlling whether the group is
-      // combined or not
-
-      bool combined =
-          configValue<bool>(group, confPath, "combined", globalScope, s_optional, &isSet);
-      if (!isSet)
-        combined = true;
-
-      groups.push_back(T(classDef,
-                         types,
-                         (!symbol.empty()) ? &symbol : nullptr,
-                         symbolOnly,
-                         hasLabel ? &label : nullptr,
-                         bbCenterLabel,
-                         placeHolder,
-                         labelPlaceHolder,
-                         combined,
-                         xOffset,
-                         yOffset,
-                         vOffset,
-                         vSOffset,
-                         vSSOffset,
-                         sOffset,
-                         eOffset,
-                         memberSet,
-                         &group,
-                         globalScope));
+      addConfigGroup<T>(group,
+                        confPath,
+                        globalScope,
+                        classDef,
+                        types,
+                        bbCenterLabel,
+                        FEATURE,
+                        axisManager->xStep(),
+                        groups,
+                        memberSet);
     }
 
     return specs;
