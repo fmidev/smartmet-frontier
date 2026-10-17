@@ -686,6 +686,13 @@ class SvgRenderer : public woml::FeatureVisitor
     t_nonground,
     t_mixed
   } ElevationGroupType;
+  struct ElevationGroupScan;
+  bool elevationGroupMember(const ElevGrp& eGrp,
+                            const woml::GeophysicalParameterValue& pv,
+                            ElevationGroupScan& gs);
+  bool addTimeInstantElevations(const std::list<woml::TimeSeriesSlot>::const_iterator& itts,
+                                ElevGrp& eGrp,
+                                ElevationGroupScan& gs);
   ElevationGroupType elevationGroup(const std::list<woml::TimeSeriesSlot>& ts,
                                     Fmi::DateTime& bt,
                                     Fmi::DateTime& et,

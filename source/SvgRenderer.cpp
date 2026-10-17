@@ -8445,6 +8445,172 @@ bool joinElevations(ElevGrp& eGrp)
 }
 }  // namespace
 
+namespace
+{
+// Whether to skip or load the time instant or to stop loading
+enum class TimeInstantAction
+{
+  skip,
+  load,
+  stop
+};
+
+// Load the time instants within the document's time range plus one time instant before the
+// starting and after the ending time instant (if available), thus extending the document's time
+// range (by 1 hour) in both directions.
+TimeInstantAction timeInstantAction(const std::list<woml::TimeSeriesSlot>::const_iterator& itts,
+                                    const std::list<woml::TimeSeriesSlot>::const_iterator& tsbeg,
+                                    const std::list<woml::TimeSeriesSlot>::const_iterator& tsend,
+                                    const std::list<woml::TimeSeriesSlot>::const_iterator& pitts,
+                                    Fmi::DateTime& bt,
+                                    const Fmi::DateTime& et,
+                                    bool all,
+                                    bool empty)
+{
+  const Fmi::DateTime& vt = itts->validTime();
+
+  if (vt < bt)
+  {
+    auto nitts = itts;
+    nitts++;
+
+    if ((nitts == tsend) || (nitts->validTime() != bt) || ((bt - vt).hours() != 1))
+      return TimeInstantAction::skip;
+
+    // Extending the time range 1h backwards
+
+    bt = vt;
+
+    return TimeInstantAction::load;
+  }
+
+  if ((!all) && (!empty))
+  {
+    // Check for missing time instant
+    //
+    if ((vt - pitts->validTime()).hours() > 1)
+      return TimeInstantAction::stop;
+  }
+
+  if ((vt > et) && ((itts == tsbeg) || (pitts->validTime() != et) || ((vt - et).hours() != 1)))
+    return TimeInstantAction::stop;
+
+  return TimeInstantAction::load;
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief State of elevation group collection
+ */
+// ----------------------------------------------------------------------
+
+struct SvgRenderer::ElevationGroupScan
+{
+  CategoryValueMeasureGroup overlappingGroup;
+  CategoryValueMeasureGroup* categoryGroup = nullptr;
+  bool all = true;
+  bool getHole = false;
+  bool hole = false;
+  bool groundGrp = false;
+  bool nonGroundGrp = false;
+  double nonZ = 0.0;
+  std::list<woml::TimeSeriesSlot>::const_iterator pitts;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Check if group number and value category (cloud type or magnitude
+ *		for icing or turbulence) of the elevation matches.
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::elevationGroupMember(const ElevGrp& eGrp,
+                                       const woml::GeophysicalParameterValue& pv,
+                                       ElevationGroupScan& gs)
+{
+  const auto* cvm = dynamic_cast<const woml::CategoryValueMeasure*>(pv.value());
+  CategoryValueMeasureGroup* group = (gs.categoryGroup ? gs.categoryGroup : &gs.overlappingGroup);
+
+  if (group->groupMember((eGrp.empty()), cvm))
+    return true;
+
+  if ((eGrp.empty()) && options.debug)
+    debugoutput << "Settings for " << cvm->category() << " not found\n";
+
+  return false;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add time instant's elevations to the group. Returns true if
+ *		the group is complete (standalone group category).
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::addTimeInstantElevations(
+    const std::list<woml::TimeSeriesSlot>::const_iterator& itts,
+    ElevGrp& eGrp,
+    ElevationGroupScan& gs)
+{
+  const Fmi::DateTime& vt = itts->validTime();
+
+  // Loop thru the parameter sets and their parameters
+
+  std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator pvsend =
+      itts->values().end();
+  std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator itpvs;
+
+  for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++)
+  {
+    auto itpv = itpvs->get()->editableValues().begin();
+    auto pvend = itpvs->get()->editableValues().end();
+
+    for (; (itpv != pvend); itpv++)
+    {
+      // Not mixing holes and nonholes
+      //
+      if (((!eGrp.empty()) || gs.getHole) &&
+          (gs.hole != ((itpv->getFlags() & ElevationGroupItem::b_isHole) != 0)))
+        continue;
+
+      const woml::Elevation& e = itpv->elevation();
+      double lo = elevationLo(e);
+
+      bool ground = (lo < gs.nonZ);
+
+      // Check if group number and value category (cloud type or magnitude for icing or
+      // turbulence) matches.
+      //
+      if ((!gs.all) && (!elevationGroupMember(eGrp, *itpv, gs)))
+        continue;
+
+      gs.pitts = itts;
+
+      if (eGrp.empty())
+      {
+        gs.groundGrp = ground;
+        gs.hole = ((itpv->getFlags() & ElevationGroupItem::b_isHole) != 0);
+      }
+      else if (!ground)
+        gs.nonGroundGrp = true;
+
+      eGrp.emplace_back(vt, itpvs, itpv);
+
+      if (gs.categoryGroup && gs.categoryGroup->standalone())
+        // Note: Vertical overlapping is currently not checked for standalone group category;
+        // should load
+        //		 all elevations for the time instant, join and return the first elevation if
+        // required
+        //
+        return true;
+    }  // for itpv
+  }  // for itpvs
+
+  return false;
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Get group of elevations from a time serie.
@@ -8471,7 +8637,7 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
   //
   // If 'join' is true, vertically overlapping elevations are joined.
 
-  CategoryValueMeasureGroup overlappingGroup;
+  ElevationGroupScan gs;
 
   const Fmi::TimePeriod& tp = axisManager->timePeriod();
   bt = tp.begin();
@@ -8480,17 +8646,16 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
   auto tsbeg = ts.begin();
   auto tsend = ts.end();
   std::list<woml::TimeSeriesSlot>::const_iterator itts;
-  std::list<woml::TimeSeriesSlot>::const_iterator pitts;
 
-  bool byCategory = (categoryGroup != nullptr);
-  bool groundGrp = false;
-  bool nonGroundGrp = false;
-  bool hole = getHole;
-  double nonZ = axisManager->nonZeroElevation();
+  gs.categoryGroup = categoryGroup;
+  gs.all = all;
+  gs.getHole = getHole;
+  gs.hole = getHole;
+  gs.nonZ = axisManager->nonZeroElevation();
 
   eGrp.clear();
 
-  for (itts = pitts = tsbeg; (itts != tsend); itts++)
+  for (itts = gs.pitts = tsbeg; (itts != tsend); itts++)
   {
     // Load the time instants within the document's time range plus one time instant before the
     // starting and after the
@@ -8506,94 +8671,16 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
 
     const Fmi::DateTime& vt = itts->validTime();
 
-    if (vt < bt)
-    {
-      auto nitts = itts;
-      nitts++;
+    TimeInstantAction action =
+        timeInstantAction(itts, tsbeg, tsend, gs.pitts, bt, et, all, eGrp.empty());
 
-      if ((nitts == tsend) || (nitts->validTime() != bt) || ((bt - vt).hours() != 1))
-        continue;
+    if (action == TimeInstantAction::skip)
+      continue;
+    if (action == TimeInstantAction::stop)
+      break;
 
-      // Extending the time range 1h backwards
-
-      bt = vt;
-    }
-    else
-    {
-      if ((!all) && (!eGrp.empty()))
-      {
-        // Check for missing time instant
-        //
-        if ((vt - pitts->validTime()).hours() > 1)
-          break;
-      }
-
-      if ((vt > et) && ((itts == tsbeg) || (pitts->validTime() != et) || ((vt - et).hours() != 1)))
-        break;
-    }
-
-    // Loop thru the parameter sets and their parameters
-
-    std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator pvsend =
-        itts->values().end();
-    std::list<std::shared_ptr<woml::GeophysicalParameterValueSet>>::const_iterator itpvs;
-
-    for (itpvs = itts->values().begin(); (itpvs != pvsend); itpvs++)
-    {
-      auto itpv = itpvs->get()->editableValues().begin();
-      auto pvend = itpvs->get()->editableValues().end();
-
-      for (; (itpv != pvend); itpv++)
-      {
-        // Not mixing holes and nonholes
-        //
-        if (((!eGrp.empty()) || getHole) &&
-            (hole != ((itpv->getFlags() & ElevationGroupItem::b_isHole) != 0)))
-          continue;
-
-        const woml::Elevation& e = itpv->elevation();
-        double lo = elevationLo(e);
-
-        bool ground = (lo < nonZ);
-
-        if (!all)
-        {
-          // Check if group number and value category (cloud type or magnitude for icing or
-          // turbulence) matches.
-          //
-          const auto* cvm = dynamic_cast<const woml::CategoryValueMeasure*>(itpv->value());
-          CategoryValueMeasureGroup* group = (byCategory ? categoryGroup : &overlappingGroup);
-
-          if (!(group->groupMember((eGrp.empty()), cvm)))
-          {
-            if ((eGrp.empty()) && options.debug)
-              debugoutput << "Settings for " << cvm->category() << " not found\n";
-
-            continue;
-          }
-        }
-
-        pitts = itts;
-
-        if (eGrp.empty())
-        {
-          groundGrp = ground;
-          hole = ((itpv->getFlags() & ElevationGroupItem::b_isHole) != 0);
-        }
-        else if (!ground)
-          nonGroundGrp = true;
-
-        eGrp.emplace_back(vt, itpvs, itpv);
-
-        if (byCategory && categoryGroup->standalone())
-          // Note: Vertical overlapping is currently not checked for standalone group category;
-          // should load
-          //		 all elevations for the time instant, join and return the first elevation if
-          // required
-          //
-          return (groundGrp ? t_ground : t_nonground);
-      }  // for itpv
-    }  // for itpvs
+    if (addTimeInstantElevations(itts, eGrp, gs))
+      return (gs.groundGrp ? t_ground : t_nonground);
 
     if (vt > et)
     {
@@ -8613,9 +8700,9 @@ SvgRenderer::ElevationGroupType SvgRenderer::elevationGroup(
   if (join)
     joinElevations(eGrp);
 
-  if (groundGrp && nonGroundGrp)
+  if (gs.groundGrp && gs.nonGroundGrp)
     return t_mixed;
-  return (groundGrp ? t_ground : t_nonground);
+  return (gs.groundGrp ? t_ground : t_nonground);
 }
 
 // ----------------------------------------------------------------------
