@@ -2031,6 +2031,45 @@ bool symbolMapping(const libconfig::Config& config,
   return (isSet && (!mappedCode.empty()));
 }
 
+// Get numeric infotext setting (<width=n> etc.); returns false on invalid setting
+bool numericTextSetting(const std::string& infoText,
+                        const char* setting,
+                        size_t pos,
+                        int& maxTextWidth,
+                        int& fontSize,
+                        int& tXOffset,
+                        int& tYOffset)
+{
+  size_t pos2 = strlen(setting);
+  const char* p = infoText.c_str() + pos2;
+  const char* numSet = "-0123456789";
+  const char* p2 =
+      p + strspn(p, numSet + (((*(setting + 1) == 'w') || (*(setting + 1) == 'f')) ? 1 : 0));
+
+  if ((*p2 != '>') || (*(p2 - 1) == '=') || (*(p2 - 1) == '-'))
+    return false;
+
+  const int value = Fmi::stoi(infoText.substr(pos2, pos - pos2));
+
+  switch (*(setting + 1))
+  {
+    case 'w':
+      maxTextWidth = value;
+      break;
+    case 'f':
+      fontSize = value;
+      break;
+    case 'x':
+      tXOffset = value;
+      break;
+    default:
+      tYOffset = value;
+      break;
+  }
+
+  return true;
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Get infotext settings.
@@ -2071,32 +2110,8 @@ void textSettings(std::string& infoText,
 
       if (*(*s + strlen(*s) - 1) == '=')
       {
-        size_t pos2 = strlen(*s);
-        const char* p = infoText.c_str() + pos2;
-        const char* numSet = "-0123456789";
-        const char* p2 =
-            p + strspn(p, numSet + (((*(*s + 1) == 'w') || (*(*s + 1) == 'f')) ? 1 : 0));
-
-        if ((*p2 != '>') || (*(p2 - 1) == '=') || (*(p2 - 1) == '-'))
+        if (!numericTextSetting(infoText, *s, pos, maxTextWidth, fontSize, tXOffset, tYOffset))
           return;
-
-        const int value = Fmi::stoi(infoText.substr(pos2, pos - pos2));
-
-        switch (*(*s + 1))
-        {
-          case 'w':
-            maxTextWidth = value;
-            break;
-          case 'f':
-            fontSize = value;
-            break;
-          case 'x':
-            tXOffset = value;
-            break;
-          default:
-            tYOffset = value;
-            break;
-        }
       }
       else
       {
