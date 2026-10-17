@@ -1140,26 +1140,12 @@ FillAreaColumns getFillAreaColumns(const NFmiFillAreas& areas)
   return columns;
 }
 
-// ----------------------------------------------------------------------
-/*!
- * \brief Get area symbol positions within fill areas.
- */
-// ----------------------------------------------------------------------
-
-void getFillPositions(NFmiFillAreas& areas,
-                      size_t symbolCnt,
-                      NFmiFillPositions& fpos,
-                      const std::string& fillMode = "")
+// Number of fill positions to get for the given fill mode
+size_t fillModeSymbolCount(const NFmiFillAreas& areas,
+                           const FillAreaColumns& columns,
+                           size_t symbolCnt,
+                           const std::string& fillMode)
 {
-  // Extract fill area "columns", groups of fill areas having starting x -coordinate greater than or
-  // equal to
-  // the starting x -coordinate and less than or equal to the center x -coordinate of group's first
-  // fill area.
-
-  FillAreaColumns columns = getFillAreaColumns(areas);
-
-  // Get fill positions within the columns
-
   if (fillMode.empty() || (fillMode == "symbol"))
   {
     // By default get one fill position for each symbol
@@ -1198,6 +1184,31 @@ void getFillPositions(NFmiFillAreas& areas,
   }
   else
     throw std::runtime_error("getFillPositions: invalid fill mode: '" + fillMode + "'");
+
+  return symbolCnt;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get area symbol positions within fill areas.
+ */
+// ----------------------------------------------------------------------
+
+void getFillPositions(NFmiFillAreas& areas,
+                      size_t symbolCnt,
+                      NFmiFillPositions& fpos,
+                      const std::string& fillMode = "")
+{
+  // Extract fill area "columns", groups of fill areas having starting x -coordinate greater than or
+  // equal to
+  // the starting x -coordinate and less than or equal to the center x -coordinate of group's first
+  // fill area.
+
+  FillAreaColumns columns = getFillAreaColumns(areas);
+
+  // Get fill positions within the columns
+
+  symbolCnt = fillModeSymbolCount(areas, columns, symbolCnt, fillMode);
 
   size_t nAreasLeft = areas.size();
   size_t nSymbolsLeft = symbolCnt;
