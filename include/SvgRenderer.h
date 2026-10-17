@@ -801,6 +801,24 @@ class SvgRenderer : public woml::FeatureVisitor
                            int nGroups,
                            bool& visible,
                            bool& aboveTop);
+  struct CurveScan;
+  void curveElevation(const ElevGrp::iterator& iteg,
+                      int scaleHeightMin,
+                      int scaleHeightRandom,
+                      bool* isVisible,
+                      bool checkGround,
+                      double& lo,
+                      double& hi,
+                      CurveScan& cs);
+  void curveFirst(const ElevGrp::iterator& iteg, CurveScan& cs);
+  void curveForward(const ElevGrp::iterator& iteg, CurveScan& cs);
+  void curveUp(const ElevGrp::iterator& iteg, CurveScan& cs);
+  void curveDown(const ElevGrp::iterator& iteg, CurveScan& cs);
+  bool curveElevationUp(const ElevGrp::iterator& iteg, CurveScan& cs);
+  void curveElevationDown(const ElevGrp::iterator& iteg, CurveScan& cs);
+  void curveBackward(const ElevGrp::iterator& iteg, CurveScan& cs);
+  void curveSingle(CurveScan& cs);
+  bool curvePhasePositions(const ElevGrp::iterator& iteg, CurveScan& cs);
   bool scaledCurvePositions(ElevGrp& eGrp,
                             const Fmi::DateTime& bt,
                             const Fmi::DateTime& et,

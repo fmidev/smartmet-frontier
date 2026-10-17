@@ -7498,23 +7498,6 @@ void SvgRenderer::render_cloudSymbols(const std::string& confPath,
   }
 }
 
-// ----------------------------------------------------------------------
-/*!
- * \brief Get scaled curve points connecting hi range points and
- *		lo range points for subsequent overlapping elevations.
- *
- *		The scaled lo and hi range values of elevations selected as
- *		candidates for labeling are stored to 'scaledLo' and 'scaledHi'
- *		and 'hasHole' is set to indicate whether the elevations have
- *		holes or not.
- *
- *		Returs true if the curve encapsulates a single elevation only.
- *
- *		Note: The elevations included into the curve are deleted from
- *			  the underlying woml object collection.
- */
-// ----------------------------------------------------------------------
-
 namespace
 {
 void addCurvePosition(std::vector<DirectPosition>& curvePositions,
@@ -7640,6 +7623,533 @@ void smoothenCurve(std::vector<DirectPosition>& curvePositions,
 }
 }  // namespace
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief State of curve position generation in scaledCurvePositions()
+ */
+// ----------------------------------------------------------------------
+
+struct SvgRenderer::CurveScan
+{
+  CurveScan(std::vector<DirectPosition>& theCurvePositions,
+            std::vector<DirectPosition>& theCurvePositions0,
+            std::ostringstream& thePath)
+      : curvePositions(theCurvePositions), curvePositions0(theCurvePositions0), path(thePath)
+  {
+  }
+
+  std::vector<DirectPosition>& curvePositions;
+  std::vector<DirectPosition>& curvePositions0;
+  std::ostringstream& path;
+
+  // Document's time range, timestep width and curve point offsets
+
+  Fmi::DateTime bt;
+  Fmi::DateTime et;
+  double xStep = 0.0;
+  double xOffset = 0.0;
+  double yOffset = 0.0;
+  double vOffset = 0.0;
+  double vSOffset = 0.0;
+  double vSSOffset = 0.0;
+  int sOffset = 0;
+  int eOffset = 0;
+
+  // Current elevation's time instant, x -coordinate and scaled lo/hi range values,
+  // and the scaled values of the previous elevation
+
+  Fmi::DateTime vt;
+  double x = 0.0;
+  bool ground = false;
+  double lopx = 0.0;
+  double plopx = NAN;
+  double lopx0 = 0.0;
+  double plopx0 = NAN;
+  double hipx = 0.0;
+  double phipx = NAN;
+  double hipx0 = 0.0;
+  double phipx0 = NAN;
+
+  Phase phase = fst;
+  Phase pphase = fst;
+  bool single = true;
+  bool smoothen = false;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get elevation's x -coordinate and scaled lo and hi range values
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::curveElevation(const ElevGrp::iterator& iteg,
+                                 int scaleHeightMin,
+                                 int scaleHeightRandom,
+                                 bool* isVisible,
+                                 bool checkGround,
+                                 double& lo,
+                                 double& hi,
+                                 CurveScan& cs)
+{
+  double nonZ = axisManager->nonZeroElevation();
+
+  // Get elevation's lo and hi range values
+  //
+  const woml::Elevation& e = iteg->elevation();
+
+  lo = elevationLo(e);
+  hi = elevationHi(e);
+
+  if ((lo > 0.0) && (lo < nonZ))
+    lo = 0.0;
+
+  cs.ground = (checkGround && (lo < nonZ));
+
+  if (isVisible && (hi >= nonZ))
+    *isVisible = true;
+
+  cs.plopx = cs.lopx;
+  cs.plopx0 = cs.lopx0;
+  cs.phipx = cs.hipx;
+  cs.phipx0 = cs.hipx0;
+
+  // Adjust baseline points to keep decorated curve baseline at the right level.
+  // The unadjusted baseline is stored too if requested (it is used for cloud labeling).
+  //
+  // Note: 1/6'th of the decoration control point offset just seems to do the job well enough.
+
+  double lOffset = scaleHeightMin;
+  double hOffset = scaleHeightMin;
+
+  if (scaleHeightRandom > 0)
+  {
+    // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
+    lOffset += ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0)));
+    // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
+    hOffset += ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0)));
+  }
+
+  cs.lopx0 = cs.lopx = axisManager->scaledElevation(lo);
+  cs.hipx0 = cs.hipx = axisManager->scaledElevation(hi);
+
+  double lopxBL = cs.lopx - (lOffset / 6);
+  double hipxBL = cs.hipx + (hOffset / 6);
+
+  if (lopxBL > hipxBL)
+  {
+    cs.lopx = lopxBL;
+    cs.hipx = hipxBL;
+  }
+
+  // x -coord of this time instant
+
+  cs.vt = iteg->validTime();
+  cs.x = axisManager->xOffset(cs.vt);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief First hi range point
+ *
+ * If time instant of the first "ground" (zeroTolerance) elevation is not forecast's first
+ * time instant, connect hi range point to 0 at the previous time instant
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::curveFirst(const ElevGrp::iterator& iteg, CurveScan& cs)
+{
+  double x = cs.x;
+  double xStep = cs.xStep;
+  bool toZero = (cs.ground && (cs.vt > cs.bt));
+
+  if (toZero)
+  {
+    addCurvePosition(cs.curvePositions,
+                     cs.curvePositions0,
+                     x - xStep,
+                     axisManager->axisHeight(),
+                     axisManager->axisHeight());
+    cs.single = false;
+  }
+
+  addCurvePosition(
+      cs.curvePositions, cs.curvePositions0, x, cs.hipx, cs.hipx0, cs.xOffset, cs.yOffset);
+  iteg->topConnected(true);
+
+  if (options.debug)
+  {
+    if (toZero)
+      cs.path << "M" << (x - xStep) << "," << axisManager->axisHeight() << " L" << x << ","
+              << cs.hipx;
+    else
+      cs.path << "M" << x << "," << cs.hipx;
+  }
+
+  cs.phase = fwd;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Move forward thru intermediate point connecting to next elevation's
+ *		hi range point
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::curveForward(const ElevGrp::iterator& iteg, CurveScan& cs)
+{
+  double ipx = ((cs.hipx < cs.phipx) ? cs.hipx : cs.phipx) + (fabs(cs.hipx - cs.phipx) / 2);
+  double ipx0 = ((cs.hipx0 < cs.phipx0) ? cs.hipx0 : cs.phipx0) + (fabs(cs.hipx0 - cs.phipx0) / 2);
+
+  addCurvePosition(cs.curvePositions, cs.curvePositions0, cs.x - (cs.xStep / 2), ipx, ipx0);
+  addCurvePosition(cs.curvePositions, cs.curvePositions0, cs.x, cs.hipx, cs.hipx0, cs.xOffset);
+  iteg->topConnected(true);
+
+  if (options.debug)
+    cs.path << " L" << cs.x << "," << cs.hipx;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Move up connecting to upper elevation's lo range point.
+ *
+ * Generate intermediate point half timestep forwards
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::curveUp(const ElevGrp::iterator& iteg, CurveScan& cs)
+{
+  addCurvePosition(cs.curvePositions,
+                   cs.curvePositions0,
+                   cs.x + (cs.xStep / 2),
+                   cs.phipx - ((cs.phipx - cs.lopx) / 2),
+                   cs.phipx0 - ((cs.phipx0 - cs.lopx0) / 2));
+  addCurvePosition(cs.curvePositions, cs.curvePositions0, cs.x, cs.lopx, cs.lopx0);
+  iteg->bottomConnected(true);
+
+  if (options.debug)
+    cs.path << " L" << cs.x << "," << cs.lopx;
+
+  cs.phase = bwd;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Move down connecting to lower elevation's hi range point
+ *
+ * Generate intermediate point half timestep backwards
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::curveDown(const ElevGrp::iterator& iteg, CurveScan& cs)
+{
+  addCurvePosition(cs.curvePositions,
+                   cs.curvePositions0,
+                   cs.x - (cs.xStep / 2),
+                   cs.hipx - ((cs.hipx - cs.plopx) / 2),
+                   cs.hipx0 - ((cs.hipx0 - cs.plopx0) / 2));
+  addCurvePosition(cs.curvePositions, cs.curvePositions0, cs.x, cs.hipx, cs.hipx0);
+  iteg->topConnected(true);
+
+  if (options.debug)
+    cs.path << " L" << cs.x << "," << cs.hipx;
+
+  cs.phase = fwd;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Move up connecting "nonground" (or non ZeroTolorence) elevation's
+ *		lo range point to hi range point. Returns true if the path is closed.
+ *
+ * Note: ZeroTolorence "ground" elevation's hi range point can be connected to 0 at previous/next
+ * time instant
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::curveElevationUp(const ElevGrp::iterator& iteg, CurveScan& cs)
+{
+  double x = cs.x;
+
+  // The curve turns up, smoothen the corner
+  smoothenCurve(cs.curvePositions, x, cs.lopx, cs.lopx - cs.hipx, -cs.xOffset, -cs.yOffset);
+
+  if (&cs.curvePositions != &cs.curvePositions0)
+    smoothenCurve(cs.curvePositions0, x, cs.lopx0, cs.lopx0 - cs.hipx0, -cs.xOffset, -cs.yOffset);
+
+  if ((!cs.ground) || (cs.vt == cs.bt) || (!(iteg->topConnected())))
+  {
+    // Limit the extent of the left side of first time instant
+    //
+    double offset = (((cs.vt == cs.bt) && (cs.vOffset > cs.sOffset)) ? cs.sOffset : cs.vOffset);
+
+    addCurvePosition(cs.curvePositions,
+                     cs.curvePositions0,
+                     x - offset,
+                     cs.lopx - ((cs.lopx - cs.hipx) / 2),
+                     cs.lopx0 - ((cs.lopx0 - cs.hipx0) / 2));
+    addCurvePosition(cs.curvePositions,
+                     cs.curvePositions0,
+                     x,
+                     cs.hipx,
+                     cs.hipx0,
+                     cs.xOffset,
+                     0.0,
+                     iteg->topConnected());
+
+    if (options.debug)
+      cs.path << (((cs.vt != cs.bt) && (cs.vt != cs.et)) ? " L" : " M") << x << "," << cs.hipx;
+  }
+
+  if (iteg->topConnected())
+    // Path is now closed
+    //
+    return true;
+
+  iteg->topConnected(true);
+
+  cs.phase = fwd;
+
+  return false;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Move down connecting elevation's hi range point to lo range point
+ *
+ * If time instant of the last "ground" (zeroTolerance) elevation in the group is not forecast's
+ * last
+ * time instant, use 0 at the next time instant as intermediate point
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::curveElevationDown(const ElevGrp::iterator& iteg, CurveScan& cs)
+{
+  double x = cs.x;
+  bool toZero = (cs.ground && (cs.vt < cs.et));
+
+  // The curve turns down, smoothen the corner
+  smoothenCurve(cs.curvePositions, x, cs.hipx, cs.lopx - cs.hipx, cs.xOffset, cs.yOffset);
+
+  if (&cs.curvePositions != &cs.curvePositions0)
+    smoothenCurve(cs.curvePositions0, x, cs.hipx0, cs.lopx0 - cs.hipx0, cs.xOffset, cs.yOffset);
+
+  if (toZero)
+  {
+    addCurvePosition(cs.curvePositions,
+                     cs.curvePositions0,
+                     x + cs.xStep,
+                     axisManager->axisHeight(),
+                     axisManager->axisHeight());
+    cs.single = false;
+  }
+  else
+  {
+    // Limit the extent of the right side of last time instant.
+    //
+    double offset = (((cs.vt == cs.et) && (cs.vOffset > cs.eOffset)) ? cs.eOffset : cs.vOffset);
+
+    addCurvePosition(cs.curvePositions,
+                     cs.curvePositions0,
+                     x + offset,
+                     cs.lopx - ((cs.lopx - cs.hipx) / 2),
+                     cs.lopx0 - ((cs.lopx0 - cs.hipx0) / 2));
+  }
+
+  addCurvePosition(cs.curvePositions, cs.curvePositions0, x, cs.lopx, cs.lopx0, -cs.xOffset);
+  iteg->bottomConnected(true);
+
+  if (options.debug)
+  {
+    if (toZero)
+      cs.path << " L" << (x + cs.xStep) << "," << axisManager->axisHeight();
+
+    cs.path << (((cs.vt != cs.bt) && (cs.vt != cs.et)) ? " L" : " M") << x << "," << cs.lopx;
+  }
+
+  cs.pphase = cs.phase;
+  cs.phase = bwd;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Move backward thru intermediate point connecting to previous
+ *		elevation's lo range point
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::curveBackward(const ElevGrp::iterator& iteg, CurveScan& cs)
+{
+  double x = cs.x;
+
+  if (cs.smoothen)
+  {
+    // The curve turns backwards, smoothen the corner
+    //
+    smoothenCurve(cs.curvePositions,
+                  x + cs.xStep,
+                  cs.plopx,
+                  cs.plopx - cs.phipx,
+                  -cs.xOffset,
+                  -cs.yOffset,
+                  true);
+
+    if (&cs.curvePositions != &cs.curvePositions0)
+      smoothenCurve(cs.curvePositions0,
+                    x + cs.xStep,
+                    cs.plopx0,
+                    cs.plopx0 - cs.phipx0,
+                    -cs.xOffset,
+                    -cs.yOffset,
+                    true);
+  }
+
+  double ipx = ((cs.lopx < cs.plopx) ? cs.lopx : cs.plopx) + (fabs(cs.lopx - cs.plopx) / 2);
+  double ipx0 = ((cs.lopx0 < cs.plopx0) ? cs.lopx0 : cs.plopx0) + (fabs(cs.lopx0 - cs.plopx0) / 2);
+
+  addCurvePosition(cs.curvePositions, cs.curvePositions0, x + (cs.xStep / 2), ipx, ipx0);
+  addCurvePosition(cs.curvePositions, cs.curvePositions0, x, cs.lopx, cs.lopx0, -cs.xOffset);
+  iteg->bottomConnected(true);
+
+  if (options.debug)
+    cs.path << " L" << x << "," << cs.lopx;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Bounding box for single elevation. Limit the extent of the left side
+ *		of first time instant and of the right side of last time instant.
+ *
+ * Note: Using the center of the top edge as starting point to get symmetrical (ends to the)
+ * result curve
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::curveSingle(CurveScan& cs)
+{
+  double x = cs.x;
+  double lopx = cs.lopx;
+  double lopx0 = cs.lopx0;
+  double hipx = cs.hipx;
+  double hipx0 = cs.hipx0;
+  double vSSOffset = cs.vSSOffset;
+
+  double leftSide =
+      x - (((cs.vt == cs.bt) && (cs.vSOffset > cs.sOffset)) ? cs.sOffset : cs.vSOffset) + 1;
+  double rightSide =
+      x + (((cs.vt == cs.et) && (cs.vSOffset > cs.eOffset)) ? cs.eOffset : cs.vSOffset) - 1;
+
+  if (options.debug)
+  {
+    cs.path.clear();
+    cs.path.str("");
+
+    cs.path << "M" << leftSide << "," << hipx << " L" << rightSide << "," << hipx << " L"
+            << rightSide << "," << lopx << " L" << leftSide << "," << lopx << " L" << leftSide
+            << "," << hipx;
+  }
+
+  std::vector<DirectPosition>& curvePositions = cs.curvePositions;
+  std::vector<DirectPosition>& curvePositions0 = cs.curvePositions0;
+
+  curvePositions.clear();
+  curvePositions0.clear();
+
+  addCurvePosition(curvePositions, curvePositions0, x, hipx, hipx0);
+  addCurvePosition(curvePositions, curvePositions0, rightSide, hipx, hipx0, 1);
+  addCurvePosition(curvePositions,
+                   curvePositions0,
+                   rightSide + ((vSSOffset < 0.0) ? 0.0 : vSSOffset),
+                   lopx - ((lopx - hipx) / 2),
+                   lopx0 - ((lopx0 - hipx0) / 2));
+  addCurvePosition(curvePositions, curvePositions0, rightSide, lopx, lopx0, -1);
+  addCurvePosition(curvePositions, curvePositions0, leftSide, lopx, lopx0, -1);
+  addCurvePosition(curvePositions,
+                   curvePositions0,
+                   leftSide - ((vSSOffset < 0.0) ? 0.0 : vSSOffset),
+                   lopx - ((lopx - hipx) / 2),
+                   lopx0 - ((lopx0 - hipx0) / 2));
+  addCurvePosition(curvePositions, curvePositions0, leftSide, hipx, hipx0, 1);
+  addCurvePosition(curvePositions, curvePositions0, x, hipx, hipx0);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add curve positions for the elevation based on current phase.
+ *		Returns true if the path is completed.
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::curvePhasePositions(const ElevGrp::iterator& iteg, CurveScan& cs)
+{
+  switch (cs.phase)
+  {
+    case fst:
+      curveFirst(iteg, cs);
+      break;
+    case fwd:
+      curveForward(iteg, cs);
+      break;
+    case vup:
+      curveUp(iteg, cs);
+      break;
+    case vdn:
+      curveDown(iteg, cs);
+      break;
+    case eup:
+      return curveElevationUp(iteg, cs);
+    case edn:
+      curveElevationDown(iteg, cs);
+      break;
+    case bwd:
+      curveBackward(iteg, cs);
+      break;
+    default:
+      break;
+  }
+
+  return false;
+}
+
+namespace
+{
+// Use the second last curve position - in the middle of the left side of the starting / top
+// left elevation - as the starting position
+void useCurveStartPosition(std::vector<DirectPosition>& curvePositions)
+{
+  curvePositions[0] = curvePositions[curvePositions.size() - 2];
+  curvePositions.pop_back();
+}
+
+// Remove group's elevations included into the curve from the collection
+void removeCurveElevations(ElevGrp& eGrp)
+{
+  for (auto iteg = eGrp.begin(); (iteg != eGrp.end()); iteg++)
+    if ((!(iteg->isGenerated())) && iteg->topConnected() && iteg->bottomConnected())
+    {
+      iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+      iteg->isDeleted(true);
+    }
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get scaled curve points connecting hi range points and
+ *		lo range points for subsequent overlapping elevations.
+ *
+ *		The scaled lo and hi range values of elevations selected as
+ *		candidates for labeling are stored to 'scaledLo' and 'scaledHi'
+ *		and 'hasHole' is set to indicate whether the elevations have
+ *		holes or not.
+ *
+ *		Returs true if the curve encapsulates a single elevation only.
+ *
+ *		Note: The elevations included into the curve are deleted from
+ *			  the underlying woml object collection.
+ */
+// ----------------------------------------------------------------------
+
 bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
                                        const Fmi::DateTime& bt,
                                        const Fmi::DateTime& et,
@@ -7667,22 +8177,20 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
   ElevGrp::iterator egend = eGrp.end();
   ElevGrp::iterator iteg;
   ElevInfoMap elevInfoMap;
-  Phase phase;
-  Phase pphase;
-  double lopx = 0.0;
-  double plopx = NAN;
-  double lopx0 = 0.0;
-  double plopx0 = NAN;
-  double hipx = 0.0;
-  double phipx = NAN;
-  double hipx0 = 0.0;
-  double phipx0 = NAN;
-  bool single = true;
-  bool smoothen = false;
 
   double axisWidth = axisManager->axisWidth();
-  double xStep = axisManager->xStep();
-  double nonZ = axisManager->nonZeroElevation();
+
+  CurveScan cs(curvePositions, curvePositions0, path);
+
+  cs.bt = bt;
+  cs.et = et;
+  cs.xStep = axisManager->xStep();
+  cs.yOffset = yOffset;
+  cs.vOffset = vOffset;
+  cs.vSOffset = vSOffset;
+  cs.vSSOffset = vSSOffset;
+  cs.sOffset = sOffset;
+  cs.eOffset = eOffset;
 
   // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp): the seed is not used for security
   srand(time(nullptr));
@@ -7692,373 +8200,59 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
   // half of the timestep width (an intermediate point is always generated halfway of subsequent
   // elevations)
 
-  xOffset = ((xOffset < 0.0) ? 0.0 : std::min(xOffset, (xStep / 2)));
+  cs.xOffset = ((xOffset < 0.0) ? 0.0 : std::min(xOffset, (cs.xStep / 2)));
 
   curvePositions.clear();
   curvePositions0.clear();
   addCurvePosition(curvePositions, curvePositions0, 0, 0, 0);
 
-  for (iteg = egbeg, phase = pphase = fst; (iteg != egend);)
+  for (iteg = egbeg, cs.phase = cs.pphase = fst; (iteg != egend);)
   {
-    // Get elevation's lo and hi range values
-    //
-    const woml::Elevation& e = iteg->elevation();
+    double lo = 0.0;
+    double hi = 0.0;
 
-    double lo = elevationLo(e);
-    double hi = elevationHi(e);
-
-    if ((lo > 0.0) && (lo < nonZ))
-      lo = 0.0;
-
-    bool ground = (checkGround && (lo < nonZ));
-
-    if (isVisible && (hi >= nonZ))
-      *isVisible = true;
-
-    plopx = lopx;
-    plopx0 = lopx0;
-    phipx = hipx;
-    phipx0 = hipx0;
-
-    // Adjust baseline points to keep decorated curve baseline at the right level.
-    // The unadjusted baseline is stored too if requested (it is used for cloud labeling).
-    //
-    // Note: 1/6'th of the decoration control point offset just seems to do the job well enough.
-
-    double lOffset = scaleHeightMin;
-    double hOffset = scaleHeightMin;
-
-    if (scaleHeightRandom > 0)
-    {
-      // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
-      lOffset += ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0)));
-      // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
-      hOffset += ((scaleHeightRandom + 1) * (rand() / (RAND_MAX + 1.0)));
-    }
-
-    lopx0 = lopx = axisManager->scaledElevation(lo);
-    hipx0 = hipx = axisManager->scaledElevation(hi);
-
-    double lopxBL = lopx - (lOffset / 6);
-    double hipxBL = hipx + (hOffset / 6);
-
-    if (lopxBL > hipxBL)
-    {
-      lopx = lopxBL;
-      hipx = hipxBL;
-    }
-
-    // x -coord of this time instant
-
-    const Fmi::DateTime& vt = iteg->validTime();
-    double x = axisManager->xOffset(vt);
+    curveElevation(iteg, scaleHeightMin, scaleHeightRandom, isVisible, checkGround, lo, hi, cs);
 
     // Keep track of elevations to later select/calculate the label position(s)
 
-    if ((x >= 0) && (x < (axisWidth + 1)))
-      trackAreaLabelPos(iteg, x, lopx, hipx, elevInfoMap);
+    if ((cs.x >= 0) && (cs.x < (axisWidth + 1)))
+      trackAreaLabelPos(iteg, cs.x, cs.lopx, cs.hipx, elevInfoMap);
 
-#define STEPSS
-
-#ifdef STEPS
-    std::string cs(" " + Fmi::date_time::to_iso_string(vt));
-    if (iteg->topConnected())
-      cs = " top";
-    if (iteg->bottomConnected())
-      cs += " bot";
-    cs += (" sz=" + Fmi::to_string(eGrp.size()));
-#endif
-
-    if (phase == fst)
+    if (cs.phase == lst)
     {
-// First hi range point
-//
-// If time instant of the first "ground" (zeroTolerance) elevation is not forecast's first
-// time instant, connect hi range point to 0 at the previous time instant
-//
-#ifdef STEPS
-      fprintf(stderr, "**** fst hi=%.0f %s\n", hi, cs.c_str());
-#endif
-      if (ground && (vt > bt))
+      if (cs.single)
       {
-        addCurvePosition(curvePositions,
-                         curvePositions0,
-                         x - xStep,
-                         axisManager->axisHeight(),
-                         axisManager->axisHeight());
-        single = false;
-      }
-
-      addCurvePosition(curvePositions, curvePositions0, x, hipx, hipx0, xOffset, yOffset);
-      iteg->topConnected(true);
-
-      if (options.debug)
-      {
-        if (ground && (vt > bt))
-          path << "M" << (x - xStep) << "," << axisManager->axisHeight() << " L" << x << ","
-               << hipx;
-        else
-          path << "M" << x << "," << hipx;
-      }
-
-      phase = fwd;
-    }
-    else if (phase == fwd)
-    {
-// Move forward thru intermediate point connecting to next elevation's hi range point
-//
-#ifdef STEPS
-      fprintf(stderr, ">>>> fwd hi=%.0f %s\n", hi, cs.c_str());
-#endif
-      double ipx = ((hipx < phipx) ? hipx : phipx) + (fabs(hipx - phipx) / 2);
-      double ipx0 = ((hipx0 < phipx0) ? hipx0 : phipx0) + (fabs(hipx0 - phipx0) / 2);
-
-      addCurvePosition(curvePositions, curvePositions0, x - (xStep / 2), ipx, ipx0);
-      addCurvePosition(curvePositions, curvePositions0, x, hipx, hipx0, xOffset);
-      iteg->topConnected(true);
-
-      if (options.debug)
-        path << " L" << x << "," << hipx;
-    }
-    else if (phase == vup)
-    {
-// Move up connecting to upper elevation's lo range point.
-//
-// Generate intermediate point half timestep forwards
-//
-#ifdef STEPS
-      fprintf(stderr, ">>>> vup lo=%.0f %s\n", lo, cs.c_str());
-#endif
-      addCurvePosition(curvePositions,
-                       curvePositions0,
-                       x + (xStep / 2),
-                       phipx - ((phipx - lopx) / 2),
-                       phipx0 - ((phipx0 - lopx0) / 2));
-      addCurvePosition(curvePositions, curvePositions0, x, lopx, lopx0);
-      iteg->bottomConnected(true);
-
-      if (options.debug)
-        path << " L" << x << "," << lopx;
-
-      phase = bwd;
-    }
-    else if (phase == vdn)
-    {
-// Move down connecting to lower elevation's hi range point
-//
-// Generate intermediate point half timestep backwards
-//
-#ifdef STEPS
-      fprintf(stderr, ">>>> vdn hi=%.0f %s\n", hi, cs.c_str());
-#endif
-      addCurvePosition(curvePositions,
-                       curvePositions0,
-                       x - (xStep / 2),
-                       hipx - ((hipx - plopx) / 2),
-                       hipx0 - ((hipx0 - plopx0) / 2));
-      addCurvePosition(curvePositions, curvePositions0, x, hipx, hipx0);
-      iteg->topConnected(true);
-
-      if (options.debug)
-        path << " L" << x << "," << hipx;
-
-      phase = fwd;
-    }
-    else if (phase == eup)
-    {
-// Move up connecting "nonground" (or non ZeroTolorence) elevation's lo range point to hi range
-// point
-//
-// Note: ZeroTolorence "ground" elevation's hi range point can be connected to 0 at previous/next
-// time instant
-//
-#ifdef STEPS
-      fprintf(stderr, ">>>> eup hi=%.0f %s\n", hi, cs.c_str());
-#endif
-      // The curve turns up, smoothen the corner
-      smoothenCurve(curvePositions, x, lopx, lopx - hipx, -xOffset, -yOffset);
-
-      if (&curvePositions != &curvePositions0)
-        smoothenCurve(curvePositions0, x, lopx0, lopx0 - hipx0, -xOffset, -yOffset);
-
-      if ((!ground) || (vt == bt) || (!(iteg->topConnected())))
-      {
-        // Limit the extent of the left side of first time instant
-        //
-        double offset = (((vt == bt) && (vOffset > sOffset)) ? sOffset : vOffset);
-
-        addCurvePosition(curvePositions,
-                         curvePositions0,
-                         x - offset,
-                         lopx - ((lopx - hipx) / 2),
-                         lopx0 - ((lopx0 - hipx0) / 2));
-        addCurvePosition(
-            curvePositions, curvePositions0, x, hipx, hipx0, xOffset, 0.0, iteg->topConnected());
-
-        if (options.debug)
-          path << (((vt != bt) && (vt != et)) ? " L" : " M") << x << "," << hipx;
-      }
-
-      if (iteg->topConnected())
-        // Path is now closed
-        //
-        break;
-
-      iteg->topConnected(true);
-
-      phase = fwd;
-    }
-    else if (phase == edn)
-    {
-// Move down connecting elevation's hi range point to lo range point
-//
-// If time instant of the last "ground" (zeroTolerance) elevation in the group is not forecast's
-// last
-// time instant, use 0 at the next time instant as intermediate point
-//
-#ifdef STEPS
-      fprintf(stderr, ">>>> edn lo=%.0f %s\n", lo, cs.c_str());
-#endif
-      // The curve turns down, smoothen the corner
-      smoothenCurve(curvePositions, x, hipx, lopx - hipx, xOffset, yOffset);
-
-      if (&curvePositions != &curvePositions0)
-        smoothenCurve(curvePositions0, x, hipx0, lopx0 - hipx0, xOffset, yOffset);
-
-      if (ground && (vt < et))
-      {
-        addCurvePosition(curvePositions,
-                         curvePositions0,
-                         x + xStep,
-                         axisManager->axisHeight(),
-                         axisManager->axisHeight());
-        single = false;
-      }
-      else
-      {
-        // Limit the extent of the right side of last time instant.
-        //
-        double offset = (((vt == et) && (vOffset > eOffset)) ? eOffset : vOffset);
-
-        addCurvePosition(curvePositions,
-                         curvePositions0,
-                         x + offset,
-                         lopx - ((lopx - hipx) / 2),
-                         lopx0 - ((lopx0 - hipx0) / 2));
-      }
-
-      addCurvePosition(curvePositions, curvePositions0, x, lopx, lopx0, -xOffset);
-      iteg->bottomConnected(true);
-
-      if (options.debug)
-      {
-        if (ground && (vt < et))
-          path << " L" << (x + xStep) << "," << axisManager->axisHeight();
-
-        path << (((vt != bt) && (vt != et)) ? " L" : " M") << x << "," << lopx;
-      }
-
-      pphase = phase;
-      phase = bwd;
-    }
-    else if (phase == bwd)
-    {
-// Move backward thru intermediate point connecting to previous elevation's lo range point
-//
-#ifdef STEPS
-      fprintf(stderr, ">>>> bwd lo=%.0f %s\n", lo, cs.c_str());
-#endif
-      if (smoothen)
-      {
-        // The curve turns backwards, smoothen the corner
-        //
-        smoothenCurve(curvePositions, x + xStep, plopx, plopx - phipx, -xOffset, -yOffset, true);
-
-        if (&curvePositions != &curvePositions0)
-          smoothenCurve(
-              curvePositions0, x + xStep, plopx0, plopx0 - phipx0, -xOffset, -yOffset, true);
-      }
-
-      double ipx = ((lopx < plopx) ? lopx : plopx) + (fabs(lopx - plopx) / 2);
-      double ipx0 = ((lopx0 < plopx0) ? lopx0 : plopx0) + (fabs(lopx0 - plopx0) / 2);
-
-      addCurvePosition(curvePositions, curvePositions0, x + (xStep / 2), ipx, ipx0);
-      addCurvePosition(curvePositions, curvePositions0, x, lopx, lopx0, -xOffset);
-      iteg->bottomConnected(true);
-
-      if (options.debug)
-        path << " L" << x << "," << lopx;
-    }
-    else
-    {  // lst
-      if (single)
-      {
-        // Bounding box for single elevation. Limit the extent of the left side
-        // of first time instant and of the right side of last time instant.
-        //
-        // Note: Using the center of the top edge as starting point to get symmetrical (ends to the)
-        // result curve
-        //
-        double leftSide = x - (((vt == bt) && (vSOffset > sOffset)) ? sOffset : vSOffset) + 1;
-        double rightSide = x + (((vt == et) && (vSOffset > eOffset)) ? eOffset : vSOffset) - 1;
-
-        if (options.debug)
-        {
-          path.clear();
-          path.str("");
-
-          path << "M" << leftSide << "," << hipx << " L" << rightSide << "," << hipx << " L"
-               << rightSide << "," << lopx << " L" << leftSide << "," << lopx << " L" << leftSide
-               << "," << hipx;
-        }
-
-        curvePositions.clear();
-        curvePositions0.clear();
-
-        addCurvePosition(curvePositions, curvePositions0, x, hipx, hipx0);
-        addCurvePosition(curvePositions, curvePositions0, rightSide, hipx, hipx0, 1);
-        addCurvePosition(curvePositions,
-                         curvePositions0,
-                         rightSide + ((vSSOffset < 0.0) ? 0.0 : vSSOffset),
-                         lopx - ((lopx - hipx) / 2),
-                         lopx0 - ((lopx0 - hipx0) / 2));
-        addCurvePosition(curvePositions, curvePositions0, rightSide, lopx, lopx0, -1);
-        addCurvePosition(curvePositions, curvePositions0, leftSide, lopx, lopx0, -1);
-        addCurvePosition(curvePositions,
-                         curvePositions0,
-                         leftSide - ((vSSOffset < 0.0) ? 0.0 : vSSOffset),
-                         lopx - ((lopx - hipx) / 2),
-                         lopx0 - ((lopx0 - hipx0) / 2));
-        addCurvePosition(curvePositions, curvePositions0, leftSide, hipx, hipx0, 1);
-        addCurvePosition(curvePositions, curvePositions0, x, hipx, hipx0);
-
+        curveSingle(cs);
         break;
       }
 
       // Close the path
       //
-      phase = eup;
+      cs.phase = eup;
 
       continue;
     }
 
-    smoothen = false;
+    if (curvePhasePositions(iteg, cs))
+      break;
 
-    if (phase == fwd)
-      phase = uprightdown(eGrp, iteg, lo, hi, nonGndFwd2Gnd);
+    cs.smoothen = false;
+
+    if (cs.phase == fwd)
+      cs.phase = uprightdown(eGrp, iteg, lo, hi, nonGndFwd2Gnd);
     else
-      phase = downleftup(eGrp, iteg, lo, hi, nonGndVdn2Gnd);
+      cs.phase = downleftup(eGrp, iteg, lo, hi, nonGndVdn2Gnd);
 
-    if ((phase == fwd) || (phase == bwd))
+    if ((cs.phase == fwd) || (cs.phase == bwd))
     {
       // Path covers multiple time instants
       //
-      single = false;
+      cs.single = false;
 
       // Check for backwards turn to smoothen the curve edge
-      smoothen = ((pphase == edn) && (phase == bwd));
+      cs.smoothen = ((cs.pphase == edn) && (cs.phase == bwd));
 
-      pphase = phase;
+      cs.pphase = cs.phase;
     }
   }  // for iteg
 
@@ -8067,32 +8261,23 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
 
   selectAreaLabelPosElevations(elevInfoMap, scaledLo, scaledHi, hasHole);
 
-  if (!single)
+  if (!cs.single)
   {
     // Use the second last curve position - in the middle of the left side of the starting / top
     // left elevation - as
     // the starting position to eliminate the "starting n�kk�nen" effect
     //
-    curvePositions[0] = curvePositions[curvePositions.size() - 2];
-    curvePositions.pop_back();
+    useCurveStartPosition(curvePositions);
 
     if (&curvePositions != &curvePositions0)
-    {
-      curvePositions0[0] = curvePositions0[curvePositions0.size() - 2];
-      curvePositions0.pop_back();
-    }
+      useCurveStartPosition(curvePositions0);
   }
 
   // Remove group's elevations from the collection
 
-  for (iteg = egbeg; (iteg != eGrp.end()); iteg++)
-    if ((!(iteg->isGenerated())) && iteg->topConnected() && iteg->bottomConnected())
-    {
-      iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
-      iteg->isDeleted(true);
-    }
+  removeCurveElevations(eGrp);
 
-  return single;
+  return cs.single;
 }
 
 namespace
