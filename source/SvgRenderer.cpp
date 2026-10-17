@@ -1426,6 +1426,115 @@ NFmiFillRect getCenterFillAreaRect(NFmiFillAreas& areas, double width, double sc
   return *iArea;
 }
 
+// Check if the word fits to the line; if not, try cutting it to first comma, period, hyphen
+// or slash
+bool fitWord(cairo_t* cr,
+             const std::string& line,
+             std::string& word,
+             unsigned int maxWidth,
+             size_t& pos,
+             cairo_text_extents_t& extents)
+{
+  cairo_text_extents(cr, (line + word).c_str(), &extents);
+
+  if (ceil(extents.width) < maxWidth)
+    return true;
+
+  // Goes too wide, try cutting to first comma, period, hyphen or slash
+  //
+  pos = word.find_first_of(",.-/");
+
+  if (pos == std::string::npos)
+    return false;
+
+  std::string cutted = word.substr(0, pos + 1);
+  cairo_text_extents(cr, (line + cutted).c_str(), &extents);
+
+  if (ceil(extents.width) >= maxWidth)
+    return false;
+
+  word = cutted;
+  return true;
+}
+
+// Split a too wide text line to lines shorter than given max. width
+void splitTextLine(cairo_t* cr,
+                   const std::string& inputLine,
+                   unsigned int maxWidth,
+                   std::list<std::string>& outputLines,
+                   unsigned int& maxLineWidth)
+{
+  cairo_text_extents_t extents;
+  std::string line;
+  std::string word;
+  unsigned int lineWidth = 0;
+
+  std::vector<std::string> words;
+  boost::split(words, inputLine, boost::is_any_of(" \t"));
+
+  size_t w = 0;
+  size_t linewc = 0;
+  size_t textwc = words.size();
+  size_t pos = std::string::npos;
+  bool fits = false;
+
+  for (w = 0; (w < textwc);)
+  {
+    // Next word.
+    // Add a space in front of it if not the first word of the line
+    //
+    word = std::string((linewc > 0) ? " " : "") + words[w];
+
+    fits = fitWord(cr, line, word, maxWidth, pos, extents);
+
+    if (fits)
+    {
+      line += word;
+      linewc++;
+      lineWidth = static_cast<unsigned int>(ceil(extents.width));
+
+      if (pos == std::string::npos)
+      {
+        // Word was not cutted; next word
+        //
+        w++;
+
+        if (w < textwc)
+          continue;
+      }
+      else
+        // Cutted; the rest of the word goes to the next line
+        //
+        words[w].erase(0, pos);
+    }
+    else if (linewc == 0)
+    {
+      // A single word exceeding the max line width
+      //
+      lineWidth = static_cast<unsigned int>(ceil(extents.width));
+      w++;
+    }
+
+    // Maximum line width or end of line reached
+
+    outputLines.push_back((linewc == 0) ? word : line);
+
+    maxLineWidth = std::max(lineWidth, maxLineWidth);
+
+    line.clear();
+    linewc = 0;
+
+    pos = std::string::npos;
+
+    //			if ((maxHeight > 0) && (maxHeight < ((outputLines.size() *
+    //(maxLineHeight + 2)) - 2)))
+    //				// Max height exceeded; decrement font size (downto half of
+    // the given size) and regenerate the text
+    //				;
+
+  }  // for word
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Utility function for splitting text into lines using given
@@ -1470,8 +1579,6 @@ bool getTextLines(const std::string& text,              // Text to split
   size_t textlc = inputLines.size();
 
   cairo_text_extents_t extents;
-  std::string line;
-  std::string word;
 
   // for regenerate with smaller fontsize {
   //
@@ -1501,86 +1608,7 @@ bool getTextLines(const std::string& text,              // Text to split
       continue;
     }
 
-    std::vector<std::string> words;
-    boost::split(words, inputLines[l], boost::is_any_of(" \t"));
-
-    size_t w = 0;
-    size_t linewc = 0;
-    size_t textwc = words.size();
-    size_t pos = std::string::npos;
-    bool fits = false;
-
-    for (w = 0; (w < textwc);)
-    {
-      // Next word.
-      // Add a space in front of it if not the first word of the line
-      //
-      word = std::string((linewc > 0) ? " " : "") + words[w];
-
-      cairo_text_extents(cr, (line + word).c_str(), &extents);
-
-      if (!(fits = (ceil(extents.width) < maxWidth)))
-      {
-        // Goes too wide, try cutting to first comma, period, hyphen or slash
-        //
-        pos = word.find_first_of(",.-/");
-
-        if (pos != std::string::npos)
-        {
-          std::string cutted = word.substr(0, pos + 1);
-          cairo_text_extents(cr, (line + cutted).c_str(), &extents);
-
-          if ((fits = (ceil(extents.width) < maxWidth)))
-            word = cutted;
-        }
-      }
-
-      if (fits)
-      {
-        line += word;
-        linewc++;
-        lineWidth = static_cast<unsigned int>(ceil(extents.width));
-
-        if (pos == std::string::npos)
-        {
-          // Word was not cutted; next word
-          //
-          w++;
-
-          if (w < textwc)
-            continue;
-        }
-        else
-          // Cutted; the rest of the word goes to the next line
-          //
-          words[w].erase(0, pos);
-      }
-      else if (linewc == 0)
-      {
-        // A single word exceeding the max line width
-        //
-        lineWidth = static_cast<unsigned int>(ceil(extents.width));
-        w++;
-      }
-
-      // Maximum line width or end of line reached
-
-      outputLines.push_back((linewc == 0) ? word : line);
-
-      maxLineWidth = std::max(lineWidth, maxLineWidth);
-
-      line.clear();
-      linewc = 0;
-
-      pos = std::string::npos;
-
-      //			if ((maxHeight > 0) && (maxHeight < ((outputLines.size() *
-      //(maxLineHeight + 2)) - 2)))
-      //				// Max height exceeded; decrement font size (downto half of
-      // the given size) and regenerate the text
-      //				;
-
-    }  // for word
+    splitTextLine(cr, inputLines[l], maxWidth, outputLines, maxLineWidth);
   }  // for line
 
   textHeight = ((outputLines.size() * (maxLineHeight + 2)) - 2);
