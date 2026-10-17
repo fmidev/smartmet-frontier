@@ -16,6 +16,7 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/regex.hpp>
 #include <fmt/format.h>
+#include <fmt/printf.h>
 #include <geos/geom/GeometryFactory.h>
 #include <gis/CoordinateMatrix.h>
 #include <macgyver/StringConversion.h>
@@ -3545,8 +3546,8 @@ std::string getFolderAndSymbol(const libconfig::Config& /*config*/,
 // Sign/zero type ("neg", "pos" or "zero") of the formatted value
 std::string formattedValueType(const std::string& pref, double value, const double* scale)
 {
-  std::string valStr = boost::algorithm::trim_copy(
-      fmt::format(fmt::runtime(pref), (scale ? (value / *scale) : value), value));
+  std::string valStr =
+      boost::algorithm::trim_copy(fmt::sprintf(pref, (scale ? (value / *scale) : value), value));
   const char* p = valStr.c_str();
 
   if (*p == '-')
@@ -3620,10 +3621,9 @@ std::string formattedRange(const woml::NumericalSingleValueMeasure* lowerLimit,
   }
 
   if (scale)
-    return fmt::format(
-        fmt::runtime(pref), (v1->numericValue() / *scale), (v2->numericValue() / *scale));
+    return fmt::sprintf(pref, (v1->numericValue() / *scale), (v2->numericValue() / *scale));
 
-  return fmt::format(fmt::runtime(pref), v1->numericValue(), v2->numericValue());
+  return fmt::sprintf(pref, v1->numericValue(), v2->numericValue());
 }
 
 // ----------------------------------------------------------------------
@@ -3661,8 +3661,8 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure* lowerLimit,
                            true);
 
     return svgescapetext(
-        fmt::format(fmt::runtime(pref),
-                    (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue())),
+        fmt::sprintf(pref,
+                     (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue())),
         true);
   }
   catch (std::exception& ex)
