@@ -705,14 +705,14 @@ void SvgRenderer::render_timeAxis(const Fmi::TimePeriod& theTimePeriod)
                                   << (axisHeight - y) << "\"/>\n";
       }
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
       // No settings for confPath
       //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
-    throw ex;
+    throw;
   }
 }
 
@@ -3832,7 +3832,7 @@ void SvgRenderer::render_aerodromeSymbol(const std::string& confPath,
 
     throw std::runtime_error("Setting for " + confPath + ".code_" + value + " not found");
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
     {
@@ -3846,7 +3846,7 @@ void SvgRenderer::render_aerodromeSymbol(const std::string& confPath,
       throw std::runtime_error("Settings for " + confPath + " are missing");
     }
 
-    throw ex;
+    throw;
   }
 }
 
@@ -4129,14 +4129,14 @@ void SvgRenderer::render_aerodromeSymbols(const T& theFeature,
     if (!ground)
       render_featureVisibility(FEATURE, classDef, visible, aboveTop);
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
       // No settings for confPath
       //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
-    throw ex;
+    throw;
   }
 }
 
@@ -5575,14 +5575,14 @@ const libconfig::Setting& SvgRenderer::cloudLayerConfig(const std::string& _conf
 
     return specs;
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
       // No settings for confPath
       //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
-    throw ex;
+    throw;
   }
 }
 
@@ -10344,14 +10344,14 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
 
     return;
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
       // No settings for confPath
       //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
-    throw ex;
+    throw;
   }
 }
 
@@ -10528,14 +10528,14 @@ const libconfig::Setting& SvgRenderer::groupConfig(const std::string& groupConfP
 
     return specs;
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
       // No settings for confPath
       //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
-    throw ex;
+    throw;
   }
 }
 
@@ -11461,14 +11461,14 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
 
     return;
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
       // No settings for confPath
       //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
-    throw ex;
+    throw;
   }
 
   if (options.debug)
@@ -12073,14 +12073,14 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
 
     return;
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
       // No settings for confPath
       //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
-    throw ex;
+    throw;
   }
 }
 
@@ -12684,14 +12684,14 @@ AxisManager::AxisManager(const libconfig::Config& config)
 
     sortElevations(confPath);
   }
-  catch (libconfig::ConfigException& ex)
+  catch (libconfig::ConfigException&)
   {
     if (!config.exists(confPath))
       // No settings for confPath
       //
       throw std::runtime_error("Settings for " + confPath + " are missing");
 
-    throw ex;
+    throw;
   }
 }
 
