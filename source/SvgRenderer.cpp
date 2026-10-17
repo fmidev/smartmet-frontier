@@ -694,6 +694,115 @@ void SvgRenderer::render_timeAxis(const Fmi::TimePeriod& theTimePeriod)
   }
 }
 
+namespace
+{
+// Whether the header settings block has a matching name; global blocks have no name
+bool headerNameMatch(const libconfig::Setting& specs,
+                     const std::string& confPath,
+                     const std::string& hdrClass,
+                     settings s_name,
+                     bool& noName)
+{
+  try
+  {
+    noName = false;
+    return (lookup<std::string>(specs, confPath, "name", s_name) == hdrClass);
+  }
+  catch (SettingIdNotFoundException&)
+  {
+    // Global settings have no name; go on to check locale
+    //
+    noName = true;
+    return false;
+  }
+}
+
+// Add a matching or global header settings block to the scope; returns true if the
+// search should continue with the next block
+bool addHeaderScope(const libconfig::Setting& specs,
+                    const std::string& hdrClass,
+                    const std::string& theLocale,
+                    bool nameMatch,
+                    bool noName,
+                    bool notLast,
+                    std::list<const libconfig::Setting*>& scope,
+                    bool& hasLocaleGlobals)
+{
+  // Locale
+  //
+  std::string locale(
+      toLower(configValue<std::string>(specs, hdrClass, "locale", nullptr, s_optional)));
+  bool localeMatch = (locale == theLocale);
+
+  if (localeMatch || (locale.empty()))
+  {
+    scope.push_back(&specs);
+
+    // Currently no locale settings are required
+    //
+    //						if ((nameMatch && (locale == "")) || (noName
+    //&&
+    // localeMatch))
+    if ((nameMatch && (locale.empty())) || (noName /* && localeMatch */))
+      hasLocaleGlobals = true;
+  }
+
+  // Currently no locale settings are required
+  //
+  //					if ((noName || (!localeMatch)) && ((i < lastIdx) ||
+  //(!hasLocaleGlobals)))
+  return ((noName || ((!localeMatch) && (!locale.empty()))) && (notLast || (!hasLocaleGlobals)));
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render the picture header datetime using the collected settings
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_headerDatetime(std::list<const libconfig::Setting*>& scope,
+                                        const std::string& hdrClass,
+                                        const Fmi::DateTime& datetime,
+                                        bool useDate,
+                                        const std::string& confPath)
+{
+  const char* hdrtypeMsg = ": type must be 'datetime'";
+
+  // Type (currently only datetime supported)
+  auto type = configValue<std::string>(scope, hdrClass, "type", s_optional);
+
+  if (!type.empty() && (type != "datetime"))
+    throw std::runtime_error(confPath + ": '" + type + "'" + hdrtypeMsg);
+
+  // NFmiTime language and format
+  //
+  FmiLanguage language = locale2FmiLanguage(confPath, options.locale);
+  std::string pref(configValue<std::string>(scope, hdrClass, "pref"));
+  std::string prefDate;
+  std::string& format = pref;
+
+  if (useDate)
+  {
+    prefDate = configValue<std::string>(scope, hdrClass, "prefdate", s_optional);
+
+    if (!prefDate.empty())
+      format = prefDate;
+  }
+
+  // utc
+  bool isSet = false;
+  bool utc(configValue<bool>(scope, hdrClass, "utc", s_optional, &isSet));
+
+  // Store formatted datum
+  texts["HEADER" + hdrClass]
+      << (datetime.is_not_a_date_time()
+              ? ""
+              : svgescapetext(toFormattedString(datetime, format, isSet && utc, language).CharPtr(),
+                              true));
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Picture header rendering
@@ -719,7 +828,6 @@ void SvgRenderer::render_header(const std::string& hdrClass,
     }
 
     const char* typeMsg = " must contain a list of groups in parenthesis";
-    const char* hdrtypeMsg = ": type must be 'datetime'";
 
     const libconfig::Setting& hdrSpecs = config.lookup(confPath);
     if (!hdrSpecs.isList())
@@ -754,93 +862,32 @@ void SvgRenderer::render_header(const std::string& hdrClass,
       if (!specs.isGroup())
         throw std::runtime_error(confPath + typeMsg);
 
-      try
-      {
-        noName = false;
-        nameMatch = (lookup<std::string>(specs, confPath, "name", s_name) == hdrClass);
-      }
-      catch (SettingIdNotFoundException&)
-      {
-        // Global settings have no name; go on to check locale
-        //
-        noName = true;
-        nameMatch = false;
-      }
+      nameMatch = headerNameMatch(specs, confPath, hdrClass, s_name, noName);
 
       // Enter the block on matching name, and for globals and last config entry
       // to load/use the globals
       //
-      if (nameMatch || noName || ((i == lastIdx) && hasLocaleGlobals))
+      if (!(nameMatch || noName || ((i == lastIdx) && hasLocaleGlobals)))
+        continue;
+
+      if (nameMatch || noName)
       {
-        if (nameMatch || noName)
-        {
-          if (nameMatch)
-            hdrIdx = i;
+        if (nameMatch)
+          hdrIdx = i;
 
-          // Locale
-          //
-          std::string locale(
-              toLower(configValue<std::string>(specs, hdrClass, "locale", nullptr, s_optional)));
-          bool localeMatch = (locale == options.locale);
+        if (addHeaderScope(specs,
+                           hdrClass,
+                           options.locale,
+                           nameMatch,
+                           noName,
+                           (i < lastIdx),
+                           scope,
+                           hasLocaleGlobals))
+          continue;
+      }
 
-          if (localeMatch || (locale.empty()))
-          {
-            scope.push_back(&specs);
-
-            // Currently no locale settings are required
-            //
-            //						if ((nameMatch && (locale == "")) || (noName
-            //&&
-            // localeMatch))
-            if ((nameMatch && (locale.empty())) || (noName /* && localeMatch */))
-              hasLocaleGlobals = true;
-          }
-
-          // Currently no locale settings are required
-          //
-          //					if ((noName || (!localeMatch)) && ((i < lastIdx) ||
-          //(!hasLocaleGlobals)))
-          if ((noName || ((!localeMatch) && (!locale.empty()))) &&
-              ((i < lastIdx) || (!hasLocaleGlobals)))
-            continue;
-        }
-
-        // Type (currently only datetime supported)
-        auto type = configValue<std::string>(scope, hdrClass, "type", s_optional);
-
-        if (type.empty() || (type == "datetime"))
-        {
-          // NFmiTime language and format
-          //
-          FmiLanguage language = locale2FmiLanguage(confPath, options.locale);
-          std::string pref(configValue<std::string>(scope, hdrClass, "pref"));
-          std::string prefDate;
-          std::string& format = pref;
-
-          if (useDate)
-          {
-            prefDate = configValue<std::string>(scope, hdrClass, "prefdate", s_optional);
-
-            if (!prefDate.empty())
-              format = prefDate;
-          }
-
-          // utc
-          bool isSet = false;
-          bool utc(configValue<bool>(scope, hdrClass, "utc", s_optional, &isSet));
-
-          // Store formatted datum
-          texts[HEADERhdrClass]
-              << (datetime.is_not_a_date_time()
-                      ? ""
-                      : svgescapetext(
-                            toFormattedString(datetime, format, isSet && utc, language).CharPtr(),
-                            true));
-
-          return;
-        }
-        throw std::runtime_error(confPath + ": '" + type + "'" + hdrtypeMsg);
-      }  // if
+      render_headerDatetime(scope, hdrClass, datetime, useDate, confPath);
+      return;
     }  // for
 
     if (options.debug)

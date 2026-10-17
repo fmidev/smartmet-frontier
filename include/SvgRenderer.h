@@ -532,6 +532,11 @@ class SvgRenderer : public woml::FeatureVisitor
                      bool useDate = false,
                      const std::string& text = "",
                      const std::string& confPath = "Header");
+  void render_headerDatetime(std::list<const libconfig::Setting*>& scope,
+                             const std::string& hdrClass,
+                             const Fmi::DateTime& datetime,
+                             bool useDate,
+                             const std::string& confPath);
   void render_text(Texts& texts,
                    const std::string& confPath,
                    const std::string& textName,
