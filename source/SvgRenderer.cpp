@@ -11100,6 +11100,194 @@ void SvgRenderer::render_timeserie(const woml::ZeroTolerance& zerotolerance)
   }
 }
 
+namespace
+{
+// Value class, format, reference for background class, output placeholder and position offsets
+struct ValueSettings
+{
+  std::string classDef;
+  std::string pref;
+  std::string href;
+  std::string placeHolder;
+  int xoffset = 0;
+  int yoffset = 0;
+};
+
+// Get value settings from the parameter block (missing settings from globals when available)
+ValueSettings valueSettings(const libconfig::Setting& specs,
+                            const std::string& valClass,
+                            const std::string& vtype,
+                            libconfig::Setting* globalScope,
+                            bool asValue)
+{
+  ValueSettings vs;
+
+  // Class, format and reference for background class
+  //
+  vs.classDef = configValue<std::string>(specs, valClass, "class" + vtype, globalScope, s_optional);
+  if (vs.classDef.empty())
+    vs.classDef = (vtype.empty() ? valClass : (valClass + " " + valClass + vtype));
+
+  vs.pref = configValue<std::string>(specs, valClass, "pref" + vtype, globalScope, s_optional);
+  vs.href = configValue<std::string>(specs, valClass, "href" + vtype, globalScope, s_optional);
+
+  // Output placeholder; by default output to passed stream
+
+  vs.placeHolder = boost::algorithm::trim_copy(
+      configValue<std::string>(specs, valClass, "output", globalScope, s_optional));
+
+  // Offsets for placing the value (used for wind speed to position the value to the
+  // center or to the border
+  // of the wind symbol)
+
+  bool isSet = false;
+
+  if (asValue)
+  {
+    vs.xoffset = static_cast<int>(floor(
+        configValue<float, int>(specs, valClass, "vxoffset", globalScope, s_optional, &isSet)));
+    if (!isSet)
+      vs.xoffset = 0;
+
+    vs.yoffset = static_cast<int>(floor(
+        configValue<float, int>(specs, valClass, "vyoffset", globalScope, s_optional, &isSet)));
+    if (!isSet)
+      vs.yoffset = 0;
+  }
+
+  return vs;
+}
+
+// Override value settings with the settings of the matching condition
+void conditionValueSettings(const libconfig::Setting& condSpecs,
+                            const libconfig::Setting& specs,
+                            const std::string& valClass,
+                            const std::string& vtype,
+                            bool asValue,
+                            ValueSettings& vs)
+{
+  bool isSet = false;
+
+  // Class from the condition or from the parent/parameter block
+  //
+  vs.classDef = configValue<std::string>(condSpecs, valClass, "class", &specs);
+
+  auto cpref =
+      configValue<std::string>(condSpecs, valClass, "pref" + vtype, nullptr, s_optional, &isSet);
+  if (isSet)
+    vs.pref = cpref;
+
+  auto chref =
+      configValue<std::string>(condSpecs, valClass, "href" + vtype, nullptr, s_optional, &isSet);
+  if (isSet)
+    vs.href = chref;
+
+  auto ph = configValue<std::string>(condSpecs, valClass, "output", nullptr, s_optional, &isSet);
+  if (isSet)
+    vs.placeHolder = ph;
+
+  if (asValue)
+  {
+    int cxoffset = 0;
+    int cyoffset = 0;
+
+    cxoffset = static_cast<int>(floor(
+        configValue<float, int>(condSpecs, valClass, "vxoffset", nullptr, s_optional, &isSet)));
+    if (isSet)
+      vs.xoffset = cxoffset;
+
+    cyoffset = static_cast<int>(floor(
+        configValue<float, int>(condSpecs, valClass, "vyoffset", nullptr, s_optional, &isSet)));
+    if (isSet)
+      vs.yoffset = cyoffset;
+  }
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render value using the matching parameter block
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_valueBlock(const std::string& confPath,
+                                    std::ostringstream& valOutput,
+                                    const std::string& valClass,
+                                    const woml::NumericalSingleValueMeasure* lowerLimit,
+                                    const woml::NumericalSingleValueMeasure* upperLimit,
+                                    double lon,
+                                    double lat,
+                                    bool asValue,
+                                    const libconfig::Setting& specs,
+                                    int specsIdx,
+                                    libconfig::Setting* globalScope)
+{
+  const char* valtypeMsg = ": type must be 'value' or 'svg'";
+
+  // Value type; value (the default) or svg.
+  //
+  // Note: When rendering (wind symbol with) wind speed asValue is true; block's 'type'
+  // setting
+  // (for the symbol; svg) is ignored
+  std::string type =
+      (asValue ? "value"
+               : configValue<std::string>(specs, valClass, "type", globalScope, s_optional));
+
+  if (type == "svg")
+  {
+    throw std::runtime_error(confPath + " type 'svg' not implemented yet");
+  }
+
+  if ((!type.empty()) && (type != "value"))
+    throw std::runtime_error(confPath + ": '" + type + "'" + valtypeMsg);
+
+  std::string vtype(upperLimit ? "Range" : "");
+
+  ValueSettings vs = valueSettings(specs, valClass, vtype, globalScope, asValue);
+
+  // For single value, search for matching condition with nearest comparison value
+
+  const libconfig::Setting* condSpecs =
+      (!upperLimit)
+          ? matchingCondition(config, confPath, valClass, "", specsIdx, lowerLimit->numericValue())
+          : nullptr;
+
+  if (condSpecs)
+    conditionValueSettings(*condSpecs, specs, valClass, vtype, asValue, vs);
+
+  // Wind speed is not rendered if format is empty (used to supress zero values)
+
+  if (asValue && vs.pref.empty())
+    return;
+
+  lon -= vs.xoffset;
+  lat += vs.yoffset;
+
+  std::ostringstream& values = (vs.placeHolder.empty() ? valOutput : texts[vs.placeHolder]);
+
+  values << "<g class=\"" << vs.classDef << "\">\n";
+
+  if (vs.href.empty())
+    values << "<text id=\"text" << Fmi::to_string(npointvalues) << R"(" text-anchor="middle" x=")"
+           << std::fixed << std::setprecision(1) << lon << "\" y=\"" << std::fixed
+           << std::setprecision(1) << lat << "\">"
+           << formattedValue(
+                  lowerLimit, upperLimit, confPath, vs.pref, nullptr, &specs, globalScope)
+           << "</text>\n";
+  else
+    values << "<g transform=\"translate(" << std::fixed << std::setprecision(1) << lon << " "
+           << std::fixed << std::setprecision(1) << lat << ")\">\n"
+           << "<use xlink:href=\"#" << vs.href << "\"/>\n"
+           << "<text id=\"text" << Fmi::to_string(npointvalues) << R"(" text-anchor="middle">)"
+           << formattedValue(
+                  lowerLimit, upperLimit, confPath, vs.pref, nullptr, &specs, globalScope)
+           << "</text>\n"
+           << "</g>\n";
+
+  values << "</g>\n";
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Value rendering
@@ -11124,7 +11312,6 @@ void SvgRenderer::render_value(const std::string& confPath,
   try
   {
     const char* typeMsg = " must contain a list of groups in parenthesis";
-    const char* valtypeMsg = ": type must be 'value' or 'svg'";
 
     const libconfig::Setting& valSpecs = config.lookup(confPath);
     if (!valSpecs.isList())
@@ -11143,149 +11330,26 @@ void SvgRenderer::render_value(const std::string& confPath,
 
       try
       {
-        if (lookup<std::string>(specs, confPath, "name", s_name) == valClass)
-        {
-          valIdx = i;
+        if (lookup<std::string>(specs, confPath, "name", s_name) != valClass)
+          continue;
 
-          // Missing settings from globals when available
-          libconfig::Setting* globalScope = ((globalsIdx >= 0) ? &valSpecs[globalsIdx] : nullptr);
+        valIdx = i;
 
-          // Value type; value (the default) or svg.
-          //
-          // Note: When rendering (wind symbol with) wind speed asValue is true; block's 'type'
-          // setting
-          // (for the symbol; svg) is ignored
-          std::string type = (asValue ? "value"
-                                      : configValue<std::string>(
-                                            specs, valClass, "type", globalScope, s_optional));
+        // Missing settings from globals when available
+        libconfig::Setting* globalScope = ((globalsIdx >= 0) ? &valSpecs[globalsIdx] : nullptr);
 
-          if (type.empty() || (type == "value"))
-          {
-            // Class, format and reference for background class
-            //
-            std::string vtype(upperLimit ? "Range" : "");
-
-            auto classDef(configValue<std::string>(
-                specs, valClass, "class" + vtype, globalScope, s_optional));
-            if (classDef.empty())
-              classDef = (vtype.empty() ? valClass : (valClass + " " + valClass + vtype));
-
-            auto pref(
-                configValue<std::string>(specs, valClass, "pref" + vtype, globalScope, s_optional));
-            auto href(
-                configValue<std::string>(specs, valClass, "href" + vtype, globalScope, s_optional));
-
-            // Output placeholder; by default output to passed stream
-
-            std::string placeHolder(boost::algorithm::trim_copy(
-                configValue<std::string>(specs, valClass, "output", globalScope, s_optional)));
-
-            // Offsets for placing the value (used for wind speed to position the value to the
-            // center or to the border
-            // of the wind symbol)
-
-            int xoffset = 0;
-            int yoffset = 0;
-            bool isSet = false;
-
-            if (asValue)
-            {
-              xoffset = static_cast<int>(floor(configValue<float, int>(
-                  specs, valClass, "vxoffset", globalScope, s_optional, &isSet)));
-              if (!isSet)
-                xoffset = 0;
-
-              yoffset = static_cast<int>(floor(configValue<float, int>(
-                  specs, valClass, "vyoffset", globalScope, s_optional, &isSet)));
-              if (!isSet)
-                yoffset = 0;
-            }
-
-            // For single value, search for matching condition with nearest comparison value
-
-            const libconfig::Setting* condSpecs =
-                (!upperLimit) ? matchingCondition(
-                                    config, confPath, valClass, "", i, lowerLimit->numericValue())
-                              : nullptr;
-
-            if (condSpecs)
-            {
-              // Class from the condition or from the parent/parameter block
-              //
-              classDef = configValue<std::string>(*condSpecs, valClass, "class", &specs);
-
-              auto cpref = configValue<std::string>(
-                  *condSpecs, valClass, "pref" + vtype, nullptr, s_optional, &isSet);
-              if (isSet)
-                pref = cpref;
-
-              auto chref = configValue<std::string>(
-                  *condSpecs, valClass, "href" + vtype, nullptr, s_optional, &isSet);
-              if (isSet)
-                href = chref;
-
-              auto ph = configValue<std::string>(
-                  *condSpecs, valClass, "output", nullptr, s_optional, &isSet);
-              if (isSet)
-                placeHolder = ph;
-
-              if (asValue)
-              {
-                int cxoffset = 0;
-                int cyoffset = 0;
-
-                cxoffset = static_cast<int>(floor(configValue<float, int>(
-                    *condSpecs, valClass, "vxoffset", nullptr, s_optional, &isSet)));
-                if (isSet)
-                  xoffset = cxoffset;
-
-                cyoffset = static_cast<int>(floor(configValue<float, int>(
-                    *condSpecs, valClass, "vyoffset", nullptr, s_optional, &isSet)));
-                if (isSet)
-                  yoffset = cyoffset;
-              }
-            }
-
-            // Wind speed is not rendered if format is empty (used to supress zero values)
-
-            if (asValue && pref.empty())
-              return;
-
-            lon -= xoffset;
-            lat += yoffset;
-
-            std::ostringstream& values = (placeHolder.empty() ? valOutput : texts[placeHolder]);
-
-            values << "<g class=\"" << classDef << "\">\n";
-
-            if (href.empty())
-              values << "<text id=\"text" << Fmi::to_string(npointvalues)
-                     << R"(" text-anchor="middle" x=")" << std::fixed << std::setprecision(1) << lon
-                     << "\" y=\"" << std::fixed << std::setprecision(1) << lat << "\">"
-                     << formattedValue(
-                            lowerLimit, upperLimit, confPath, pref, nullptr, &specs, globalScope)
-                     << "</text>\n";
-            else
-              values << "<g transform=\"translate(" << std::fixed << std::setprecision(1) << lon
-                     << " " << std::fixed << std::setprecision(1) << lat << ")\">\n"
-                     << "<use xlink:href=\"#" << href << "\"/>\n"
-                     << "<text id=\"text" << Fmi::to_string(npointvalues)
-                     << R"(" text-anchor="middle">)"
-                     << formattedValue(
-                            lowerLimit, upperLimit, confPath, pref, nullptr, &specs, globalScope)
-                     << "</text>\n"
-                     << "</g>\n";
-
-            values << "</g>\n";
-
-            return;
-          }
-          if (type == "svg")
-          {
-            throw std::runtime_error(confPath + " type 'svg' not implemented yet");
-          }
-          throw std::runtime_error(confPath + ": '" + type + "'" + valtypeMsg);
-        }
+        render_valueBlock(confPath,
+                          valOutput,
+                          valClass,
+                          lowerLimit,
+                          upperLimit,
+                          lon,
+                          lat,
+                          asValue,
+                          specs,
+                          i,
+                          globalScope);
+        return;
       }
       catch (SettingIdNotFoundException& ex)
       {

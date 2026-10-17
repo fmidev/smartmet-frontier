@@ -649,6 +649,17 @@ class SvgRenderer : public woml::FeatureVisitor
                      const std::list<std::string>* areaSymbols = nullptr,
                      int width = 0,
                      int height = 0);
+  void render_valueBlock(const std::string& confPath,
+                         std::ostringstream& valOutput,
+                         const std::string& valClass,
+                         const woml::NumericalSingleValueMeasure* lowerLimit,
+                         const woml::NumericalSingleValueMeasure* upperLimit,
+                         double lon,
+                         double lat,
+                         bool asValue,
+                         const libconfig::Setting& specs,
+                         int specsIdx,
+                         libconfig::Setting* globalScope);
   void render_value(const std::string& path,
                     std::ostringstream& valOutput,
                     const std::string& valClass,
