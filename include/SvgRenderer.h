@@ -537,6 +537,10 @@ class SvgRenderer : public woml::FeatureVisitor
                              const Fmi::DateTime& datetime,
                              bool useDate,
                              const std::string& confPath);
+  bool textScope(const libconfig::Setting& textSpecs,
+                 const std::string& confPath,
+                 const std::string& textName,
+                 std::list<const libconfig::Setting*>& scope);
   void render_text(Texts& texts,
                    const std::string& confPath,
                    const std::string& textName,

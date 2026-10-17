@@ -696,12 +696,12 @@ void SvgRenderer::render_timeAxis(const Fmi::TimePeriod& theTimePeriod)
 
 namespace
 {
-// Whether the header settings block has a matching name; global blocks have no name
-bool headerNameMatch(const libconfig::Setting& specs,
-                     const std::string& confPath,
-                     const std::string& hdrClass,
-                     settings s_name,
-                     bool& noName)
+// Whether the settings block has a matching name; global blocks have no name
+bool settingsNameMatch(const libconfig::Setting& specs,
+                       const std::string& confPath,
+                       const std::string& hdrClass,
+                       settings s_name,
+                       bool& noName)
 {
   try
   {
@@ -862,7 +862,7 @@ void SvgRenderer::render_header(const std::string& hdrClass,
       if (!specs.isGroup())
         throw std::runtime_error(confPath + typeMsg);
 
-      nameMatch = headerNameMatch(specs, confPath, hdrClass, s_name, noName);
+      nameMatch = settingsNameMatch(specs, confPath, hdrClass, s_name, noName);
 
       // Enter the block on matching name, and for globals and last config entry
       // to load/use the globals
@@ -1628,6 +1628,300 @@ bool getTextLines(const std::string& text,              // Text to split
 }
 }  // namespace
 
+namespace
+{
+// Text font, size and background settings
+struct TextStyle
+{
+  std::string font;
+  int fontSize = 0;
+  cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
+  std::string style;
+  cairo_font_weight_t weight = CAIRO_FONT_WEIGHT_NORMAL;
+  std::string weightName;
+  std::string stroke;
+  std::string fill;
+  unsigned int maxWidth = 0;
+  unsigned int maxHeight = 0;
+  unsigned int margin = 0;
+  int xOffset = 0;
+  int yOffset = 0;
+  std::string bStyle;
+  int bXOffset = 0;
+  int bYOffset = 0;
+};
+
+// Get text x/y offset. For area/symbol text (when tOffset is passed in as nonnull) the offset is
+// returned in tOffset unless already set
+int textOffset(std::list<const libconfig::Setting*>& scope,
+               const std::string& textName,
+               const char* name,
+               int* tOffset)
+{
+  bool isSet = false;
+  int offset = configValue<int>(scope, textName, name, s_optional, &isSet);
+  if ((!isSet) || tOffset)
+  {
+    if (isSet && (*tOffset == 0))
+      *tOffset = offset;
+
+    offset = 0;
+  }
+
+  return offset;
+}
+
+// Get text font, size and background settings
+TextStyle textStyle(std::list<const libconfig::Setting*>& scope,
+                    const std::string& textName,
+                    const std::string& confPath,
+                    const int* maxTextWidth,
+                    const int* fontSize,
+                    int* tXOffset,
+                    int* tYOffset)
+{
+  const char* styleMsg = ": slant must be 'normal', 'italic' or 'oblique'";
+  const char* weightMsg = ": weight must be 'normal' or 'bold'";
+
+  TextStyle st;
+
+  // Font name
+  st.font = configValue<std::string>(scope, textName, "font-family");
+
+  // Font size
+  st.fontSize = (fontSize && (*fontSize > 0))
+                    ? *fontSize
+                    : configValue<unsigned int>(scope, textName, "font-size");
+
+  // Font style
+  st.style = configValue<std::string>(scope, textName, "font-style", s_optional);
+
+  if (st.style == "italic")
+    st.slant = CAIRO_FONT_SLANT_ITALIC;
+  else if (st.style == "oblique")
+    st.slant = CAIRO_FONT_SLANT_OBLIQUE;
+  else if (!st.style.empty())
+    throw std::runtime_error(confPath + styleMsg);
+  else
+    st.style = "normal";
+
+  // Font weight
+  st.weightName = configValue<std::string>(scope, textName, "font-weight", s_optional);
+
+  if (st.weightName == "bold")
+    st.weight = CAIRO_FONT_WEIGHT_BOLD;
+  else if (!st.weightName.empty())
+    throw std::runtime_error(confPath + weightMsg);
+  else
+    st.weightName = "normal";
+
+  // Stroke and fill color
+  st.stroke = configValue<std::string>(scope, textName, "stroke", s_optional);
+  st.fill = configValue<std::string>(scope, textName, "fill", s_optional);
+
+  // Max width, height, x/y margin and x/y offsets
+  //
+  // For area/symbol text (when tXOffset and tYOffset are passed in as nonnull) the offsets
+  // are used later
+  // when setting the final text position.
+  //
+  // Note: If the passed offsets (or font size) are nonzero, they were set in the text and
+  // won't be overridden by config settings.
+  st.maxWidth = ((maxTextWidth && (*maxTextWidth > 0))
+                     ? *maxTextWidth
+                     : configValue<unsigned int>(scope, textName, "textwidth"));
+
+  bool isSet = false;
+  st.maxHeight = configValue<unsigned int>(scope, textName, "textheight", s_optional, &isSet);
+  if (!isSet)
+    st.maxHeight = 0;
+
+  st.margin = configValue<unsigned int>(scope, textName, "margin", s_optional, &isSet);
+  if (!isSet)
+    st.margin = 2;
+
+  st.maxWidth = std::max<unsigned int>(st.maxWidth, 20);
+  if ((st.maxHeight != 0) && (st.maxHeight <= 20))
+    st.maxHeight = 20;
+
+  st.xOffset = textOffset(scope, textName, "txoffset", tXOffset);
+  st.yOffset = textOffset(scope, textName, "tyoffset", tYOffset);
+
+  // Settings for background; style and x/y offsets for top left corner
+
+  st.bStyle = configValue<std::string>(scope, textName, "bstyle", s_optional);
+
+  st.bXOffset = configValue<int>(scope, textName, "bxoffset", s_optional, &isSet);
+  if (!isSet)
+    st.bXOffset = 0;
+
+  st.bYOffset = configValue<int>(scope, textName, "byoffset", s_optional, &isSet);
+  if (!isSet)
+    st.bYOffset = 0;
+
+  return st;
+}
+
+// Store the css class definition if not already stored
+void renderTextClass(std::ostringstream& textClassOutput,
+                     const std::string& textClass,
+                     const TextStyle& st)
+{
+  if (!textClassOutput.str().empty())
+    return;
+
+  textClassOutput << "." << textClass << " {\nfont-family: " << st.font
+                  << ";\nfont-size: " << st.fontSize << "px;\nfont-weight : " << st.weightName
+                  << ";\nfont-style : " << st.style;
+
+  if (!st.stroke.empty())
+    textClassOutput << ";\nstroke: " << st.stroke;
+  if (!st.fill.empty())
+    textClassOutput << ";\nfill: " << st.fill;
+
+  textClassOutput << ";\n}\n";
+}
+
+// Store the text lines; returns the y -coordinate of the last line
+int renderTextLines(Texts& texts,
+                    const std::string& TEXTtextName,
+                    const std::string& TEXTPOSid,
+                    const std::list<std::string>& textLines,
+                    const std::string& textClass,
+                    const TextStyle& st,
+                    unsigned int textWidth,
+                    unsigned int textHeight,
+                    unsigned int maxLineHeight,
+                    int x,
+                    int y)
+{
+  auto it = textLines.begin();
+
+  for (x += st.margin, y += st.margin; (it != textLines.end()); it++)
+  {
+    y += maxLineHeight;
+
+    if (it == textLines.begin())
+    {
+      if (!TEXTPOSid.empty())
+        // Set transformation data.
+        //
+        // Note: Scaling placeholder/value might not get set; unset placehoders will be
+        // removed prior output
+        //
+        texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--) --" << TEXTPOSid
+                            << "SCALE--\">\n";
+
+      if (!st.bStyle.empty())
+        // Set background
+        //
+        texts[TEXTtextName] << "<rect width=\"" << textWidth - (2 * st.bXOffset) << "\" height=\""
+                            << textHeight - (2 * st.bYOffset) << "\" x=\"" << st.bXOffset
+                            << "\" y=\"" << st.bYOffset << "\" style=\"" << st.bStyle << "\""
+                            << "/>";
+    }
+
+    texts[TEXTtextName] << "<text class=\"" << textClass << "\" x=\"" << x << "\" y=\"" << y
+                        << "\">" << svgescapetext(*it) << "</text>\n";
+  }
+
+  return y;
+}
+
+// Add a matching or global text settings block to the scope; returns true if the
+// search should continue with the next block
+bool addTextScope(const libconfig::Setting& specs,
+                  const std::string& theLocale,
+                  bool nameMatch,
+                  bool noName,
+                  bool notLast,
+                  std::list<const libconfig::Setting*>& scope,
+                  bool& hasLocaleGlobals)
+{
+  // Locale
+  //
+  // Currently locale settings are not used
+  //
+  std::string locale(
+      theLocale /*toLower(configValue<std::string>(specs,textName,"locale",nullptr,s_optional))*/);
+  bool localeMatch = (locale == theLocale);
+
+  if (localeMatch || (locale.empty()))
+  {
+    scope.push_back(&specs);
+
+    if ((nameMatch && (locale.empty())) || (noName && localeMatch))
+      hasLocaleGlobals = true;
+  }
+
+  return ((noName || (!localeMatch)) && (notLast || (!hasLocaleGlobals)));
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Collect the configuration blocks for a text. Returns true if
+ *        current block or locale global block was found.
+ *        In debug mode reports missing settings.
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::textScope(const libconfig::Setting& textSpecs,
+                            const std::string& confPath,
+                            const std::string& textName,
+                            std::list<const libconfig::Setting*>& scope)
+{
+  const char* typeMsg = " must contain a list of groups in parenthesis";
+  int textIdx = -1;
+
+  auto s_name((settings)(s_base + 0));
+
+  bool nameMatch = false;
+  bool noName = false;
+  bool hasLocaleGlobals = false;
+
+  int lastIdx = textSpecs.getLength() - 1;
+
+  for (int i = 0; i <= lastIdx; ++i)
+  {
+    const libconfig::Setting& specs = textSpecs[i];
+    if (!specs.isGroup())
+      throw std::runtime_error(confPath + typeMsg);
+
+    nameMatch = settingsNameMatch(specs, confPath, textName, s_name, noName);
+
+    // Enter the block on matching name, and for globals and last config entry
+    // to load/use the globals
+    //
+    if (!(nameMatch || noName || ((i == lastIdx) && hasLocaleGlobals)))
+      continue;
+
+    if (!(nameMatch || noName))
+      return true;
+
+    if (nameMatch)
+      textIdx = i;
+
+    if (addTextScope(
+            specs, options.locale, nameMatch, noName, (i < lastIdx), scope, hasLocaleGlobals))
+      continue;
+
+    return true;
+  }
+
+  if (options.debug)
+  {
+    // No (locale) settings for the text
+    //
+    const char* p = ((textIdx < 0) ? "Settings for " : "Locale specific settings for ");
+
+    debugoutput << p << textName << " not found\n";
+  }
+
+  return false;
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Text rendering
@@ -1653,8 +1947,6 @@ void SvgRenderer::render_text(Texts& texts,
   try
   {
     const char* typeMsg = " must contain a list of groups in parenthesis";
-    const char* styleMsg = ": slant must be 'normal', 'italic' or 'oblique'";
-    const char* weightMsg = ": weight must be 'normal' or 'bold'";
 
     // Note: 'textName' contains area/symbol type for area/symbol infotexts; using confPath to
     // generate fixed placeholder names.
@@ -1687,8 +1979,6 @@ void SvgRenderer::render_text(Texts& texts,
     if (!textSpecs.isList())
       throw std::runtime_error(confPath + typeMsg);
 
-    auto s_name((settings)(s_base + 0));
-
     // Configuration blocks to search values for the settings; global blocks (blocks with no name
     // and no locale),
     // locale global blocks (blocks with matching name but having no locale and blocks having no
@@ -1703,277 +1993,91 @@ void SvgRenderer::render_text(Texts& texts,
     // Note: Currently locale settings are not used.
 
     std::list<const libconfig::Setting*> scope;
-    bool nameMatch = false;
-    bool noName = false;
-    bool hasLocaleGlobals = false;
 
-    int textIdx = -1;
-    int lastIdx = textSpecs.getLength() - 1;
+    if (!textScope(textSpecs, confPath, textName, scope))
+      return;
 
-    for (int i = 0; i <= lastIdx; ++i)
+    try
     {
-      const libconfig::Setting& specs = textSpecs[i];
-      if (!specs.isGroup())
-        throw std::runtime_error(confPath + typeMsg);
+      TextStyle st =
+          textStyle(scope, textName, confPath, maxTextWidth, fontSize, tXOffset, tYOffset);
 
-      try
+      // Split the text into lines using given max. width and height
+
+      std::list<std::string> textLines;
+      unsigned int textWidth = 0;
+      unsigned int textHeight = 0;
+      unsigned int maxLineHeight = 0;
+
+      getTextLines(text,
+                   st.font,
+                   st.fontSize,
+                   st.slant,
+                   st.weight,
+                   st.maxWidth,
+                   st.maxHeight,
+                   textLines,
+                   textWidth,
+                   textHeight,
+                   maxLineHeight);
+
+      xPosW = (2 * st.margin) + textWidth;
+
+      // Store the css class definition
+      //
+      // Note: Generating css class for each area infotext; the settings can differ
+
+      std::string textClass("text" + ((TEXTPOSid.empty() || useTextName)
+                                          ? textName
+                                          : TEXTPOSid.substr(TEXTPOSid.find('_') + 1)));
+
+      renderTextClass(texts[TEXTCLASStextName], textClass, st);
+
+      int x = startX - st.xOffset - (centerToStartX ? ((textWidth / 2) + st.margin) : 0);
+      int y = startY + st.yOffset;
+
+      // Offset is decremented from last line's y -coordinate to get text's height
+
+      yPosH = -y;
+
+      if (setTextArea)
       {
-        noName = false;
-        nameMatch = (lookup<std::string>(specs, confPath, "name", s_name) == textName);
-      }
-      catch (SettingIdNotFoundException&)
-      {
-        // Global settings have no name; go on to check locale
+        // Store geometry for text border
         //
-        noName = true;
-        nameMatch = false;
+        texts[TEXTAREAtextName].str("");
+        texts[TEXTAREAtextName].clear();
+
+        texts[TEXTAREAtextName] << " x=\"" << x << "\" y=\"" << y << "\" width=\"" << xPosW;
       }
 
-      // Enter the block on matching name, and for globals and last config entry
-      // to load/use the globals
-      //
-      try
-      {
-        if (nameMatch || noName || ((i == lastIdx) && hasLocaleGlobals))
-        {
-          if (nameMatch || noName)
-          {
-            if (nameMatch)
-              textIdx = i;
+      // Store the text
 
-            // Locale
-            //
-            // Currently locale settings are not used
-            //
-            std::string locale(
-                options
-                    .locale /*toLower(configValue<std::string>(specs,textName,"locale",nullptr,s_optional))*/);
-            bool localeMatch = (locale == options.locale);
+      y = renderTextLines(texts,
+                          TEXTtextName,
+                          TEXTPOSid,
+                          textLines,
+                          textClass,
+                          st,
+                          textWidth,
+                          textHeight,
+                          maxLineHeight,
+                          x,
+                          y);
 
-            if (localeMatch || (locale.empty()))
-            {
-              scope.push_back(&specs);
+      yPosH += (y + st.margin);
+      yPosH /= textHeightFactor;
 
-              if ((nameMatch && (locale.empty())) || (noName && localeMatch))
-                hasLocaleGlobals = true;
-            }
-
-            if ((noName || (!localeMatch)) && ((i < lastIdx) || (!hasLocaleGlobals)))
-              continue;
-          }
-
-          // Font name
-          auto font = configValue<std::string>(scope, textName, "font-family");
-
-          // Font size
-          int fSize = (fontSize && (*fontSize > 0))
-                          ? *fontSize
-                          : configValue<unsigned int>(scope, textName, "font-size");
-
-          // Font style
-          cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
-          auto style = configValue<std::string>(scope, textName, "font-style", s_optional);
-
-          if (style == "italic")
-            slant = CAIRO_FONT_SLANT_ITALIC;
-          else if (style == "oblique")
-            slant = CAIRO_FONT_SLANT_OBLIQUE;
-          else if (!style.empty())
-            throw std::runtime_error(confPath + styleMsg);
-          else
-            style = "normal";
-
-          // Font weight
-          cairo_font_weight_t _weight = CAIRO_FONT_WEIGHT_NORMAL;
-          auto weight = configValue<std::string>(scope, textName, "font-weight", s_optional);
-
-          if (weight == "bold")
-            _weight = CAIRO_FONT_WEIGHT_BOLD;
-          else if (!weight.empty())
-            throw std::runtime_error(confPath + weightMsg);
-          else
-            weight = "normal";
-
-          // Stroke and fill color
-          auto stroke = configValue<std::string>(scope, textName, "stroke", s_optional);
-          auto fill = configValue<std::string>(scope, textName, "fill", s_optional);
-
-          // Max width, height, x/y margin and x/y offsets
-          //
-          // For area/symbol text (when tXOffset and tYOffset are passed in as nonnull) the offsets
-          // are used later
-          // when setting the final text position.
-          //
-          // Note: If the passed offsets (or font size) are nonzero, they were set in the text and
-          // won't be overridden by config settings.
-          unsigned int maxWidth = ((maxTextWidth && (*maxTextWidth > 0))
-                                       ? *maxTextWidth
-                                       : configValue<unsigned int>(scope, textName, "textwidth"));
-
-          bool isSet = false;
-          auto maxHeight =
-              configValue<unsigned int>(scope, textName, "textheight", s_optional, &isSet);
-          if (!isSet)
-            maxHeight = 0;
-
-          auto margin = configValue<unsigned int>(scope, textName, "margin", s_optional, &isSet);
-          if (!isSet)
-            margin = 2;
-
-          maxWidth = std::max<unsigned int>(maxWidth, 20);
-          if ((maxHeight != 0) && (maxHeight <= 20))
-            maxHeight = 20;
-
-          int xOffset = configValue<int>(scope, textName, "txoffset", s_optional, &isSet);
-          if ((!isSet) || tXOffset)
-          {
-            if (isSet && (*tXOffset == 0))
-              *tXOffset = xOffset;
-
-            xOffset = 0;
-          }
-
-          int yOffset = configValue<int>(scope, textName, "tyoffset", s_optional, &isSet);
-          if ((!isSet) || tYOffset)
-          {
-            if (isSet && (*tYOffset == 0))
-              *tYOffset = yOffset;
-
-            yOffset = 0;
-          }
-
-          // Settings for background; style and x/y offsets for top left corner
-
-          auto bStyle = configValue<std::string>(scope, textName, "bstyle", s_optional);
-
-          int bXOffset = configValue<int>(scope, textName, "bxoffset", s_optional, &isSet);
-          if (!isSet)
-            bXOffset = 0;
-
-          int bYOffset = configValue<int>(scope, textName, "byoffset", s_optional, &isSet);
-          if (!isSet)
-            bYOffset = 0;
-
-          // Split the text into lines using given max. width and height
-
-          std::list<std::string> textLines;
-          unsigned int textWidth = 0;
-          unsigned int textHeight = 0;
-          unsigned int maxLineHeight = 0;
-
-          getTextLines(text,
-                       font,
-                       fSize,
-                       slant,
-                       _weight,
-                       maxWidth,
-                       maxHeight,
-                       textLines,
-                       textWidth,
-                       textHeight,
-                       maxLineHeight);
-
-          xPosW = (2 * margin) + textWidth;
-
-          // Store the css class definition
-          //
-          // Note: Generating css class for each area infotext; the settings can differ
-
-          std::string textClass("text" + ((TEXTPOSid.empty() || useTextName)
-                                              ? textName
-                                              : TEXTPOSid.substr(TEXTPOSid.find('_') + 1)));
-
-          if (texts[TEXTCLASStextName].str().empty())
-          {
-            texts[TEXTCLASStextName] << "." << textClass << " {\nfont-family: " << font
-                                     << ";\nfont-size: " << fSize << "px;\nfont-weight : " << weight
-                                     << ";\nfont-style : " << style;
-
-            if (!stroke.empty())
-              texts[TEXTCLASStextName] << ";\nstroke: " << stroke;
-            if (!fill.empty())
-              texts[TEXTCLASStextName] << ";\nfill: " << fill;
-
-            texts[TEXTCLASStextName] << ";\n}\n";
-          }
-
-          int x = startX - xOffset - (centerToStartX ? ((textWidth / 2) + margin) : 0);
-          int y = startY + yOffset;
-
-          // Offset is decremented from last line's y -coordinate to get text's height
-
-          yPosH = -y;
-
-          if (setTextArea)
-          {
-            // Store geometry for text border
-            //
-            texts[TEXTAREAtextName].str("");
-            texts[TEXTAREAtextName].clear();
-
-            texts[TEXTAREAtextName] << " x=\"" << x << "\" y=\"" << y << "\" width=\"" << xPosW;
-          }
-
-          // Store the text
-
-          auto it = textLines.begin();
-
-          for (x += margin, y += margin; (it != textLines.end()); it++)
-          {
-            y += maxLineHeight;
-
-            if (it == textLines.begin())
-            {
-              if (!TEXTPOSid.empty())
-                // Set transformation data.
-                //
-                // Note: Scaling placeholder/value might not get set; unset placehoders will be
-                // removed prior output
-                //
-                texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--) --"
-                                    << TEXTPOSid << "SCALE--\">\n";
-
-              if (!bStyle.empty())
-                // Set background
-                //
-                texts[TEXTtextName] << "<rect width=\"" << textWidth - (2 * bXOffset)
-                                    << "\" height=\"" << textHeight - (2 * bYOffset) << "\" x=\""
-                                    << bXOffset << "\" y=\"" << bYOffset << "\" style=\"" << bStyle
-                                    << "\""
-                                    << "/>";
-            }
-
-            texts[TEXTtextName] << "<text class=\"" << textClass << "\" x=\"" << x << "\" y=\"" << y
-                                << "\">" << svgescapetext(*it) << "</text>\n";
-          }
-
-          yPosH += (y + margin);
-          yPosH /= textHeightFactor;
-
-          if (!TEXTPOSid.empty())
-            texts[TEXTtextName] << "</g>\n";
-          else if (setTextArea)
-            texts[TEXTAREAtextName] << "\" height=\"" << yPosH << "\" ";
-
-          return;
-        }  // if
-      }
-      catch (...)
-      {
-        if (ignoreErr)
-          return;
-
-        throw;
-      }
-    }  // for
-
-    if (options.debug)
+      if (!TEXTPOSid.empty())
+        texts[TEXTtextName] << "</g>\n";
+      else if (setTextArea)
+        texts[TEXTAREAtextName] << "\" height=\"" << yPosH << "\" ";
+    }
+    catch (...)
     {
-      // No (locale) settings for the text
-      //
-      const char* p = ((textIdx < 0) ? "Settings for " : "Locale specific settings for ");
+      if (ignoreErr)
+        return;
 
-      debugoutput << p << textName << " not found\n";
+      throw;
     }
   }
   catch (libconfig::SettingNotFoundException&)
