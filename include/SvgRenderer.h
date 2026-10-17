@@ -805,6 +805,21 @@ class SvgRenderer : public woml::FeatureVisitor
                             bool checkGround = false,
                             bool nonGndFwd2Gnd = true,
                             bool nonGndVdn2Gnd = false);
+  void render_cloudLayersVisibility(const std::string& CLOUDLAYERS,
+                                    const std::list<CloudGroup>& cloudGroups,
+                                    bool visible,
+                                    bool aboveTop);
+  void render_cloudLabel(const ElevGrp& eGrp,
+                         const std::list<DirectPosition>& curvePoints,
+                         NFmiFillAreas& holeAreas,
+                         const CloudGroup& cg,
+                         bool isHole,
+                         const std::string& label,
+                         int minLabelPosHeight,
+                         double labelPosHeightFactor,
+                         std::vector<double>& scaledLo,
+                         std::vector<double>& scaledHi,
+                         std::vector<bool>& hasHole);
   void render_timeserie(const woml::CloudLayers& cloudlayers);
   void render_timeserie(const woml::Contrails& contrails);
   template <typename T>

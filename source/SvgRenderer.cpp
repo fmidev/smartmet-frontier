@@ -8050,6 +8050,162 @@ bool SvgRenderer::scaledCurvePositions(ElevGrp& eGrp,
   return single;
 }
 
+namespace
+{
+// Output the decorated cloud curve path and check visibility
+void cloudCurvePath(const std::list<DirectPosition>& curvePoints,
+                    const std::list<DoubleArr>& decoratorPoints,
+                    bool isHole,
+                    double axisWidth,
+                    std::ostringstream& path,
+                    bool& visible,
+                    bool& aboveTop)
+{
+  std::list<DirectPosition>::const_iterator cpbeg = curvePoints.begin();
+  std::list<DirectPosition>::const_iterator cpend = curvePoints.end();
+  std::list<DirectPosition>::const_iterator itcp;
+  auto itdp = decoratorPoints.begin();
+
+  for (itcp = cpbeg; (itcp != cpend); itcp++)
+  {
+    if (itcp == cpbeg)
+      path << "M";
+    else
+    {
+      path << " Q" << itdp->getX() << "," << itdp->getY();
+      // pnts << "<circle cx=\"" << (*itdp)[0] << "\" cy=\"" << (*itdp)[1]+150 << "\" r=\"5\"
+      // stroke=\"black\" stroke-width=\"1\" fill=\"yellow\"/>";
+      itdp++;
+    }
+
+    double x = itcp->getX();
+    double y = itcp->getY();
+
+    if ((!isHole) && (x >= 0) && (x < (axisWidth + 1)))
+    {
+      if (y > 0)
+        visible = true;
+      else
+        aboveTop = true;
+    }
+
+    path << " " << x << "," << y;
+    // pnts << "<circle cx=\"" << x << "\" cy=\"" << y/*+150*/ << "\" r=\"3\" stroke=\"black\"
+    // stroke-width=\"1\" fill=\"red\"/>";
+  }
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Cloud layer visibility information
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_cloudLayersVisibility(const std::string& CLOUDLAYERS,
+                                               const std::list<CloudGroup>& cloudGroups,
+                                               bool visible,
+                                               bool aboveTop)
+{
+  // Visibility information
+  //
+  // CB clouds are rendered separately; set/unset visibility by taking both CB and nonCB
+  // clouds (i.e. possibly already set data) into account
+
+  auto itv = texts.find(CLOUDLAYERS + "VISIBILITYSET");
+  auto itn = texts.find(CLOUDLAYERS + "NOCLOUDLAYERS");
+  auto itu = texts.find(CLOUDLAYERS + "INTHEUPPER");
+  bool visibilitySet = (itv != texts.end());
+  bool noCloudsSet = (itn != texts.end());
+  bool inTheUpperSet = (itu != texts.end());
+
+  if (visibilitySet && noCloudsSet && (!visible) && aboveTop)
+  {
+    // Change SKC to Upper
+
+    visibilitySet = false;
+    texts.erase(itn);
+  }
+
+  if ((!visible) && (!visibilitySet))
+  {
+    const std::string& classDef = ((!cloudGroups.empty()) ? cloudGroups.front().classDef() : "");
+
+    if (!aboveTop)
+    {
+      // Show the fixed template text "SKC"
+      //
+      const std::string NOCLOUDLAYERS(CLOUDLAYERS + "NOCLOUDLAYERS");
+      texts[NOCLOUDLAYERS] << classDef << "Visible";
+    }
+    else
+    {
+      // Show the fixed template text "Clouds are located in the upper"
+      //
+      const std::string CLOUDLAYERSUPPER(CLOUDLAYERS + "INTHEUPPER");
+      texts[CLOUDLAYERSUPPER] << classDef << "Visible";
+    }
+  }
+  else if (visible && visibilitySet)
+  {
+    if (noCloudsSet)
+      texts.erase(itn);
+    else if (inTheUpperSet)
+      texts.erase(itu);
+  }
+
+  if (!visibilitySet)
+    texts[CLOUDLAYERS + "VISIBILITYSET"] << "Set";
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Cloud group's label rendering
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_cloudLabel(const ElevGrp& eGrp,
+                                    const std::list<DirectPosition>& curvePoints,
+                                    NFmiFillAreas& holeAreas,
+                                    const CloudGroup& cg,
+                                    bool isHole,
+                                    const std::string& label,
+                                    int minLabelPosHeight,
+                                    double labelPosHeightFactor,
+                                    std::vector<double>& scaledLo,
+                                    std::vector<double>& scaledHi,
+                                    std::vector<bool>& hasHole)
+{
+  // For a hole store it's area as reserved, otherwise render the label to each separate visible
+  // part of the cloud
+  //
+  // x -coord of group's first visible time instant
+  //
+  const Fmi::DateTime& vt = eGrp.front().validTime();
+  double minX = std::max(axisManager->xOffset(vt), 0.0);
+
+  renderAreaLabels(curvePoints,
+                   holeAreas,
+                   areaLabels,
+                   "CLOUDLAYERSLABEL",
+                   cg.markerPlaceHolder(),
+                   "ZZCloudLayersText",
+                   isHole,
+                   isHole ? "" : label,
+                   cg.bbCenterMarker(),
+                   minX,
+                   minLabelPosHeight,
+                   labelPosHeightFactor,
+                   cg.sOffset(),
+                   cg.eOffset(),
+                   scaledLo,
+                   scaledHi,
+                   hasHole,
+                   true,
+                   options.debug ? cg.placeHolder() + "FILLAREAS" : "");
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Cloud layer rendering
@@ -8104,6 +8260,13 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
   std::list<DirectPosition> curvePoints;
   std::list<DirectPosition> curvePoints0;
   std::list<DoubleArr> decoratorPoints;
+
+  // The unmodified curve baseline is used for label positioning if the decoration is
+  // compensated when constructing the base line
+
+  std::vector<DirectPosition>& baseCurvePositions =
+      (borderCompensation ? curvePositions0 : curvePositions);
+  std::list<DirectPosition>& labelCurvePoints = (borderCompensation ? curvePoints0 : curvePoints);
 
   // Set unique group number for members of each overlapping group of elevations
 
@@ -8167,8 +8330,14 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
     std::vector<double> scaledHi;
     std::vector<bool> hasHole;
 
-    int scaleHeightMin = (borderCompensation ? itcg->scaleHeightMin() : 0);
-    int scaleHeightRandom = (borderCompensation ? itcg->scaleHeightRandom() : 0);
+    int scaleHeightMin = 0;
+    int scaleHeightRandom = 0;
+
+    if (borderCompensation)
+    {
+      scaleHeightMin = itcg->scaleHeightMin();
+      scaleHeightRandom = itcg->scaleHeightRandom();
+    }
 
     std::ostringstream path;
     path << std::fixed << std::setprecision(3);
@@ -8177,7 +8346,7 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
                          bt,
                          et,
                          curvePositions,
-                         borderCompensation ? curvePositions0 : curvePositions,
+                         baseCurvePositions,
                          scaledLo,
                          scaledHi,
                          hasHole,
@@ -8241,11 +8410,6 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
 
     // Render path
 
-    std::list<DirectPosition>::const_iterator cpbeg = curvePoints.begin();
-    std::list<DirectPosition>::const_iterator cpend = curvePoints.end();
-    std::list<DirectPosition>::const_iterator itcp;
-    auto itdp = decoratorPoints.begin();
-
     if (options.debug)
     {
       path.clear();
@@ -8254,33 +8418,7 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
 
     if (!asSymbol)
     {
-      for (itcp = cpbeg; (itcp != cpend); itcp++)
-      {
-        if (itcp == cpbeg)
-          path << "M";
-        else
-        {
-          path << " Q" << itdp->getX() << "," << itdp->getY();
-          // pnts << "<circle cx=\"" << (*itdp)[0] << "\" cy=\"" << (*itdp)[1]+150 << "\" r=\"5\"
-          // stroke=\"black\" stroke-width=\"1\" fill=\"yellow\"/>";
-          itdp++;
-        }
-
-        double x = itcp->getX();
-        double y = itcp->getY();
-
-        if ((!isHole) && (x >= 0) && (x < (axisWidth + 1)))
-        {
-          if (y > 0)
-            visible = true;
-          else
-            aboveTop = true;
-        }
-
-        path << " " << x << "," << y;
-        // pnts << "<circle cx=\"" << x << "\" cy=\"" << y/*+150*/ << "\" r=\"3\" stroke=\"black\"
-        // stroke-width=\"1\" fill=\"red\"/>";
-      }
+      cloudCurvePath(curvePoints, decoratorPoints, isHole, axisWidth, path, visible, aboveTop);
 
       texts[itcg->placeHolder()] << "<path class=\"" << itcg->classDef() << "\" id=\""
                                  << "CloudLayers" << nGroups << "\" d=\"" << path.str() << "\"/>\n";
@@ -8295,88 +8433,22 @@ void SvgRenderer::render_timeserie(const woml::CloudLayers& cloudlayers)
     std::string label = cloudGroupCategory.groupLabel();
 
     if (!label.empty())
-    {
-      // For a hole store it's area as reserved, otherwise render the label to each separate visible
-      // part of the cloud
-      //
-      // x -coord of group's first visible time instant
-      //
-      const Fmi::DateTime& vt = eGrp.front().validTime();
-      double minX = std::max(axisManager->xOffset(vt), 0.0);
-
-      renderAreaLabels(borderCompensation ? curvePoints0 : curvePoints,
-                       holeAreas,
-                       areaLabels,
-                       "CLOUDLAYERSLABEL",
-                       itcg->markerPlaceHolder(),
-                       "ZZCloudLayersText",
-                       isHole,
-                       isHole ? "" : label,
-                       itcg->bbCenterMarker(),
-                       minX,
-                       minLabelPosHeight,
-                       labelPosHeightFactor,
-                       itcg->sOffset(),
-                       itcg->eOffset(),
-                       scaledLo,
-                       scaledHi,
-                       hasHole,
-                       true,
-                       options.debug ? itcg->placeHolder() + "FILLAREAS" : "");
-    }
+      render_cloudLabel(eGrp,
+                        labelCurvePoints,
+                        holeAreas,
+                        *itcg,
+                        isHole,
+                        label,
+                        minLabelPosHeight,
+                        labelPosHeightFactor,
+                        scaledLo,
+                        scaledHi,
+                        hasHole);
   }  // for group
 
   // Visibility information
-  //
-  // CB clouds are rendered separately; set/unset visibility by taking both CB and nonCB
-  // clouds (i.e. possibly already set data) into account
 
-  auto itv = texts.find(CLOUDLAYERS + "VISIBILITYSET");
-  auto itn = texts.find(CLOUDLAYERS + "NOCLOUDLAYERS");
-  auto itu = texts.find(CLOUDLAYERS + "INTHEUPPER");
-  bool visibilitySet = (itv != texts.end());
-  bool noCloudsSet = (itn != texts.end());
-  bool inTheUpperSet = (itu != texts.end());
-
-  if (visibilitySet && noCloudsSet && (!visible) && aboveTop)
-  {
-    // Change SKC to Upper
-
-    visibilitySet = false;
-    texts.erase(itn);
-  }
-
-  if ((!visible) && (!visibilitySet))
-  {
-    const std::string& classDef =
-        ((!cloudGroupCategory.groups().empty()) ? cloudGroupCategory.groups().front().classDef()
-                                                : "");
-
-    if (!aboveTop)
-    {
-      // Show the fixed template text "SKC"
-      //
-      const std::string NOCLOUDLAYERS(CLOUDLAYERS + "NOCLOUDLAYERS");
-      texts[NOCLOUDLAYERS] << classDef << "Visible";
-    }
-    else
-    {
-      // Show the fixed template text "Clouds are located in the upper"
-      //
-      const std::string CLOUDLAYERSUPPER(CLOUDLAYERS + "INTHEUPPER");
-      texts[CLOUDLAYERSUPPER] << classDef << "Visible";
-    }
-  }
-  else if (visible && visibilitySet)
-  {
-    if (noCloudsSet)
-      texts.erase(itn);
-    else if (inTheUpperSet)
-      texts.erase(itu);
-  }
-
-  if (!visibilitySet)
-    texts[CLOUDLAYERS + "VISIBILITYSET"] << "Set";
+  render_cloudLayersVisibility(CLOUDLAYERS, cloudGroupCategory.groups(), visible, aboveTop);
 }
 
 // ----------------------------------------------------------------------
