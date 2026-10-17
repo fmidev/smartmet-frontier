@@ -556,6 +556,42 @@ class SvgRenderer : public woml::FeatureVisitor
                    const int* fontSize = nullptr,      // I
                    int* tXOffset = nullptr,      // I/O: area text's border x -offset
                    int* tYOffset = nullptr);     // I/O: area text's border y -offset
+  struct SurfaceFill;
+  bool surfaceScope(const libconfig::Setting& surfSpecs,
+                    const std::string& confPath,
+                    const std::string& surfaceName,
+                    std::list<const libconfig::Setting*>& scope);
+  void surfaceFillSettings(std::list<const libconfig::Setting*>& scope,
+                           const std::string& confPath,
+                           const std::string& surfaceName,
+                           SurfaceFill& sf);
+  void render_surfaceInfoText(const Path& path,
+                              std::list<const libconfig::Setting*>& scope,
+                              const std::string& confPath,
+                              const std::string& surfaceName,
+                              const std::string& infoText,
+                              SurfaceFill& sf);
+  bool tryFillAreas(NFmiFillMap& fmap, SurfaceFill& sf, bool& sizeOk);
+  bool reduceFillSize(SurfaceFill& sf, bool& sizeOk, bool& noTextRetry);
+  bool searchFillAreas(Path& path, NFmiFillMap& fmap, SurfaceFill& sf);
+  void centerFillAreas(const Path& path, SurfaceFill& sf);
+  void surfaceFillPositions(std::ostringstream& surfaces,
+                            std::list<const libconfig::Setting*>& scope,
+                            const std::string& surfaceName,
+                            const std::list<std::string>* areaSymbols,
+                            SurfaceFill& sf);
+  void render_surfaceFill(Path& path,
+                          std::ostringstream& surfaces,
+                          std::list<const libconfig::Setting*>& scope,
+                          const std::string& confPath,
+                          const std::string& surfaceName,
+                          const std::string& id,
+                          const woml::Feature* feature,
+                          const std::list<std::string>* areaSymbols);
+  void render_surfaceGlyph(std::ostringstream& surfaces,
+                           const Path& path,
+                           const std::string& style,
+                           const std::string& pathId);
   void render_surface(Path& path,
                       std::ostringstream& surfaceOutput,
                       const std::string& id,
