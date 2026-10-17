@@ -224,6 +224,45 @@ double BezierModel::getTightness()
   return bezierSegments.front().getTightness();
 }
 
+namespace
+{
+// ----------------------------------------------------------------------
+/*!
+ * \brief Next (randomized) step between curve points
+ */
+// ----------------------------------------------------------------------
+
+unsigned int nextStep(unsigned int baseStep,
+                      unsigned int maxRand,
+                      unsigned int maxRepeat,
+                      unsigned int& prevStep,
+                      unsigned int& repStep)
+{
+  unsigned int step = baseStep;
+
+  if (maxRand > 0)
+  {
+    // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
+    step += (int)((maxRand + 1) * (rand() / (RAND_MAX + 1.0)));
+
+    if (step == prevStep)
+    {
+      if (repStep >= maxRepeat)
+      {
+        step += ((step == (baseStep + maxRand)) ? -1 : 1);
+        repStep = 0;
+      }
+      else
+        repStep++;
+    }
+
+    prevStep = step;
+  }
+
+  return step;
+}
+}  // namespace
+
 // ======================================================================
 /*!
  * \brief getSteppedCurvePoints
@@ -271,26 +310,7 @@ int BezierModel::getSteppedCurvePoints(
     if (nPoints > 0)
     {
       // Step
-      step = baseStep;
-
-      if (maxRand > 0)
-      {
-        // NOLINTNEXTLINE(cert-msc50-cpp): rand() is not used for security here
-        step += (int)((maxRand + 1) * (rand() / (RAND_MAX + 1.0)));
-
-        if (step == prevStep)
-        {
-          if (repStep >= maxRepeat)
-          {
-            step += ((step == (baseStep + maxRand)) ? -1 : 1);
-            repStep = 0;
-          }
-          else
-            repStep++;
-        }
-
-        prevStep = step;
-      }
+      step = nextStep(baseStep, maxRand, maxRepeat, prevStep, repStep);
 
       curPos += step;
       if ((curPos + (0.5 * baseStep)) >= curveLength)
