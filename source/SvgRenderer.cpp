@@ -9826,6 +9826,7 @@ void SvgRenderer::render_contrailRange(const ElevGrp& eGrp,
     cp.prevVal = val;
     cp.prevAbove = above;
 
+    prevIteg = iteg;
     iteg++;
 
     if ((iteg != egend) || ((cp.pntCnt == 0) && (!cp.segmentDrawn)))
