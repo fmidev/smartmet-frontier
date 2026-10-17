@@ -107,6 +107,17 @@ class NFmiFillMap
                   bool verticalRects,
                   NFmiFillAreas& fillAreas);
 
+  template <typename T>
+  bool scanRow(T iter,
+               const T& endIter,
+               int imageWidth,
+               int imageHeigth,
+               int symbolWidth,
+               int symbolHeigth,
+               int y,
+               bool verticalRects,
+               NFmiFillAreas& fillAreas);
+
   // Data-elements
 
   NFmiFillMapData itsData;

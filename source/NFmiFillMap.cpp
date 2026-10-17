@@ -39,6 +39,137 @@ float myround(float theValue)
 
 namespace frontier
 {
+namespace
+{
+// ----------------------------------------------------------------------
+// Find the first x1-x2 range of the row overlapping the xMin-xMax range
+// wide enough for the fill symbol. Narrows xMin-xMax to the overlap and
+// returns the iterator to the range's x2, or the end of the row if
+// there is no such range.
+// ----------------------------------------------------------------------
+
+NFmiFillMapElement::iterator findOverlappingRange(
+    NFmiFillMapElement& row, int imageWidth, int symbolWidth, int& xMin, int& xMax)
+{
+  // We have no active x-coordinate yet
+
+  float x1 = kFloatMissing;
+
+  for (auto dataiter = row.begin(); dataiter != row.end(); ++dataiter)
+  {
+    float x2 = *dataiter;
+
+    // If last x was invalid, set new beginning of line
+
+    if (x1 == kFloatMissing)
+    {
+      x1 = x2;
+      continue;
+    }
+
+    int i1 = static_cast<int>(ceil(x1));
+    int i2 = static_cast<int>(floor(x2));
+
+    x1 = kFloatMissing;
+
+    // If intersection has integer X coordinate, x1 would be
+    // interior, x2 exterior
+
+    if (x2 == i2)
+      i2--;
+
+    if ((i1 < imageWidth) && (i2 > 0) && (i2 > i1))
+    {
+      // Adjust the x1-x2 range with image dimensions
+      //
+
+      i1 = std::max(i1, 0);
+      i2 = std::min(i2, imageWidth - 1);
+
+      if (i1 >= xMax)
+        return row.end();
+
+      if (i2 > xMin)
+      {
+        // Adjust the x1-x2 range with current max(x1) and min(x2) values
+        //
+        i1 = std::max(i1, xMin);
+        i2 = std::min(i2, xMax);
+
+        if ((i2 - i1) >= symbolWidth)
+        {
+          xMin = i1;
+          xMax = i2;
+          return dataiter;
+        }
+      }
+    }
+  }
+
+  return row.end();
+}
+
+// ----------------------------------------------------------------------
+// Get all map areas, regardless of their size
+// ----------------------------------------------------------------------
+
+void collectMapAreas(const NFmiFillMapData& theData, NFmiFillAreas& fillAreas)
+{
+  auto iter = theData.begin();
+  auto enditer = theData.end();
+
+  for (; (iter != enditer); ++iter)
+  {
+    auto dataiter = iter->second.begin();
+    auto enddata = iter->second.end();
+
+    for (; (dataiter != enddata);)
+    {
+      double x1 = *dataiter;
+      dataiter++;
+
+      if (dataiter != enddata)
+      {
+        double x2 = *dataiter;
+        fillAreas.emplace_back(Point(std::min(x1, x2), iter->first),
+                               Point(std::max(x1, x2), iter->first + 1));
+
+        dataiter++;
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------
+// Sort the x-coordinates of each row
+// ----------------------------------------------------------------------
+
+void sortRows(NFmiFillMapData& data)
+{
+  for (auto iter = data.begin(); iter != data.end(); ++iter)
+    if (iter->second.size() == 2)
+    {
+      if (iter->second[0] > iter->second[1])
+        swap(iter->second[0], iter->second[1]);
+    }
+    else
+      sort(iter->second.begin(), iter->second.end());
+}
+
+// ----------------------------------------------------------------------
+// Test whether the fill symbol would exceed the image or fill area boundary,
+// or whether the iterators have reached each other
+// ----------------------------------------------------------------------
+
+bool rowLimitReached(bool downwards, int y, int symbolHeight, int yPrev, int yLast, int imageHeight)
+{
+  if (downwards)
+    return ((y < symbolHeight) || (y <= yPrev));
+  return ((y + symbolHeight) > std::min(yLast, imageHeight));
+}
+
+}  // namespace
+
 const size_t fillAreaWidthMin = 3;
 const size_t fillAreaHeightMin = 3;
 
@@ -86,68 +217,16 @@ bool NFmiFillMap::scanColumn(T iter,
 
     yLast = static_cast<int>(y);
 
-    // We have no active x-coordinate yet
-
-    float x1 = kFloatMissing;
-
-    auto dataiter = iter->second.begin();
-
     // Set to true if the row is valid for fill
 
-    bool validRow = false;
+    auto x2iter = findOverlappingRange(iter->second, imageWidth, symbolWidth, xMin, xMax);
+    bool validRow = (x2iter != iter->second.end());
 
-    for (; dataiter != iter->second.end(); ++dataiter)
+    if (validRow)
     {
-      float x2 = *dataiter;
-
-      // If last x was invalid, set new beginning of line
-
-      if (x1 == kFloatMissing)
-        x1 = x2;
-      else
-      {
-        int i1 = static_cast<int>(ceil(x1));
-        int i2 = static_cast<int>(floor(x2));
-
-        // If intersection has integer X coordinate, x1 would be
-        // interior, x2 exterior
-
-        if (x2 == i2)
-          i2--;
-
-        if ((i1 < imageWidth) && (i2 > 0) && (i2 > i1))
-        {
-          // Adjust the x1-x2 range with image dimensions
-          //
-
-          i1 = std::max(i1, 0);
-          i2 = std::min(i2, imageWidth - 1);
-
-          if (i1 >= xMax)
-            break;
-          if (i2 > xMin)
-          {
-            // Adjust the x1-x2 range with current max(x1) and min(x2) values
-            //
-            i1 = std::max(i1, xMin);
-            i2 = std::min(i2, xMax);
-
-            if ((i2 - i1) >= symbolWidth)
-            {
-              validRow = true;
-              xMin = i1;
-              xMax = i2;
-              x2iters.push_back(dataiter);
-              h--;
-
-              break;
-            }
-          }
-        }
-
-        x1 = kFloatMissing;
-      }
-    }  // for dataiter
+      x2iters.push_back(x2iter);
+      h--;
+    }
 
     if ((!validRow) || ((!verticalRects) && (h == 0)))
       break;
@@ -201,6 +280,88 @@ bool NFmiFillMap::scanColumn(T iter,
 }
 
 // ----------------------------------------------------------------------
+// Scan the x1-x2 ranges of the current row. For each range wide enough
+// for the fill symbol, scan the rows upwards/downwards to check if there
+// is space for the fill symbol.
+//
+// Returns true if any areas were found.
+// ----------------------------------------------------------------------
+
+template <typename T>
+bool NFmiFillMap::scanRow(T iter,
+                          const T& endIter,
+                          int imageWidth,
+                          int imageHeight,
+                          int symbolWidth,
+                          int symbolHeight,
+                          int y,
+                          bool verticalRects,
+                          NFmiFillAreas& fillAreas)
+{
+  bool found = false;
+
+  // We have no active x-coordinate yet
+
+  float x1 = kFloatMissing;
+
+  auto dataiter = iter->second.begin();
+  auto dataend = iter->second.end();
+
+  for (; dataiter != dataend; ++dataiter)
+  {
+    float x2 = *dataiter;
+
+    // If last x was invalid, set new beginning of line
+
+    if (x1 == kFloatMissing)
+    {
+      x1 = x2;
+      continue;
+    }
+
+    int i1 = static_cast<int>(ceil(x1));
+    int i2 = static_cast<int>(floor(x2));
+
+    // And invalidate x1
+
+    x1 = kFloatMissing;
+
+    // If intersection has integer X coordinate, x1 would be
+    // interior, x2 exterior
+
+    if (x2 == i2)
+      i2--;
+
+    if ((i1 < imageWidth) && (i2 > 0) && (i2 > i1))
+    {
+      // Adjust the x1-x2 range with image dimensions
+      //
+
+      i1 = std::max(i1, 0);
+      i2 = std::min(i2, imageWidth - 1);
+
+      // If the width is enough, scan the rows upwards/downwards to check if
+      // there is space for the fill symbol
+
+      if ((i2 - i1) >= symbolWidth && scanColumn(iter,
+                                                 endIter,
+                                                 imageWidth,
+                                                 imageHeight,
+                                                 symbolWidth,
+                                                 symbolHeight,
+                                                 y,
+                                                 i1,
+                                                 i2,
+                                                 verticalRects,
+                                                 fillAreas))
+        found = true;
+    }
+  }
+
+  return found;
+}
+
+// ----------------------------------------------------------------------
 // Get symbol fill areas. The maximum horizontal or vertical rectangle
 // is provided for each suitable position.
 //
@@ -225,30 +386,7 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
   {
     // Get all areas, regardless of their size
     //
-    auto iter = itsData.begin();
-    auto enditer = itsData.end();
-
-    for (; (iter != enditer); ++iter)
-    {
-      auto dataiter = iter->second.begin();
-      auto enddata = iter->second.end();
-
-      for (; (dataiter != enddata);)
-      {
-        double x1 = *dataiter;
-        dataiter++;
-
-        if (dataiter != enddata)
-        {
-          double x2 = *dataiter;
-          fillAreas.emplace_back(Point(std::min(x1, x2), iter->first),
-                                 Point(std::max(x1, x2), iter->first + 1));
-
-          dataiter++;
-        }
-      }
-    }
-
+    collectMapAreas(itsData, fillAreas);
     return true;
   }
 
@@ -278,14 +416,7 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
   NFmiFillMapData::reverse_iterator riter(data.end());
   NFmiFillMapData::reverse_iterator renditer(data.begin());
 
-  for (; iter != enditer; ++iter)
-    if (iter->second.size() == 2)
-    {
-      if (iter->second[0] > iter->second[1])
-        swap(iter->second[0], iter->second[1]);
-    }
-    else
-      sort(iter->second.begin(), iter->second.end());
+  sortRows(data);
 
   // Iterate over y-coordinates in the map from both directions
   // if upDown is true; otherwise from bottom up
@@ -315,80 +446,32 @@ bool NFmiFillMap::getFillAreas(int imageWidth,
 
     if (y < 0)
       continue;
-    if (((i % 2) && ((y < symbolHeight) || (y <= yPrev))) ||
-        ((!(i % 2)) && ((y + symbolHeight) > std::min(yLast, imageHeight))))
+    if (rowLimitReached((i % 2) != 0, y, symbolHeight, yPrev, yLast, imageHeight))
       break;
 
-    // We have no active x-coordinate yet
-
     yPrev = y;
-    float x1 = kFloatMissing;
 
-    auto dataiter = ((i % 2) ? riter->second.begin() : iter->second.begin());
-    auto dataend = ((i % 2) ? riter->second.end() : iter->second.end());
+    // Scan the row's x1-x2 ranges upwards/downwards to check if there is space for the fill symbol
 
-    for (; dataiter != dataend; ++dataiter)
-    {
-      float x2 = *dataiter;
-
-      // If last x was invalid, set new beginning of line
-
-      if (x1 == kFloatMissing)
-        x1 = x2;
-
-      else
-      {
-        int i1 = static_cast<int>(ceil(x1));
-        int i2 = static_cast<int>(floor(x2));
-
-        // If intersection has integer X coordinate, x1 would be
-        // interior, x2 exterior
-
-        if (x2 == i2)
-          i2--;
-
-        if ((i1 < imageWidth) && (i2 > 0) && (i2 > i1))
-        {
-          // Adjust the x1-x2 range with image dimensions
-          //
-
-          i1 = std::max(i1, 0);
-          i2 = std::min(i2, imageWidth - 1);
-
-          // If the width is enough, scan the rows upwards/downwards to check if
-          // there is space for the fill symbol
-
-          if ((i2 - i1) >= symbolWidth)
-            if (((i % 2) && scanColumn(riter,
+    bool rowFound = ((i % 2) ? scanRow(riter,
                                        renditer,
                                        imageWidth,
                                        imageHeight,
                                        symbolWidth,
                                        symbolHeight,
                                        y,
-                                       i1,
-                                       i2,
                                        verticalRects,
-                                       fillAreas)) ||
-                ((!(i % 2)) && scanColumn(iter,
-                                          enditer,
-                                          imageWidth,
-                                          imageHeight,
-                                          symbolWidth,
-                                          symbolHeight,
-                                          y,
-                                          i1,
-                                          i2,
-                                          verticalRects,
-                                          fillAreas)))
-              found = true;
-        }
-
-        // And invalidate x1
-
-        x1 = kFloatMissing;
-      }
-    }
+                                       fillAreas)
+                             : scanRow(iter,
+                                       enditer,
+                                       imageWidth,
+                                       imageHeight,
+                                       symbolWidth,
+                                       symbolHeight,
+                                       y,
+                                       verticalRects,
+                                       fillAreas));
+    found |= rowFound;
   }
 
   return found;
