@@ -12472,6 +12472,227 @@ class DataMatrixAdapter : public Trax::Grid
   Fmi::CoordinateMatrix itsCoordinates;
 };
 
+namespace
+{
+using ContourOutputs = boost::ptr_map<std::string, std::ostringstream>;
+
+// Contour label settings
+struct ContourLabelSettings
+{
+  std::string classname;
+  std::string outputname;
+  std::string symbol;
+  std::string symbolclass;
+  double mindistance = 0;
+  int modulo = 0;
+  const libconfig::Setting* coordinates = nullptr;
+};
+
+// Read and validate the label settings of a contour line
+ContourLabelSettings contourLabelSettings(const libconfig::Setting& specs)
+{
+  const libconfig::Setting& labels = specs["labels"];
+  if (!labels.isGroup())
+    throw std::runtime_error("contourlines labels must be a group");
+
+  ContourLabelSettings settings;
+
+  settings.classname = lookup<std::string>(labels, "contourlines.labels", "class");
+  settings.outputname = lookup<std::string>(labels, "contourlines.labels", "output");
+
+  settings.symbol = lookup<std::string>(labels, "contourlines.labels", "symbol");
+  settings.symbolclass = lookup<std::string>(labels, "contourlines.labels", "symbolclass");
+
+  settings.mindistance = lookup<double>(labels, "contourlines.labels", "mindistance");
+  settings.modulo = lookup<int>(labels, "contourlines.labels", "modulo");
+
+  const libconfig::Setting& labelcoordinates = labels["coordinates"];
+
+  if (!labelcoordinates.isArray())
+    throw std::runtime_error("coordinates setting must be an array");
+
+  if (labelcoordinates.getLength() % 2 != 0)
+    throw std::runtime_error("coordinates setting must have an even number of integer coordinates");
+
+  settings.coordinates = &labelcoordinates;
+
+  return settings;
+}
+
+// Get the (optionally smoothened) grid to contour
+std::shared_ptr<const Trax::Grid> contourGrid(NFmiFastQueryInfo& qi,
+                                              const NFmiMetTime& validtime,
+                                              const Fmi::CoordinateMatrix& coordinates,
+                                              const libconfig::Setting& specs,
+                                              const std::string& smoother,
+                                              bool verbose)
+{
+  // Get data values and replace kFmiMissing with NaN
+
+  auto matrix = qi.Values(validtime);
+
+  if (matrix.NX() == 0 || matrix.NY() == 0)
+    throw std::runtime_error("Could not extract set valid time " +
+                             std::string(validtime.ToStr(kYYMMDDHHMM)) + "from query data");
+
+  // Adapt for contouring
+
+  auto grid = std::make_shared<DataMatrixAdapter>(matrix, coordinates);
+  grid->make_nan_missing();
+
+  // Smoothing produces a new grid sharing the coordinates of the original one
+
+  std::shared_ptr<const Trax::Grid> contourGrid = grid;
+
+  if (smoother == "none")
+    ;
+  else if (smoother == "Savitzky-Golay")
+  {
+    int window = lookup<int>(specs, "contourlines", "smoother-size");
+    int degree = lookup<int>(specs, "contourlines", "smoother-degree");
+    if (verbose)
+      std::cerr << "Savitzky-Golay smoothing of size " << window << " of degree " << degree
+                << std::endl;
+
+    Trax::SmoothOptions smoothopts;
+    smoothopts.method = Trax::SmoothMethod::SavitzkyGolay;
+    smoothopts.radius = window;
+    smoothopts.degree = degree;
+    contourGrid = Trax::smooth(grid, smoothopts);
+  }
+  else
+    throw std::runtime_error("Unknown smoother name '" + smoother + "'");
+
+  return contourGrid;
+}
+
+// Add the labels of a contour line for near enough label points
+void renderContourLabels(ContourOutputs& contours,
+                         const Path& path,
+                         float value,
+                         const ContourLabelSettings& labels)
+{
+  // Do not add labels if the modulo condition is not satisfied
+
+  int modulo = labels.modulo;
+  int intvalue = modulo * static_cast<int>(round(value / modulo));
+  if (value != intvalue)
+    return;
+
+  // Add labels for near enough points
+  const libconfig::Setting& labelcoordinates = *labels.coordinates;
+
+  for (int i = 0; i < labelcoordinates.getLength(); i += 2)
+  {
+    int xpos = labelcoordinates[i];
+    int ypos = labelcoordinates[i + 1];
+    std::pair<double, double> nearest = path.nearestVertex(xpos, ypos);
+    double x = nearest.first;
+    double y = nearest.second;
+    double distance = sqrt((x - xpos) * (x - xpos) + (y - ypos) * (y - ypos));
+    if (distance < labels.mindistance)
+    {
+      if (!labels.symbol.empty())
+        contours[labels.outputname] << "<use xlink:href=\"#" << labels.symbol << "\" class=\""
+                                    << labels.symbolclass << "\" x=\"" << round(x) << "\" y=\""
+                                    << round(y) << "\"/>\n";
+
+      contours[labels.outputname] << "<text class=\"" << labels.classname << "\" x=\"" << round(x)
+                                  << "\" y=\"" << round(y) << "\">" << intvalue << "</text>\n";
+    }
+  }
+}
+
+// The isoline values from start to stop
+std::vector<float> contourIsovalues(float start, float stop, float step)
+{
+  std::vector<float> isovalues;
+  for (int nvalue = 0; start + nvalue * step <= stop; nvalue++)
+  {
+    const float value = start + nvalue * step;
+    isovalues.push_back(value);
+  }
+  return isovalues;
+}
+
+// Render the isolines of one contourlines setting
+void renderContourLines(const libconfig::Setting& specs,
+                        NFmiFastQueryInfo& qi,
+                        const NFmiMetTime& validtime,
+                        const Fmi::CoordinateMatrix& coordinates,
+                        NFmiEnumConverter& enumconverter,
+                        const geos::geom::GeometryFactory::Ptr& geomFactory,
+                        bool verbose,
+                        std::ostringstream& paths,
+                        ContourOutputs& contours,
+                        std::size_t& linenumber)
+{
+  // Now process this individual contour
+
+  auto paramname = lookup<std::string>(specs, "contourlines", "parameter");
+  auto classname = lookup<std::string>(specs, "contourlines", "class");
+  auto outputname = lookup<std::string>(specs, "contourlines", "output");
+  auto smoother = lookup<std::string>(specs, "contourlines", "smoother");
+
+  auto start = lookup<float>(specs, "contourlines", "start");
+  auto stop = lookup<float>(specs, "contourlines", "stop");
+  auto step = lookup<float>(specs, "contourlines", "step");
+
+  ContourLabelSettings labels = contourLabelSettings(specs);
+
+  if (verbose)
+  {
+    std::cerr << "Contourline " << paramname << " class=" << classname << " to " << outputname
+              << " range " << start << "..." << stop << " in step " << step << std::endl;
+  }
+
+  auto param = FmiParameterName(enumconverter.ToEnum(paramname));
+  if (param == kFmiBadParameter)
+    throw std::runtime_error("Unknown parameter name '" + paramname + "' requested for contouring");
+
+  if (!qi.Param(param))
+    throw std::runtime_error("Parameter '" + paramname +
+                             "' is not available in the referenced numerical model");
+
+  std::shared_ptr<const Trax::Grid> grid =
+      contourGrid(qi, validtime, coordinates, specs, smoother, verbose);
+
+  // All the isolines are extracted with a single pass over the grid
+
+  std::vector<float> isovalues = contourIsovalues(start, stop, step);
+
+  Trax::IsolineValues limits;
+  limits.add(isovalues);
+
+  Trax::Contour contourer;
+  contourer.interpolation(Trax::InterpolationType::Linear);
+
+  auto geometries = contourer.isolines(*grid, limits);
+
+  for (std::size_t n = 0; n < isovalues.size(); ++n)
+  {
+    float value = isovalues[n];
+
+    auto geom = Trax::to_geos_geom(geometries[n], geomFactory);
+
+    PathAdapter pathAdapter;
+    const Path& path = GeosTools::getContours(geom.get(), pathAdapter);
+
+    if (path.empty())
+      continue;
+
+    ++linenumber;
+    std::string id = ("contourline" + Fmi::to_string(linenumber));
+    paths << "<path id=\"" << id << "\" d=\"" << path.svg() << "\"/>\n";
+
+    contours[outputname] << "<use class=\"" << classname << "\" xlink:href=\"#" << id << "\"/>\n";
+
+    renderContourLabels(contours, path, value, labels);
+  }
+}
+
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Render the contours
@@ -12498,177 +12719,39 @@ void SvgRenderer::contour(const std::shared_ptr<NFmiQueryData>& theQD, const Fmi
 
   // Contour lines
 
-  if (config.exists("contourlines"))
+  if (!config.exists("contourlines"))
+    return;
+
+  // Except list of groups
+
+  const char* typeMsg = "contourlines must contain a list of groups in parenthesis";
+
+  const libconfig::Setting& contourSpecs = config.lookup("contourlines");
+
+  if (!contourSpecs.isList())
+    throw std::runtime_error(typeMsg);
+
+  std::size_t linenumber = 0;
+
+  geos::geom::GeometryFactory::Ptr geomFactory(geos::geom::GeometryFactory::create());
+
+  for (int i = 0; i < contourSpecs.getLength(); ++i)
   {
-    // Except list of groups
+    const libconfig::Setting& specs = contourSpecs[i];
 
-    const char* typeMsg = "contourlines must contain a list of groups in parenthesis";
-
-    const libconfig::Setting& contourSpecs = config.lookup("contourlines");
-
-    if (!contourSpecs.isList())
+    if (!specs.isGroup())
       throw std::runtime_error(typeMsg);
 
-    std::size_t linenumber = 0;
-
-    geos::geom::GeometryFactory::Ptr geomFactory(geos::geom::GeometryFactory::create());
-
-    for (int i = 0; i < contourSpecs.getLength(); ++i)
-    {
-      const libconfig::Setting& specs = contourSpecs[i];
-
-      if (!specs.isGroup())
-        throw std::runtime_error(typeMsg);
-
-      // Now process this individual contour
-
-      auto paramname = lookup<std::string>(specs, "contourlines", "parameter");
-      auto classname = lookup<std::string>(specs, "contourlines", "class");
-      auto outputname = lookup<std::string>(specs, "contourlines", "output");
-      auto smoother = lookup<std::string>(specs, "contourlines", "smoother");
-
-      auto start = lookup<float>(specs, "contourlines", "start");
-      auto stop = lookup<float>(specs, "contourlines", "stop");
-      auto step = lookup<float>(specs, "contourlines", "step");
-
-      const libconfig::Setting& labels = specs["labels"];
-      if (!labels.isGroup())
-        throw std::runtime_error("contourlines labels must be a group");
-
-      auto labelclassname = lookup<std::string>(labels, "contourlines.labels", "class");
-      auto labeloutputname = lookup<std::string>(labels, "contourlines.labels", "output");
-
-      auto symbol = lookup<std::string>(labels, "contourlines.labels", "symbol");
-      auto symbolclass = lookup<std::string>(labels, "contourlines.labels", "symbolclass");
-
-      auto mindistance = lookup<double>(labels, "contourlines.labels", "mindistance");
-      int modulo = lookup<int>(labels, "contourlines.labels", "modulo");
-
-      const libconfig::Setting& labelcoordinates = labels["coordinates"];
-
-      if (!labelcoordinates.isArray())
-        throw std::runtime_error("coordinates setting must be an array");
-
-      if (labelcoordinates.getLength() % 2 != 0)
-        throw std::runtime_error(
-            "coordinates setting must have an even number of integer coordinates");
-
-      if (options.verbose)
-      {
-        std::cerr << "Contourline " << paramname << " class=" << classname << " to " << outputname
-                  << " range " << start << "..." << stop << " in step " << step << std::endl;
-      }
-
-      auto param = FmiParameterName(enumconverter.ToEnum(paramname));
-      if (param == kFmiBadParameter)
-        throw std::runtime_error("Unknown parameter name '" + paramname +
-                                 "' requested for contouring");
-
-      if (!qi->Param(param))
-        throw std::runtime_error("Parameter '" + paramname +
-                                 "' is not available in the referenced numerical model");
-
-      // Get data values and replace kFmiMissing with NaN
-
-      auto matrix = qi->Values(validtime);
-
-      if (matrix.NX() == 0 || matrix.NY() == 0)
-        throw std::runtime_error("Could not extract set valid time " +
-                                 std::string(validtime.ToStr(kYYMMDDHHMM)) + "from query data");
-
-      // Adapt for contouring
-
-      auto grid = std::make_shared<DataMatrixAdapter>(matrix, coordinates);
-      grid->make_nan_missing();
-
-      // Smoothing produces a new grid sharing the coordinates of the original one
-
-      std::shared_ptr<const Trax::Grid> contourGrid = grid;
-
-      if (smoother == "none")
-        ;
-      else if (smoother == "Savitzky-Golay")
-      {
-        int window = lookup<int>(specs, "contourlines", "smoother-size");
-        int degree = lookup<int>(specs, "contourlines", "smoother-degree");
-        if (options.verbose)
-          std::cerr << "Savitzky-Golay smoothing of size " << window << " of degree " << degree
-                    << std::endl;
-
-        Trax::SmoothOptions smoothopts;
-        smoothopts.method = Trax::SmoothMethod::SavitzkyGolay;
-        smoothopts.radius = window;
-        smoothopts.degree = degree;
-        contourGrid = Trax::smooth(grid, smoothopts);
-      }
-      else
-        throw std::runtime_error("Unknown smoother name '" + smoother + "'");
-
-      // All the isolines are extracted with a single pass over the grid
-
-      std::vector<float> isovalues;
-      for (int nvalue = 0; start + nvalue * step <= stop; nvalue++)
-      {
-        const float value = start + nvalue * step;
-        isovalues.push_back(value);
-      }
-
-      Trax::IsolineValues limits;
-      limits.add(isovalues);
-
-      Trax::Contour contourer;
-      contourer.interpolation(Trax::InterpolationType::Linear);
-
-      auto geometries = contourer.isolines(*contourGrid, limits);
-
-      for (std::size_t n = 0; n < isovalues.size(); ++n)
-      {
-        float value = isovalues[n];
-
-        auto geom = Trax::to_geos_geom(geometries[n], geomFactory);
-
-        PathAdapter pathAdapter;
-        const Path& path = GeosTools::getContours(geom.get(), pathAdapter);
-
-        if (!path.empty())
-        {
-          ++linenumber;
-          std::string id = ("contourline" + Fmi::to_string(linenumber));
-          paths << "<path id=\"" << id << "\" d=\"" << path.svg() << "\"/>\n";
-
-          contours[outputname] << "<use class=\"" << classname << "\" xlink:href=\"#" << id
-                               << "\"/>\n";
-
-          // Do not add labels if the modulo condition is not satisfied
-
-          int intvalue = modulo * static_cast<int>(round(value / modulo));
-          if (value != intvalue)
-            continue;
-
-          // Add labels for near enough points
-          for (int i = 0; i < labelcoordinates.getLength(); i += 2)
-          {
-            int xpos = labelcoordinates[i];
-            int ypos = labelcoordinates[i + 1];
-            std::pair<double, double> nearest = path.nearestVertex(xpos, ypos);
-            double x = nearest.first;
-            double y = nearest.second;
-            double distance = sqrt((x - xpos) * (x - xpos) + (y - ypos) * (y - ypos));
-            if (distance < mindistance)
-            {
-              if (!symbol.empty())
-                contours[labeloutputname] << "<use xlink:href=\"#" << symbol << "\" class=\""
-                                          << symbolclass << "\" x=\"" << round(x) << "\" y=\""
-                                          << round(y) << "\"/>\n";
-
-              contours[labeloutputname] << "<text class=\"" << labelclassname << "\" x=\""
-                                        << round(x) << "\" y=\"" << round(y) << "\">" << intvalue
-                                        << "</text>\n";
-            }
-          }
-        }
-      }
-    }
+    renderContourLines(specs,
+                       *qi,
+                       validtime,
+                       coordinates,
+                       enumconverter,
+                       geomFactory,
+                       options.verbose,
+                       paths,
+                       contours,
+                       linenumber);
   }
 }
 
