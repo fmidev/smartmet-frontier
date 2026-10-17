@@ -10582,6 +10582,413 @@ WindArrowOffsets calculateWindArrowOffsets(unsigned int arrowArmLength, double w
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Wind rendering settings and state
+ */
+// ----------------------------------------------------------------------
+
+struct SvgRenderer::WindRendering
+{
+  // Symbol background
+  std::string href;
+
+  // Controls to render all winds or only at elevation line heights and if the wind at the
+  // highest elevation line height is rendered or not
+  bool renderAll = true;
+  bool renderTop = true;
+
+  // Controls to render first wind time instant
+  bool useWindBase = true;
+  bool autoWindBase = false;
+
+  // Output placeholders
+  std::string WINDBASEOUT{"WINDBASE"};
+  std::string WINDBASEHOUR{"WINDBASEHOUR"};
+  std::string WINDEXTRAOUT{"WINDEXTRA"};
+  std::string WINDAUTO{"WINDAUTO"};
+  std::string WINDBASE;
+  std::string WINDEXTRA;
+  std::string WINDXPOS{"--WINDXPOS--"};
+
+  // Height of the highest elevation line
+  double axisHeight = 0.0;
+
+  double firstXPos = 0.0;
+
+  std::list<WindArrowOffsets> windArrowOffsetsList;
+  WindArrowOffsets windArrowOffsets;
+
+  bool singleTime = true;
+  int nSymbols = 0;
+
+  // First rendered time instant
+  std::list<woml::TimeSeriesSlot>::const_iterator fstts;
+  std::list<woml::TimeSeriesSlot>::const_iterator tsend;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Wind symbol settings
+ */
+// ----------------------------------------------------------------------
+
+struct SvgRenderer::WindSymbol
+{
+  std::string uri;
+  std::string symbol;
+  std::string classDef;
+  double scale = 1.0;
+  unsigned int arrowArmLength = 0;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get wind symbol settings from the matching condition, taking missing
+ *		config values from the main block
+ */
+// ----------------------------------------------------------------------
+
+SvgRenderer::WindSymbol SvgRenderer::windSymbolSettings(const libconfig::Setting& condSpecs,
+                                                        const libconfig::Setting& specs,
+                                                        const std::string& confPath)
+{
+  WindSymbol ws;
+
+  // Symbol library and symbol's name, class and scale
+  //
+  ws.uri = configValue<std::string>(condSpecs, confPath, "url", &specs);
+  ws.symbol = configValue<std::string>(condSpecs, confPath, "symbol", &specs);
+  ws.classDef = configValue<std::string>(condSpecs, confPath, "class", &specs);
+
+  bool isSet = false;
+  ws.scale = configValue<double, int>(condSpecs, confPath, "scale", &specs, s_optional, &isSet);
+  if (!isSet)
+    ws.scale = 1.0;
+
+  // Wind arrow arm length (in pixels) to calculate horizontal and vertical offsets to
+  // position the arrowheads to
+  // the elevation lines. Without adjustment the wind arrows are (assumed to be) centered
+  // to the elevation lines.
+
+  ws.arrowArmLength =
+      configValue<unsigned int>(condSpecs, confPath, "arrowarmlength", &specs, s_optional, &isSet);
+  if (!isSet)
+    ws.arrowArmLength = 0;
+
+  return ws;
+}
+
+namespace
+{
+// Get wind speed and direction from the DirectionVector (space separated wind speed and
+// direction)
+void windSpeedAndDirection(const woml::GeophysicalParameterValue& pv, double& ws, double& wd)
+{
+  const char* valtypeMsg = "render_winds: FlowDirectionMeasure values expected";
+  const char* directionMsg = "render_winds: wind speed: '";
+
+  const auto* fdm = dynamic_cast<const woml::FlowDirectionMeasure*>(pv.value());
+
+  if (!fdm)
+    throw std::runtime_error(valtypeMsg);
+
+  std::vector<std::string> cols;
+  boost::split(cols, fdm->directionVector(), boost::is_any_of(" "));
+
+  if (cols.size() != 2)
+    throw std::runtime_error(directionMsg);
+  try
+  {
+    ws = boost::lexical_cast<double>(cols[0]);
+    wd = boost::lexical_cast<double>(cols[1]);
+  }
+  catch (std::exception& ex)
+  {
+    throw std::runtime_error(std::string(directionMsg) + fdm->directionVector() +
+                             "': " + ex.what());
+  }
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get wind rendering settings
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::windSettings(const libconfig::Setting& specs,
+                               const std::string& confPath,
+                               WindRendering& wr)
+{
+  // Symbol background
+
+  wr.href = configValue<std::string>(specs, confPath, "href", nullptr, s_optional);
+
+  // Controls to render all winds or only at elevation line heights (default: true; render all)
+  // and if the wind at the highest elevation line height is rendered or not (default: true)
+
+  bool isSet = false;
+
+  wr.renderAll = configValue<bool>(specs, confPath, "renderall", nullptr, s_optional, &isSet);
+  if (!isSet)
+    wr.renderAll = true;
+
+  wr.renderTop = configValue<bool>(specs, confPath, "rendertop", nullptr, s_optional, &isSet);
+  if (!isSet)
+    wr.renderTop = true;
+
+  // Controls to render first wind time instant by using the x -coordinate of document's first
+  // time
+  // instant (-1-, the default), by using the x -coordinate of document's first time instant if
+  // there
+  // are winds for one time instant only (-2-) or by using the first wind time instant as is
+  // (-3-).
+  //
+  // usewindbase			true (or not set)
+  // 		autowindbase	false (or not set)		-1-
+  // 		autowindbase	true					-2-
+  //
+  // usewindbase			false					-3-
+
+  wr.useWindBase = configValue<bool>(specs, confPath, "usewindbase", nullptr, s_optional, &isSet);
+  if (!isSet)
+    wr.useWindBase = true;
+
+  wr.autoWindBase = configValue<bool>(specs, confPath, "autowindbase", nullptr, s_optional, &isSet);
+  if ((!isSet) || (!wr.useWindBase))
+    wr.autoWindBase = false;
+
+  wr.WINDBASE = wr.WINDEXTRAOUT;
+  if (wr.useWindBase)
+    wr.WINDBASE = (wr.autoWindBase ? wr.WINDAUTO : wr.WINDBASEOUT);
+  wr.WINDEXTRA = ((wr.useWindBase && wr.autoWindBase) ? wr.WINDAUTO : wr.WINDEXTRAOUT);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Get wind symbol's scaled elevation. Returns false if the wind is not
+ *		rendered.
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::windSymbolY(const woml::GeophysicalParameterValue& pv,
+                              const WindRendering& wr,
+                              double& y)
+{
+  const woml::Elevation& e = pv.elevation();
+  std::optional<woml::NumericalSingleValueMeasure> itsBoundedLower =
+      (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
+  const std::optional<woml::NumericalSingleValueMeasure>& itsLowerLimit =
+      (e.bounded() ? itsBoundedLower : e.value());
+
+  double height = itsLowerLimit->numericValue();
+
+  if (!wr.renderAll)
+  {
+    // Check elevation lines if height matches
+    //
+    const std::list<Elevation>& elevations = axisManager->elevations();
+    auto elevend = elevations.end();
+    auto eit = elevations.begin();
+
+    for (; ((eit != elevend) && (fabs(eit->elevation() - height) > 1.0)); eit++)
+      ;
+
+    if (eit == elevend)
+      return false;
+  }
+
+  // Get scaled elevation
+  //
+  // Note: Winds seem to have heights like 3500.5m, thus sligthly exceeding the configured
+  //		 top elevation line 3500m etc; allow some tolerance to prevent
+  // scaledElevation
+  //		 ignoring the overflowing elevation
+
+  if (fabs(wr.axisHeight - height) <= 1.0)
+    height = (wr.renderTop ? (wr.axisHeight - 1.0) : (wr.axisHeight + 1.0));
+
+  y = axisManager->scaledElevation(height);
+
+  return (y >= 0);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render wind symbol for the first time instant
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_firstWindSymbol(
+    const Fmi::DateTime& vt, const WindSymbol& sym, double wd, double y, WindRendering& wr)
+{
+  // In 'autoWindBase' mode x -coordinates of the first time instant will be set
+  // afterwards
+  //
+  std::string bgXPos("0.0");
+  std::string windXPos("0.0");
+
+  if ((!wr.useWindBase) || wr.autoWindBase || (sym.arrowArmLength > 0))
+  {
+    wr.firstXPos = (((!wr.useWindBase) || wr.autoWindBase) ? axisManager->xOffset(vt) : 0.0);
+    bgXPos = (wr.autoWindBase ? wr.WINDXPOS : Fmi::to_string(wr.firstXPos));
+    windXPos =
+        (wr.autoWindBase
+             ? wr.WINDXPOS
+             : Fmi::to_string(wr.firstXPos + (sym.scale * wr.windArrowOffsets.horizontalOffsetPx)));
+
+    if (wr.autoWindBase)
+      wr.windArrowOffsetsList.push_back(wr.windArrowOffsets);
+  }
+
+  // Backgroud reference
+  //
+  if ((wr.nSymbols == 0) && (!wr.href.empty()))
+    texts[wr.WINDBASE] << "<use transform=\"translate(" << bgXPos << ",0)\" xlink:href=\""
+                       << wr.href << "\"/>\n";
+
+  // Wind symbol
+  //
+  texts[wr.WINDBASE] << "<g transform=\"translate(" << windXPos << "," << std::fixed
+                     << std::setprecision(1) << y << ") scale(" << std::fixed
+                     << std::setprecision(1) << sym.scale << ")\" class=\"" << sym.classDef
+                     << "\">\n"
+                     << "<use transform=\"rotate(" << std::fixed << std::setprecision(1) << wd
+                     << ")\" xlink:href=\"" << svgescape(sym.uri + "#" + sym.symbol)
+                     << "\"/>\n</g>\n";
+
+  wr.nSymbols++;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render wind symbol for other than the first time instant
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_windSymbol(
+    const Fmi::DateTime& vt, const WindSymbol& sym, double wd, double y, WindRendering& wr)
+{
+  double bgXPos = axisManager->xOffset(vt);
+
+  if (bgXPos <= 0.0)
+    return;
+
+  double windXPos = bgXPos + (sym.scale * wr.windArrowOffsets.horizontalOffsetPx);
+
+  if ((wr.nSymbols == 0) && (!wr.href.empty()))
+    texts[wr.WINDEXTRA] << "<use transform=\"translate(" << std::fixed << std::setprecision(1)
+                        << bgXPos << ",0)\" xlink:href=\"" << wr.href << "\"/>\n";
+
+  texts[wr.WINDEXTRA] << "<g transform=\"translate(" << std::fixed << std::setprecision(1)
+                      << windXPos << "," << std::fixed << std::setprecision(1) << y << ") scale("
+                      << std::fixed << std::setprecision(1) << sym.scale << ")\" class=\""
+                      << sym.classDef << "\">\n"
+                      << "<use transform=\"rotate(" << std::fixed << std::setprecision(1) << wd
+                      << ")\" xlink:href=\"" << svgescape(sym.uri + "#" + sym.symbol)
+                      << "\"/>\n</g>\n";
+
+  wr.nSymbols++;
+
+  wr.singleTime = false;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render wind symbol for a wind value
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_windValue(const woml::GeophysicalParameterValue& pv,
+                                   const libconfig::Setting& specs,
+                                   const std::string& confPath,
+                                   const std::list<woml::TimeSeriesSlot>::const_iterator& itts,
+                                   WindRendering& wr)
+{
+  // Search for matching condition for the wind speed with nearest comparison value.
+  //
+  // Take missing config values from the main block
+
+  double ws = NAN;
+  double wd = NAN;
+
+  windSpeedAndDirection(pv, ws, wd);
+
+  const libconfig::Setting* condSpecs = matchingCondition(config, confPath, confPath, "", -1, ws);
+
+  if (!condSpecs)
+    return;
+
+  WindSymbol sym = windSymbolSettings(*condSpecs, specs, confPath);
+
+  double y = 0.0;
+
+  if (!windSymbolY(pv, wr, y))
+    return;
+
+  // Get position offsets and adjust y -coordinate
+
+  wr.windArrowOffsets = calculateWindArrowOffsets(sym.arrowArmLength, wd);
+
+  y -= ((wr.windArrowOffsets.scale = sym.scale) * wr.windArrowOffsets.verticalOffsetPx);
+
+  if (wr.fstts == wr.tsend)
+    wr.fstts = itts;
+
+  if (itts == wr.fstts)
+    render_firstWindSymbol(itts->validTime(), sym, wd, y, wr);
+  else
+    render_windSymbol(itts->validTime(), sym, wd, y, wr);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render wind base hour and set the first time instant's x -coordinates
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_windBase(const libconfig::Setting& specs,
+                                  const std::string& confPath,
+                                  WindRendering& wr)
+{
+  if ((!wr.autoWindBase) || wr.singleTime)
+  {
+    // Time (hour) of earliest rendered wind values
+    //
+    bool isSet = false;
+    auto windBaseHour =
+        configValue<std::string>(specs, confPath, "windbasehour", nullptr, s_optional, &isSet);
+
+    if (!windBaseHour.empty())
+      texts[wr.WINDBASEHOUR] << boost::algorithm::replace_first_copy(
+          windBaseHour,
+          "%hour%",
+          toFormattedString(wr.fstts->validTime(), "HH", axisManager->utc()).CharPtr());
+  }
+
+  if (!wr.autoWindBase)
+    return;
+
+  // Set x -coordinates of the background and the symbols for the first time instant
+  //
+  auto ofend = wr.windArrowOffsetsList.end();
+  auto itoff = wr.windArrowOffsetsList.begin();
+  std::string textOut = texts[wr.WINDAUTO].str();
+  double firstXPos = (wr.singleTime ? 0.0 : wr.firstXPos);
+
+  boost::algorithm::replace_first(textOut, wr.WINDXPOS, Fmi::to_string(firstXPos));
+
+  for (; (itoff != ofend); itoff++)
+  {
+    double x = (firstXPos + (itoff->scale * itoff->horizontalOffsetPx));
+    boost::algorithm::replace_first(textOut, wr.WINDXPOS, Fmi::to_string(x));
+  }
+
+  texts[wr.singleTime ? wr.WINDBASEOUT : wr.WINDEXTRAOUT] << textOut;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Wind rendering
  */
 // ----------------------------------------------------------------------
@@ -10593,97 +11000,40 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
   try
   {
     const char* typeMsg = " must contain a group in curly brackets";
-    const char* valtypeMsg = "render_winds: FlowDirectionMeasure values expected";
-    const char* directionMsg = "render_winds: wind speed: '";
-
-    std::string WINDBASEOUT("WINDBASE");
-    std::string WINDBASEHOUR("WINDBASEHOUR");
-    std::string WINDEXTRAOUT("WINDEXTRA");
 
     const libconfig::Setting& specs = config.lookup(confPath);
     if (!specs.isGroup())
       throw std::runtime_error(confPath + typeMsg);
 
-    // Symbol background
+    WindRendering wr;
 
-    auto href = configValue<std::string>(specs, confPath, "href", nullptr, s_optional);
-
-    // Controls to render all winds or only at elevation line heights (default: true; render all)
-    // and if the wind at the highest elevation line height is rendered or not (default: true)
+    // Symbol background and rendering controls
 
     const std::list<Elevation>& elevations = axisManager->elevations();
-    auto elevend = elevations.end();
-    double axisHeight = elevations.back().elevation();
+    wr.axisHeight = elevations.back().elevation();
 
-    bool isSet = false;
-
-    bool renderAll = configValue<bool>(specs, confPath, "renderall", nullptr, s_optional, &isSet);
-    if (!isSet)
-      renderAll = true;
-
-    bool renderTop = configValue<bool>(specs, confPath, "rendertop", nullptr, s_optional, &isSet);
-    if (!isSet)
-      renderTop = true;
-
-    // Controls to render first wind time instant by using the x -coordinate of document's first
-    // time
-    // instant (-1-, the default), by using the x -coordinate of document's first time instant if
-    // there
-    // are winds for one time instant only (-2-) or by using the first wind time instant as is
-    // (-3-).
-    //
-    // usewindbase			true (or not set)
-    // 		autowindbase	false (or not set)		-1-
-    // 		autowindbase	true					-2-
-    //
-    // usewindbase			false					-3-
-
-    bool useWindBase =
-        configValue<bool>(specs, confPath, "usewindbase", nullptr, s_optional, &isSet);
-    if (!isSet)
-      useWindBase = true;
-
-    bool autoWindBase =
-        configValue<bool>(specs, confPath, "autowindbase", nullptr, s_optional, &isSet);
-    if ((!isSet) || (!useWindBase))
-      autoWindBase = false;
-
-    std::string WINDAUTO("WINDAUTO");
-    std::string WINDBASE(WINDEXTRAOUT);
-    if (useWindBase)
-      WINDBASE = (autoWindBase ? WINDAUTO : WINDBASEOUT);
-    std::string WINDEXTRA((useWindBase && autoWindBase) ? WINDAUTO : WINDEXTRAOUT);
-    std::string WINDXPOS("--WINDXPOS--");
-
-    double firstXPos = 0.0;
-
-    std::list<WindArrowOffsets> windArrowOffsetsList;
-    WindArrowOffsets windArrowOffsets;
+    windSettings(specs, confPath, wr);
 
     // Loop thru the (ascending) time serie
-
-    bool singleTime = true;
-    int nSymbols = 0;
 
     const Fmi::TimePeriod& tp = axisManager->timePeriod();
 
     auto tsbeg = winds.timeseries().begin();
     auto tsend = winds.timeseries().end();
-    std::list<woml::TimeSeriesSlot>::const_iterator fstts = tsend;
     std::list<woml::TimeSeriesSlot>::const_iterator itts;
 
-    for (itts = tsbeg; (itts != tsend); itts++, nSymbols = 0)
+    wr.fstts = wr.tsend = tsend;
+
+    for (itts = tsbeg; (itts != tsend); itts++, wr.nSymbols = 0)
     {
       // Skip time instants outside the document's time period.
       //
       const Fmi::DateTime& vt = itts->validTime();
 
-      if ((vt < tp.begin()) || (vt > tp.end()))
-      {
-        if (vt < tp.begin())
-          continue;
+      if (vt < tp.begin())
+        continue;
+      if (vt > tp.end())
         break;
-      }
 
       // Loop thru the parameter sets
 
@@ -10700,215 +11050,12 @@ void SvgRenderer::render_timeserie(const woml::Winds& winds)
         std::list<woml::GeophysicalParameterValue>::const_iterator itpv;
 
         for (itpv = itpvs->get()->values().begin(); (itpv != pvend); itpv++)
-        {
-          // Search for matching condition for the wind speed with nearest comparison value.
-          //
-          // Take missing config values from the main block
-
-          const auto* fdm = dynamic_cast<const woml::FlowDirectionMeasure*>(itpv->value());
-
-          if (!fdm)
-            throw std::runtime_error(valtypeMsg);
-
-          // DirectionVector: space separated wind speed and direction
-
-          double ws = NAN;
-          double wd = NAN;
-          std::vector<std::string> cols;
-          boost::split(cols, fdm->directionVector(), boost::is_any_of(" "));
-
-          if (cols.size() != 2)
-            throw std::runtime_error(directionMsg);
-          try
-          {
-            ws = boost::lexical_cast<double>(cols[0]);
-            wd = boost::lexical_cast<double>(cols[1]);
-          }
-          catch (std::exception& ex)
-          {
-            throw std::runtime_error(std::string(directionMsg) + fdm->directionVector() +
-                                     "': " + ex.what());
-          }
-
-          const libconfig::Setting* condSpecs =
-              matchingCondition(config, confPath, confPath, "", -1, ws);
-
-          if (condSpecs)
-          {
-            // Symbol library and symbol's name, class and scale
-            //
-            auto uri = configValue<std::string>(*condSpecs, confPath, "url", &specs);
-            auto symbol = configValue<std::string>(*condSpecs, confPath, "symbol", &specs);
-            auto classDef = configValue<std::string>(*condSpecs, confPath, "class", &specs);
-
-            bool isSet = false;
-            auto scale =
-                configValue<double, int>(*condSpecs, confPath, "scale", &specs, s_optional, &isSet);
-            if (!isSet)
-              scale = 1.0;
-
-            // Wind arrow arm length (in pixels) to calculate horizontal and vertical offsets to
-            // position the arrowheads to
-            // the elevation lines. Without adjustment the wind arrows are (assumed to be) centered
-            // to the elevation lines.
-
-            auto arrowArmLength = configValue<unsigned int>(
-                *condSpecs, confPath, "arrowarmlength", &specs, s_optional, &isSet);
-            if (!isSet)
-              arrowArmLength = 0;
-
-            const woml::Elevation& e = itpv->elevation();
-            std::optional<woml::NumericalSingleValueMeasure> itsBoundedLower =
-                (e.bounded() ? e.lowerLimit() : woml::NumericalSingleValueMeasure());
-            const std::optional<woml::NumericalSingleValueMeasure>& itsLowerLimit =
-                (e.bounded() ? itsBoundedLower : e.value());
-
-            double height = itsLowerLimit->numericValue();
-
-            if (!renderAll)
-            {
-              // Check elevation lines if height matches
-              //
-              auto eit = elevations.begin();
-
-              for (; ((eit != elevend) && (fabs(eit->elevation() - height) > 1.0)); eit++)
-                ;
-
-              if (eit == elevend)
-                continue;
-            }
-
-            // Get scaled elevation
-            //
-            // Note: Winds seem to have heights like 3500.5m, thus sligthly exceeding the configured
-            //		 top elevation line 3500m etc; allow some tolerance to prevent
-            // scaledElevation
-            //		 ignoring the overflowing elevation
-
-            if (fabs(axisHeight - height) <= 1.0)
-              height = (renderTop ? (axisHeight - 1.0) : (axisHeight + 1.0));
-
-            double y = axisManager->scaledElevation(height);
-
-            if (y < 0)
-              continue;
-
-            // Get position offsets and adjust y -coordinate
-
-            windArrowOffsets = calculateWindArrowOffsets(arrowArmLength, wd);
-
-            y -= ((windArrowOffsets.scale = scale) * windArrowOffsets.verticalOffsetPx);
-
-            if (fstts == tsend)
-              fstts = itts;
-
-            if (itts == fstts)
-            {
-              // In 'autoWindBase' mode x -coordinates of the first time instant will be set
-              // afterwards
-              //
-              std::string bgXPos("0.0");
-              std::string windXPos("0.0");
-
-              if ((!useWindBase) || autoWindBase || (arrowArmLength > 0))
-              {
-                firstXPos = (((!useWindBase) || autoWindBase) ? axisManager->xOffset(vt) : 0.0);
-                bgXPos = (autoWindBase ? WINDXPOS : Fmi::to_string(firstXPos));
-                windXPos =
-                    (autoWindBase ? WINDXPOS
-                                  : Fmi::to_string(firstXPos +
-                                                   (scale * windArrowOffsets.horizontalOffsetPx)));
-
-                if (autoWindBase)
-                  windArrowOffsetsList.push_back(windArrowOffsets);
-              }
-
-              // Backgroud reference
-              //
-              if ((nSymbols == 0) && (!href.empty()))
-                texts[WINDBASE] << "<use transform=\"translate(" << bgXPos << ",0)\" xlink:href=\""
-                                << href << "\"/>\n";
-
-              // Wind symbol
-              //
-              texts[WINDBASE] << "<g transform=\"translate(" << windXPos << "," << std::fixed
-                              << std::setprecision(1) << y << ") scale(" << std::fixed
-                              << std::setprecision(1) << scale << ")\" class=\"" << classDef
-                              << "\">\n"
-                              << "<use transform=\"rotate(" << std::fixed << std::setprecision(1)
-                              << wd << ")\" xlink:href=\"" << svgescape(uri + "#" + symbol)
-                              << "\"/>\n</g>\n";
-
-              nSymbols++;
-            }
-            else
-            {
-              double bgXPos = axisManager->xOffset(vt);
-
-              if (bgXPos > 0.0)
-              {
-                double windXPos = bgXPos + (scale * windArrowOffsets.horizontalOffsetPx);
-
-                if ((nSymbols == 0) && (!href.empty()))
-                  texts[WINDEXTRA] << "<use transform=\"translate(" << std::fixed
-                                   << std::setprecision(1) << bgXPos << ",0)\" xlink:href=\""
-                                   << href << "\"/>\n";
-
-                texts[WINDEXTRA] << "<g transform=\"translate(" << std::fixed
-                                 << std::setprecision(1) << windXPos << "," << std::fixed
-                                 << std::setprecision(1) << y << ") scale(" << std::fixed
-                                 << std::setprecision(1) << scale << ")\" class=\"" << classDef
-                                 << "\">\n"
-                                 << "<use transform=\"rotate(" << std::fixed << std::setprecision(1)
-                                 << wd << ")\" xlink:href=\"" << svgescape(uri + "#" + symbol)
-                                 << "\"/>\n</g>\n";
-
-                nSymbols++;
-
-                singleTime = false;
-              }
-            }
-          }
-        }  // for parameters
+          render_windValue(*itpv, specs, confPath, itts, wr);
       }  // for parametervalueset
     }  // for timeserie
 
-    if ((fstts != tsend) && useWindBase)
-    {
-      if ((!autoWindBase) || singleTime)
-      {
-        // Time (hour) of earliest rendered wind values
-        //
-        auto windBaseHour =
-            configValue<std::string>(specs, confPath, "windbasehour", nullptr, s_optional, &isSet);
-
-        if (!windBaseHour.empty())
-          texts[WINDBASEHOUR] << boost::algorithm::replace_first_copy(
-              windBaseHour,
-              "%hour%",
-              toFormattedString(fstts->validTime(), "HH", axisManager->utc()).CharPtr());
-      }
-
-      if (autoWindBase)
-      {
-        // Set x -coordinates of the background and the symbols for the first time instant
-        //
-        auto ofend = windArrowOffsetsList.end();
-        auto itoff = windArrowOffsetsList.begin();
-        std::string textOut = texts[WINDAUTO].str();
-
-        boost::algorithm::replace_first(
-            textOut, WINDXPOS, Fmi::to_string(singleTime ? 0.0 : firstXPos));
-
-        for (; (itoff != ofend); itoff++)
-        {
-          double x = ((singleTime ? 0.0 : firstXPos) + (itoff->scale * itoff->horizontalOffsetPx));
-          boost::algorithm::replace_first(textOut, WINDXPOS, Fmi::to_string(x));
-        }
-
-        texts[singleTime ? WINDBASEOUT : WINDEXTRAOUT] << textOut;
-      }
-    }
+    if ((wr.fstts != tsend) && wr.useWindBase)
+      render_windBase(specs, confPath, wr);
 
     return;
   }

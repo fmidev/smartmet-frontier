@@ -879,6 +879,27 @@ class SvgRenderer : public woml::FeatureVisitor
   void render_timeserie(const woml::MigratoryBirds& migratorybirds);
   void render_timeserie(const woml::SurfaceVisibility& surfacevisibility);
   void render_timeserie(const woml::SurfaceWeather& surfaceweather);
+  struct WindRendering;
+  struct WindSymbol;
+  static WindSymbol windSymbolSettings(const libconfig::Setting& condSpecs,
+                                       const libconfig::Setting& specs,
+                                       const std::string& confPath);
+  void windSettings(const libconfig::Setting& specs,
+                    const std::string& confPath,
+                    WindRendering& wr);
+  bool windSymbolY(const woml::GeophysicalParameterValue& pv, const WindRendering& wr, double& y);
+  void render_firstWindSymbol(
+      const Fmi::DateTime& vt, const WindSymbol& sym, double wd, double y, WindRendering& wr);
+  void render_windSymbol(
+      const Fmi::DateTime& vt, const WindSymbol& sym, double wd, double y, WindRendering& wr);
+  void render_windValue(const woml::GeophysicalParameterValue& pv,
+                        const libconfig::Setting& specs,
+                        const std::string& confPath,
+                        const std::list<woml::TimeSeriesSlot>::const_iterator& itts,
+                        WindRendering& wr);
+  void render_windBase(const libconfig::Setting& specs,
+                       const std::string& confPath,
+                       WindRendering& wr);
   void render_timeserie(const woml::Winds& winds);
   void checkZeroToleranceGroup(ElevGrp& eGrpIn, ElevGrp& eGrpOut, bool mixed = true);
   void render_timeserie(const woml::ZeroTolerance& zerotolerance);
