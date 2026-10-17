@@ -8,8 +8,10 @@ frontier \- render Weather Object Model files as SVG charts
 .I womlfile
 .B \-s
 .I svgtemplate
-.RB [ \-p
-.IR projection ]
+.B \-p
+.I projection
+.B \-t
+.I type
 .RB [ \-o
 .IR outfile ]
 .SH DESCRIPTION
@@ -44,13 +46,14 @@ Quiet mode.
 Debug mode.
 .TP
 .BI \-w " file" ", \-\-woml " file
-Input WOML file.
+Input WOML file (required). The file may also be given as the only
+positional argument.
 .TP
 .BI \-s " file" ", \-\-svg " file
-SVG template file.
+SVG template file (required).
 .TP
 .BI \-p " spec" ", \-\-proj " spec
-Projection description string or a file containing one.
+Projection description string or a file containing one (required).
 .TP
 .BI \-o " file" ", \-\-outfile " file
 Output filename. Default is
@@ -58,7 +61,7 @@ Output filename. Default is
 (standard output).
 .TP
 .BI \-t " type" ", \-\-type " type
-Document type: one of
+Document type (required): one of
 .IR conceptualmodelanalysis ,
 .IR conceptualmodelforecast ,
 .IR aerodromeforecast .
@@ -67,12 +70,12 @@ Document type: one of
 Locale for text rendering.
 .TP
 .B \-n ", " \-\-nocontours
-Deprecated; has no effect.
+Deprecated; has no effect other than a warning.
 .SH EXAMPLES
 Render an analysis chart to a file:
 .PP
 .RS 4
-frontier \-w analysis.xml \-s template.svg \-t conceptualmodelanalysis \-o chart.svg
+frontier \-w analysis.xml \-s template.svg \-p projection.txt \-t conceptualmodelanalysis \-o chart.svg
 .RE
 .SH SEE ALSO
 .BR qdcontour2 (1),

@@ -42,6 +42,7 @@ frontier -w <womlfile> -s <svgtemplate> -p <projection> [-o <outfile>] \
 
 - `-t` type: `conceptualmodelanalysis`, `conceptualmodelforecast`, or `aerodromeforecast`
 - `-p` projection: inline spec (e.g. `stereographic,5,90,60:...`) or path to a projection file
+- `-w`, `-s`, `-p` and `-t` are required; the WOML file may also be given as a positional argument
 - Output goes to stdout if `-o` is not specified
 
 ## Architecture
@@ -49,9 +50,9 @@ frontier -w <womlfile> -s <svgtemplate> -p <projection> [-o <outfile>] \
 ### Source layout
 
 - `main/frontier.cpp` -- Entry point. Reads SVG template (with `#define`/`#include` preprocessing), extracts embedded `<frontier>...</frontier>` libconfig configuration block, parses WOML, drives rendering, writes output.
-- `source/SvgRenderer.cpp` (~12k LOC) -- Core rendering engine. Implements `woml::FeatureVisitor` (visitor pattern) with ~24 `visit()` methods for different WOML weather feature types (fronts, pressure centers, cloud areas, precipitation, jet streams, etc.). This is the bulk of the codebase.
+- `source/SvgRenderer.cpp` (~14k LOC) -- Core rendering engine. Implements `woml::FeatureVisitor` (visitor pattern) with ~24 `visit()` methods for different WOML weather feature types (fronts, pressure centers, cloud areas, precipitation, jet streams, etc.). This is the bulk of the codebase.
 - `source/Path.cpp`, `source/BezierModel.cpp`, `source/BezSeg.cpp`, `source/CubicBezier.cpp`, `source/PathFactory.cpp` -- SVG path geometry and Bezier curve operations.
-- `source/clipper.cpp` -- Embedded Clipper2 polygon clipping library for overlapping weather feature regions.
+- `source/clipper.cpp` -- Embedded Clipper (version 6.2) polygon clipping library for overlapping weather feature regions.
 - `source/NFmiFillMap.cpp` -- Symbol/label placement to avoid overlaps.
 - `source/PreProcessor.cpp` -- Extends `NFmiPreProcessor` to handle `#define`/`#include` in SVG templates.
 - `source/Options.cpp` -- CLI argument parsing via `boost::program_options`.
