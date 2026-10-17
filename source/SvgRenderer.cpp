@@ -2816,6 +2816,75 @@ void SvgRenderer::render_surface(
 
 namespace
 {
+// Get the numeric value of a condition or detect the NaN condition; returns false
+// if the NaN condition does not match the value
+bool numericConditionValue(const libconfig::Setting& conds,
+                           const std::string& confPath,
+                           const std::string& className,
+                           const double numericValue,
+                           double& condValue,
+                           bool& eqNan)
+{
+  const char* valMsg = ": value must be numeric or 'NaN'";
+
+  // Check for equal to NaN condition.
+
+  try
+  {
+    if (boost::algorithm::to_lower_copy(lookup<std::string>(conds, confPath, "value")) != "nan")
+      throw std::runtime_error(confPath + ".conditions" + valMsg);
+
+    if (!std::isnan(numericValue))
+      return false;
+
+    eqNan = true;
+  }
+  catch (libconfig::SettingTypeException&)
+  {
+    // Value is (should be) then numeric
+
+    condValue = configValue<double>(conds, className, "value");
+  }
+
+  return true;
+}
+
+// Whether the value satisfies a 'le', 'lt', 'ge' or 'gt' condition
+bool numericConditionMatch(const std::string& refix,
+                           double condValue,
+                           double numericValue,
+                           double eps)
+{
+  if (refix == "le")
+    return ((condValue >= numericValue) || (fabs(condValue - numericValue) <= eps));
+  if (refix == "lt")
+    return (condValue > numericValue);
+  if (refix == "ge")
+    return ((condValue <= numericValue) || (fabs(condValue - numericValue) <= eps));
+
+  return (condValue < numericValue);
+}
+
+// Keep the condition if it is the closest matching 'le' or 'lt' condition so far
+void closestLtCondition(bool match, double condValue, int i, double& ltCondValue, int& ltCondIdx)
+{
+  if (match && ((ltCondIdx < 0) || (condValue < ltCondValue)))
+  {
+    ltCondValue = condValue;
+    ltCondIdx = i;
+  }
+}
+
+// Keep the condition if it is the closest matching 'ge' or 'gt' condition so far
+void closestGtCondition(bool match, double condValue, int i, double& gtCondValue, int& gtCondIdx)
+{
+  if (match && ((gtCondIdx < 0) || (condValue > gtCondValue)))
+  {
+    gtCondValue = condValue;
+    gtCondIdx = i;
+  }
+}
+
 const libconfig::Setting* matchingCondition(const libconfig::Config& /*config*/,
                                             const libconfig::Setting& condSpecs,
                                             const std::string& confPath,
@@ -2826,7 +2895,6 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& /*config*/,
 {
   const char* typeMsg = " must contain a list of groups in parenthesis";
   const char* condMsg = ": refix must be 'eq', 'le', 'lt', 'ge' or 'gt'";
-  const char* valMsg = ": value must be numeric or 'NaN'";
 
   double ltCondValue = 0.0;
   double gtCondValue = 0.0;
@@ -2845,35 +2913,8 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& /*config*/,
     double condValue = 0.0;
     bool eqNan = false;
 
-    // Check for equal to NaN condition.
-
-    try
-    {
-      try
-      {
-        if (boost::algorithm::to_lower_copy(lookup<std::string>(conds, confPath, "value")) != "nan")
-          throw std::runtime_error(confPath + ".conditions" + valMsg);
-
-        if (!std::isnan(numericValue))
-          continue;
-
-        eqNan = true;
-      }
-      catch (libconfig::SettingTypeException&)
-      {
-        // Value is (should be) then numeric
-
-        condValue = configValue<double>(conds, className, "value");
-      }
-      catch (...)
-      {
-        throw;
-      }
-    }
-    catch (...)
-    {
-      throw;
-    }
+    if (!numericConditionValue(conds, confPath, className, numericValue, condValue, eqNan))
+      continue;
 
     if (refix == "eq")
     {
@@ -2886,40 +2927,18 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& /*config*/,
     else if (eqNan)
       // Only eq match for NaN.
       ;
-    else if (refix == "le")
-    {
-      if (((condValue >= numericValue) || (fabs(condValue - numericValue) <= eps)) &&
-          ((ltCondIdx < 0) || (condValue < ltCondValue)))
-      {
-        ltCondValue = condValue;
-        ltCondIdx = i;
-      }
-    }
-    else if (refix == "lt")
-    {
-      if ((condValue > numericValue) && ((ltCondIdx < 0) || (condValue < ltCondValue)))
-      {
-        ltCondValue = condValue;
-        ltCondIdx = i;
-      }
-    }
-    else if (refix == "ge")
-    {
-      if (((condValue <= numericValue) || (fabs(condValue - numericValue) <= eps)) &&
-          ((gtCondIdx < 0) || (condValue > gtCondValue)))
-      {
-        gtCondValue = condValue;
-        gtCondIdx = i;
-      }
-    }
-    else if (refix == "gt")
-    {
-      if ((condValue < numericValue) && ((gtCondIdx < 0) || (condValue > gtCondValue)))
-      {
-        gtCondValue = condValue;
-        gtCondIdx = i;
-      }
-    }
+    else if ((refix == "le") || (refix == "lt"))
+      closestLtCondition(numericConditionMatch(refix, condValue, numericValue, eps),
+                         condValue,
+                         i,
+                         ltCondValue,
+                         ltCondIdx);
+    else if ((refix == "ge") || (refix == "gt"))
+      closestGtCondition(numericConditionMatch(refix, condValue, numericValue, eps),
+                         condValue,
+                         i,
+                         gtCondValue,
+                         gtCondIdx);
     else
       throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
   }
@@ -2943,6 +2962,75 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& /*config*/,
  * 		Returns the configuration group/block on success or nullptr on not found.
  */
 // ----------------------------------------------------------------------
+
+// Check if the time is within the hh[:mm]-hh[:mm] time range. Returns false if the range
+// is invalid, with the error message (if any) in rngErr
+bool timeRangeMatch(const std::string& condValue,
+                    const Fmi::DateTime& dateTimeValue,
+                    bool& inRange,
+                    std::string& rngErr)
+{
+  // Get hh[:mm]-hh[:mm] time range
+  //
+  std::vector<std::string> defs;
+  boost::split(defs, condValue, boost::is_any_of("-"));
+
+  if (defs.size() != 2)
+    return false;
+
+  std::vector<std::string> loRng;
+  boost::trim(defs[0]);
+  boost::split(loRng, defs[0], boost::is_any_of(":"));
+
+  std::vector<std::string> hiRng;
+  boost::trim(defs[1]);
+  boost::split(hiRng, defs[1], boost::is_any_of(":"));
+
+  int lh = 0;
+  int lm = 0;
+  int hh = 0;
+  int hm = 0;
+
+  if (!((loRng.size() <= 2) || (hiRng.size() <= 2)))
+    return false;
+
+  try
+  {
+    lh = boost::lexical_cast<unsigned int>(loRng[0]);
+    lm = ((loRng.size() == 2) ? boost::lexical_cast<unsigned int>(loRng[1]) : 0);
+    hh = boost::lexical_cast<unsigned int>(hiRng[0]);
+    hm = ((hiRng.size() == 2) ? boost::lexical_cast<unsigned int>(hiRng[1]) : 0);
+
+    if ((lh > 23) || (lm > 59) || (hh > 23) || (hm > 59))
+      return false;
+
+    // Build lo and hi range timestamps using validtime's date and given time range
+    //
+    Fmi::DateTime ldt(dateTimeValue.date(), Fmi::Hours(lh) + Fmi::Minutes(lm));
+    Fmi::DateTime hdt(dateTimeValue.date(), Fmi::Hours(hh) + Fmi::Minutes(hm));
+
+    // Advance hi range to next day if less than or equal to lo range (eg. range 18-06)
+
+    if (hdt <= ldt)
+      hdt += Fmi::Days(1);
+
+    // Advance validtime to next day if less than lo range
+
+    Fmi::DateTime vdt(dateTimeValue);
+    if (vdt < ldt)
+      vdt += Fmi::Days(1);
+
+    inRange = ((vdt >= ldt) && (vdt <= hdt));
+
+    return true;
+  }
+  catch (std::exception& ex)
+  {
+    rngErr = std::string(": ") + ex.what();
+  }
+
+  return false;
+}
 
 const libconfig::Setting* matchingCondition(const libconfig::Config& config,
                                             const libconfig::Setting& condSpecs,
@@ -2968,78 +3056,25 @@ const libconfig::Setting* matchingCondition(const libconfig::Config& config,
 
     // Currently only hh[:mm]-hh[:mm] range comparison supported
     //
-    if ((refix.empty()) || (refix == "range"))
-    {
-      // Get hh[:mm]-hh[:mm] time range
-      //
-      std::vector<std::string> defs;
-      boost::split(defs, condValue, boost::is_any_of("-"));
+    if ((!refix.empty()) && (refix != "range"))
+      throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
 
-      if (defs.size() == 2)
-      {
-        std::vector<std::string> loRng;
-        boost::trim(defs[0]);
-        boost::split(loRng, defs[0], boost::is_any_of(":"));
+    bool inRange = false;
 
-        std::vector<std::string> hiRng;
-        boost::trim(defs[1]);
-        boost::split(hiRng, defs[1], boost::is_any_of(":"));
-
-        int lh = 0;
-        int lm = 0;
-        int hh = 0;
-        int hm = 0;
-
-        if ((loRng.size() <= 2) || (hiRng.size() <= 2))
-          try
-          {
-            lh = boost::lexical_cast<unsigned int>(loRng[0]);
-            lm = ((loRng.size() == 2) ? boost::lexical_cast<unsigned int>(loRng[1]) : 0);
-            hh = boost::lexical_cast<unsigned int>(hiRng[0]);
-            hm = ((hiRng.size() == 2) ? boost::lexical_cast<unsigned int>(hiRng[1]) : 0);
-
-            if ((lh <= 23) && (lm <= 59) && (hh <= 23) && (hm <= 59))
-            {
-              // Build lo and hi range timestamps using validtime's date and given time range
-              //
-              Fmi::DateTime ldt(dateTimeValue.date(), Fmi::Hours(lh) + Fmi::Minutes(lm));
-              Fmi::DateTime hdt(dateTimeValue.date(), Fmi::Hours(hh) + Fmi::Minutes(hm));
-
-              // Advance hi range to next day if less than or equal to lo range (eg. range 18-06)
-
-              if (hdt <= ldt)
-                hdt += Fmi::Days(1);
-
-              // Advance validtime to next day if less than lo range
-
-              Fmi::DateTime vdt(dateTimeValue);
-              if (vdt < ldt)
-                vdt += Fmi::Days(1);
-
-              if ((vdt >= ldt) && (vdt <= hdt))
-              {
-                // Validtime is between the range; check if the parameter is available
-                //
-                std::string condPath(
-                    confPath + ((specsIdx >= 0) ? (".[" + Fmi::to_string(specsIdx) + "]") : "") +
-                    ".conditions" + ".[" + Fmi::to_string(i) + "]." + parameter);
-
-                if (parameter.empty() || config.exists(condPath))
-                  return &(condSpecs[i]);
-              }
-
-              continue;
-            }
-          }
-          catch (std::exception& ex)
-          {
-            rngErr = std::string(": ") + ex.what();
-          }
-      }
-
+    if (!timeRangeMatch(condValue, dateTimeValue, inRange, rngErr))
       throw std::runtime_error(confPath + ".conditions: '" + condValue + "'" + rngMsg + rngErr);
-    }
-    throw std::runtime_error(confPath + ".conditions: '" + refix + "'" + condMsg);
+
+    if (!inRange)
+      continue;
+
+    // Validtime is between the range; check if the parameter is available
+    //
+    std::string condPath(confPath +
+                         ((specsIdx >= 0) ? (".[" + Fmi::to_string(specsIdx) + "]") : "") +
+                         ".conditions" + ".[" + Fmi::to_string(i) + "]." + parameter);
+
+    if (parameter.empty() || config.exists(condPath))
+      return &(condSpecs[i]);
   }
 
   return nullptr;
