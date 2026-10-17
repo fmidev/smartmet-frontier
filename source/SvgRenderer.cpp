@@ -2991,7 +2991,7 @@ bool timeRangeMatch(const std::string& condValue,
   int hh = 0;
   int hm = 0;
 
-  if (!((loRng.size() <= 2) || (hiRng.size() <= 2)))
+  if ((loRng.size() > 2) || (hiRng.size() > 2))
     return false;
 
   try
