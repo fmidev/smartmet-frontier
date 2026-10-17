@@ -4748,38 +4748,107 @@ void SvgRenderer::render_symbol(const std::string& confPath,
   }
 }
 
-// ----------------------------------------------------------------------
-/*!
- * \brief Determine next path point for given hi range point
- */
-// ----------------------------------------------------------------------
-
-SvgRenderer::Phase SvgRenderer::uprightdown(
-    ElevGrp& eGrp, ElevGrp::iterator& iteg, double lo, double hi, bool nonGndFwd2Gnd)
+namespace
 {
-  auto uiteg = iteg;
-  auto riteg = iteg;
-  auto triteg = iteg;
-  const Fmi::DateTime& vt = iteg->validTime();
+// Whether the elevation ranges overlap
+bool rangesOverlap(double lo1, double hi1, double lo2, double hi2)
+{
+  return ((lo1 <= hi2) && (hi1 >= lo2));
+}
+
+// Upper elevation and the selected right side elevation for uprightdown()
+struct UpRightScan
+{
+  ElevGrp::iterator uiteg;
   double ulo = 0.0;
   double uhi = 0.0;
-  double nonZ = axisManager->nonZeroElevation();
+  ElevGrp::iterator triteg;
   bool upopen = false;
+};
 
-  if (iteg != eGrp.begin())
+// Get the upper elevation (at the same time instant) of the elevation
+void upperElevation(ElevGrp& eGrp, const ElevGrp::iterator& iteg, UpRightScan& s)
+{
+  if (iteg == eGrp.begin())
+    return;
+
+  const Fmi::DateTime& vt = iteg->validTime();
+
+  s.uiteg--;
+
+  if ((s.uiteg->validTime() == vt) && (!(s.uiteg->bottomConnected())))
   {
-    uiteg--;
+    const woml::Elevation& e = s.uiteg->elevation();
 
-    if ((uiteg->validTime() == vt) && (!(uiteg->bottomConnected())))
-    {
-      const woml::Elevation& e = uiteg->elevation();
-
-      ulo = elevationLo(e);
-      uhi = elevationHi(e);
-    }
-    else
-      uiteg = iteg;
+    s.ulo = elevationLo(e);
+    s.uhi = elevationHi(e);
   }
+  else
+    s.uiteg = iteg;
+}
+
+// Check if can go up or right through the right side elevation. Returns true if the
+// (topmost) right side elevation was selected
+bool checkRightElevation(const ElevGrp::iterator& riteg,
+                         const ElevGrp::iterator& iteg,
+                         double lo,
+                         double hi,
+                         double nonZ,
+                         bool nonGndFwd2Gnd,
+                         UpRightScan& s)
+{
+  const woml::Elevation& e = riteg->elevation();
+
+  double rlo = elevationLo(e);
+  double rhi = elevationHi(e);
+
+  // If nonGndFwd2Gnd is false (ZeroTolerance), can always go forward from below 0 to below 0 or
+  // ground elevation
+  // (even if the elevations do not overlap)
+
+  bool FWD = ((!nonGndFwd2Gnd) && (hi < nonZ) && (rlo < nonZ));
+
+  if (!(rangesOverlap(rlo, rhi, lo, hi) || FWD))
+    return false;
+
+  if ((s.uiteg != iteg) && rangesOverlap(rlo, rhi, s.ulo, s.uhi))
+  {
+    // Can go up
+    //
+    s.upopen = true;
+  }
+
+  // Why riteg->bottomConnected() is tested here ? For ZeroTolerance ? Bug ?
+
+  if (((s.triteg == iteg) || riteg->bottomConnected()) && (!(riteg->topConnected())))
+  {
+    // Can go right
+    //
+    s.triteg = riteg;
+
+    if (nonGndFwd2Gnd)
+      // BRAINSTORM-2210
+      //
+      // Select the topmost right side elevation
+      //
+      return true;
+  }
+
+  return false;
+}
+
+// Scan the elevations on the right side of the elevation. Returns false if the loop must be
+// closed by going down
+bool scanRightSide(ElevGrp& eGrp,
+                   const ElevGrp::iterator& iteg,
+                   double lo,
+                   double hi,
+                   double nonZ,
+                   bool nonGndFwd2Gnd,
+                   UpRightScan& s)
+{
+  const Fmi::DateTime& vt = iteg->validTime();
+  auto riteg = iteg;
 
   for (riteg++; (riteg != eGrp.end()); riteg++)
   {
@@ -4790,71 +4859,186 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
       if (riteg->bottomConnected() && (!(riteg->topConnected())))
         // Lower elevation has it's bottom connected, close the loop by going down
         //
-        return edn;
+        return false;
 
       continue;
     }
-    if (dh == 1)
-    {
-      const woml::Elevation& e = riteg->elevation();
+    if (dh != 1)
+      break;
 
-      double rlo = elevationLo(e);
-      double rhi = elevationHi(e);
-
-      // If nonGndFwd2Gnd is false (ZeroTolerance), can always go forward from below 0 to below 0 or
-      // ground elevation
-      // (even if the elevations do not overlap)
-
-      bool FWD = ((!nonGndFwd2Gnd) && (hi < nonZ) && (rlo < nonZ));
-
-      if (((rlo <= hi) && (rhi >= lo)) || FWD)
-      {
-        if ((uiteg != iteg) && ((rlo <= uhi) && (rhi >= ulo)))
-        {
-          // Can go up
-          //
-          upopen = true;
-        }
-
-        // Why riteg->bottomConnected() is tested here ? For ZeroTolerance ? Bug ?
-
-        if (((triteg == iteg) || riteg->bottomConnected()) && (!(riteg->topConnected())))
-        {
-          // Can go right
-          //
-          triteg = riteg;
-
-          if (nonGndFwd2Gnd)
-            // BRAINSTORM-2210
-            //
-            // Select the topmost right side elevation
-            //
-            break;
-        }
-      }
-    }
-    else
+    if (checkRightElevation(riteg, iteg, lo, hi, nonZ, nonGndFwd2Gnd, s))
       break;
   }
 
-  if (upopen && ((!(uiteg->topConnected())) || (triteg == iteg)))
+  return true;
+}
+
+// Lower elevation and the selected left side elevation for downleftup()
+struct DownLeftScan
+{
+  ElevGrp::iterator diteg;
+  double dlo = 0.0;
+  double dhi = 0.0;
+  ElevGrp::iterator bliteg;
+  bool downopen = false;
+  bool leftopen = false;
+  bool upopen = false;
+};
+
+// Get the lower elevation (at the same time instant) of the elevation
+void lowerElevation(ElevGrp& eGrp, const ElevGrp::iterator& iteg, DownLeftScan& s)
+{
+  const Fmi::DateTime& vt = iteg->validTime();
+
+  s.diteg++;
+
+  if ((s.diteg == eGrp.end()) || (s.diteg->validTime() != vt) || s.diteg->topConnected())
+  {
+    s.diteg = iteg;
+    return;
+  }
+
+  const woml::Elevation& e = s.diteg->elevation();
+
+  s.dlo = elevationLo(e);
+  s.dhi = elevationHi(e);
+
+  if (iteg->bottomConnected() && iteg->bottomConnection())
+  {
+    // Check if the elevation below overlaps the elevation on the right side of the current
+    // elevation
+    //
+    const woml::Elevation& e = *(iteg->bottomConnection());
+
+    double bclo = elevationLo(e);
+    double bchi = elevationHi(e);
+
+    s.downopen = rangesOverlap(bclo, bchi, s.dlo, s.dhi);
+  }
+}
+
+// Check if can go down or left through the left side elevation
+void checkLeftElevation(const ElevGrp::iterator& liteg,
+                        const ElevGrp::iterator& iteg,
+                        double lo,
+                        double hi,
+                        double nonZ,
+                        bool nonGndVdn2Gnd,
+                        DownLeftScan& s)
+{
+  const woml::Elevation& e = liteg->elevation();
+
+  double llo = elevationLo(e);
+  double lhi = elevationHi(e);
+
+  // If nonGndVdn2Gnd is true (ZeroTolerance), can always go backward between below 0 and/or
+  // ground elevations
+  // (even if the elevations do not overlap)
+
+  bool BWD = (nonGndVdn2Gnd && (lo < nonZ) && (llo < nonZ));
+
+  if (!(rangesOverlap(llo, lhi, lo, hi) || BWD))
+    return;
+
+  if ((s.diteg != iteg) && rangesOverlap(llo, lhi, s.dlo, s.dhi))
+  {
+    // Can go down
+    //
+    s.downopen = true;
+  }
+
+  // Select the lowest overlapping left side elevation for which the path has not travelled
+  // by left side
+  // (otherwise the elevation can not be travelled through upwards)
+
+  if (((s.bliteg == iteg) || (!(s.bliteg->leftOpen()))) && (!(liteg->bottomConnected())))
+  {
+    // Can go left
+    //
+    s.leftopen = (!(liteg->topConnected()));
+    s.bliteg = liteg;
+  }
+}
+
+// Scan the elevations on the left side of the elevation
+void scanLeftSide(ElevGrp& eGrp,
+                  const ElevGrp::iterator& iteg,
+                  double lo,
+                  double hi,
+                  double nonZ,
+                  bool nonGndVdn2Gnd,
+                  DownLeftScan& s)
+{
+  const Fmi::DateTime& vt = iteg->validTime();
+  auto liteg = iteg;
+  bool upchk = true;
+
+  for (;;)
+  {
+    if (liteg == eGrp.begin())
+      break;
+    liteg--;
+
+    int dh = (liteg->validTime() - vt).hours();
+
+    if (dh == 0)
+    {
+      if (upchk && liteg->topConnected() && (!(liteg->bottomConnected())))
+        // Upper elevation having only it's top connected
+        //
+        s.upopen = true;
+
+      upchk = false;
+
+      continue;
+    }
+    if (dh != -1)
+      break;
+
+    checkLeftElevation(liteg, iteg, lo, hi, nonZ, nonGndVdn2Gnd, s);
+  }
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Determine next path point for given hi range point
+ */
+// ----------------------------------------------------------------------
+
+SvgRenderer::Phase SvgRenderer::uprightdown(
+    ElevGrp& eGrp, ElevGrp::iterator& iteg, double lo, double hi, bool nonGndFwd2Gnd)
+{
+  UpRightScan s;
+  s.uiteg = iteg;
+  s.triteg = iteg;
+
+  double nonZ = axisManager->nonZeroElevation();
+
+  upperElevation(eGrp, iteg, s);
+
+  if (!scanRightSide(eGrp, iteg, lo, hi, nonZ, nonGndFwd2Gnd, s))
+    return edn;
+
+  if (s.upopen && ((!(s.uiteg->topConnected())) || (s.triteg == iteg)))
   {
     // Up
     //
     // Inform the right side elevation that the path has travelled by it's left side
     // (the right side elevation can not be travelled through upwards)
 
-    if (triteg != iteg)
-      triteg->leftOpen(false);
-    iteg = uiteg;
+    if (s.triteg != iteg)
+      s.triteg->leftOpen(false);
+    iteg = s.uiteg;
 
     return vup;
   }
-  if (triteg != iteg)
+  if (s.triteg != iteg)
   {
     // Right
     //
-    iteg = triteg;
+    iteg = s.triteg;
     return fwd;
   }
 
@@ -4872,122 +5056,33 @@ SvgRenderer::Phase SvgRenderer::uprightdown(
 SvgRenderer::Phase SvgRenderer::downleftup(
     ElevGrp& eGrp, ElevGrp::iterator& iteg, double lo, double hi, bool nonGndVdn2Gnd)
 {
-  auto diteg = iteg;
-  auto liteg = iteg;
-  auto bliteg = iteg;
-  const Fmi::DateTime& vt = iteg->validTime();
-  double dlo = 0.0;
-  double dhi = 0.0;
+  DownLeftScan s;
+  s.diteg = iteg;
+  s.bliteg = iteg;
+
   double nonZ = axisManager->nonZeroElevation();
-  bool downopen = false;
-  bool leftopen = false;
-  bool upopen = false;
-  bool upchk = true;
 
   if (iteg != eGrp.begin())
   {
-    diteg++;
-
-    if ((diteg != eGrp.end()) && (diteg->validTime() == vt) && (!(diteg->topConnected())))
-    {
-      const woml::Elevation& e = diteg->elevation();
-
-      dlo = elevationLo(e);
-      dhi = elevationHi(e);
-
-      if (iteg->bottomConnected())
-      {
-        if (iteg->bottomConnection())
-        {
-          // Check if the elevation below overlaps the elevation on the right side of the current
-          // elevation
-          //
-          const woml::Elevation& e = *(iteg->bottomConnection());
-
-          double bclo = elevationLo(e);
-          double bchi = elevationHi(e);
-
-          downopen = ((bclo <= dhi) && (bchi >= dlo));
-        }
-      }
-    }
-    else
-      diteg = iteg;
-
-    for (;;)
-    {
-      if (liteg == eGrp.begin())
-        break;
-      liteg--;
-
-      int dh = (liteg->validTime() - vt).hours();
-
-      if (dh == 0)
-      {
-        if (upchk && liteg->topConnected() && (!(liteg->bottomConnected())))
-          // Upper elevation having only it's top connected
-          //
-          upopen = true;
-
-        upchk = false;
-
-        continue;
-      }
-      if (dh == -1)
-      {
-        const woml::Elevation& e = liteg->elevation();
-
-        double llo = elevationLo(e);
-        double lhi = elevationHi(e);
-
-        // If nonGndVdn2Gnd is true (ZeroTolerance), can always go backward between below 0 and/or
-        // ground elevations
-        // (even if the elevations do not overlap)
-
-        bool BWD = (nonGndVdn2Gnd && (lo < nonZ) && (llo < nonZ));
-
-        if (((llo <= hi) && (lhi >= lo)) || BWD)
-        {
-          if ((diteg != iteg) && ((llo <= dhi) && (lhi >= dlo)))
-          {
-            // Can go down
-            //
-            downopen = true;
-          }
-
-          // Select the lowest overlapping left side elevation for which the path has not travelled
-          // by left side
-          // (otherwise the elevation can not be travelled through upwards)
-
-          if (((bliteg == iteg) || (!(bliteg->leftOpen()))) && (!(liteg->bottomConnected())))
-          {
-            // Can go left
-            //
-            leftopen = (!(liteg->topConnected()));
-            bliteg = liteg;
-          }
-        }
-      }
-      else
-        break;
-    }
+    lowerElevation(eGrp, iteg, s);
+    scanLeftSide(eGrp, iteg, lo, hi, nonZ, nonGndVdn2Gnd, s);
   }
 
-  if (downopen && ((!upopen) || leftopen))
+  if (s.downopen && ((!s.upopen) || s.leftopen))
   {
     // Go down; there is no upper elevation having only it's top connected or it can reached
     // through overlapping left side elevation
     //
-    iteg = diteg;
+    iteg = s.diteg;
     return vdn;
   }
-  if ((bliteg != iteg) && ((!upopen) || leftopen))
+  if ((s.bliteg != iteg) && ((!s.upopen) || s.leftopen))
   {
     // Go left; there is no upper elevation having only it's top connected or it can reached
     // through the overlapping left side elevation
     //
-    bliteg->bottomConnection(iteg->elevation());
-    iteg = bliteg;
+    s.bliteg->bottomConnection(iteg->elevation());
+    iteg = s.bliteg;
 
     return bwd;
   }
