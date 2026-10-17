@@ -362,6 +362,198 @@ bool needs_contours(const libconfig::Config& config)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Extract the valid times of the analysis or forecast
+ */
+// ----------------------------------------------------------------------
+
+ValidTimes valid_times(const woml::Weather& weather, bool debug)
+{
+  ValidTimes validtimes;
+
+  if (weather.hasAnalysis())
+    validtimes = extract_valid_times(weather.analysis());
+  else
+    validtimes = extract_valid_times(weather.forecast());
+
+  if (debug)
+  {
+    std::cerr << "Available valid times:" << std::endl;
+    for (const Fmi::DateTime& validtime : validtimes)
+      std::cerr << validtime << std::endl;
+  }
+
+  return validtimes;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render the contours of the numerical model
+ */
+// ----------------------------------------------------------------------
+
+void render_contours(frontier::SvgRenderer& renderer,
+                     const frontier::Options& options,
+                     const libconfig::Config& config,
+                     const woml::Weather& weather,
+                     const Fmi::DateTime& validtime)
+{
+  const woml::DataSource& dataSource = weather.analysis().dataSource();
+
+  std::shared_ptr<NFmiQueryData> qd;
+  try
+  {
+    if (weather.hasAnalysis())
+      qd = resolve_model(options, config, dataSource);
+    else
+      qd = resolve_model(options, config, dataSource);
+  }
+  catch (std::exception& e)
+  {
+    if (!options.quiet)
+      std::cerr << "Warning: " << e.what() << std::endl;
+  }
+
+  if (!qd && !options.quiet)
+  {
+    const std::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
+    const std::string& modelName = (modelRun ? modelRun->name() : "");
+    const std::string& name =
+        ((modelName.find_first_not_of(' ') != std::string::npos) ? modelName : "?");
+
+    throw std::runtime_error("Contouring omitted; model (" + name + ") not available");
+  }
+
+  // Render contours
+
+  renderer.contour(qd, validtime);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render the picture header
+ */
+// ----------------------------------------------------------------------
+
+void render_picture_header(frontier::SvgRenderer& renderer,
+                           const woml::Weather& weather,
+                           const Fmi::DateTime& validtime)
+{
+  bool analysis = weather.hasAnalysis();
+
+  auto trbeg(analysis ? weather.analysis().TargetRegions_begin()
+                      : weather.forecast().TargetRegions_begin());
+  // std::list<woml::TargetRegion>::const_iterator trend(
+  //     analysis ? weather.analysis().TargetRegions_end() :
+  //     weather.forecast().TargetRegions_end());
+
+  auto lnbeg(trbeg->LocalizedNames_begin());
+  auto lnend(trbeg->LocalizedNames_end());
+  auto ribeg(trbeg->RegionIds_begin());
+  auto riend(trbeg->RegionIds_end());
+
+  std::string regionName((lnbeg != lnend) ? lnbeg->second : "");
+  std::string regionId((ribeg != riend) ? ribeg->second : "");
+
+  std::string creator(analysis ? weather.analysis().creator() : weather.forecast().creator());
+
+  renderer.render_header(
+      validtime,
+      (analysis ? weather.analysis().validTime() : weather.forecast().validTime()),
+      (analysis ? weather.analysis().analysisTime() : weather.forecast().forecastTime()),
+      (analysis ? weather.analysis().creationTime() : weather.forecast().creationTime()),
+      (analysis ? weather.analysis().latestModificationTime()
+                : weather.forecast().latestModificationTime()),
+      regionName,
+      regionId,
+      creator);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test whether the feature is to be rendered for the valid time
+ *
+ * Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
+ */
+// ----------------------------------------------------------------------
+
+bool is_rendered(const woml::Feature& feature, const Fmi::DateTime& validtime)
+{
+  const std::optional<Fmi::DateTime>& theTime = feature.validTime();
+
+  return (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)));
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test whether the feature is a cloud layer
+ */
+// ----------------------------------------------------------------------
+
+bool is_cloud_layer(const woml::Feature& feature)
+{
+  return ((feature.classNameExt() == "cloudLayers") || (feature.classNameExt() == "cloudLayersCB"));
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render the woml features
+ */
+// ----------------------------------------------------------------------
+
+void render_features(frontier::SvgRenderer& renderer,
+                     const woml::Weather& weather,
+                     const Fmi::DateTime& validtime)
+{
+  if (weather.hasAnalysis())
+  {
+    for (const woml::Feature& feature : weather.analysis())
+    {
+      if (is_rendered(feature, validtime))
+        feature.visit(renderer);
+    }
+    return;
+  }
+
+  // Render cloud layers first to ensure labels can be positioned within clouds
+  // and using preferred position (near the center of the clouds) when ever possible
+
+  for (const woml::Feature& feature : weather.forecast())
+  {
+    if (is_rendered(feature, validtime) && is_cloud_layer(feature))
+      feature.visit(renderer);
+  }
+
+  for (const woml::Feature& feature : weather.forecast())
+  {
+    if (is_rendered(feature, validtime) && !is_cloud_layer(feature))
+      feature.visit(renderer);
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Write the rendered SVG
+ */
+// ----------------------------------------------------------------------
+
+void write_output(const frontier::Options& options, const frontier::SvgRenderer& renderer)
+{
+  if (options.outfile != "-")
+  {
+    if (options.verbose)
+      std::cerr << "Writing " << options.outfile << std::endl;
+    writefile(options.outfile, renderer.svg());
+  }
+  else
+  {
+    if (options.verbose)
+      std::cerr << "Writing to stdout" << std::endl;
+    std::cout << renderer.svg();
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Main program without exception handling
  */
 // ----------------------------------------------------------------------
@@ -426,19 +618,7 @@ int run(int argc,
 
   // Extract available times
 
-  ValidTimes validtimes;
-
-  if (weather.hasAnalysis())
-    validtimes = extract_valid_times(weather.analysis());
-  else
-    validtimes = extract_valid_times(weather.forecast());
-
-  if (options.debug)
-  {
-    std::cerr << "Available valid times:" << std::endl;
-    for (const Fmi::DateTime& validtime : validtimes)
-      std::cerr << validtime << std::endl;
-  }
+  ValidTimes validtimes = valid_times(weather, options.debug);
 
   if (validtimes.size() != 1)
     throw std::runtime_error("Currently only one valid time can be rendered");
@@ -452,37 +632,7 @@ int run(int argc,
   // == Model not used anymore; background data is handled by frontier frontend ==
 
   if (needs_contours(config))
-  {
-    const woml::DataSource& dataSource = weather.analysis().dataSource();
-
-    std::shared_ptr<NFmiQueryData> qd;
-    try
-    {
-      if (weather.hasAnalysis())
-        qd = resolve_model(options, config, dataSource);
-      else
-        qd = resolve_model(options, config, dataSource);
-    }
-    catch (std::exception& e)
-    {
-      if (!options.quiet)
-        std::cerr << "Warning: " << e.what() << std::endl;
-    }
-
-    if (!qd && !options.quiet)
-    {
-      const std::optional<woml::NumericalModelRun>& modelRun = dataSource.numericalModelRun();
-      const std::string& modelName = (modelRun ? modelRun->name() : "");
-      const std::string& name =
-          ((modelName.find_first_not_of(' ') != std::string::npos) ? modelName : "?");
-
-      throw std::runtime_error("Contouring omitted; model (" + name + ") not available");
-    }
-
-    // Render contours
-
-    renderer.contour(qd, validtime);
-  }
+    render_contours(renderer, options, config, weather, validtime);
 
   // Synchronize some aerodrome forecast features (SurfaceWeather and SurfaceVisibility)
   // to have common time serie
@@ -494,88 +644,16 @@ int run(int argc,
 
   // Render picture header
 
-  bool analysis = weather.hasAnalysis();
-
-  auto trbeg(analysis ? weather.analysis().TargetRegions_begin()
-                      : weather.forecast().TargetRegions_begin());
-  // std::list<woml::TargetRegion>::const_iterator trend(
-  //     analysis ? weather.analysis().TargetRegions_end() :
-  //     weather.forecast().TargetRegions_end());
-
-  auto lnbeg(trbeg->LocalizedNames_begin());
-  auto lnend(trbeg->LocalizedNames_end());
-  auto ribeg(trbeg->RegionIds_begin());
-  auto riend(trbeg->RegionIds_end());
-
-  std::string regionName((lnbeg != lnend) ? lnbeg->second : "");
-  std::string regionId((ribeg != riend) ? ribeg->second : "");
-
-  std::string creator(analysis ? weather.analysis().creator() : weather.forecast().creator());
-
-  renderer.render_header(
-      validtime,
-      (analysis ? weather.analysis().validTime() : weather.forecast().validTime()),
-      (analysis ? weather.analysis().analysisTime() : weather.forecast().forecastTime()),
-      (analysis ? weather.analysis().creationTime() : weather.forecast().creationTime()),
-      (analysis ? weather.analysis().latestModificationTime()
-                : weather.forecast().latestModificationTime()),
-      regionName,
-      regionId,
-      creator);
+  render_picture_header(renderer, weather, validtime);
 
   // Render woml.
   // Some features (forecast/analysis shortInfo and longInfo texts) have no valid time
 
-  if (weather.hasAnalysis())
-  {
-    for (const woml::Feature& feature : weather.analysis())
-    {
-      const std::optional<Fmi::DateTime>& theTime = feature.validTime();
-
-      if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-        feature.visit(renderer);
-    }
-  }
-  else
-  {
-    // Render cloud layers first to ensure labels can be positioned within clouds
-    // and using preferred position (near the center of the clouds) when ever possible
-
-    for (const woml::Feature& feature : weather.forecast())
-    {
-      const std::optional<Fmi::DateTime>& theTime = feature.validTime();
-
-      if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-        if ((feature.classNameExt() == "cloudLayers") ||
-            (feature.classNameExt() == "cloudLayersCB"))
-          feature.visit(renderer);
-    }
-
-    for (const woml::Feature& feature : weather.forecast())
-    {
-      const std::optional<Fmi::DateTime>& theTime = feature.validTime();
-
-      if (theTime && (theTime->is_not_a_date_time() || (theTime == validtime)))
-        if ((feature.classNameExt() != "cloudLayers") &&
-            (feature.classNameExt() != "cloudLayersCB"))
-          feature.visit(renderer);
-    }
-  }
+  render_features(renderer, weather, validtime);
 
   // Output
 
-  if (options.outfile != "-")
-  {
-    if (options.verbose)
-      std::cerr << "Writing " << options.outfile << std::endl;
-    writefile(options.outfile, renderer.svg());
-  }
-  else
-  {
-    if (options.verbose)
-      std::cerr << "Writing to stdout" << std::endl;
-    std::cout << renderer.svg();
-  }
+  write_output(options, renderer);
   return 0;
 }
 
