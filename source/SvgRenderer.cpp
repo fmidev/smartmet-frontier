@@ -9626,6 +9626,221 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
   return checkHoles(eGrp, hs.holes, groupCategory, setNegative);
 }
 
+namespace
+{
+// State of contrail's lo or hi range path construction
+struct ContrailPath
+{
+  std::ostringstream path;
+  double prevX = 0.0;
+  double prevVal = -1;
+  size_t pntCnt = 0;
+  bool segmentDrawn = false;
+  bool prevAbove = false;
+};
+
+// Continue ending path segment half timestep forwards if the elevation is missing or
+// invisible or the elevation for the previous time instant was missing or invisible
+void endContrailSegment(ContrailPath& cp,
+                        AxisManager& axisManager,
+                        double xStep,
+                        double val,
+                        bool prevMissing,
+                        bool above,
+                        int rng,
+                        const ElevationGroupItem& prevItem)
+{
+  if (!(((val <= 0) || prevMissing) && (cp.pntCnt > 0)))
+    return;
+
+  cp.path << " L" << (cp.prevX + (xStep / 2)) << "," << cp.prevVal;
+
+  if (above)
+    // And then to the top of y -axis at this time instant.
+    //
+    cp.path << " L" << (cp.prevX + xStep) << ",0";
+  else if (rng == 1)
+  {
+    // Connect the hi range point to the lo range point.
+    //
+    const woml::Elevation& e = prevItem.Pv()->elevation();
+
+    double lo = elevationLo(e);
+
+    cp.path << " L" << (cp.prevX + (xStep / 2)) << "," << axisManager.scaledElevation(lo);
+  }
+}
+
+// Add a visible point to the path
+void addContrailPoint(ContrailPath& cp,
+                      AxisManager& axisManager,
+                      double xStep,
+                      double x,
+                      double val,
+                      double hi,
+                      bool prevMissing,
+                      int rng)
+{
+  if (prevMissing)
+  {
+    // Start new path segment half timestep backwards.
+    //
+    cp.path << " M" << (x - (xStep / 2)) << "," << val;
+
+    if (cp.prevAbove)
+      // Connect to the top of y -axis at previous time instant.
+      //
+      cp.path << " L" << cp.prevX << ",0"
+              << " M" << (x - (xStep / 2)) << "," << val;
+    else if (rng == 0)
+      // Connect the lo range point to the hi range point.
+      //
+      cp.path << " L" << (x - (xStep / 2)) << "," << axisManager.scaledElevation(hi) << " M"
+              << (x - (xStep / 2)) << "," << val;
+
+    cp.pntCnt++;
+  }
+
+  cp.path << ((cp.pntCnt == 0) ? "M" : " L") << x << "," << val;
+  cp.pntCnt++;
+}
+
+// Missing or above the top elevation ends the path segment
+void missingContrailPoint(ContrailPath& cp)
+{
+  if (cp.pntCnt > 0)
+    cp.segmentDrawn = true;
+
+  cp.pntCnt = 0;
+}
+
+// Continue ending path segment half timestep forwards at the end of the group.
+// Connect the lo range point to the hi range point.
+void finishContrailPath(ContrailPath& cp,
+                        AxisManager& axisManager,
+                        double xStep,
+                        bool extend,
+                        double x,
+                        double val,
+                        double hi,
+                        int rng)
+{
+  if ((cp.pntCnt == 0) || (!extend))
+    return;
+
+  cp.path << " L" << (x + (xStep / 2)) << "," << val;
+
+  if (rng == 0)
+    cp.path << " L" << (x + (xStep / 2)) << "," << axisManager.scaledElevation(hi);
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render contrail group's lo (rng 0) or hi (rng 1) range path
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_contrailRange(const ElevGrp& eGrp,
+                                       int rng,
+                                       const Fmi::DateTime& et,
+                                       const std::string& classDef,
+                                       const std::string& CONTRAILS,
+                                       int& nGroups,
+                                       bool& visible,
+                                       bool& hiVisible,
+                                       bool& aboveTop)
+{
+  double axisWidth = axisManager->axisWidth();
+  double xStep = axisManager->xStep();
+
+  ElevGrp::const_iterator egend = eGrp.end();
+  ElevGrp::const_iterator iteg;
+  ElevGrp::const_iterator prevIteg;
+
+  double lo = NAN;
+  double hi = NAN;
+  double& eVal = ((rng == 0) ? lo : hi);
+  std::string contrailId = ((rng == 0) ? "ContrailsLo" : "ContrailsHi");
+
+  ContrailPath cp;
+  cp.path << std::fixed << std::setprecision(1);
+  cp.prevX = -xStep;
+
+  for (iteg = prevIteg = eGrp.begin(); (iteg != egend);)
+  {
+    // Get elevation's lo and hi range values
+    //
+    const woml::Elevation& e = iteg->Pv()->elevation();
+
+    // codechecker_false_positive [deadcode.DeadStores] read through the eVal reference
+    lo = elevationLo(e);
+    hi = elevationHi(e);
+
+    // scaledElevation() returns negative value and 'above' is set if the scaled value exceeds
+    // y -axis height.
+
+    bool above = false;
+    double val = axisManager->scaledElevation(eVal, &above);
+
+    // x -coord of this time instant
+
+    double x = axisManager->xOffset(iteg->validTime());
+
+    // Check if the elevation for the previous time instant was missing or invisible
+
+    bool prevMissing = ((val > 0) && (x > (xStep / 2)) &&
+                        ((x > (cp.prevX + xStep + (xStep / 2))) || (cp.prevVal <= 0)));
+
+    endContrailSegment(cp, *axisManager, xStep, val, prevMissing, above, rng, *prevIteg);
+
+    bool visibleX = ((x >= 0) && (x < (axisWidth + 1)));
+
+    if (val > 0)
+    {
+      // Within the visible y -axis range
+      //
+      addContrailPoint(cp, *axisManager, xStep, x, val, hi, prevMissing, rng);
+
+      // Because the data can now exceed the visible x -axis, checking/setting visibility here
+      // by checking the x -coordinate too
+
+      if (visibleX)
+      {
+        visible = true;
+        hiVisible = (hiVisible || (rng == 1));
+      }
+    }
+    else
+    {
+      // Missing or above the top
+      //
+      if (above && visibleX)
+        aboveTop = true;
+
+      missingContrailPoint(cp);
+    }
+
+    cp.prevX = x;
+    cp.prevVal = val;
+    cp.prevAbove = above;
+
+    iteg++;
+
+    if ((iteg != egend) || ((cp.pntCnt == 0) && (!cp.segmentDrawn)))
+      continue;
+
+    finishContrailPath(cp, *axisManager, xStep, (eGrp.back().validTime() < et), x, val, hi, rng);
+
+    nGroups++;
+
+    texts[CONTRAILS] << "<path class=\"" << classDef << "Visible"
+                     << "\" id=\"" << contrailId << nGroups << "\" d=\"" << cp.path.str()
+                     << "\"/>\n";
+  }  // for iteg
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Contrails rendering
@@ -9639,8 +9854,6 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
   try
   {
     ElevGrp eGrp;
-    double axisWidth = axisManager->axisWidth();
-    double xStep = axisManager->xStep();
     const std::string CONTRAILS(boost::algorithm::to_upper_copy(confPath));
     bool visible = false;
     bool hiVisible = false;
@@ -9682,151 +9895,11 @@ void SvgRenderer::render_timeserie(const woml::Contrails& contrails)
       // the
       // continuous visible hi range points
 
-      ElevGrp::const_iterator egend = eGrp.end();
-      ElevGrp::const_iterator iteg;
-      ElevGrp::const_iterator prevIteg;
-
       for (int rng = 0; (rng < 2); rng++)
-      {
-        double lo = NAN;
-        double hi = NAN;
-        double& eVal = ((rng == 0) ? lo : hi);
-        std::string contrailId = ((rng == 0) ? "ContrailsLo" : "ContrailsHi");
+        render_contrailRange(
+            eGrp, rng, et, classDef, CONTRAILS, nGroups, visible, hiVisible, aboveTop);
 
-        std::ostringstream path;
-        path << std::fixed << std::setprecision(1);
-
-        double prevX = -xStep;
-        double prevVal = -1;
-        size_t pntCnt = 0;
-        bool segmentDrawn = false;
-        bool prevAbove = false;
-
-        for (iteg = prevIteg = eGrp.begin(); (iteg != egend);)
-        {
-          // Get elevation's lo and hi range values
-          //
-          const woml::Elevation& e = iteg->Pv()->elevation();
-
-          // codechecker_false_positive [deadcode.DeadStores] read through the eVal reference
-          lo = elevationLo(e);
-          hi = elevationHi(e);
-
-          // scaledElevation() returns negative value and 'above' is set if the scaled value exceeds
-          // y -axis height.
-
-          bool above = false;
-          double val = axisManager->scaledElevation(eVal, &above);
-
-          // x -coord of this time instant
-
-          double x = axisManager->xOffset(iteg->validTime());
-
-          // Check if the elevation for the previous time instant was missing or invisible
-
-          bool prevMissing = ((val > 0) && (x > (xStep / 2)) &&
-                              ((x > (prevX + xStep + (xStep / 2))) || (prevVal <= 0)));
-
-          if (((val <= 0) || prevMissing) && (pntCnt > 0))
-          {
-            // Continue ending path segment half timestep forwards.
-            //
-            path << " L" << (prevX + (xStep / 2)) << "," << prevVal;
-
-            if (above)
-              // And then to the top of y -axis at this time instant.
-              //
-              path << " L" << (prevX + xStep) << ",0";
-            else if (rng == 1)
-            {
-              // Connect the hi range point to the lo range point.
-              //
-              const woml::Elevation& e = prevIteg->Pv()->elevation();
-
-              lo = elevationLo(e);
-
-              path << " L" << (prevX + (xStep / 2)) << "," << axisManager->scaledElevation(lo);
-            }
-          }
-
-          if (val > 0)
-          {
-            // Within the visible y -axis range
-            //
-            if (prevMissing)
-            {
-              // Start new path segment half timestep backwards.
-              //
-              path << " M" << (x - (xStep / 2)) << "," << val;
-
-              if (prevAbove)
-                // Connect to the top of y -axis at previous time instant.
-                //
-                path << " L" << prevX << ",0"
-                     << " M" << (x - (xStep / 2)) << "," << val;
-              else if (rng == 0)
-                // Connect the lo range point to the hi range point.
-                //
-                path << " L" << (x - (xStep / 2)) << "," << axisManager->scaledElevation(hi) << " M"
-                     << (x - (xStep / 2)) << "," << val;
-
-              pntCnt++;
-            }
-
-            path << ((pntCnt == 0) ? "M" : " L") << x << "," << val;
-            pntCnt++;
-
-            // Because the data can now exceed the visible x -axis, checking/setting visibility here
-            // by checking the x -coordinate too
-
-            if ((x >= 0) && (x < (axisWidth + 1)))
-            {
-              visible = true;
-
-              if (rng == 1)
-                hiVisible = true;
-            }
-          }
-          else
-          {
-            // Missing or above the top
-            //
-            if (above && (x >= 0) && (x < (axisWidth + 1)))
-              aboveTop = true;
-
-            if (pntCnt > 0)
-              segmentDrawn = true;
-
-            pntCnt = 0;
-          }
-
-          prevX = x;
-          prevVal = val;
-          prevAbove = above;
-
-          iteg++;
-
-          if ((iteg == egend) && ((pntCnt > 0) || segmentDrawn))
-          {
-            if ((pntCnt > 0) && (eGrp.back().validTime() < et))
-            {
-              // Continue ending path segment half timestep forwards.
-              // Connect the lo range point to the hi range point.
-              //
-              path << " L" << (x + (xStep / 2)) << "," << val;
-
-              if (rng == 0)
-                path << " L" << (x + (xStep / 2)) << "," << axisManager->scaledElevation(hi);
-            }
-
-            nGroups++;
-
-            texts[CONTRAILS] << "<path class=\"" << classDef << "Visible"
-                             << "\" id=\"" << contrailId << nGroups << "\" d=\"" << path.str()
-                             << "\"/>\n";
-          }
-        }  // for iteg
-      }  // for rng
+      ElevGrp::const_iterator iteg;
 
       // Remove group's elevations from the collection
 

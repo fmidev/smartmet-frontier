@@ -839,6 +839,15 @@ class SvgRenderer : public woml::FeatureVisitor
                          std::vector<double>& scaledHi,
                          std::vector<bool>& hasHole);
   void render_timeserie(const woml::CloudLayers& cloudlayers);
+  void render_contrailRange(const ElevGrp& eGrp,
+                            int rng,
+                            const Fmi::DateTime& et,
+                            const std::string& classDef,
+                            const std::string& CONTRAILS,
+                            int& nGroups,
+                            bool& visible,
+                            bool& hiVisible,
+                            bool& aboveTop);
   void render_timeserie(const woml::Contrails& contrails);
   template <typename T>
   const libconfig::Setting& groupConfig(const std::string& groupConfPath,
