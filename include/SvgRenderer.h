@@ -814,6 +814,20 @@ class SvgRenderer : public woml::FeatureVisitor
                                         double& labelPosHeightFactor,
                                         std::list<T>& groups,
                                         std::set<size_t>& memberSet);
+  void render_featureVisibility(const std::string& FEATURE,
+                                const std::string& classDef,
+                                bool visible,
+                                bool aboveTop);
+  void render_groupCurve(const std::string& FEATURE,
+                         const std::string& classDef,
+                         int nGroups,
+                         std::vector<DirectPosition>& curvePositions,
+                         double tightness,
+                         bool isHole,
+                         std::ostringstream& path,
+                         std::list<DirectPosition>& curvePoints,
+                         bool& visible,
+                         bool& aboveTop);
   template <typename GroupCategoryT, typename GroupTypeT>
   void render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
                         const std::string& confPath,

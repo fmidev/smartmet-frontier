@@ -9946,6 +9946,133 @@ const libconfig::Setting& SvgRenderer::groupConfig(const std::string& groupConfP
   }
 }
 
+namespace
+{
+// Output the group's curve path and check visibility
+void groupCurvePath(std::list<DirectPosition>& curvePoints,
+                    bool isHole,
+                    double axisWidth,
+                    double axisHeight,
+                    std::ostringstream& path,
+                    bool& visible,
+                    bool& aboveTop)
+{
+  std::list<DirectPosition>::iterator cpbeg = curvePoints.begin();
+  std::list<DirectPosition>::iterator cpend = curvePoints.end();
+  std::list<DirectPosition>::iterator itcp;
+
+  double x = NAN;
+  double y = NAN;
+
+  for (itcp = cpbeg; (itcp != cpend); itcp++)
+  {
+    path << ((itcp == cpbeg) ? "M" : " L") << (x = itcp->getX()) << "," << (y = itcp->getY());
+
+    if ((!isHole) && (x >= 0) && (x < (axisWidth + 1)))
+    {
+      if ((y > 0) && (y < axisHeight))
+        visible = true;
+      else if (y < 0)
+        aboveTop = true;
+    }
+  }
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Visibility information for a feature
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_featureVisibility(const std::string& FEATURE,
+                                           const std::string& classDef,
+                                           bool visible,
+                                           bool aboveTop)
+{
+  if (!visible)
+  {
+    if (!aboveTop)
+    {
+      // Show the fixed template text "No xxx"
+      //
+      const std::string NOFEATURE(FEATURE + "NO" + FEATURE);
+      texts[NOFEATURE] << classDef << "Visible";
+    }
+    else
+    {
+      // Show the fixed template text "xxx is located in the upper"
+      //
+      const std::string FEATUREUPPER(FEATURE + "INTHEUPPER");
+      texts[FEATUREUPPER] << classDef << "Visible";
+    }
+  }
+
+  // Show the "xxx" legend (even if no data exists or is visible)
+
+  const std::string FEATUREVISIBLE(FEATURE + "VISIBLE");
+  texts[FEATUREVISIBLE] << classDef << "Visible";
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Render group's elevations as bezier curve
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::render_groupCurve(const std::string& FEATURE,
+                                    const std::string& classDef,
+                                    int nGroups,
+                                    std::vector<DirectPosition>& curvePositions,
+                                    double tightness,
+                                    bool isHole,
+                                    std::ostringstream& path,
+                                    std::list<DirectPosition>& curvePoints,
+                                    bool& visible,
+                                    bool& aboveTop)
+{
+  double axisWidth = axisManager->axisWidth();
+  double axisHeight = axisManager->axisHeight();
+
+  // Rendering the group as bezier curve
+  //
+  if (options.debug)
+    texts[FEATURE + "PATH"] << "<path class=\"" << classDef << "Visible"
+                            << "\" id=\"" << FEATURE << "B" << nGroups << "\" d=\"" << path.str()
+                            << "\"/>\n";
+
+  // Create bezier curve and get curve points
+
+  BezierModel bm(curvePositions, true, tightness);
+  bm.getSteppedCurvePoints(0, 0, 0, curvePoints);
+
+  // Render path
+
+  if (options.debug)
+  {
+    path.clear();
+    path.str("");
+  }
+
+  groupCurvePath(curvePoints, isHole, axisWidth, axisHeight, path, visible, aboveTop);
+
+  texts[FEATURE] << "<path class=\"" << classDef << "Visible"
+                 << "\" id=\"" << FEATURE << nGroups << "\" d=\"" << path.str() << "\"/>\n";
+  // std::ostringstream pnts; pnts << std::fixed << std::setprecision(3);
+  //{
+  // std::vector<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
+  // curvePositions.end(),itcp;
+  // for (itcp = cpbeg; (itcp != cpend); itcp++) {
+  ////pnts << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY(); }
+  ////texts[FEATURE] << "<path class=\"" << itcg->classDef() << "Visible\" d=\"" << pnts.str()
+  ///<< "\"/>";
+  // pnts << "<circle cx=\"" << itcp->getX() << "\" cy=\"" << itcp->getY() << "\" r=\"2\"
+  // stroke=\"black\" stroke-width=\"1\" fill=\"red\"/>"; }
+  // texts[FEATURE] << pnts.str();
+  //}
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Timeserie group rendering (for Icing and Turbulence)
@@ -9985,13 +10112,8 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
                           groupCategory.groups(),
                           memberSet);
 
-  // x -axis width, y -axis height (px) and symbol class
-
-  double axisWidth = axisManager->axisWidth();
-  double axisHeight = axisManager->axisHeight();
-  double x = NAN;
-  double y = NAN;
-
+  // Symbol class
+  //
   // Note: does not work if classNameExt is set (by woml library; use just confPath then)
 
   const std::string symClass(boost::algorithm::to_upper_copy(confPath + classNameExt));
@@ -10078,59 +10200,16 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
     bool asSymbol = (single && itcg->symbolOnly());
 
     if (!asSymbol)
-    {
-      // Rendering the group as bezier curve
-      //
-      if (options.debug)
-        texts[FEATURE + "PATH"] << "<path class=\"" << itcg->classDef() << "Visible"
-                                << "\" id=\"" << FEATURE << "B" << nGroups << "\" d=\""
-                                << path.str() << "\"/>\n";
-
-      // Create bezier curve and get curve points
-
-      BezierModel bm(curvePositions, true, tightness);
-      bm.getSteppedCurvePoints(0, 0, 0, curvePoints);
-
-      // Render path
-
-      std::list<DirectPosition>::iterator cpbeg = curvePoints.begin();
-      std::list<DirectPosition>::iterator cpend = curvePoints.end();
-      std::list<DirectPosition>::iterator itcp;
-
-      if (options.debug)
-      {
-        path.clear();
-        path.str("");
-      }
-
-      for (itcp = cpbeg; (itcp != cpend); itcp++)
-      {
-        path << ((itcp == cpbeg) ? "M" : " L") << (x = itcp->getX()) << "," << (y = itcp->getY());
-
-        if ((!isHole) && (x >= 0) && (x < (axisWidth + 1)))
-        {
-          if ((y > 0) && (y < axisHeight))
-            visible = true;
-          else if (y < 0)
-            aboveTop = true;
-        }
-      }
-
-      texts[FEATURE] << "<path class=\"" << itcg->classDef() << "Visible"
-                     << "\" id=\"" << FEATURE << nGroups << "\" d=\"" << path.str() << "\"/>\n";
-      // std::ostringstream pnts; pnts << std::fixed << std::setprecision(3);
-      //{
-      // std::vector<DirectPosition>::iterator cpbeg = curvePositions.begin(),cpend =
-      // curvePositions.end(),itcp;
-      // for (itcp = cpbeg; (itcp != cpend); itcp++) {
-      ////pnts << ((itcp == cpbeg) ? "M" : " L") << itcp->getX() << "," << itcp->getY(); }
-      ////texts[FEATURE] << "<path class=\"" << itcg->classDef() << "Visible\" d=\"" << pnts.str()
-      ///<< "\"/>";
-      // pnts << "<circle cx=\"" << itcp->getX() << "\" cy=\"" << itcp->getY() << "\" r=\"2\"
-      // stroke=\"black\" stroke-width=\"1\" fill=\"red\"/>"; }
-      // texts[FEATURE] << pnts.str();
-      //}
-    }
+      render_groupCurve(FEATURE,
+                        itcg->classDef(),
+                        nGroups,
+                        curvePositions,
+                        tightness,
+                        isHole,
+                        path,
+                        curvePoints,
+                        visible,
+                        aboveTop);
 
     // For a hole store it's area as reserved, otherwise render the single symbol or one symbol or
     // label
@@ -10187,28 +10266,7 @@ void SvgRenderer::render_timeserie(const std::list<woml::TimeSeriesSlot>& ts,
                                      ? groupCategory.groups().front().classDef()
                                      : "");
 
-  if (!visible)
-  {
-    if (!aboveTop)
-    {
-      // Show the fixed template text "No xxx"
-      //
-      const std::string NOFEATURE(FEATURE + "NO" + FEATURE);
-      texts[NOFEATURE] << classDef << "Visible";
-    }
-    else
-    {
-      // Show the fixed template text "xxx is located in the upper"
-      //
-      const std::string FEATUREUPPER(FEATURE + "INTHEUPPER");
-      texts[FEATUREUPPER] << classDef << "Visible";
-    }
-  }
-
-  // Show the "xxx" legend (even if no data exists or is visible)
-
-  const std::string FEATUREVISIBLE(FEATURE + "VISIBLE");
-  texts[FEATUREVISIBLE] << classDef << "Visible";
+  render_featureVisibility(FEATURE, classDef, visible, aboveTop);
 }
 
 // ----------------------------------------------------------------------
