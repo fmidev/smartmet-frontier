@@ -11183,6 +11183,10 @@ bool SvgRenderer::windSymbolY(const woml::GeophysicalParameterValue& pv,
   const std::optional<woml::NumericalSingleValueMeasure>& itsLowerLimit =
       (e.bounded() ? itsBoundedLower : e.value());
 
+  // A wind without an elevation cannot be positioned
+  if (!itsLowerLimit)
+    return false;
+
   double height = itsLowerLimit->numericValue();
 
   if (!wr.renderAll)
