@@ -5694,6 +5694,71 @@ void selectAreaLabelPosElevations(ElevInfoMap& elevInfoMap,
   }
 }
 
+// Whether the fill area overlaps the reserved area
+bool overlapsReservedArea(const NFmiFillRect& fillArea,
+                          const NFmiFillRect& reservedArea,
+                          int overlap)
+{
+  return ((fillArea.first.x < reservedArea.second.x) &&
+          (fillArea.second.x >= (reservedArea.first.x + overlap)) &&
+          (fillArea.first.y < reservedArea.second.y) &&
+          (fillArea.second.y >= (reservedArea.first.y + overlap)));
+}
+
+// Store the fill area as candidate area
+void storeCandidateArea(FillAreas& candidateAreas,
+                        const std::string& markerId,
+                        const std::string& reserver,
+                        const NFmiFillRect& fillArea)
+{
+  candidateAreas[markerId].fillAreas.push_back(fillArea);
+  candidateAreas[markerId].markers.push_back(reserver);
+  candidateAreas[markerId].scales.emplace_back(1.0, 1.0);
+}
+
+// Get iterator to the fill area scales (if any) after checking they match the fill areas
+std::list<std::pair<double, double>>::iterator fillAreaScales(
+    const NFmiFillAreas& fillAreas, std::list<std::pair<double, double>>* scales)
+{
+  std::list<std::pair<double, double>>::iterator siter;
+
+  if (scales)
+  {
+    if (fillAreas.size() != scales->size())
+      throw std::runtime_error("eraseReservedAreas: internal: fillAreas.size() != scales.size()");
+
+    siter = scales->begin();
+  }
+
+  return siter;
+}
+
+// Erase the fill area and it's scale. Positions/scales reserved by an area (e.g. cloud) are
+// kept to be used if free areas do not exist
+NFmiFillAreas::iterator eraseFillArea(NFmiFillAreas& fillAreas,
+                                      NFmiFillAreas::iterator fiter,
+                                      std::list<std::pair<double, double>>* scales,
+                                      std::list<std::pair<double, double>>::iterator& siter,
+                                      bool keep,
+                                      NFmiFillAreas& fA,
+                                      std::list<std::pair<double, double>>& sc)
+{
+  if (keep)
+    fA.push_back(*fiter);
+
+  fiter = fillAreas.erase(fiter);
+
+  if (scales)
+  {
+    if (keep)
+      sc.push_back(*siter);
+
+    siter = scales->erase(siter);
+  }
+
+  return fiter;
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Move used/reserved 'fillAreas' container's fill areas into
@@ -5728,47 +5793,25 @@ void eraseReservedAreas(const std::string& markerId,
   NFmiFillAreas fA;
   std::list<std::pair<double, double>> sc;
 
+  bool storeCandidate = (areaId.empty() && (!isHole) && storeCandidates);
+
   for (auto riter = reservedAreas.begin(); (riter != reservedAreas.end()); riter++)
   {
-    if (scales)
-    {
-      if (fillAreas.size() != scales->size())
-        throw std::runtime_error("eraseReservedAreas: internal: fillAreas.size() != scales.size()");
-
-      siter = scales->begin();
-    }
+    siter = fillAreaScales(fillAreas, scales);
 
     for (auto fiter = fillAreas.begin(); (fiter != fillAreas.end());)
     {
-      if ((markerId != reserver) && (fiter->first.x < riter->second.x) &&
-          (fiter->second.x >= (riter->first.x + overlap)) && (fiter->first.y < riter->second.y) &&
-          (fiter->second.y >= (riter->first.y + overlap)))
+      if ((markerId != reserver) && overlapsReservedArea(*fiter, *riter, overlap))
       {
-        if (areaId.empty() && (!isHole) && storeCandidates)
-        {
-          candidateAreas[markerId].fillAreas.push_back(*fiter);
-          candidateAreas[markerId].markers.push_back(reserver);
-          candidateAreas[markerId].scales.emplace_back(1.0, 1.0);
-        }
+        if (storeCandidate)
+          storeCandidateArea(candidateAreas, markerId, reserver, *fiter);
 
         // fprintf(stderr,">> %s %.0f,%.0f - %.0f,%.0f [%.0f,%.0f - %.0f,%.0f]\n",eraseReserved ?
         // "erase" :
         // "keep",fiter->first.x,fiter->first.y,fiter->second.x,fiter->second.y,riter->first.x,riter->first.y,riter->second.x,riter->second.y);
         if (eraseReserved)
         {
-          if (!areaId.empty())
-            fA.push_back(*fiter);
-
-          fiter = fillAreas.erase(fiter);
-
-          if (scales)
-          {
-            if (!areaId.empty())
-              sc.push_back(*siter);
-
-            siter = scales->erase(siter);
-          }
-
+          fiter = eraseFillArea(fillAreas, fiter, scales, siter, (!areaId.empty()), fA, sc);
           continue;
         }
       }
@@ -5861,6 +5904,34 @@ NFmiFillAreas getMarkerArea(const std::string& markerId,
   return markerArea;
 }
 
+// Check marker position and collect the area if the position is free; the first checked
+// position is set as the marker position until a free position is found
+void checkMarkerArea(const std::string& markerId,
+                     const NFmiFillAreas& holeAreas,
+                     const FillAreas& reservedAreas,
+                     FillAreas& candidateAreas,
+                     double x,
+                     double my,
+                     int markerWidth,
+                     int markerHeight,
+                     bool storeCandidates,
+                     double& mx,
+                     NFmiFillAreas& ma)
+{
+  mx = (ma.empty() ? x : mx);
+
+  NFmiFillAreas markerArea = getMarkerArea(markerId,
+                                           holeAreas,
+                                           reservedAreas,
+                                           candidateAreas,
+                                           x,
+                                           my,
+                                           markerWidth,
+                                           markerHeight,
+                                           storeCandidates);
+  ma.insert(ma.end(), markerArea.begin(), markerArea.end());
+}
+
 NFmiFillAreas getMarkerArea(const std::string& markerId,
                             const NFmiFillAreas& holeAreas,
                             const FillAreas& reservedAreas,
@@ -5913,36 +5984,34 @@ NFmiFillAreas getMarkerArea(const std::string& markerId,
     {
       // Check half or 1/4 timestep forwards
       //
-      x = x0 + (xStep / div);
-      mx = (ma.empty() ? x : mx);
-      markerArea = getMarkerArea(markerId,
-                                 holeAreas,
-                                 reservedAreas,
-                                 candidateAreas,
-                                 x,
-                                 my,
-                                 markerWidth,
-                                 markerHeight,
-                                 storeCandidates);
-      ma.insert(ma.end(), markerArea.begin(), markerArea.end());
+      checkMarkerArea(markerId,
+                      holeAreas,
+                      reservedAreas,
+                      candidateAreas,
+                      x0 + (xStep / div),
+                      my,
+                      markerWidth,
+                      markerHeight,
+                      storeCandidates,
+                      mx,
+                      ma);
     }
 
     if (checkBwd)
     {
       // Check half or 1/4 timestep backwards
       //
-      x = x0 - (xStep / div);
-      mx = (ma.empty() ? x : mx);
-      markerArea = getMarkerArea(markerId,
-                                 holeAreas,
-                                 reservedAreas,
-                                 candidateAreas,
-                                 x,
-                                 my,
-                                 markerWidth,
-                                 markerHeight,
-                                 storeCandidates);
-      ma.insert(ma.end(), markerArea.begin(), markerArea.end());
+      checkMarkerArea(markerId,
+                      holeAreas,
+                      reservedAreas,
+                      candidateAreas,
+                      x0 - (xStep / div),
+                      my,
+                      markerWidth,
+                      markerHeight,
+                      storeCandidates,
+                      mx,
+                      ma);
     }
 
     div = ((div == 2) ? 4 : 2);
@@ -5954,36 +6023,34 @@ NFmiFillAreas getMarkerArea(const std::string& markerId,
     {
       // Check half or 1/4 timestep forwards
       //
-      x = x0 + (xStep / div);
-      mx = (ma.empty() ? x : mx);
-      markerArea = getMarkerArea(markerId,
-                                 holeAreas,
-                                 reservedAreas,
-                                 candidateAreas,
-                                 x,
-                                 my,
-                                 markerWidth,
-                                 markerHeight,
-                                 storeCandidates);
-      ma.insert(ma.end(), markerArea.begin(), markerArea.end());
+      checkMarkerArea(markerId,
+                      holeAreas,
+                      reservedAreas,
+                      candidateAreas,
+                      x0 + (xStep / div),
+                      my,
+                      markerWidth,
+                      markerHeight,
+                      storeCandidates,
+                      mx,
+                      ma);
     }
 
     if (checkBwd)
     {
       // Check half or 1/4 timestep backwards
       //
-      x = x0 - (xStep / div);
-      mx = (ma.empty() ? x : mx);
-      markerArea = getMarkerArea(markerId,
-                                 holeAreas,
-                                 reservedAreas,
-                                 candidateAreas,
-                                 x,
-                                 my,
-                                 markerWidth,
-                                 markerHeight,
-                                 storeCandidates);
-      ma.insert(ma.end(), markerArea.begin(), markerArea.end());
+      checkMarkerArea(markerId,
+                      holeAreas,
+                      reservedAreas,
+                      candidateAreas,
+                      x0 - (xStep / div),
+                      my,
+                      markerWidth,
+                      markerHeight,
+                      storeCandidates,
+                      mx,
+                      ma);
     }
 
     if (!ma.empty())
