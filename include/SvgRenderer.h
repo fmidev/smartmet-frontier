@@ -733,6 +733,17 @@ class SvgRenderer : public woml::FeatureVisitor
   bool checkCategory(CategoryValueMeasureGroup* groupCategory,
                      const ElevGrp::iterator& e1,
                      const ElevGrp::iterator& e2) const;
+  struct HoleScan;
+  void removeUnknownCategories(const std::list<woml::TimeSeriesSlot>& ts,
+                               Fmi::DateTime& bt,
+                               Fmi::DateTime& et,
+                               ElevGrp& eGrp,
+                               CategoryValueMeasureGroup* groupCategory);
+  bool checkHoleItem(ElevGrp& eGrp,
+                     ElevGrp::iterator& iteg,
+                     HoleScan& hs,
+                     double nonZ,
+                     CategoryValueMeasureGroup* groupCategory);
   bool searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
                    CategoryValueMeasureGroup* groupCategory = nullptr,
                    bool setNegative = true);

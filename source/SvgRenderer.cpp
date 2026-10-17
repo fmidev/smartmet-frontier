@@ -8952,6 +8952,123 @@ void nextItem(ElevGrp::iterator& iteg, bool& scanned, bool& reScan)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief State of the elevation hole search
+ */
+// ----------------------------------------------------------------------
+
+struct SvgRenderer::HoleScan
+{
+  // Previous (above) elevation and the lo and hi range values of the current and previous
+  // elevation
+
+  ElevGrp::iterator piteg;
+  double lo = 0.0;
+  double plo = 0.0;
+  double hi = 0.0;
+  double phi = 0.0;
+  bool scanned = true;
+  bool reScan = false;
+
+  ElevationHoles holes;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Remove elevations with unknown category (cloud type or
+ *		icing/turbulence magnitude) from the underlying woml object
+ *		collection and reload the elevations if needed.
+ */
+// ----------------------------------------------------------------------
+
+void SvgRenderer::removeUnknownCategories(const std::list<woml::TimeSeriesSlot>& ts,
+                                          Fmi::DateTime& bt,
+                                          Fmi::DateTime& et,
+                                          ElevGrp& eGrp,
+                                          CategoryValueMeasureGroup* groupCategory)
+{
+  bool reLoad = false;
+
+  for (auto iteg = eGrp.begin(); (iteg != eGrp.end()); iteg++)
+    if (!checkCategory(groupCategory, iteg))
+    {
+      iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
+      iteg->isDeleted(true);
+
+      reLoad = true;
+    }
+
+  if (reLoad)
+    elevationGroup(ts, bt, et, eGrp, true, false);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Check for a hole between the previous (above) and current
+ *		elevation and store it. Returns true if the rest of the scanning
+ *		of the current elevation should be skipped.
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::checkHoleItem(ElevGrp& eGrp,
+                                ElevGrp::iterator& iteg,
+                                HoleScan& hs,
+                                double nonZ,
+                                CategoryValueMeasureGroup* groupCategory)
+{
+  if (((iteg->validTime() - hs.piteg->validTime()).hours() > 0) && (hs.plo > nonZ))
+  {
+    // Generate a new elevation for the previous time instant to store the hole touching
+    // ground.
+    //
+    generateHoleElevation(eGrp, hs.piteg, iteg);
+    hs.scanned = false;
+
+    return true;
+  }
+  if (iteg->isScanned())
+    return true;
+
+  if (iteg->validTime() != hs.piteg->validTime())
+    return false;
+
+  // Check first that above and below elevation belong to the same category (cloud type or
+  // icing/turbulence magnitude).
+  //
+  if (groupCategory && (!checkCategory(groupCategory, hs.piteg, iteg)))
+  {
+    // Category changes; rescan
+    //
+    hs.scanned = false;
+    return true;
+  }
+
+  // For overlapping elevations only the first (having max hi value) is taken into
+  // account.
+  //
+  if (hs.hi >= hs.plo)
+    return true;
+
+  // Check if the hole is closed or bounded by an elevation on the left side. Store the
+  // hole.
+  //
+  ElevationHole hole;
+
+  hole.aboveElev = hs.piteg;
+  hole.belowElev = iteg;
+  hole.lo = hs.hi;
+  hole.loLo = hs.lo;
+  hole.hi = hs.plo;
+  hole.hiHi = hs.phi;
+
+  checkLeftSide(eGrp, hole, groupCategory);
+
+  hs.holes.push_back(hole);
+
+  return false;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Search elevation holes; areas closed by elevations on the left side,
  * 		below (or by ground), above and on the right side.
  *
@@ -8989,11 +9106,6 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
 
   // Search for holes.
 
-  auto egbeg = eGrp.begin();
-  auto egend = eGrp.end();
-  ElevGrp::iterator iteg;
-  ElevGrp::iterator piteg;
-
   if (groupCategory)
   {
     // For categorized data the elevations are scanned one category (cloud type or icing/turbulence
@@ -9001,40 +9113,21 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
     // Elevations with unknown category are first removed from the underlying woml object
     // collection.
     //
-    bool reLoad = false;
-
-    for (iteg = egbeg; (iteg != egend); iteg++)
-      if (!checkCategory(groupCategory, iteg))
-      {
-        iteg->Pvs()->get()->editableValues().erase(iteg->Pv());
-        iteg->isDeleted(true);
-
-        reLoad = true;
-      }
-
-    if (reLoad)
-    {
-      elevationGroup(ts, bt, et, eGrp, true, false);
-
-      egbeg = eGrp.begin();
-      egend = eGrp.end();
-    }
+    removeUnknownCategories(ts, bt, et, eGrp, groupCategory);
   }
 
+  auto egbeg = eGrp.begin();
+  auto egend = eGrp.end();
+  ElevGrp::iterator iteg;
+
   double nonZ = axisManager->nonZeroElevation();
-  double lo = 0.0;
-  double plo = 0.0;
-  double hi = 0.0;
-  double phi = 0.0;
-  bool scanned = true;
-  bool reScan = false;
 
-  ElevationHoles holes;
+  HoleScan hs;
 
-  for (bool more = true; more; more = reScan)
+  for (bool more = true; more; more = hs.reScan)
   {
-    for (reScan = false, iteg = egbeg, piteg = egend; (iteg != egend);
-         nextItem(iteg, scanned, reScan))
+    for (hs.reScan = false, iteg = egbeg, hs.piteg = egend; (iteg != egend);
+         nextItem(iteg, hs.scanned, hs.reScan))
     {
       // No need to check the first and last time instants (holes would be open on the left or right
       // side).
@@ -9049,77 +9142,26 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
 
         const woml::Elevation& e = iteg->Pv()->elevation();
 
-        lo = elevationLo(e);
-        hi = elevationHi(e);
+        hs.lo = elevationLo(e);
+        hs.hi = elevationHi(e);
       }
 
-      if (piteg != egend)
-      {
-        if (((iteg->validTime() - piteg->validTime()).hours() > 0) && (plo > nonZ))
-        {
-          // Generate a new elevation for the previous time instant to store the hole touching
-          // ground.
-          //
-          generateHoleElevation(eGrp, piteg, iteg);
-          scanned = false;
-
-          continue;
-        }
-        if (iteg->isScanned())
-          continue;
-
-        if (iteg->validTime() == piteg->validTime())
-        {
-          // Check first that above and below elevation belong to the same category (cloud type or
-          // icing/turbulence magnitude).
-          //
-          if ((!groupCategory) || checkCategory(groupCategory, piteg, iteg))
-          {
-            // For overlapping elevations only the first (having max hi value) is taken into
-            // account.
-            //
-            if (hi >= plo)
-              continue;
-
-            // Check if the hole is closed or bounded by an elevation on the left side. Store the
-            // hole.
-            //
-            ElevationHole hole;
-
-            hole.aboveElev = piteg;
-            hole.belowElev = iteg;
-            hole.lo = hi;
-            hole.loLo = lo;
-            hole.hi = plo;
-            hole.hiHi = phi;
-
-            checkLeftSide(eGrp, hole, groupCategory);
-
-            holes.push_back(hole);
-          }
-          else if (groupCategory)
-          {
-            // Category changes; rescan
-            //
-            scanned = false;
-            continue;
-          }
-        }
-      }
+      if ((hs.piteg != egend) && checkHoleItem(eGrp, iteg, hs, nonZ, groupCategory))
+        continue;
 
       if (!(iteg->isScanned()))
       {
-        piteg = iteg;
-        plo = lo;
-        phi = hi;
+        hs.piteg = iteg;
+        hs.plo = hs.lo;
+        hs.phi = hs.hi;
       }
     }
   }
 
   // Sort the holes order by validtime asc, hirange desc
 
-  if (holes.size() > 1)
-    holes.sort();
+  if (hs.holes.size() > 1)
+    hs.holes.sort();
 
   // Check which of the holes are closed (if any). For closed holes the bounding elevations are
   // modified
@@ -9127,7 +9169,7 @@ bool SvgRenderer::searchHoles(const std::list<woml::TimeSeriesSlot>& ts,
   // are
   // deleted.
 
-  return checkHoles(eGrp, holes, groupCategory, setNegative);
+  return checkHoles(eGrp, hs.holes, groupCategory, setNegative);
 }
 
 // ----------------------------------------------------------------------
