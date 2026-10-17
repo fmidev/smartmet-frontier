@@ -3220,6 +3220,90 @@ std::string getFolderAndSymbol(const libconfig::Config& /*config*/,
   return cols[codeIdx];
 }
 
+// Sign/zero type ("neg", "pos" or "zero") of the formatted value
+std::string formattedValueType(const std::string& pref, double value, const double* scale)
+{
+  std::string valStr = boost::algorithm::trim_copy(
+      fmt::format(fmt::runtime(pref), (scale ? (value / *scale) : value), value));
+  const char* p = valStr.c_str();
+
+  if (*p == '-')
+    return "neg";
+
+  return (strpbrk(p, "123456789") ? "pos" : "zero");
+}
+
+// Whether the range lo/hi value sign/zero based setting swaps the output order
+bool swappedRangeOrder(const woml::NumericalSingleValueMeasure* lowerLimit,
+                       const woml::NumericalSingleValueMeasure* upperLimit,
+                       const std::string& pref,
+                       const double* scale,
+                       const libconfig::Setting& specs,
+                       libconfig::Setting* globalScope)
+{
+  // Check range lo/hi value sign/zero based setting if the output order should be swapped.
+  //
+  // Note: The first value formatter is used for both range limit values when checking the
+  // output value sign and if it is zero;
+  //		 e.g. format '%.0f .. %.1f' would be taken as 'negtozero' instead of
+  //'negtopos' for range -2..0.2 (the hi range
+  //		 value would be formatted with '%.0f' instead of '%.1f'). This does not
+  // matter
+  // though because both range values
+  //		 (currently temperature ranges only) very likely have similar formatter and
+  // no
+  // fractional part.
+  //
+  std::string rangeType = formattedValueType(pref, lowerLimit->numericValue(), scale) + "to" +
+                          formattedValueType(pref, upperLimit->numericValue(), scale);
+
+  bool defaultOrder = false;
+  bool isSet = false;
+  defaultOrder = configValue<bool>(specs, "rangeType", rangeType, globalScope, s_optional, &isSet);
+
+  return (isSet && (!defaultOrder));
+}
+
+// Format value range
+std::string formattedRange(const woml::NumericalSingleValueMeasure* lowerLimit,
+                           const woml::NumericalSingleValueMeasure* upperLimit,
+                           const std::string& pref,
+                           const double* scale,
+                           const libconfig::Setting* specs,
+                           libconfig::Setting* globalScope)
+{
+  // Value range lo/hi value sign/zero based default output order and respective config setting.
+  // Range output order is swapped if config setting is set to false.
+  //
+  //		-6..-12		negtoneg
+  //		-2..2		negtopos
+  //		 0..7		zerotopos
+  //		-4..0		negtozero
+  //		 6..14		postopos
+  //
+  // Initialize v1 (first output value) and v2 to the default order
+  //
+  const woml::NumericalSingleValueMeasure* v1 =
+      (((lowerLimit->numericValue() <= upperLimit->numericValue()) &&
+        ((upperLimit->numericValue() >= 0)))
+           ? lowerLimit
+           : upperLimit);
+  const woml::NumericalSingleValueMeasure* v2 = ((v1 == lowerLimit) ? upperLimit : lowerLimit);
+
+  if (specs && swappedRangeOrder(lowerLimit, upperLimit, pref, scale, *specs, globalScope))
+  {
+    const woml::NumericalSingleValueMeasure* v = v1;
+    v1 = v2;
+    v2 = v;
+  }
+
+  if (scale)
+    return fmt::format(
+        fmt::runtime(pref), (v1->numericValue() / *scale), (v2->numericValue() / *scale));
+
+  return fmt::format(fmt::runtime(pref), v1->numericValue(), v2->numericValue());
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Utility function for formatting
@@ -3245,103 +3329,19 @@ std::string formattedValue(const woml::NumericalSingleValueMeasure* lowerLimit,
     //
     return svgescapetext(pref, true);
 
-  std::ostringstream os;
-
   if (scale && (*scale == 0.0))
     scale = nullptr;
 
   try
   {
     if (upperLimit)
-    {
-      // Value range lo/hi value sign/zero based default output order and respective config setting.
-      // Range output order is swapped if config setting is set to false.
-      //
-      //		-6..-12		negtoneg
-      //		-2..2		negtopos
-      //		 0..7		zerotopos
-      //		-4..0		negtozero
-      //		 6..14		postopos
-      //
-      // Initialize v1 (first output value) and v2 to the default order
-      //
-      const woml::NumericalSingleValueMeasure* v1 =
-          (((lowerLimit->numericValue() <= upperLimit->numericValue()) &&
-            ((upperLimit->numericValue() >= 0)))
-               ? lowerLimit
-               : upperLimit);
-      const woml::NumericalSingleValueMeasure* v2 = ((v1 == lowerLimit) ? upperLimit : lowerLimit);
+      return svgescapetext(formattedRange(lowerLimit, upperLimit, pref, scale, specs, globalScope),
+                           true);
 
-      if (specs)
-      {
-        // Check range lo/hi value sign/zero based setting if the output order should be swapped.
-        //
-        // Note: The first value formatter is used for both range limit values when checking the
-        // output value sign and if it is zero;
-        //		 e.g. format '%.0f .. %.1f' would be taken as 'negtozero' instead of
-        //'negtopos' for range -2..0.2 (the hi range
-        //		 value would be formatted with '%.0f' instead of '%.1f'). This does not
-        // matter
-        // though because both range values
-        //		 (currently temperature ranges only) very likely have similar formatter and
-        // no
-        // fractional part.
-        //
-        os << fmt::format(
-            fmt::runtime(pref),
-            (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue()),
-            lowerLimit->numericValue());
-        std::string valStr = boost::algorithm::trim_copy(os.str());
-        std::string rangeType;
-        const char* p = valStr.c_str();
-
-        if (*p == '-')
-          rangeType = "neg";
-        else
-          rangeType = (strpbrk(p, "123456789") ? "pos" : "zero");
-
-        os.str("");
-        os.clear();
-        os << fmt::format(
-            fmt::runtime(pref),
-            (scale ? (upperLimit->numericValue() / *scale) : upperLimit->numericValue()),
-            upperLimit->numericValue());
-        valStr = boost::algorithm::trim_copy(os.str());
-        p = valStr.c_str();
-
-        if (*p == '-')
-          rangeType += "toneg";
-        else
-          rangeType += (strpbrk(p, "123456789") ? "topos" : "tozero");
-
-        bool defaultOrder = false;
-        bool isSet = false;
-        defaultOrder =
-            configValue<bool>(*specs, "rangeType", rangeType, globalScope, s_optional, &isSet);
-
-        if (isSet && (!defaultOrder))
-        {
-          const woml::NumericalSingleValueMeasure* v = v1;
-          v1 = v2;
-          v2 = v;
-        }
-
-        os.str("");
-        os.clear();
-      }
-
-      if (scale)
-        os << fmt::format(
-            fmt::runtime(pref), (v1->numericValue() / *scale), (v2->numericValue() / *scale));
-      else
-        os << fmt::format(fmt::runtime(pref), v1->numericValue(), v2->numericValue());
-    }
-    else
-      os << fmt::format(
-          fmt::runtime(pref),
-          (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue()));
-
-    return svgescapetext(os.str(), true);
+    return svgescapetext(
+        fmt::format(fmt::runtime(pref),
+                    (scale ? (lowerLimit->numericValue() / *scale) : lowerLimit->numericValue())),
+        true);
   }
   catch (std::exception& ex)
   {
