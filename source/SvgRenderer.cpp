@@ -6468,6 +6468,717 @@ void adjustMarkerPosition(double minx,
  */
 // ----------------------------------------------------------------------
 
+// State of the search for the marker position nearest to the middle of the area
+struct MarkerScan
+{
+  int n = 0;       // Middle elevation
+  int nS = 0;      // Selected elevation
+  int nN = 0;      // Last elevation
+  int n1 = 0;      // Left side elevation
+  int n2 = 0;      // Right side elevation
+  int nX = 0;      // Number of elevations
+  double h = NAN;  // Height of marker position
+
+  bool nearest = false;   // Set if the primary position (middle elevation) did not have enough
+                          // room for the marker
+  bool multiple = false;  // Set if using center of 2 middle elevations as marker position
+  bool fvmul = false;     // Set if using center of 2 middle elevations as favoured position
+
+  double selmx = 0.0;
+  double selmy = 0.0;  // Selected marker position
+  double selmfvx = 0.0;
+  double selmfvy = 0.0;  // Favoured marker position
+  double selh = 0.0;
+  double selfvh = 0.0;
+  double selfrh = 0.0;  // Height of free marker position
+  double fvlim = 0.7;   // Using 70% as the favouring limit
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Area marker (label or symbol) positioning; see getAreaMarkerPos()
+ */
+// ----------------------------------------------------------------------
+
+class AreaMarkerPositioner
+{
+ public:
+  AreaMarkerPositioner(Texts& theTexts,
+                       const std::string& theMarkerId,
+                       const std::list<DirectPosition>& theCurvePoints,
+                       NFmiFillAreas& theHoleAreas,
+                       FillAreas& theReservedAreas,
+                       FillAreas& theFreeAreas,
+                       FillAreas& theCandidateAreas,
+                       bool theIsHole,
+                       bool theBBCenterMarker,
+                       bool theTextOutput,
+                       int theWindowWidth,
+                       int theWindowHeight,
+                       double theMinx,
+                       double theAxisHeight,
+                       double theAxisWidth,
+                       double theXStep,
+                       double theMinh,
+                       double theSOffset,
+                       double theEOffset,
+                       int theMarkerWidth,
+                       int theMarkerHeight,
+                       double theMarkerScale,
+                       double theMarkerScaleMin,
+                       std::vector<double>& theLopx,
+                       std::vector<double>& theHipx,
+                       std::list<double>& theMarkerX,
+                       std::list<double>& theMarkerY,
+                       std::list<double>& theScaleX,
+                       std::list<double>& theScaleY,
+                       bool theReserveFillAreas,
+                       boost::ptr_map<std::string, std::ostringstream>* theAreasOut,
+                       const std::string& theAreaPlaceHolder)
+      : texts(theTexts),
+        markerId(theMarkerId),
+        curvePoints(theCurvePoints),
+        holeAreas(theHoleAreas),
+        reservedAreas(theReservedAreas),
+        freeAreas(theFreeAreas),
+        candidateAreas(theCandidateAreas),
+        isHole(theIsHole),
+        bbCenterMarker(theBBCenterMarker),
+        textOutput(theTextOutput),
+        windowWidth(theWindowWidth),
+        windowHeight(theWindowHeight),
+        minx(theMinx),
+        axisHeight(theAxisHeight),
+        axisWidth(theAxisWidth),
+        xStep(theXStep),
+        minh(theMinh),
+        sOffset(theSOffset),
+        eOffset(theEOffset),
+        markerWidth(theMarkerWidth),
+        markerHeight(theMarkerHeight),
+        markerScale(theMarkerScale),
+        markerScaleMin(theMarkerScaleMin),
+        _lopx(theLopx),
+        _hipx(theHipx),
+        markerX(theMarkerX),
+        markerY(theMarkerY),
+        scaleX(theScaleX),
+        scaleY(theScaleY),
+        reserveFillAreas(theReserveFillAreas),
+        areasOut(theAreasOut),
+        areaPlaceHolder(theAreaPlaceHolder),
+        mw(theMarkerWidth),
+        mh(theMarkerHeight)
+  {
+  }
+
+  void run();
+
+ private:
+  void getFillAreas();
+  void reserveFillAreasOfArea();
+  bool visibleElevation(int npx, int& nX, int& n0);
+  void positionMarker(int npx, int nX, int n0);
+  void segmentFillAreas(const std::string& mId,
+                        int npx,
+                        int nX,
+                        int n0,
+                        NFmiFillAreas& areas,
+                        std::list<std::pair<double, double>>& scales);
+  void outputFillAreas(const NFmiFillAreas& areas);
+  void singleElevationCandidate(MarkerScan& ms, int n0);
+  bool twoElevationCandidate(MarkerScan& ms);
+  bool checkCandidate(const std::string& mId,
+                      MarkerScan& ms,
+                      NFmiFillAreas& areas,
+                      std::list<std::pair<double, double>>& scales);
+  void selectMarkerPosition(const std::string& mId, int npx, int nX, int n0);
+  void reserveMarker(const std::string& mId);
+
+  Texts& texts;
+  const std::string& markerId;
+  const std::list<DirectPosition>& curvePoints;
+  NFmiFillAreas& holeAreas;
+  FillAreas& reservedAreas;
+  FillAreas& freeAreas;
+  FillAreas& candidateAreas;
+  bool isHole;
+  bool bbCenterMarker;
+  bool textOutput;
+  int windowWidth;
+  int windowHeight;
+  double minx;
+  double axisHeight;
+  double axisWidth;
+  double xStep;
+  double minh;
+  double sOffset;
+  double eOffset;
+  int markerWidth;
+  int markerHeight;
+  double markerScale;
+  double markerScaleMin;
+  std::vector<double>& _lopx;
+  std::vector<double>& _hipx;
+  std::list<double>& markerX;
+  std::list<double>& markerY;
+  std::list<double>& scaleX;
+  std::list<double>& scaleY;
+  bool reserveFillAreas;
+  boost::ptr_map<std::string, std::ostringstream>* areasOut;
+  const std::string& areaPlaceHolder;
+
+  NFmiFillMap fillMap;
+  NFmiFillAreas fillAreas;
+  NFmiFillAreas::iterator area;
+  std::list<std::string> markerChain;
+  double mw;
+  double mh;
+  double mx = NAN;
+  double my = NAN;
+  double xScale = 1.0;
+  double yScale = 1.0;
+  size_t nMarkers = 0;
+};
+
+// Get fill areas. axisWidth (instead of windowWidth) is passed to getFillAreas() to ignore
+// possible fill areas outside
+// (data may contain an extra time step before and after) the document time range
+
+void AreaMarkerPositioner::getFillAreas()
+{
+  auto cpend = curvePoints.end();
+  auto itcp = curvePoints.begin();
+  auto pitcp = curvePoints.begin();
+
+  for (itcp++; (itcp != cpend); itcp++, pitcp++)
+    fillMap.Add(pitcp->getX(), pitcp->getY(), itcp->getX(), itcp->getY());
+
+  double minW = mw * markerScaleMin;
+  double minH = mh * markerScaleMin;
+
+  for (; (fillAreas.empty() && (mw >= minW) && (mh >= minH));)
+  {
+    fillMap.getFillAreas(axisWidth,
+                         windowHeight,
+                         mw,
+                         mh,
+                         1.0,
+                         false,
+                         fillAreas,
+                         isHole && textOutput,
+                         false,
+                         isHole && (!textOutput));
+
+    if (fillAreas.empty())
+    {
+      mw -= 2;
+      mh -= 2;
+    }
+  }
+
+  mw = markerWidth;
+  mh = markerHeight;
+}
+
+// Reserve the area of the hole, or store smaller fill areas as reserved
+
+void AreaMarkerPositioner::reserveFillAreasOfArea()
+{
+  if (isHole)
+  {
+    // Reserve the area of the hole ('fillAreas' contain fill areas suitable for the label,
+    // load/save the area of the hole as fill areas too)
+    //
+    NFmiFillAreas holeFillAreas;
+
+    fillMap.getFillAreas(windowWidth, windowHeight, 0, 0, 0.0, false, holeFillAreas, false, true);
+    holeAreas.insert(holeAreas.end(), holeFillAreas.begin(), holeFillAreas.end());
+  }
+  else if (reserveFillAreas)
+  {
+    // Store smaller fill areas as reserved to be able to roughly avoid feature's area when
+    // processing other possibly overlapping feature's labels/symbols
+    //
+    NFmiFillAreas fA;
+    fillMap.getFillAreas(axisWidth, windowHeight, 3, 3, 1.0, false, fA, false, false, false);
+
+    const std::string& mId(markerId);
+    reservedAreas[mId].areaId = mId;
+    reservedAreas[mId].x = 0;
+    reservedAreas[mId].y = 0;
+    reservedAreas[mId].centered = false;
+    reservedAreas[mId].fillAreas.insert(reservedAreas[mId].fillAreas.begin(), fA.begin(), fA.end());
+    reservedAreas[mId].scale = markerScale;
+    reservedAreas[mId].scales.emplace_back(markerScale, markerScale);
+  }
+}
+
+void AreaMarkerPositioner::run()
+{
+  getFillAreas();
+
+  if (isHole && (!textOutput))
+  {
+    // Just reserve the area of the hole
+    //
+    holeAreas.insert(holeAreas.end(), fillAreas.begin(), fillAreas.end());
+
+    return;
+  }
+
+  // int TRAP = 0;
+  if (!fillAreas.empty())
+  {
+    // Move reserved fill areas into candidate container
+    //
+    splitFillAreas(fillAreas, markerWidth, 1.0);
+    eraseReservedAreas("hole", "hole", "", holeAreas, candidateAreas, fillAreas, nullptr, true);
+    fillAreas.sort(sortFillAreas);
+    // if (TRAP != 0)
+    // fillAreas.clear();
+  }
+
+  reserveFillAreasOfArea();
+
+  area = fillAreas.begin();
+
+  for (int npx = 0, nX = 0, n0 = 0; (npx < ((int)_lopx.size()));)
+  {
+    // Step until end of data or area is no longer visible
+    //
+    bool visible = visibleElevation(npx, nX, n0);
+
+    npx++;
+
+    if ((visible && (npx < ((int)_lopx.size()))) || (nX == 0))
+      continue;
+
+    positionMarker(npx, nX, n0);
+
+    nX = 0;
+  }
+}
+
+// Keep track of the visible elevations; returns true if the elevation is visible
+
+bool AreaMarkerPositioner::visibleElevation(int npx, int& nX, int& n0)
+{
+  double lopx = _lopx[npx];
+
+  if (!(lopx > 0))
+    return false;
+
+  if (nX == 0)
+    // First visible time instant
+    //
+    n0 = npx;
+
+  if (bbCenterMarker && (npx > 0))
+  {
+    // Keep track of bounding box
+    //
+    double hipx = std::max(_hipx[npx], 0.0);
+
+    if ((nX == 0) || (lopx > _lopx[0]))
+      _lopx[0] = lopx;
+    if ((nX == 0) || (hipx < _hipx[0]))
+      _hipx[0] = hipx;
+  }
+
+  nX++;
+
+  return true;
+}
+
+// Select the marker position for a separate visible part of the area and reserve it
+
+void AreaMarkerPositioner::positionMarker(int npx, int nX, int n0)
+{
+  nMarkers++;
+  std::string mId(markerId + Fmi::to_string(nMarkers));
+
+  if (!bbCenterMarker)
+    selectMarkerPosition(mId, npx, nX, n0);
+  else
+  {
+    double xmin = minx + (n0 * xStep);
+    double xmax = xmin + ((nX - 1) * xStep);
+
+    mx = (xmax - ((xmax - xmin) / 2));
+    my = (_lopx[0] - ((_lopx[0] - std::max(_hipx[0], 0.0)) / 2));
+  }
+
+  reserveMarker(mId);
+}
+
+// Use a fill area if available
+
+void AreaMarkerPositioner::segmentFillAreas(const std::string& mId,
+                                            int npx,
+                                            int nX,
+                                            int n0,
+                                            NFmiFillAreas& areas,
+                                            std::list<std::pair<double, double>>& scales)
+{
+  if (area == fillAreas.end())
+    return;
+
+  int timeSteps = nX;
+
+  if (npx < ((int)_lopx.size()))
+    for (int idx = npx; ((idx < ((int)_lopx.size())) && (_lopx[idx] <= 0)); idx++)
+      timeSteps++;
+
+  for (; ((area != fillAreas.end()) && (area->second.x < (minx + ((n0 + timeSteps) * xStep))));
+       area++)
+  {
+    // Ignore areas going below 0 over 1/3'rd
+
+    if (area->second.y <= (axisHeight + ((area->second.y - area->first.y) / 3)))
+    {
+      areas.push_back(*area);
+      scales.emplace_back(1.0, 1.0);
+    }
+    // fprintf(stderr,"\t%s n0=%d nN=%d xLim=%.0f bl=%.0f,%.0f tr=%.0f,%.0f\n",area->second.y
+    // <= (axisHeight + ((area->second.y - area->first.y) / 3)) ? "Pick" : "Skip",n0,n0 +
+    // timeSteps,(minx + ((n0 + timeSteps) *
+    // xStep)),area->first.x,area->first.y,area->second.x,area->second.y);
+  }
+
+  if (areas.empty())
+    return;
+
+  eraseReservedAreas(mId, reservedAreas, candidateAreas, areas, &scales);
+
+  if ((!areas.empty()) && areasOut && (!areaPlaceHolder.empty()))
+    outputFillAreas(areas);
+}
+
+// Output the fill areas (for debugging)
+
+void AreaMarkerPositioner::outputFillAreas(const NFmiFillAreas& areas)
+{
+  boost::ptr_map<std::string, std::ostringstream>& texts = *areasOut;
+
+  /*
+  texts[areaPlaceHolder]
+      << "<line x1=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y1=\"0\""
+      << " x2=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y2=\"" << axisHeight
+      << "\" style=\"stroke:rgb(255,0,0);stroke-width:2\"/>";
+  */
+
+  const char* clrs[] = {"red", "blue", "green", "orange", "brown", "yellow"};
+
+  size_t clrCnt = (sizeof(clrs) / sizeof(char*));
+  size_t clrIdx = 0;
+
+  for (auto iter = areas.begin(); (iter != areas.end()); iter++)
+  {
+    texts[areaPlaceHolder] << "<rect x=\"" << iter->first.x << "\" y=\"" << iter->first.y
+                           << "\" width=\"" << iter->second.x - iter->first.x << "\" height=\""
+                           << iter->second.y - iter->first.y << "\" fill=\""
+                           << clrs[clrIdx % clrCnt] << "\" stroke=\"" << clrs[clrIdx % clrCnt]
+                           << "\"/>\n";
+    clrIdx++;
+  }
+}
+
+// Candidate position at the middle (or the next nearest) elevation
+
+void AreaMarkerPositioner::singleElevationCandidate(MarkerScan& ms, int n0)
+{
+  if (ms.nearest || ((ms.nX % 2) == 0))
+  {
+    // Select the taller elevation
+    //
+    // Note: The holes are now checked with fill areas ...
+    //
+    //						n = (((_lopx[n2] - _hipx[n2]) > (_lopx[n1] -
+    //_hipx[n1]))
+    //?
+    // n2
+    //:
+    // n1);
+    //
+    //						n2++;
+    //						n1--;
+
+    // ... scanning the left side first
+
+    if (ms.n1 >= 0)
+    {
+      ms.n = ms.n1;
+      ms.n1--;
+    }
+    else
+    {
+      ms.n = ms.n2;
+      ms.n2++;
+    }
+  }
+  else
+    ms.n1--;
+
+  double lo = std::min(_lopx[ms.n], axisHeight);
+  double hi = std::max(_hipx[ms.n], 0.0);
+
+  mx = minx + ((ms.nS = ms.n) * xStep);
+  my = lo - ((lo - hi) / 2);
+
+  // Adjust x -position if using areas first or last elevation
+
+  adjustMarkerPosition(minx, axisWidth, xStep, sOffset, eOffset, n0, ms.nN, ms.nS, mx, my);
+
+  ms.h = lo - hi;
+
+  ms.multiple = false;
+  // fprintf(stderr,"\tCheck (%d,%d) %d mx=%.0f my=%.0f h=%.0f\n",n2,n1,n,mx,my,h);
+}
+
+// Candidate position at the center of the 2 middle elevations; returns false if the elevations
+// do not overlap
+
+bool AreaMarkerPositioner::twoElevationCandidate(MarkerScan& ms)
+{
+  // Elevations must overlap. y -axis grows downwards
+
+  double lo2 = std::min(_lopx[ms.n2], axisHeight);
+  double hi2 = std::max(_hipx[ms.n2], 0.0);
+  double lo1 = std::min(_lopx[ms.n1], axisHeight);
+  double hi1 = std::max(_hipx[ms.n1], 0.0);
+
+  if ((lo1 <= hi2) || (hi1 >= lo2))
+    return false;
+
+  mx = minx + (ms.n1 * xStep) + (xStep / 2);
+
+  double y2 = lo2 - ((lo2 - hi2) / 2);
+  double y1 = lo1 - ((lo1 - hi1) / 2);
+
+  if (y2 > y1)
+  {
+    my = lo1 - ((lo1 - hi2) / 2);
+    ms.h = lo2 - hi2;
+  }
+  else
+  {
+    my = lo2 - ((lo2 - hi1) / 2);
+    ms.h = lo1 - hi1;
+  }
+
+  ms.n2++;
+  ms.n1--;
+  ms.n = ms.nN;
+
+  ms.multiple = true;
+  // fprintf(stderr,"\tCheck %d,%d mx=%.0f my=%.0f h=%.0f\n",n2,n1,mx,my,h);
+
+  return true;
+}
+
+// Check the candidate position; returns true if the position is selected
+
+bool AreaMarkerPositioner::checkCandidate(const std::string& mId,
+                                          MarkerScan& ms,
+                                          NFmiFillAreas& areas,
+                                          std::list<std::pair<double, double>>& scales)
+{
+  // Check the current x -position and 1/4 and 1/2 timesteps backwards/forwards if there's
+  // free space for the marker.
+  //
+  // Scale the marker down to minimum width/height if needed
+
+  double x = mx;
+  bool checkBwd = (mx >= 1);
+  bool checkFwd = (mx <= (axisWidth - 1));
+
+  NFmiFillAreas markerArea = getMarkerArea(mId,
+                                           holeAreas,
+                                           reservedAreas,
+                                           freeAreas,
+                                           candidateAreas,
+                                           x,
+                                           my,
+                                           markerWidth,
+                                           markerHeight,
+                                           markerScaleMin,
+                                           checkBwd,
+                                           checkFwd,
+                                           axisWidth,
+                                           xStep);
+
+  if (!markerArea.empty())
+  {
+    // Free, store the center point and scale
+    //
+    areas.emplace_back(Point(x - (markerWidth / 2), my - (markerHeight / 2)),
+                       Point(x + (markerWidth / 2), my + (markerHeight / 2)));
+    scales.emplace_back(markerWidth / mw, markerHeight / mh);
+
+    // Highest free position
+    ms.selfrh = std::max(ms.selfrh, ms.h);
+  }
+
+  markerWidth = mw;
+  markerHeight = mh;
+
+  if ((ms.h > minh) || (ms.h > ms.selh))
+  {
+    ms.selh = ms.h;
+    ms.selmx = mx;
+    ms.selmy = my;
+
+    // Select the last fill area
+
+    if ((!markerArea.empty()) && (ms.selh >= minh))
+      return true;
+
+    if (ms.selfvh < (ms.fvlim * ms.selh))
+    {
+      ms.selfvh = ms.selh;
+      ms.selmfvx = ms.selmx;
+      ms.selmfvy = ms.selmy;
+      ms.fvmul = ms.multiple;
+
+      //						if (!markerArea.empty())
+      // Favour the last fill area
+      //
+      //							selfvoff = areas.size();
+    }
+  }
+
+  ms.nearest = true;
+
+  return false;
+}
+
+// Select marker position for a separate visible part of the area
+
+void AreaMarkerPositioner::selectMarkerPosition(const std::string& mId, int npx, int nX, int n0)
+{
+  // Use a fill area if available
+  //
+  NFmiFillAreas areas;
+  std::list<std::pair<double, double>> scales;
+
+  segmentFillAreas(mId, npx, nX, n0, areas, scales);
+
+  // Use 1 or 2 elevations in the middle or a elevation as near as possible to the middle of
+  // the area in x -direction and having enough height for the marker.
+  //
+  // To favour the center of the area, use the nearest middle position having at least 70% of
+  // the selected position's height.
+  //
+  // Note: The holes are now checked with fill areas ('hasHole' not used anymore):
+  //
+  // // If the 2 middle elevations have holes, use the taller one; by using the center of the
+  // // elevations without additional checks the marker might end up in a hole.
+  //
+
+  MarkerScan ms;
+
+  ms.nX = nX;
+  ms.n = n0 + ((nX - 1) / 2);          // Middle elevation
+  ms.nS = ms.n;                        // Selected elevation
+  ms.nN = n0 + nX - 1;                 // Last elevation
+  ms.n2 = ms.n + ((nX > 1) ? 1 : 0);   // Right side elevation
+  ms.n1 = ms.n2 - ((nX > 1) ? 1 : 0);  // Left side elevation
+
+  for (; (ms.n2 <= ms.nN);)
+  {
+    if (ms.nearest ||
+        (nX % 2) /* The holes are now checked with fill areas: || hasHole[n1] || hasHole[n2] */)
+      singleElevationCandidate(ms, n0);
+    else if (!twoElevationCandidate(ms))
+    {
+      ms.nearest = true;
+      continue;
+    }
+
+    if (checkCandidate(mId, ms, areas, scales))
+      break;
+  }
+
+  markerChain.clear();
+
+  if ((!areas.empty()) || arrangeMarkers(texts,
+                                         reservedAreas,
+                                         freeAreas,
+                                         candidateAreas,
+                                         candidateAreas.find(mId),
+                                         areas,
+                                         scales,
+                                         markerChain))
+  {
+    // Select free marker position near the selected position
+    //
+    std::list<std::pair<double, double>>::iterator csit;
+    NFmiFillRect r = selectMarkerPos(mId, areas, scales, freeAreas, ms.selmx, ms.selmy, csit);
+
+    mx = r.first.x + ((r.second.x - r.first.x) / 2);
+    my = r.first.y + ((r.second.y - r.first.y) / 2);
+    xScale = csit->first;
+    yScale = csit->second;
+
+    return;
+  }
+
+  // No free fill areas, using the highest/favoured position
+  //
+  if ((ms.selh < minh) || (ms.selfvh >= (ms.fvlim * ms.selh)))
+  {
+    mx = ms.selmfvx;
+    my = ms.selmfvy;
+    ms.multiple = ms.fvmul;
+  }
+  else
+  {
+    mx = ms.selmx;
+    my = ms.selmy;
+  }
+
+  // Scale marker down to minimum size and adjust x -position if using areas first or last
+  // elevation
+
+  xScale = yScale = markerScaleFactorMin;
+
+  if (!ms.multiple)
+    adjustMarkerPosition(minx, axisWidth, xStep, sOffset, eOffset, n0, ms.nN, ms.nS, mx, my);
+}
+
+// Scale down reserved markers which overlap current marker, store and reserve the marker
+// position
+
+void AreaMarkerPositioner::reserveMarker(const std::string& mId)
+{
+  markerWidth = xScale * mw;
+  markerHeight = yScale * mh;
+
+  scaleMarkers(texts, reservedAreas, markerWidth, markerHeight, mx, my, xScale, yScale);
+
+  // Note: Symbols are centered to the selected position, labels have their height as the rendered
+  // y -coordinate (x is 0);
+  //		 adjust the position (used as tranformation offset) for a label to center it to the
+  // selected position
+
+  markerX.push_back(mx - (textOutput ? (markerWidth / 2.0) : 0));
+  markerY.push_back(my - (textOutput ? (markerHeight / 2.0) : 0));
+  scaleX.push_back(xScale);
+  scaleY.push_back(yScale);
+
+  reservedAreas[mId].x = mx;
+  reservedAreas[mId].y = my;
+  reservedAreas[mId].centered = (!textOutput);
+  reservedAreas[mId].fillAreas.emplace_back(
+      Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
+      Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0)));
+  reservedAreas[mId].scale = markerScale;
+  reservedAreas[mId].scales.emplace_back(xScale, yScale);
+  // fprintf(stderr,"\tNF Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",mx - (markerWidth / 2.0),my -
+  // (markerHeight / 2.0),mx + (markerWidth / 2.0),my + (markerHeight / 2.0));
+}
+
 void getAreaMarkerPos(Texts& texts,
                       const std::string& markerId,
                       const std::list<DirectPosition>& curvePoints,
@@ -6502,600 +7213,39 @@ void getAreaMarkerPos(Texts& texts,
                       boost::ptr_map<std::string, std::ostringstream>* areasOut = nullptr,
                       const std::string& areaPlaceHolder = "")
 {
-  // Get fill areas. axisWidth (instead of windowWidth) is passed to getFillAreas() to ignore
-  // possible fill areas outside
-  // (data may contain an extra time step before and after) the document time range
-
-  NFmiFillMap fillMap;
-  NFmiFillAreas fillAreas;
-  auto cpend = curvePoints.end();
-  auto itcp = curvePoints.begin();
-  auto pitcp = curvePoints.begin();
-  std::list<std::string> markerChain;
-  double mw = markerWidth;
-  double mh = markerHeight;
-  double lopx = NAN;
-  double mx = NAN;
-  double my = NAN;
-  double xScale = 1.0;
-  double yScale = 1.0;
-  size_t nMarkers = 0;
-
-  for (itcp++; (itcp != cpend); itcp++, pitcp++)
-    fillMap.Add(pitcp->getX(), pitcp->getY(), itcp->getX(), itcp->getY());
-
-  double minW = mw * markerScaleMin;
-  double minH = mh * markerScaleMin;
-
-  for (; (fillAreas.empty() && (mw >= minW) && (mh >= minH));)
-  {
-    fillMap.getFillAreas(axisWidth,
-                         windowHeight,
-                         mw,
-                         mh,
-                         1.0,
-                         false,
-                         fillAreas,
-                         isHole && textOutput,
-                         false,
-                         isHole && (!textOutput));
-
-    if (fillAreas.empty())
-    {
-      mw -= 2;
-      mh -= 2;
-    }
-  }
-
-  mw = markerWidth;
-  mh = markerHeight;
-
-  if (isHole && (!textOutput))
-  {
-    // Just reserve the area of the hole
-    //
-    holeAreas.insert(holeAreas.end(), fillAreas.begin(), fillAreas.end());
-
-    return;
-  }
-
-  // int TRAP = 0;
-  if (!fillAreas.empty())
-  {
-    // Move reserved fill areas into candidate container
-    //
-    splitFillAreas(fillAreas, markerWidth, 1.0);
-    eraseReservedAreas("hole", "hole", "", holeAreas, candidateAreas, fillAreas, nullptr, true);
-    fillAreas.sort(sortFillAreas);
-    // if (TRAP != 0)
-    // fillAreas.clear();
-  }
-
-  if (isHole)
-  {
-    // Reserve the area of the hole ('fillAreas' contain fill areas suitable for the label,
-    // load/save the area of the hole as fill areas too)
-    //
-    NFmiFillAreas holeFillAreas;
-
-    fillMap.getFillAreas(windowWidth, windowHeight, 0, 0, 0.0, false, holeFillAreas, false, true);
-    holeAreas.insert(holeAreas.end(), holeFillAreas.begin(), holeFillAreas.end());
-  }
-  else if (reserveFillAreas)
-  {
-    // Store smaller fill areas as reserved to be able to roughly avoid feature's area when
-    // processing other possibly overlapping feature's labels/symbols
-    //
-    NFmiFillAreas fA;
-    fillMap.getFillAreas(axisWidth, windowHeight, 3, 3, 1.0, false, fA, false, false, false);
-
-    const std::string& mId(markerId);
-    reservedAreas[mId].areaId = mId;
-    reservedAreas[mId].x = 0;
-    reservedAreas[mId].y = 0;
-    reservedAreas[mId].centered = false;
-    reservedAreas[mId].fillAreas.insert(reservedAreas[mId].fillAreas.begin(), fA.begin(), fA.end());
-    reservedAreas[mId].scale = markerScale;
-    reservedAreas[mId].scales.emplace_back(markerScale, markerScale);
-  }
-
-  auto area = fillAreas.begin();
-
-  for (int npx = 0, nX = 0, n0 = 0; (npx < ((int)_lopx.size()));)
-  {
-    // Step until end of data or area is no longer visible
-    //
-    lopx = _lopx[npx];
-
-    if (lopx > 0)
-    {
-      if (nX == 0)
-        // First visible time instant
-        //
-        n0 = npx;
-
-      if (bbCenterMarker && (npx > 0))
-      {
-        // Keep track of bounding box
-        //
-        double hipx = std::max(_hipx[npx], 0.0);
-
-        if ((nX == 0) || (lopx > _lopx[0]))
-          _lopx[0] = lopx;
-        if ((nX == 0) || (hipx < _hipx[0]))
-          _hipx[0] = hipx;
-      }
-
-      nX++;
-    }
-
-    npx++;
-
-    if (((lopx > 0) && (npx < ((int)_lopx.size()))) || (nX == 0))
-      continue;
-
-    nMarkers++;
-    std::string mId(markerId + Fmi::to_string(nMarkers));
-
-    if (!bbCenterMarker)
-    {
-      // Use a fill area if available
-      //
-      NFmiFillAreas areas;
-      std::list<std::pair<double, double>> scales;
-
-      if (area != fillAreas.end())
-      {
-        int timeSteps = nX;
-
-        if (npx < ((int)_lopx.size()))
-          for (int idx = npx; ((idx < ((int)_lopx.size())) && (_lopx[idx] <= 0)); idx++)
-            timeSteps++;
-
-        for (;
-             ((area != fillAreas.end()) && (area->second.x < (minx + ((n0 + timeSteps) * xStep))));
-             area++)
-        {
-          // Ignore areas going below 0 over 1/3'rd
-
-          if (area->second.y <= (axisHeight + ((area->second.y - area->first.y) / 3)))
-          {
-            areas.push_back(*area);
-            scales.emplace_back(1.0, 1.0);
-          }
-          // fprintf(stderr,"\t%s n0=%d nN=%d xLim=%.0f bl=%.0f,%.0f tr=%.0f,%.0f\n",area->second.y
-          // <= (axisHeight + ((area->second.y - area->first.y) / 3)) ? "Pick" : "Skip",n0,n0 +
-          // timeSteps,(minx + ((n0 + timeSteps) *
-          // xStep)),area->first.x,area->first.y,area->second.x,area->second.y);
-        }
-
-        if (!areas.empty())
-        {
-          eraseReservedAreas(mId, reservedAreas, candidateAreas, areas, &scales);
-
-          if (!areas.empty())
-          {
-            if (areasOut && (!areaPlaceHolder.empty()))
-            {
-              boost::ptr_map<std::string, std::ostringstream>& texts = *areasOut;
-
-              /*
-              texts[areaPlaceHolder]
-                  << "<line x1=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y1=\"0\""
-                  << " x2=\"" << (minx + ((n0 + timeSteps) * xStep)) << "\" y2=\"" << axisHeight
-                  << "\" style=\"stroke:rgb(255,0,0);stroke-width:2\"/>";
-              */
-
-              const char* clrs[] = {"red", "blue", "green", "orange", "brown", "yellow"};
-
-              size_t clrCnt = (sizeof(clrs) / sizeof(char*));
-              size_t clrIdx = 0;
-
-              for (auto iter = areas.begin(); (iter != areas.end()); iter++)
-              {
-                texts[areaPlaceHolder]
-                    << "<rect x=\"" << iter->first.x << "\" y=\"" << iter->first.y << "\" width=\""
-                    << iter->second.x - iter->first.x << "\" height=\""
-                    << iter->second.y - iter->first.y << "\" fill=\"" << clrs[clrIdx % clrCnt]
-                    << "\" stroke=\"" << clrs[clrIdx % clrCnt] << "\"/>\n";
-                clrIdx++;
-              }
-            }
-            // fprintf(stderr,"\n");
-
-            //						// Note: Symbols are centered to the
-            // selected
-            // position,
-            // labels
-            // have
-            // their
-            // height as the rendered y -coordinate (x is 0);
-            //						//		 adjust the position (used
-            // as
-            // tranformation
-            // offsets)
-            // for
-            // a
-            // label
-            // to
-            // center it to the selected position
-            //
-            //						NFmiFillRect markerRect =
-            // getCenterFillAreaRect(areas,markerWidth,1.0);
-            //						markerX.push_back(markerRect.first.x +
-            //(textOutput
-            //?
-            // 0
-            //:
-            //((markerRect.second.x - markerRect.first.x) / 2)));
-            //						markerY.push_back(markerRect.first.y +
-            //(textOutput
-            //?
-            // 0
-            //:
-            //((markerRect.second.y - markerRect.first.y) / 2)));
-            //						scaleX.push_back(1.0);
-            //						scaleY.push_back(1.0);
-            //
-            //						reservedAreas.push_back(std::make_pair(Point(markerRect.first.x,markerRect.first.y),Point(markerRect.second.x,markerRect.second.y)));
-            ////fprintf(stderr,"\tFR Reserve bl=%.0f,%.0f
-            /// tr=%.0f,%.0f\n",markerRect.first.x,markerRect.first.y,markerRect.second.x,markerRect.second.y);
-            //
-            //						nX = 0;
-            //						continue;
-          }
-        }
-      }
-
-      // Use 1 or 2 elevations in the middle or a elevation as near as possible to the middle of
-      // the area in x -direction and having enough height for the marker.
-      //
-      // To favour the center of the area, use the nearest middle position having at least 70% of
-      // the selected position's height.
-      //
-      // Note: The holes are now checked with fill areas ('hasHole' not used anymore):
-      //
-      // // If the 2 middle elevations have holes, use the taller one; by using the center of the
-      // // elevations without additional checks the marker might end up in a hole.
-      //
-
-      double selmx = 0.0;
-      double selmy = 0.0;  // Selected marker position
-      double selmfvx = 0.0;
-      double selmfvy = 0.0;  // Favoured marker position
-      double selh = 0.0;
-      double selfvh = 0.0;
-      double h = NAN;                       // Height of marker position
-      double selfrh = 0.0;                  // Height of free marker position
-      double fvlim = 0.7;                   // Using 70% as the favouring limit
-      bool nearest = false;  // Set if the primary position (middle elevation) did not have enough
-                             // room for the marker
-      bool multiple = false;
-      bool fvmul = false;  // Set if using center of 2 middle elevations as marker position
-
-      int n = n0 + ((nX - 1) / 2);       // Middle elevation
-      int nS = n;                        // Selected elevation
-      int nN = n0 + nX - 1;              // Last elevation
-      int n2 = n + ((nX > 1) ? 1 : 0);   // Right side elevation
-      int n1 = n2 - ((nX > 1) ? 1 : 0);  // Left side elevation
-                                         //			int selhoff = -1;
-                                         //// Index of
-      // selected marker position
-      //			int selfroff = -1;					// Index
-      // of heighest free marker position
-      //			int selfvoff = -1;					// Index
-      // of favoured free marker position
-
-      for (; (n2 <= nN);)
-      {
-        if (nearest ||
-            (nX % 2) /* The holes are now checked with fill areas: || hasHole[n1] || hasHole[n2] */)
-        {
-          if (nearest || ((nX % 2) == 0))
-          {
-            // Select the taller elevation
-            //
-            // Note: The holes are now checked with fill areas ...
-            //
-            //						n = (((_lopx[n2] - _hipx[n2]) > (_lopx[n1] -
-            //_hipx[n1]))
-            //?
-            // n2
-            //:
-            // n1);
-            //
-            //						n2++;
-            //						n1--;
-
-            // ... scanning the left side first
-
-            if (n1 >= 0)
-            {
-              n = n1;
-              n1--;
-            }
-            else
-            {
-              n = n2;
-              n2++;
-            }
-          }
-          else
-            n1--;
-
-          double lo = std::min(_lopx[n], axisHeight);
-          double hi = std::max(_hipx[n], 0.0);
-
-          mx = minx + ((nS = n) * xStep);
-          my = lo - ((lo - hi) / 2);
-
-          // Adjust x -position if using areas first or last elevation
-
-          adjustMarkerPosition(minx, axisWidth, xStep, sOffset, eOffset, n0, nN, nS, mx, my);
-
-          h = lo - hi;
-
-          multiple = false;
-          // fprintf(stderr,"\tCheck (%d,%d) %d mx=%.0f my=%.0f h=%.0f\n",n2,n1,n,mx,my,h);
-        }
-        else
-        {
-          // Elevations must overlap. y -axis grows downwards
-
-          double lo2 = std::min(_lopx[n2], axisHeight);
-          double hi2 = std::max(_hipx[n2], 0.0);
-          double lo1 = std::min(_lopx[n1], axisHeight);
-          double hi1 = std::max(_hipx[n1], 0.0);
-
-          if ((lo1 <= hi2) || (hi1 >= lo2))
-          {
-            nearest = true;
-            continue;
-          }
-
-          mx = minx + (n1 * xStep) + (xStep / 2);
-
-          double y2 = lo2 - ((lo2 - hi2) / 2);
-          double y1 = lo1 - ((lo1 - hi1) / 2);
-
-          if (y2 > y1)
-          {
-            my = lo1 - ((lo1 - hi2) / 2);
-            h = lo2 - hi2;
-          }
-          else
-          {
-            my = lo2 - ((lo2 - hi1) / 2);
-            h = lo1 - hi1;
-          }
-
-          n2++;
-          n1--;
-          n = nN;
-
-          multiple = true;
-          // fprintf(stderr,"\tCheck %d,%d mx=%.0f my=%.0f h=%.0f\n",n2,n1,mx,my,h);
-        }
-
-        // Check the current x -position and 1/4 and 1/2 timesteps backwards/forwards if there's
-        // free space for the marker.
-        //
-        // Scale the marker down to minimum width/height if needed
-
-        double x = mx;
-        bool checkBwd = (mx >= 1);
-        bool checkFwd = (mx <= (axisWidth - 1));
-
-        NFmiFillAreas markerArea = getMarkerArea(mId,
-                                                 holeAreas,
-                                                 reservedAreas,
-                                                 freeAreas,
-                                                 candidateAreas,
-                                                 x,
-                                                 my,
-                                                 markerWidth,
-                                                 markerHeight,
-                                                 markerScaleMin,
-                                                 checkBwd,
-                                                 checkFwd,
-                                                 axisWidth,
-                                                 xStep);
-
-        if (!markerArea.empty())
-        {
-          // Free, store the center point and scale
-          //
-          areas.emplace_back(Point(x - (markerWidth / 2), my - (markerHeight / 2)),
-                             Point(x + (markerWidth / 2), my + (markerHeight / 2)));
-          scales.emplace_back(markerWidth / mw, markerHeight / mh);
-
-          // Highest free position
-          selfrh = std::max(selfrh, h);
-        }
-
-        markerWidth = mw;
-        markerHeight = mh;
-
-        if ((h > minh) || (h > selh))
-        {
-          selh = h;
-          selmx = mx;
-          selmy = my;
-
-          if (!markerArea.empty())
-          {
-            // Select the last fill area
-            //
-            //						selhoff = areas.size();
-
-            if (selh >= minh)
-              break;
-          }
-
-          if (selfvh < (fvlim * selh))
-          {
-            selfvh = selh;
-            selmfvx = selmx;
-            selmfvy = selmy;
-            fvmul = multiple;
-
-            //						if (!markerArea.empty())
-            // Favour the last fill area
-            //
-            //							selfvoff = areas.size();
-          }
-        }
-
-        nearest = true;
-      }
-
-      // if (TRAP != 0) {
-      ////areas.clear(); reservedAreas.clear(); freeAreas.clear(); candidateAreas.clear();
-      ////
-      ////reservedAreas["R4"].fillAreas.push_back(std::make_pair(Point(44,44),Point(55,55)));
-      ////reservedAreas["R4"].scales.push_back(std::make_pair(1,1));
-      ////freeAreas["R4"].fillAreas.push_back(std::make_pair(Point(444,444),Point(555,555)));
-      ////freeAreas["R4"].scales.push_back(std::make_pair(1,1));
-      ////
-      ////reservedAreas["R3"].fillAreas.push_back(std::make_pair(Point(33,33),Point(44,44)));
-      ////reservedAreas["R3"].scales.push_back(std::make_pair(1,1));
-      ////freeAreas["R3"].fillAreas.push_back(std::make_pair(Point(333,333),Point(444,444)));
-      ////freeAreas["R3"].scales.push_back(std::make_pair(1,1));
-      ////
-      ////reservedAreas["R2"].fillAreas.push_back(std::make_pair(Point(22,22),Point(33,33)));
-      ////reservedAreas["R2"].scales.push_back(std::make_pair(1,1));
-      ////candidateAreas["R2"].markers.push_back("R3");
-      ////candidateAreas["R2"].fillAreas.push_back(std::make_pair(Point(34,34),Point(45,45)));
-      ////candidateAreas["R2"].areaIds.push_back(1);
-      ////candidateAreas["R2"].scales.push_back(std::make_pair(1,1));
-      ////candidateAreas["R2"].markers.push_back("R4");
-      ////candidateAreas["R2"].fillAreas.push_back(std::make_pair(Point(34,34),Point(45,45)));
-      ////candidateAreas["R2"].areaIds.push_back(1);
-      ////candidateAreas["R2"].scales.push_back(std::make_pair(1,1));
-      ////
-      ////reservedAreas["R1"].fillAreas.push_back(std::make_pair(Point(11,11),Point(22,22)));
-      ////reservedAreas["R1"].scales.push_back(std::make_pair(1,1));
-      ////candidateAreas["R1"].markers.push_back("R2");
-      ////candidateAreas["R1"].fillAreas.push_back(std::make_pair(Point(23,23),Point(34,34)));
-      ////candidateAreas["R1"].areaIds.push_back(1);
-      ////candidateAreas["R1"].scales.push_back(std::make_pair(1,1));
-      ////
-      ////candidateAreas[mId].markers.push_back("R1");
-      ////candidateAreas[mId].fillAreas.push_back(std::make_pair(Point(12,12),Point(23,23)));
-      ////candidateAreas[mId].areaIds.push_back(1);
-      ////candidateAreas[mId].scales.push_back(std::make_pair(1,1));
-      // FillAreas::const_iterator rit = reservedAreas.begin();
-      // areas.clear(); candidateAreas[mId].fillAreas.push_back(rit->second.fillAreas.front());
-      //}
-      markerChain.clear();
-
-      if ((!areas.empty()) || arrangeMarkers(texts,
-                                             reservedAreas,
-                                             freeAreas,
-                                             candidateAreas,
-                                             candidateAreas.find(mId),
-                                             areas,
-                                             scales,
-                                             markerChain))
-      {
-        // Select free marker position near the selected position
-        //
-        std::list<std::pair<double, double>>::iterator csit;
-        NFmiFillRect r = selectMarkerPos(mId, areas, scales, freeAreas, selmx, selmy, csit);
-
-        mx = r.first.x + ((r.second.x - r.first.x) / 2);
-        my = r.first.y + ((r.second.y - r.first.y) / 2);
-        xScale = csit->first;
-        yScale = csit->second;
-        // if (areasOut && (!areaPlaceHolder.empty())) {
-        // boost::ptr_map<std::string,std::ostringstream> & texts = *areasOut;
-        // texts[areaPlaceHolder] << "<circle cx=\"" << selmx << "\" cy=\"" << selmy << "\"
-        // r=\"10\""
-        // << " stroke=\"black\" stroke-width=\"1\" fill=\"red\"/>"; }
-      }
-      //			else if ((selhoff >= 0) || (selfroff >= 0)) {
-      //				// Using the last (selh; selh > minh), favoured (selfvh) or
-      // the heighest free (selfrh) fill area
-      //				//
-      //				NFmiFillAreas::const_iterator it = areas.begin();
-      //				std::list<std::pair<double,double> >::const_iterator sit =
-      // scale.begin();
-      //
-      //				if (selhoff < 0)
-      //					selhoff = selfvoff = selfroff;
-      //
-      //				advance(it,(selh >= minh) ? selhoff - 1 : selfvoff - 1);
-      //				advance(sit,(selh >= minh) ? selhoff - 1 : selfvoff - 1);
-      //
-      //				mx = it->first.x;
-      //				my = it->first.y;
-      //				xScale = sit->first;
-      //				yScale = sit->second;
-      //			}
-      else
-      {
-        // No free fill areas, using the highest/favoured position
-        //
-        if ((selh < minh) || (selfvh >= (fvlim * selh)))
-        {
-          mx = selmfvx;
-          my = selmfvy;
-          multiple = fvmul;
-        }
-        else
-        {
-          mx = selmx;
-          my = selmy;
-        }
-
-        // Scale marker down to minimum size and adjust x -position if using areas first or last
-        // elevation
-
-        xScale = yScale = markerScaleFactorMin;
-
-        if (!multiple)
-          adjustMarkerPosition(minx, axisWidth, xStep, sOffset, eOffset, n0, nN, nS, mx, my);
-      }
-    }
-    else
-    {
-      double xmin = minx + (n0 * xStep);
-      double xmax = xmin + ((nX - 1) * xStep);
-
-      mx = (xmax - ((xmax - xmin) / 2));
-      my = (_lopx[0] - ((_lopx[0] - std::max(_hipx[0], 0.0)) / 2));
-    }
-
-    // Scale down reserved markers which overlap current marker
-
-    markerWidth = xScale * mw;
-    markerHeight = yScale * mh;
-
-    scaleMarkers(texts, reservedAreas, markerWidth, markerHeight, mx, my, xScale, yScale);
-
-    // Note: Symbols are centered to the selected position, labels have their height as the rendered
-    // y -coordinate (x is 0);
-    //		 adjust the position (used as tranformation offset) for a label to center it to the
-    // selected position
-
-    markerX.push_back(mx - (textOutput ? (markerWidth / 2.0) : 0));
-    markerY.push_back(my - (textOutput ? (markerHeight / 2.0) : 0));
-    scaleX.push_back(xScale);
-    scaleY.push_back(yScale);
-
-    reservedAreas[mId].x = mx;
-    reservedAreas[mId].y = my;
-    reservedAreas[mId].centered = (!textOutput);
-    reservedAreas[mId].fillAreas.emplace_back(
-        Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
-        Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0)));
-    reservedAreas[mId].scale = markerScale;
-    reservedAreas[mId].scales.emplace_back(xScale, yScale);
-    // fprintf(stderr,"\tNF Reserve bl=%.0f,%.0f tr=%.0f,%.0f\n",mx - (markerWidth / 2.0),my -
-    // (markerHeight / 2.0),mx + (markerWidth / 2.0),my + (markerHeight / 2.0));
-
-    nX = 0;
-  }
+  AreaMarkerPositioner(texts,
+                       markerId,
+                       curvePoints,
+                       holeAreas,
+                       reservedAreas,
+                       freeAreas,
+                       candidateAreas,
+                       isHole,
+                       bbCenterMarker,
+                       textOutput,
+                       windowWidth,
+                       windowHeight,
+                       minx,
+                       axisHeight,
+                       axisWidth,
+                       xStep,
+                       minh,
+                       sOffset,
+                       eOffset,
+                       markerWidth,
+                       markerHeight,
+                       markerScale,
+                       markerScaleMin,
+                       _lopx,
+                       _hipx,
+                       markerX,
+                       markerY,
+                       scaleX,
+                       scaleY,
+                       reserveFillAreas,
+                       areasOut,
+                       areaPlaceHolder)
+      .run();
 }
 }  // namespace
 
