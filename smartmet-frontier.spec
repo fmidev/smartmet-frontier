@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 26.10.16
+Version: 26.10.17
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -28,16 +28,16 @@ BuildRequires: smartmet-library-macgyver-devel >= 26.10.16
 BuildRequires: smartmet-library-newbase-devel >= 26.10.16
 BuildRequires: smartmet-library-trax-devel >= 26.10.16
 BuildRequires: geos313
-BuildRequires: smartmet-library-woml >= 26.10.16
+BuildRequires: smartmet-library-woml >= 26.10.17
 BuildRequires: libconfig17-devel >= 1.7.3
 BuildRequires: cairo-devel
 BuildRequires: xerces-c-devel
 BuildRequires: xqilla-devel
 Requires: smartmet-fonts
-Requires: smartmet-library-macgyver >= 26.10.16
-Requires: smartmet-library-newbase >= 26.10.16
-Requires: smartmet-library-trax >= 26.10.16
-Requires: smartmet-library-woml >= 26.10.16
+Requires: smartmet-library-macgyver >= 26.10.17
+Requires: smartmet-library-newbase >= 26.10.17
+Requires: smartmet-library-trax >= 26.10.17
+Requires: smartmet-library-woml >= 26.10.17
 Requires: cairo
 Requires: libconfig17 >= 1.7.3
 Requires: %{smartmet_boost}-program-options
@@ -77,6 +77,17 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man1/frontier.1.gz
 
 %changelog
+* Sat Oct 17 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.17-1.fmi
+- render_contours: take the data source from the forecast when there is no analysis
+- run: pass the debug mode on to the error handler
+- matchingCondition: reject time ranges with seconds or other extra fields
+- formattedValue: format configured printf-style value formats with fmt::sprintf
+- SvgRenderer: extract elevation lo/hi range value lookup into elevationLo/elevationHi
+- SvgRenderer::render_contrailRange: track the previous elevation when ending a hi range segment
+- SvgRenderer: rethrow caught libconfig exceptions with throw instead of throw ex
+- SvgRenderer::windSymbolY: skip winds without an elevation
+- Split functions with a cognitive complexity above 25 into smaller helpers, no functional changes
+
 * Fri Oct 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.16-1.fmi
 - Fixed compiler warnings and clang-tidy findings (unused code, unreachable code, empty statements, member initialization, parameter passing, noexcept), no functional changes
 
