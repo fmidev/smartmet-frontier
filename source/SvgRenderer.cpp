@@ -8593,9 +8593,9 @@ bool SvgRenderer::checkRightSideHoles(ElevationHoles& holes,
  */
 // ----------------------------------------------------------------------
 
-bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
-                                     const ElevationHoles::iterator& iteh,
-                                     CategoryValueMeasureGroup* groupCategory)
+bool SvgRenderer::leftSideHolesClosed(ElevationHoles& holes,
+                                      const ElevationHoles::iterator& iteh,
+                                      CategoryValueMeasureGroup* groupCategory) const
 {
   std::reverse_iterator<ElevationHoles::iterator> lehend(holes.begin());
   std::reverse_iterator<ElevationHoles::iterator> liteh(iteh);
@@ -8611,14 +8611,11 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
 
     if (dh == -1)
     {
-      if (groupCategory)
-      {
-        // Check that the holes belong to the same category (cloud type or icing/turbulence
-        // magnitude)
-        //
-        if (!checkCategory(groupCategory, iteh->aboveElev, liteh->aboveElev))
-          continue;
-      }
+      // Check that the holes belong to the same category (cloud type or icing/turbulence
+      // magnitude)
+      //
+      if (groupCategory && (!checkCategory(groupCategory, iteh->aboveElev, liteh->aboveElev)))
+        continue;
 
       if (liteh->hi < iteh->lo)
         continue;
@@ -8631,7 +8628,18 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
       break;
   }
 
+  return closed;
+}
+
+bool SvgRenderer::rightSideHolesClosed(ElevationHoles& holes,
+                                       const ElevationHoles::iterator& iteh,
+                                       CategoryValueMeasureGroup* groupCategory) const
+{
+  Fmi::DateTime vt = iteh->aboveElev->validTime();
+
   // Check if the holes on the right side (if any) are closed.
+
+  bool closed = true;
 
   auto rehend(holes.end());
   auto riteh = iteh;
@@ -8642,14 +8650,11 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
 
     if (dh == 1)
     {
-      if (groupCategory)
-      {
-        // Check that the holes belong to the same category (cloud type or icing/turbulence
-        // magnitude)
-        //
-        if (!checkCategory(groupCategory, iteh->aboveElev, riteh->aboveElev))
-          continue;
-      }
+      // Check that the holes belong to the same category (cloud type or icing/turbulence
+      // magnitude)
+      //
+      if (groupCategory && (!checkCategory(groupCategory, iteh->aboveElev, riteh->aboveElev)))
+        continue;
 
       if (riteh->lo > iteh->hi)
         continue;
@@ -8665,69 +8670,29 @@ bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
   return closed;
 }
 
+bool SvgRenderer::checkBothSideHoles(ElevationHoles& holes,
+                                     const ElevationHoles::iterator& iteh,
+                                     CategoryValueMeasureGroup* groupCategory)
+{
+  return (leftSideHolesClosed(holes, iteh, groupCategory) &&
+          rightSideHolesClosed(holes, iteh, groupCategory));
+}
+
 // ----------------------------------------------------------------------
 /*!
- * \brief Check which of the possible holes (gaps between two vertically
- *		located elevations) are closed.
- *
+ * \brief Combine the bounding elevations of closed holes to the 'above'
+ *		elevations and store the holes to the 'below' elevations. Delete
+ *		generated 'below' elevations for open holes. Returns true if any
+ *		closed holes were stored.
  */
 // ----------------------------------------------------------------------
 
-bool SvgRenderer::checkHoles(ElevGrp& eGrp,
-                             ElevationHoles& holes,
-                             CategoryValueMeasureGroup* groupCategory,
-                             bool setNegative)
+bool SvgRenderer::storeClosedHoles(ElevGrp& eGrp, ElevationHoles& holes, bool setNegative)
 {
-  // Check if the holes are closed by left side closed holes on the left side or by elevations on
-  // the right side.
+  bool hasHole = false;
 
   auto iteh = holes.begin();
   auto ehend = holes.end();
-
-  for (; (iteh != ehend); iteh++)
-  {
-    if ((!(iteh->leftClosed)) && iteh->leftAboveBounded &&
-        checkLeftSideHoles(holes, iteh, groupCategory))
-      iteh->leftClosed = true;
-
-    if (iteh->leftClosed)
-      checkRightSide(eGrp, iteh, groupCategory);
-  }
-
-  // Check if the the holes are closed by both side closed holes on the right side.
-
-  ElevationHoles::reverse_iterator riteh(holes.end());
-  ElevationHoles::reverse_iterator rehend(holes.begin());
-
-  for (; (riteh != rehend); riteh++)
-    if (riteh->leftClosed && (!(riteh->rightClosed)) && riteh->rightAboveBounded &&
-        checkRightSideHoles(holes, riteh, groupCategory))
-      riteh->rightClosed = true;
-
-  // Check if all overlapping holes have both sides closed. Repeat until no "leaks" are found (all
-  // overlapping holes
-  // are set to open if needed), rolling the status changes (set to open) to neighbour holes one
-  // hole at a time.
-
-  bool reScan = false;
-  bool hasHole = false;
-
-  for (bool more = true; more; more = reScan)
-  {
-    reScan = false;
-
-    for (iteh = holes.begin(); (iteh != ehend); iteh++)
-      if ((iteh->leftClosed != iteh->rightClosed) ||
-          (iteh->leftClosed && (!checkBothSideHoles(holes, iteh, groupCategory))))
-      {
-        iteh->leftClosed = iteh->rightClosed = false;
-        reScan = true;
-      }
-  }
-
-  // Combine the bounding elevations to the 'above' and store the hole to the 'below' elevations.
-  // Delete generated 'below' elevations for open holes.
-
   auto aboveElev = eGrp.end();
   auto holeElev = eGrp.end();
   auto piteh = holes.end();
@@ -8801,6 +8766,71 @@ bool SvgRenderer::checkHoles(ElevGrp& eGrp,
   }
 
   return hasHole;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Check which of the possible holes (gaps between two vertically
+ *		located elevations) are closed.
+ *
+ */
+// ----------------------------------------------------------------------
+
+bool SvgRenderer::checkHoles(ElevGrp& eGrp,
+                             ElevationHoles& holes,
+                             CategoryValueMeasureGroup* groupCategory,
+                             bool setNegative)
+{
+  // Check if the holes are closed by left side closed holes on the left side or by elevations on
+  // the right side.
+
+  auto iteh = holes.begin();
+  auto ehend = holes.end();
+
+  for (; (iteh != ehend); iteh++)
+  {
+    if ((!(iteh->leftClosed)) && iteh->leftAboveBounded &&
+        checkLeftSideHoles(holes, iteh, groupCategory))
+      iteh->leftClosed = true;
+
+    if (iteh->leftClosed)
+      checkRightSide(eGrp, iteh, groupCategory);
+  }
+
+  // Check if the the holes are closed by both side closed holes on the right side.
+
+  ElevationHoles::reverse_iterator riteh(holes.end());
+  ElevationHoles::reverse_iterator rehend(holes.begin());
+
+  for (; (riteh != rehend); riteh++)
+    if (riteh->leftClosed && (!(riteh->rightClosed)) && riteh->rightAboveBounded &&
+        checkRightSideHoles(holes, riteh, groupCategory))
+      riteh->rightClosed = true;
+
+  // Check if all overlapping holes have both sides closed. Repeat until no "leaks" are found (all
+  // overlapping holes
+  // are set to open if needed), rolling the status changes (set to open) to neighbour holes one
+  // hole at a time.
+
+  bool reScan = false;
+
+  for (bool more = true; more; more = reScan)
+  {
+    reScan = false;
+
+    for (iteh = holes.begin(); (iteh != ehend); iteh++)
+      if ((iteh->leftClosed != iteh->rightClosed) ||
+          (iteh->leftClosed && (!checkBothSideHoles(holes, iteh, groupCategory))))
+      {
+        iteh->leftClosed = iteh->rightClosed = false;
+        reScan = true;
+      }
+  }
+
+  // Combine the bounding elevations to the 'above' and store the hole to the 'below' elevations.
+  // Delete generated 'below' elevations for open holes.
+
+  return storeClosedHoles(eGrp, holes, setNegative);
 }
 
 // ----------------------------------------------------------------------

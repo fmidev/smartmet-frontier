@@ -715,6 +715,13 @@ class SvgRenderer : public woml::FeatureVisitor
   bool checkRightSideHoles(ElevationHoles& holes,
                            const ElevationHoles::reverse_iterator& iteh,
                            CategoryValueMeasureGroup* groupCategory = nullptr);
+  bool leftSideHolesClosed(ElevationHoles& holes,
+                           const ElevationHoles::iterator& iteh,
+                           CategoryValueMeasureGroup* groupCategory) const;
+  bool rightSideHolesClosed(ElevationHoles& holes,
+                            const ElevationHoles::iterator& iteh,
+                            CategoryValueMeasureGroup* groupCategory) const;
+  bool storeClosedHoles(ElevGrp& eGrp, ElevationHoles& holes, bool setNegative);
   bool checkBothSideHoles(ElevationHoles& holes,
                           const ElevationHoles::iterator& iteh,
                           CategoryValueMeasureGroup* groupCategory = nullptr);
