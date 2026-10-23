@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 26.10.17
+Version: 26.10.23
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -77,6 +77,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man1/frontier.1.gz
 
 %changelog
+* Fri Oct 23 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.10.23-1.fmi
+- Bump version
+
 * Sat Oct 17 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.17-1.fmi
 - render_contours: take the data source from the forecast when there is no analysis
 - run: pass the debug mode on to the error handler
