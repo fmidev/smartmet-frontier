@@ -427,7 +427,7 @@ Surface:
 
  .PressureLabel
  {
-     font-family: Arial;
+     font-family: Roboto;
      font-size: 7px;
      text-anchor: middle;
  }
