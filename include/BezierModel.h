@@ -79,7 +79,7 @@ class BezierModel
  private:
   std::vector<DirectPosition> curvePositions;
   std::list<BezSeg> bezierSegments;
-  Orientation orientation;
+  Orientation orientation = POS;
   double totalCurveLength = 0.0;
   std::list<double> cumulatedCurveLength;
   boolean bIsClosedCurve = false;

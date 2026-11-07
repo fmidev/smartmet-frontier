@@ -42,7 +42,7 @@ class Options
   // -t type { conceptualmodelanalysis | conceptualmodelforecast | aerodromeforecast }
 
   std::string type;
-  woml::documentType doctype;
+  woml::documentType doctype = woml::conceptualmodelanalysis;
 
   // -l locale; defaults to "" (using configuration blocks having empty ("") or non specified
   // locale)

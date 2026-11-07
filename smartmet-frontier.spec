@@ -2,7 +2,7 @@
 %define RPMNAME smartmet-%{BINNAME}
 Summary: frontier
 Name: %{RPMNAME}
-Version: 26.10.23
+Version: 26.11.7
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -77,6 +77,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man1/frontier.1.gz
 
 %changelog
+* Sat Nov 7 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.11.7-1.fmi
+- Initialize member variables that some constructors left uninitialized
+
 * Fri Oct 23 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.10.23-1.fmi
 - Bump version
 

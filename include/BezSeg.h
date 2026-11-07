@@ -93,7 +93,7 @@ class BezSeg
   DoubleArr end;
   DoubleArr c1;  // 1st Bézier curve control point
   DoubleArr c2;  // 2nd Bézier curve control point
-  Orientation orientation;
+  Orientation orientation = POS;
   //	CoordinateReferenceSystem nativeCRS;
 
   boolean bIsClosedCurve = false;
