@@ -80,7 +80,7 @@ const double symbolBBoxFactorMin =
     0.5;  // Minimum symbol bbox 0.5 * symbol width/height; symbols can overlap
 const size_t pathScalingSymbolHeightFactorMax =
     5;  // Surface scaling max offset 5 * (symbol height / 2)
-const double textWitdhFactor =
+const double textWidthFactor =
     0.94;  // Calculated text width/height is inaccurate, using factors not to exceed limits
 const double textHeightFactor = 0.96;  //
 
@@ -1617,7 +1617,7 @@ bool getTextLines(const std::string& text,              // Text to split
   //
 
   unsigned int maxLineWidth = 0;
-  maxWidth *= textWitdhFactor;
+  maxWidth *= textWidthFactor;
   maxLineHeight = 0;
 
   for (l = 0; (l < textlc); l++)
@@ -1645,7 +1645,7 @@ bool getTextLines(const std::string& text,              // Text to split
   }  // for line
 
   textHeight = ((outputLines.size() * (maxLineHeight + 2)) - 2);
-  textWidth = ((maxLineWidth == 0) ? maxWidth : maxLineWidth) / textWitdhFactor;
+  textWidth = ((maxLineWidth == 0) ? maxWidth : maxLineWidth) / textWidthFactor;
 
   //	if ((maxHeight > 0) && (maxHeight < textHeight))
   //		// Max height exceeded; decrement font size (downto half of the given size) and
