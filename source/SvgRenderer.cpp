@@ -602,7 +602,7 @@ void SvgRenderer::render_elevationAxis()
 
   // Output y -axis labels
   //
-  // svg y -axis grows downwards; use axis height to transfrom the y -coordinates
+  // svg y -axis grows downwards; use axis height to transform the y -coordinates
 
   double axisHeight = axisManager->axisHeight();
 
@@ -686,7 +686,7 @@ void SvgRenderer::render_timeAxis(const Fmi::TimePeriod& theTimePeriod)
 
     // Output elevation lines
     //
-    // svg y -axis grows downwards; use axis height to transfrom the y -coordinates
+    // svg y -axis grows downwards; use axis height to transform the y -coordinates
 
     double axisHeight = axisManager->axisHeight();
 
@@ -1528,7 +1528,7 @@ void splitTextLine(cairo_t* cr,
 
       if (pos == std::string::npos)
       {
-        // Word was not cutted; next word
+        // Word was not cut; next word
         //
         w++;
 
@@ -1839,7 +1839,7 @@ int renderTextLines(Texts& texts,
       if (!TEXTPOSid.empty())
         // Set transformation data.
         //
-        // Note: Scaling placeholder/value might not get set; unset placehoders will be
+        // Note: Scaling placeholder/value might not get set; unset placeholders will be
         // removed prior output
         //
         texts[TEXTtextName] << "<g transform=\"translate(--" << TEXTPOSid << "--) --" << TEXTPOSid
@@ -2602,7 +2602,7 @@ void SvgRenderer::render_surfaceInfoText(const Path& path,
                           sf.scanUpDown))
       sf.infoTextRect = getCenterFillAreaRect(areas, sf.textWidth, 1.0);
     else
-      // No room within the area, using the defaut location
+      // No room within the area, using the default location
       //
       sf.textPosition.clear();
   }
@@ -2637,7 +2637,7 @@ bool SvgRenderer::tryFillAreas(NFmiFillMap& fmap, SurfaceFill& sf, bool& sizeOk)
     // reserved for info text.
     //
     // Note: To get fillareas with width near or equal to twice (etc) the symbol
-    // width splitted, decreasing scale
+    // width split, decreasing scale
     //		 slightly (this needs some checking/thinking later through)
     //
     splitFillAreas(sf.areas, sf.width, sf.scale - 0.1);
@@ -2981,7 +2981,7 @@ void SvgRenderer::render_surfaceFill(Path& path,
                     sf.tXOffset,
                     sf.tYOffset);
 
-  // Get symbol positions withing the fill areas
+  // Get symbol positions within the fill areas
 
   surfaceFillPositions(surfaces, scope, surfaceName, areaSymbols, sf);
 
@@ -3946,7 +3946,7 @@ bool SvgRenderer::nonGroundSymbolPos(const libconfig::Setting& specs,
   if ((!condSpecs) && ((y > 0) && (y < axisManager->axisHeight())))
     visible = true;
 
-  // Move first and last time instant's symbols to keep them better withing the area
+  // Move first and last time instant's symbols to keep them better within the area
 
   bool isSet = false;
 
@@ -6396,7 +6396,7 @@ void scaleMarkers(Texts& texts,
 {
   // Currently simply scaling with current marker's scale instead of searching for scales down from
   // 1 until markers do not overlap,
-  // and without moving the scaled markers withing their original bbox
+  // and without moving the scaled markers within their original bbox
 
   NFmiFillRect r(std::make_pair(Point(mx - (markerWidth / 2.0), my - (markerHeight / 2.0)),
                                 Point(mx + (markerWidth / 2.0), my + (markerHeight / 2.0))));
@@ -7159,7 +7159,7 @@ void AreaMarkerPositioner::reserveMarker(const std::string& mId)
 
   // Note: Symbols are centered to the selected position, labels have their height as the rendered
   // y -coordinate (x is 0);
-  //		 adjust the position (used as tranformation offset) for a label to center it to the
+  //		 adjust the position (used as transformation offset) for a label to center it to the
   // selected position
 
   markerX.push_back(mx - (textOutput ? (markerWidth / 2.0) : 0));
@@ -8360,7 +8360,7 @@ void removeCurveElevations(ElevGrp& eGrp)
  *		and 'hasHole' is set to indicate whether the elevations have
  *		holes or not.
  *
- *		Returs true if the curve encapsulates a single elevation only.
+ *		Returns true if the curve encapsulates a single elevation only.
  *
  *		Note: The elevations included into the curve are deleted from
  *			  the underlying woml object collection.
@@ -9730,7 +9730,7 @@ void generateHoleElevation(ElevGrp& eGrp, ElevGrp::iterator& piteg, ElevGrp::ite
   iteg->isHole(true);
   iteg->groupNumber(piteg->groupNumber());
 
-  // Set the item iterator to point to the elevation preceeding the new elevation.
+  // Set the item iterator to point to the elevation preceding the new elevation.
 
   iteg--;
 }
@@ -9929,7 +9929,7 @@ bool SvgRenderer::checkHoleItem(ElevGrp& eGrp,
  * 		below (or by ground), above and on the right side.
  *
  *		The bounding above and below elevations are combined/stored to the 'above'
- *		elevations covering/filling the gaps inbetween and the gaps/holes are
+ *		elevations covering/filling the gaps in between and the gaps/holes are
  *		stored to the 'below' elevations. For holes touching ground new ('below')
  *		elevations are generated to store the holes.
  *
@@ -11206,7 +11206,7 @@ bool SvgRenderer::windSymbolY(const woml::GeophysicalParameterValue& pv,
 
   // Get scaled elevation
   //
-  // Note: Winds seem to have heights like 3500.5m, thus sligthly exceeding the configured
+  // Note: Winds seem to have heights like 3500.5m, thus slightly exceeding the configured
   //		 top elevation line 3500m etc; allow some tolerance to prevent
   // scaledElevation
   //		 ignoring the overflowing elevation
@@ -11247,7 +11247,7 @@ void SvgRenderer::render_firstWindSymbol(
       wr.windArrowOffsetsList.push_back(wr.windArrowOffsets);
   }
 
-  // Backgroud reference
+  // Background reference
   //
   if ((wr.nSymbols == 0) && (!wr.href.empty()))
     texts[wr.WINDBASE] << "<use transform=\"translate(" << bgXPos << ",0)\" xlink:href=\""
@@ -12244,7 +12244,7 @@ void SvgRenderer::render_valueBlock(const std::string& confPath,
   if (condSpecs)
     conditionValueSettings(*condSpecs, specs, valClass, vtype, asValue, vs);
 
-  // Wind speed is not rendered if format is empty (used to supress zero values)
+  // Wind speed is not rendered if format is empty (used to suppress zero values)
 
   if (asValue && vs.pref.empty())
     return;
@@ -12712,7 +12712,7 @@ double AxisManager::scaledElevation(double elevation,
 {
   // Find lo/hi limits for linear interpolation
   //
-  // svg y -axis grows downwards; use axis height to transfrom the y -coordinates
+  // svg y -axis grows downwards; use axis height to transform the y -coordinates
 
   if (elevation <= itsMinElevation)
     // Go below 0 (invisible) to avoid drawing along the X -axis

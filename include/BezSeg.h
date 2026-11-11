@@ -100,7 +100,7 @@ class BezSeg
   boolean bIsSecondLastSegment = false;
   boolean bIsLastSegment = false;
 
-  static constexpr double dt = 0.04;  // Bézier segment evalation step [0..1]
+  static constexpr double dt = 0.04;  // Bézier segment evaluation step [0..1]
   double tightness;
 
   boolean isChanged();

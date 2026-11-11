@@ -393,7 +393,7 @@ class ElevationGroupItem
   bool itsTopConnected;
   bool itsBottomConnected;
   bool itsLeftOpen;
-  std::optional<woml::Elevation> itsBottomConnection;  // Rigth side elevation
+  std::optional<woml::Elevation> itsBottomConnection;  // Right side elevation
   bool itsGenerated;                                   // Set for generated (below 0) elevation
   bool itsDeleted;  // Set when elevation is deleted from the underlying woml object collection
   std::optional<woml::Elevation> itsElevation;  // ZeroTolerance; generated below zero elevation
