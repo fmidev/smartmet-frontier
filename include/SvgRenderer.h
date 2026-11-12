@@ -8,24 +8,33 @@
 #define FRONTIER_SVGRENDERER_H
 
 #include "BezSeg.h"
+#include "NFmiFillMap.h"
 #include "Options.h"
 #include "Path.h"
-
-#include <woml/FeatureVisitor.h>
-#include <woml/GeophysicalParameterValueSet.h>
-#include <woml/MeasureValue.h>
-#include <woml/Point.h>
-#include <woml/TimeSeriesSlot.h>
-
+#include <boost/ptr_container/ptr_list.hpp>
 #include <boost/ptr_container/ptr_map.hpp>
 #include <macgyver/DateTime.h>
-#include <memory>
-
-#include <libconfig.h++>
-
+#include <woml/Elevation.h>
+#include <woml/FeatureVisitor.h>
+#include <woml/GeophysicalParameterValue.h>
+#include <woml/GeophysicalParameterValueSet.h>
+#include <woml/MeasureValue.h>
+#include <woml/ParameterTimeSeriesPoint.h>
+#include <woml/Point.h>
+#include <woml/TimeSeriesSlot.h>
+#include <cstddef>
 #include <functional>
+#include <iterator>
+#include <libconfig.h++>
+#include <list>
+#include <map>
+#include <memory>
+#include <optional>
+#include <set>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 class NFmiArea;
 class NFmiQueryData;
@@ -557,6 +566,7 @@ class SvgRenderer : public woml::FeatureVisitor
                    int* tXOffset = nullptr,      // I/O: area text's border x -offset
                    int* tYOffset = nullptr);     // I/O: area text's border y -offset
   struct SurfaceFill;
+
   bool surfaceScope(const libconfig::Setting& surfSpecs,
                     const std::string& confPath,
                     const std::string& surfaceName,
@@ -632,6 +642,7 @@ class SvgRenderer : public woml::FeatureVisitor
                                const std::string& confPath,
                                bool setVisibility = false);
   struct SymbolRendering;
+
   bool symbolLocaleScope(const libconfig::Setting& specs,
                          const std::string& confPath,
                          const std::string& _symCode,
@@ -705,6 +716,7 @@ class SvgRenderer : public woml::FeatureVisitor
     t_mixed
   } ElevationGroupType;
   struct ElevationGroupScan;
+
   bool elevationGroupMember(const ElevGrp& eGrp,
                             const woml::GeophysicalParameterValue& pv,
                             ElevationGroupScan& gs);
@@ -759,6 +771,7 @@ class SvgRenderer : public woml::FeatureVisitor
                      const ElevGrp::iterator& e1,
                      const ElevGrp::iterator& e2) const;
   struct HoleScan;
+
   void removeUnknownCategories(const std::list<woml::TimeSeriesSlot>& ts,
                                Fmi::DateTime& bt,
                                Fmi::DateTime& et,
@@ -802,6 +815,7 @@ class SvgRenderer : public woml::FeatureVisitor
                            bool& visible,
                            bool& aboveTop);
   struct CurveScan;
+
   void curveElevation(const ElevGrp::iterator& iteg,
                       int scaleHeightMin,
                       int scaleHeightRandom,
@@ -899,6 +913,7 @@ class SvgRenderer : public woml::FeatureVisitor
   void render_timeserie(const woml::SurfaceWeather& surfaceweather);
   struct WindRendering;
   struct WindSymbol;
+
   static WindSymbol windSymbolSettings(const libconfig::Setting& condSpecs,
                                        const libconfig::Setting& specs,
                                        const std::string& confPath);

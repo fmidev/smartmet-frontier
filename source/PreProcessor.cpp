@@ -6,8 +6,9 @@
 // ======================================================================
 
 #include "PreProcessor.h"
-
+#include <newbase/NFmiStringTools.h>
 #include <iostream>
+#include <sstream>
 #include <utility>
 
 using namespace std;
