@@ -11,7 +11,7 @@
 #include "Options.h"
 #include "Path.h"
 
-#include "smartmet/woml/FeatureVisitor.h"
+#include <woml/FeatureVisitor.h>
 #include <woml/GeophysicalParameterValueSet.h>
 #include <woml/MeasureValue.h>
 #include <woml/Point.h>
