@@ -43,7 +43,7 @@
 #define IMAGINE_NFMIFILLMAP_H
 
 #include "Point.h"
-#include <smartmet/newbase/NFmiGlobals.h>
+#include <newbase/NFmiGlobals.h>
 
 #include <algorithm>  // vector sorting
 #include <cmath>      // abs,min,max

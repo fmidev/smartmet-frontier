@@ -8,7 +8,7 @@
 #ifndef PREPROCESSOR_H
 #define PREPROCESSOR_H
 
-#include <smartmet/newbase/NFmiPreProcessor.h>
+#include <newbase/NFmiPreProcessor.h>
 
 #include <string>
 

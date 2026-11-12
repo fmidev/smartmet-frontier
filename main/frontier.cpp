@@ -9,16 +9,16 @@
 #include "PreProcessor.h"
 #include "SvgRenderer.h"
 
-#include <smartmet/newbase/NFmiArea.h>
-#include <smartmet/newbase/NFmiAreaFactory.h>
-#include <smartmet/newbase/NFmiPreProcessor.h>
-#include <smartmet/newbase/NFmiQueryData.h>
+#include <newbase/NFmiArea.h>
+#include <newbase/NFmiAreaFactory.h>
+#include <newbase/NFmiPreProcessor.h>
+#include <newbase/NFmiQueryData.h>
 
-#include <smartmet/woml/DataSource.h>
-#include <smartmet/woml/MeteorologicalAnalysis.h>
-#include <smartmet/woml/Parser.h>
-#include <smartmet/woml/TargetRegion.h>
-#include <smartmet/woml/WeatherForecast.h>
+#include <woml/DataSource.h>
+#include <woml/MeteorologicalAnalysis.h>
+#include <woml/Parser.h>
+#include <woml/TargetRegion.h>
+#include <woml/WeatherForecast.h>
 
 #include <libconfig.h++>
 

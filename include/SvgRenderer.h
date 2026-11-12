@@ -12,10 +12,10 @@
 #include "Path.h"
 
 #include "smartmet/woml/FeatureVisitor.h"
-#include <smartmet/woml/GeophysicalParameterValueSet.h>
-#include <smartmet/woml/MeasureValue.h>
-#include <smartmet/woml/Point.h>
-#include <smartmet/woml/TimeSeriesSlot.h>
+#include <woml/GeophysicalParameterValueSet.h>
+#include <woml/MeasureValue.h>
+#include <woml/Point.h>
+#include <woml/TimeSeriesSlot.h>
 
 #include <boost/ptr_container/ptr_map.hpp>
 #include <macgyver/DateTime.h>
